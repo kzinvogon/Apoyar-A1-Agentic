@@ -1,0 +1,28 @@
+{
+  "name": "A1 Support Dashboard",
+  "description": "Multi-tenant support dashboard with email processing",
+  "repository": "https://github.com/kzinvogon/Apoyar-A1-Agentic",
+  "logo": "https://via.placeholder.com/150x150/007bff/ffffff?text=A1",
+  "keywords": ["support", "dashboard", "multi-tenant", "tickets", "email"],
+  "success_url": "/",
+  "scripts": {
+    "postdeploy": "npm install"
+  },
+  "env": {
+    "NODE_ENV": {
+      "description": "Environment",
+      "value": "production"
+    },
+    "PORT": {
+      "description": "Port for the web server",
+      "value": "3000"
+    }
+  },
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "basic"
+    }
+  },
+  "addons": []
+}
