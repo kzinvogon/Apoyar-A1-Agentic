@@ -1,0 +1,15 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "username": "testadmin",
+      "password": "$2b$10$s3xpTHPCqTncLWnfPHVCQuA/eEkgdF0niimK/JwIecIxKqpmbACvS",
+      "role": "admin",
+      "name": "Admin User",
+      "email": "test@testcompany.com"
+    }
+  ],
+  "tickets": [],
+  "cmdb_items": [],
+  "cis_by_item": {}
+}
