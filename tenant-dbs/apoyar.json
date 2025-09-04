@@ -1,0 +1,66 @@
+{
+  "company_id": "apoyar",
+  "company_name": "Apoyar",
+  "users": [
+    {
+      "id": 1,
+      "username": "admin",
+      "password": "$2b$10$9uK/35IxdcWdB64wvBEZeOyi1BOlY4edOtISwOxtFCI7MnBciQ/t6",
+      "role": "admin",
+      "name": "apoyar Admin"
+    },
+    {
+      "id": 2,
+      "username": "expert",
+      "password": "$2b$10$8PpW7eb4rkCYzr3RfjwpFeyJpYlu5tBY2NT0eP7ykr50Pz/KVOrUS",
+      "role": "expert",
+      "name": "Support Expert"
+    },
+    {
+      "id": 3,
+      "username": "customer",
+      "password": "$2b$10$5VqmWdupnaca1yOXLgCK6eT19prpGpsX5vn9fOQFBv7zRyQaJSioi",
+      "role": "customer",
+      "name": "Customer User"
+    },
+    {
+      "id": 1756996882441,
+      "username": "test",
+      "email": "test@apoyar.com",
+      "password": "$2b$10$aI3p073718z5Ofq6yOviC.bBZoK7XuU5p1Flua2W9iKKwu1xhKLUK",
+      "role": "customer",
+      "name": "test",
+      "phone": "",
+      "isActive": true,
+      "needsAccountConfirmation": true,
+      "createdAt": "2025-09-04T14:41:22.482Z"
+    }
+  ],
+  "tickets": [
+    {
+      "id": 1756995788122,
+      "title": "Test Ticket",
+      "description": "This is a test ticket for Phase 3",
+      "priority": "High",
+      "status": "Open",
+      "customer": "Test Customer",
+      "assignee": "Unassigned",
+      "createdAt": "2025-09-04T14:23:08.122Z",
+      "updatedAt": "2025-09-04T14:23:08.122Z"
+    },
+    {
+      "id": 1756996882484,
+      "title": "Urgent Support Request",
+      "description": "This is an urgent support request from a customer. Please help immediately!",
+      "priority": "High",
+      "status": "Open",
+      "customer": "test",
+      "customerEmail": "test@apoyar.com",
+      "assignee": "Unassigned",
+      "source": "email",
+      "createdAt": "2025-09-04T14:41:22.484Z",
+      "updatedAt": "2025-09-04T14:41:22.484Z"
+    }
+  ],
+  "cmdb_items": []
+}

@@ -1,0 +1,61 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "username": "master",
+      "password": "master123",
+      "role": "master_admin",
+      "name": "Master Administrator"
+    },
+    {
+      "id": 2,
+      "username": "admin",
+      "password": "admin123",
+      "role": "admin",
+      "name": "System Administrator"
+    },
+    {
+      "id": 3,
+      "username": "expert",
+      "password": "password123",
+      "role": "expert",
+      "name": "Support Expert"
+    },
+    {
+      "id": 4,
+      "username": "customer",
+      "password": "password123",
+      "role": "customer",
+      "name": "Customer User"
+    },
+    {
+      "id": 5,
+      "username": "bleckmann",
+      "password": "customer123",
+      "role": "customer",
+      "name": "Bleckmann User"
+    }
+  ],
+  "tickets": [
+    {
+      "id": 1,
+      "title": "Server Performance Issue",
+      "description": "The production server is running slowly",
+      "status": "open",
+      "priority": "high",
+      "requester": "bleckmann",
+      "assignee": "expert",
+      "created": "2025-09-04T07:35:01.626Z"
+    }
+  ],
+  "cmdb": [
+    {
+      "id": 1,
+      "name": "Bleckmann Production Server",
+      "type": "server",
+      "status": "active",
+      "owner": "bleckmann",
+      "description": "Main production server for Bleckmann operations"
+    }
+  ]
+}

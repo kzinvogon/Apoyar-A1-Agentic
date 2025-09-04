@@ -1,0 +1,113 @@
+{
+  "tenants": [
+    {
+      "id": "apoyar",
+      "company_name": "Apoyar",
+      "company_code": "APO",
+      "status": "active",
+      "created_at": "2025-09-04T07:52:12.315Z",
+      "admin_user": "admin",
+      "admin_password": "admin123",
+      "tenantId": "apoyar",
+      "companyName": "Apoyar",
+      "adminUsername": "admin",
+      "adminEmail": "admin@apoyar.com",
+      "domain": "apoyar.com",
+      "emailProcessingEnabled": true,
+      "updatedAt": "2025-09-04T14:41:15.738Z"
+    },
+    {
+      "tenantId": "testcompany",
+      "companyName": "TestCompany",
+      "status": "active",
+      "createdAt": "2025-09-04T10:23:57.953Z",
+      "adminUsername": "testadmin",
+      "adminEmail": "test@testcompany.com",
+      "updatedAt": "2025-09-04T11:02:13.213Z"
+    }
+  ],
+  "master_users": [
+    {
+      "id": 1,
+      "username": "master",
+      "password": "$2b$10$JGkYNAmoP8W7J4Yzj/jGF.wvg4r0lL1bu1xwLuDEUC/VbvuBRNd66",
+      "role": "master_admin",
+      "name": "Master Administrator"
+    }
+  ],
+  "subscriptions": [
+    {
+      "id": "sub_1756982640267",
+      "tenantId": "test-company",
+      "tenantName": "Test Company",
+      "plan": "trial",
+      "status": "active",
+      "monthlyPrice": 0,
+      "billingCycle": "monthly",
+      "maxUsers": 3,
+      "maxTickets": 50,
+      "maxStorage": 1,
+      "features": [
+        "basic_sla",
+        "email_support"
+      ],
+      "currentUsers": 1,
+      "currentTickets": 0,
+      "currentStorage": 0,
+      "usagePercentage": 0,
+      "nextBillingDate": "2025-09-18T10:44:00.268Z",
+      "createdAt": "2025-09-04T10:44:00.268Z",
+      "previousPlan": null
+    },
+    {
+      "id": "sub_1756994009169",
+      "tenantId": "apoyar",
+      "tenantName": "Apoyar",
+      "plan": "starter",
+      "status": "active",
+      "monthlyPrice": 29,
+      "billingCycle": "monthly",
+      "maxUsers": 10,
+      "maxTickets": 500,
+      "maxStorage": 10,
+      "features": [
+        "standard_sla",
+        "email_chat_support",
+        "basic_analytics",
+        "3_integrations"
+      ],
+      "currentUsers": 1,
+      "currentTickets": 2,
+      "currentStorage": 0,
+      "usagePercentage": 10,
+      "nextBillingDate": "2025-10-04T13:53:29.169Z",
+      "trialEndDate": null,
+      "createdAt": "2025-09-04T13:53:29.169Z",
+      "previousPlan": null
+    },
+    {
+      "id": "sub_1756994019964",
+      "tenantId": "testcompany",
+      "tenantName": "TestCompany",
+      "plan": "trial",
+      "status": "active",
+      "monthlyPrice": 0,
+      "billingCycle": "monthly",
+      "maxUsers": 3,
+      "maxTickets": 50,
+      "maxStorage": 1,
+      "features": [
+        "basic_sla",
+        "email_support"
+      ],
+      "currentUsers": 1,
+      "currentTickets": 0,
+      "currentStorage": 0,
+      "usagePercentage": 0,
+      "nextBillingDate": "2025-09-23T13:53:39.965Z",
+      "trialEndDate": "2025-09-23T13:53:39.965Z",
+      "createdAt": "2025-09-04T13:53:39.965Z",
+      "previousPlan": null
+    }
+  ]
+}
