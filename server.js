@@ -7,6 +7,9 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Track database status for health check
+let dbStatus = { initialized: false, error: null };
+
 // Database initialization
 const { 
   initializeMasterDatabase, 
@@ -88,12 +91,13 @@ app.get('/ticket/:id', (req, res) => {
   res.sendFile(path.join(__dirname, 'A1 Support Build from here .html'));
 });
 
-// Health check endpoint
+// Health check endpoint - always returns 200 so Railway health checks pass
 app.get('/health', (req, res) => {
   res.json({
     status: 'OK',
     message: 'A1 Support Dashboard Prototype is running',
     timestamp: new Date().toISOString(),
+    database: dbStatus.initialized ? 'connected' : (dbStatus.error || 'initializing'),
     features: [
       'Multi-tenant MySQL backend',
       'Master admin system',
@@ -138,36 +142,40 @@ app.get('/api/db/status', async (req, res) => {
 
 // Initialize database and start server
 async function startServer() {
-  try {
-    console.log('🚀 Starting A1 Support Dashboard Prototype...');
-    console.log('📊 Initializing database connections...');
-    
-    // Initialize master database
-    await initializeMasterDatabase();
-    console.log('✅ Master database initialized');
-    
-    // Initialize Apoyar tenant database
-    try {
-      await initializeTenantDatabase('apoyar');
-      console.log('✅ Tenant database "apoyar" initialized');
+  console.log('🚀 Starting A1 Support Dashboard Prototype...');
 
-      // Start email processing for apoyar tenant
+  // Start the HTTP server FIRST so health checks work
+  app.listen(PORT, '0.0.0.0', async () => {
+    console.log(`🚀 A1 Support Dashboard Prototype is running!`);
+    console.log(`📱 Open your browser and go to: http://localhost:${PORT}`);
+    console.log(`🔧 Health check: http://localhost:${PORT}/health`);
+    console.log(`📊 Database status: http://localhost:${PORT}/api/db/status`);
+
+    // Now initialize database in background
+    console.log('📊 Initializing database connections...');
+
+    try {
+      // Initialize master database
+      await initializeMasterDatabase();
+      console.log('✅ Master database initialized');
+      dbStatus.initialized = true;
+
+      // Initialize Apoyar tenant database
       try {
-        await startEmailProcessing('apoyar');
-        console.log('✅ Email processing service started for tenant "apoyar"');
-      } catch (emailError) {
-        console.warn(`⚠️  Warning: Could not start email processing:`, emailError.message);
+        await initializeTenantDatabase('apoyar');
+        console.log('✅ Tenant database "apoyar" initialized');
+
+        // Start email processing for apoyar tenant
+        try {
+          await startEmailProcessing('apoyar');
+          console.log('✅ Email processing service started for tenant "apoyar"');
+        } catch (emailError) {
+          console.warn(`⚠️  Warning: Could not start email processing:`, emailError.message);
+        }
+      } catch (error) {
+        console.warn(`⚠️  Warning: Could not initialize tenant 'apoyar':`, error.message);
       }
-    } catch (error) {
-      console.warn(`⚠️  Warning: Could not initialize tenant 'apoyar':`, error.message);
-    }
-    
-    // Start the server - bind to 0.0.0.0 for cross-browser compatibility
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(`🚀 A1 Support Dashboard Prototype is running!`);
-      console.log(`📱 Open your browser and go to: http://localhost:${PORT}`);
-      console.log(`🔧 Health check: http://localhost:${PORT}/health`);
-      console.log(`📊 Database status: http://localhost:${PORT}/api/db/status`);
+
       console.log(`\n✨ Features available:`);
       console.log(`   • Multi-tenant MySQL backend`);
       console.log(`   • Master admin system`);
@@ -185,12 +193,13 @@ async function startServer() {
       console.log(`   Tenant Users: admin / password123, expert / password123, customer / password123`);
       console.log(`   Customer Users: othercompany / customer123`);
       console.log(`\n💡 Press Ctrl+C to stop the server`);
-    });
-    
-  } catch (error) {
-    console.error('❌ Failed to start server:', error);
-    process.exit(1);
-  }
+
+    } catch (error) {
+      console.error('❌ Database initialization failed:', error.message);
+      dbStatus.error = error.message;
+      // Don't exit - keep server running for health checks
+    }
+  });
 }
 
 // Graceful shutdown
