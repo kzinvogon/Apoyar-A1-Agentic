@@ -17,12 +17,37 @@ const {
 // Import routes
 const authRoutes = require('./routes/auth');
 const masterRoutes = require('./routes/master');
+const ticketRoutes = require('./routes/tickets');
+const cmdbRoutes = require('./routes/cmdb');
+const cmdbTypesRoutes = require('./routes/cmdb-types');
+const profileRoutes = require('./routes/profile');
+const emailIngestRoutes = require('./routes/email-ingest');
+const usageRoutes = require('./routes/usage');
+const analyticsRoutes = require('./routes/analytics');
+const chatbotRoutes = require('./routes/chatbot');
+const publicTicketRoutes = require('./routes/public-ticket');
+const expertsRoutes = require('./routes/experts');
+const customersRoutes = require('./routes/customers');
+const customerCompaniesRoutes = require('./routes/customer-companies');
+const ticketRulesRoutes = require('./routes/ticket-rules');
+const expertPermissionsRoutes = require('./routes/expert-permissions');
 
-// Middleware
-app.use(helmet());
+// Import email processor service
+const { startEmailProcessing } = require('./services/email-processor');
+
+// Import rate limiter
+const { apiLimiter } = require('./middleware/rateLimiter');
+
+// Middleware - Disable CSP for development
+app.use(helmet({
+  contentSecurityPolicy: false
+}));
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Apply global rate limiting to all API routes
+app.use('/api', apiLimiter);
 
 // Serve static files from the current directory
 app.use(express.static(__dirname));
@@ -30,16 +55,43 @@ app.use(express.static(__dirname));
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/master', masterRoutes);
+app.use('/api/tickets', ticketRoutes);
+app.use('/api/cmdb', cmdbRoutes);
+app.use('/api/cmdb-types', cmdbTypesRoutes);
+app.use('/api/profile', profileRoutes);
+app.use('/api/email-ingest', emailIngestRoutes);
+app.use('/api/usage', usageRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/chatbot', chatbotRoutes);
+app.use('/api/experts', expertsRoutes);
+app.use('/api/customers', customersRoutes);
+app.use('/api/customer-companies', customerCompaniesRoutes);
+app.use('/api/ticket-rules', ticketRulesRoutes);
+app.use('/api/expert-permissions', expertPermissionsRoutes);
+
+// Public routes (no authentication required) - Must be before authenticated routes
+app.use('/ticket', publicTicketRoutes);
 
 // Main route - serve the HTML file
 app.get('/', (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.sendFile(path.join(__dirname, 'A1 Support Build from here .html'));
+});
+
+// Ticket view route - serves HTML for email links
+app.get('/ticket/:id', (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
   res.sendFile(path.join(__dirname, 'A1 Support Build from here .html'));
 });
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
+  res.json({
+    status: 'OK',
     message: 'A1 Support Dashboard Prototype is running',
     timestamp: new Date().toISOString(),
     features: [
@@ -47,7 +99,9 @@ app.get('/health', (req, res) => {
       'Master admin system',
       'Role-based authentication',
       'Tenant isolation',
-      'Real-time SLA tracking'
+      'Real-time SLA tracking',
+      'Rate limiting protection',
+      'Input validation'
     ]
   });
 });
@@ -92,17 +146,24 @@ async function startServer() {
     await initializeMasterDatabase();
     console.log('✅ Master database initialized');
     
-    // Initialize Apoyar tenant database (Bleckmann is a customer within this tenant)
+    // Initialize Apoyar tenant database
     try {
       await initializeTenantDatabase('apoyar');
       console.log('✅ Tenant database "apoyar" initialized');
-      console.log('🏢 Bleckmann configured as a customer within Apoyar tenant');
+
+      // Start email processing for apoyar tenant
+      try {
+        await startEmailProcessing('apoyar');
+        console.log('✅ Email processing service started for tenant "apoyar"');
+      } catch (emailError) {
+        console.warn(`⚠️  Warning: Could not start email processing:`, emailError.message);
+      }
     } catch (error) {
       console.warn(`⚠️  Warning: Could not initialize tenant 'apoyar':`, error.message);
     }
     
-    // Start the server
-    app.listen(PORT, () => {
+    // Start the server - bind to 0.0.0.0 for cross-browser compatibility
+    app.listen(PORT, '0.0.0.0', () => {
       console.log(`🚀 A1 Support Dashboard Prototype is running!`);
       console.log(`📱 Open your browser and go to: http://localhost:${PORT}`);
       console.log(`🔧 Health check: http://localhost:${PORT}/health`);
@@ -114,15 +175,15 @@ async function startServer() {
       console.log(`   • Tenant isolation`);
       console.log(`   • Real-time SLA tracking`);
       console.log(`   • CMDB management`);
+      console.log(`   • Email ingest and ticket automation`);
       console.log(`   • Interactive chatbot`);
       console.log(`\n🏗️  Architecture:`);
       console.log(`   • Master DB: a1_master (system management)`);
       console.log(`   • Tenant DB: a1_tenant_apoyar (Apoyar company)`);
-      console.log(`   • Customer: Bleckmann (within Apoyar tenant)`);
       console.log(`\n🔐 Default Credentials:`);
       console.log(`   Master Admin: admin / admin123`);
       console.log(`   Tenant Users: admin / password123, expert / password123, customer / password123`);
-      console.log(`   Customer Users: bleckmann / customer123, othercompany / customer123`);
+      console.log(`   Customer Users: othercompany / customer123`);
       console.log(`\n💡 Press Ctrl+C to stop the server`);
     });
     

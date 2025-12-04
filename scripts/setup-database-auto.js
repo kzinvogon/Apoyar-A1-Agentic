@@ -62,7 +62,7 @@ async function setupDatabase() {
     console.log('   • Tenant database: a1_tenant_apoyar');
     console.log('   • Master admin: admin / admin123');
     console.log('   • Tenant users: admin / password123, expert / password123, customer / password123');
-    console.log('   • Customer users: bleckmann / customer123, othercompany / customer123');
+    console.log('   • Customer users: othercompany / customer123');
     console.log('\n🚀 You can now run: npm start');
 
   } catch (error) {
@@ -336,9 +336,8 @@ async function createTenantTables(host, port, dbUser, dbPass) {
     `, [username, passwordHash, role, email, fullName]);
   }
 
-  // Insert sample customers (including Bleckmann)
+  // Insert sample customers
   const customers = [
-    ['bleckmann', 'Bleckmann Bleckmann', 'bleckmann@bleckmann.com', '+1234567890', 'Bleckmann Address'],
     ['othercompany', 'Other Company Ltd', 'contact@othercompany.com', '+0987654321', 'Other Company Address']
   ];
 
@@ -356,53 +355,12 @@ async function createTenantTables(host, port, dbUser, dbPass) {
 
     if (userResult.length > 0) {
       const userId = userResult[0].id;
-      
+
       // Create customer profile
       await tenantConnection.execute(`
         INSERT IGNORE INTO customers (user_id, company_name, contact_phone, address, sla_level)
         VALUES (?, ?, ?, ?, ?)
       `, [userId, fullName, phone, address, 'premium']);
-    }
-  }
-
-  // Insert sample CMDB items for Bleckmann
-  const [bleckmannUser] = await tenantConnection.execute(
-    'SELECT id FROM users WHERE username = ?', ['bleckmann']
-  );
-
-  if (bleckmannUser.length > 0) {
-    const bleckmannUserId = bleckmannUser[0].id;
-    
-    // Create CMDB item for Bleckmann
-    await tenantConnection.execute(`
-      INSERT IGNORE INTO cmdb_items (name, type, status, owner_id, description)
-      VALUES (?, ?, ?, ?, ?)
-    `, ['Bleckmann Production Server', 'server', 'active', bleckmannUserId, 'Main production server for Bleckmann operations']);
-
-    // Get the CMDB item ID
-    const [cmdbResult] = await tenantConnection.execute(
-      'SELECT id FROM cmdb_items WHERE name = ?', ['Bleckmann Production Server']
-    );
-
-    if (cmdbResult.length > 0) {
-      const cmdbItemId = cmdbResult[0].id;
-      
-      // Create configuration items
-      const configItems = [
-        ['server_name', 'bleckmann-prod-01', 'string'],
-        ['ip_address', '192.168.1.100', 'string'],
-        ['os_version', 'Ubuntu 20.04 LTS', 'string'],
-        ['cpu_cores', '8', 'number'],
-        ['memory_gb', '32', 'number'],
-        ['disk_space_gb', '500', 'number']
-      ];
-
-      for (const [keyName, value, dataType] of configItems) {
-        await tenantConnection.execute(`
-          INSERT IGNORE INTO configuration_items (cmdb_item_id, key_name, value, data_type)
-          VALUES (?, ?, ?, ?)
-        `, [cmdbItemId, keyName, value, dataType]);
-      }
     }
   }
 

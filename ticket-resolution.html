@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ticket Resolution - A1 Support</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      padding: 40px;
+      margin-bottom: 20px;
+    }
+
+    .title {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: #1a202c;
+    }
+
+    .subtitle {
+      color: #718096;
+      margin-bottom: 24px;
+      font-size: 14px;
+    }
+
+    .ticket-info {
+      background: #f7fafc;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 24px;
+    }
+
+    .info-row {
+      display: flex;
+      padding: 8px 0;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .info-row:last-child {
+      border-bottom: none;
+    }
+
+    .info-label {
+      font-weight: 600;
+      width: 150px;
+      color: #4a5568;
+    }
+
+    .info-value {
+      flex: 1;
+      color: #1a202c;
+    }
+
+    .btn {
+      padding: 14px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-right: 12px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(72, 187, 120, 0.3);
+    }
+
+    .btn-danger {
+      background: linear-gradient(135deg, #f56565 0%, #e53e3e 100%);
+      color: white;
+    }
+
+    .btn-danger:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(245, 101, 101, 0.3);
+    }
+
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: #2d3748;
+    }
+
+    select, textarea {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+    }
+
+    textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
+
+    select:focus, textarea:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .message {
+      padding: 16px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      display: none;
+    }
+
+    .message.success {
+      background: #d1fae5;
+      color: #059669;
+      border: 1px solid #6ee7b7;
+    }
+
+    .message.error {
+      background: #fef2f2;
+      color: #dc2626;
+      border: 1px solid #fecaca;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .rating-stars {
+      display: flex;
+      gap: 10px;
+      margin: 20px 0;
+    }
+
+    .star {
+      font-size: 48px;
+      cursor: pointer;
+      color: #e2e8f0;
+      transition: all 0.2s;
+      user-select: none;
+    }
+
+    .star:hover,
+    .star.active {
+      color: #fbbf24;
+      transform: scale(1.1);
+    }
+
+    .csat-container {
+      text-align: center;
+      padding: 40px 20px;
+    }
+
+    .csat-title {
+      font-size: 24px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: #1a202c;
+    }
+
+    .csat-subtitle {
+      color: #718096;
+      margin-bottom: 32px;
+    }
+
+    .thank-you {
+      text-align: center;
+      padding: 60px 20px;
+    }
+
+    .thank-you-icon {
+      font-size: 72px;
+      margin-bottom: 24px;
+    }
+
+    .thank-you-title {
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      color: #1a202c;
+    }
+
+    .thank-you-text {
+      font-size: 18px;
+      color: #718096;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Loading State -->
+    <div id="loading" class="card">
+      <h1 class="title">Loading...</h1>
+      <p class="subtitle">Please wait while we load your ticket information.</p>
+    </div>
+
+    <!-- Ticket Resolution View -->
+    <div id="resolution-view" class="card hidden">
+      <h1 class="title">Ticket Resolution Review</h1>
+      <p class="subtitle">Please review the resolution and let us know if it meets your expectations.</p>
+
+      <div id="message" class="message"></div>
+
+      <div class="ticket-info" id="ticket-info">
+        <div class="info-row">
+          <div class="info-label">Ticket ID:</div>
+          <div class="info-value" id="ticket-id">-</div>
+        </div>
+        <div class="info-row">
+          <div class="info-label">Title:</div>
+          <div class="info-value" id="ticket-title">-</div>
+        </div>
+        <div class="info-row">
+          <div class="info-label">Status:</div>
+          <div class="info-value" id="ticket-status">-</div>
+        </div>
+        <div class="info-row">
+          <div class="info-label">Description:</div>
+          <div class="info-value" id="ticket-description">-</div>
+        </div>
+        <div class="info-row" id="resolved-by-row" style="display:none">
+          <div class="info-label">Resolved By:</div>
+          <div class="info-value" id="ticket-resolved-by">-</div>
+        </div>
+        <div class="info-row" id="resolution-comment-row" style="display:none">
+          <div class="info-label">Resolution Notes:</div>
+          <div class="info-value" id="ticket-resolution-comment" style="white-space: pre-wrap;">-</div>
+        </div>
+      </div>
+
+      <!-- Accept/Reject Buttons -->
+      <div id="action-buttons">
+        <button class="btn btn-primary" onclick="acceptResolution()">✓ Accept Resolution</button>
+        <button class="btn btn-danger" onclick="showRejectForm()">✗ Reject Resolution</button>
+      </div>
+
+      <!-- Rejection Form -->
+      <div id="reject-form" class="hidden">
+        <h3 style="margin-bottom:20px">Why are you rejecting this resolution?</h3>
+        <div class="form-group">
+          <label>Reason:</label>
+          <select id="rejection-reason">
+            <option value="">Select a reason...</option>
+            <option value="Issue not resolved">Issue not resolved</option>
+            <option value="Incomplete solution">Incomplete solution</option>
+            <option value="Need more information">Need more information</option>
+            <option value="Different issue">This is a different issue</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Additional Details (minimum 10 characters):</label>
+          <textarea id="rejection-comment" placeholder="Please provide detailed information about why you're rejecting this resolution..."></textarea>
+        </div>
+        <div>
+          <button class="btn btn-danger" onclick="submitRejection()">Submit Rejection</button>
+          <button class="btn" style="background:#e2e8f0;color:#4a5568" onclick="hideRejectForm()">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- CSAT Rating View -->
+    <div id="csat-view" class="card hidden">
+      <div class="csat-container">
+        <div class="csat-title">How would you rate your support experience?</div>
+        <div class="csat-subtitle">Your feedback helps us improve our service</div>
+
+        <div class="rating-stars" id="rating-stars">
+          <span class="star" data-rating="1" onclick="selectRating(1)">★</span>
+          <span class="star" data-rating="2" onclick="selectRating(2)">★</span>
+          <span class="star" data-rating="3" onclick="selectRating(3)">★</span>
+          <span class="star" data-rating="4" onclick="selectRating(4)">★</span>
+          <span class="star" data-rating="5" onclick="selectRating(5)">★</span>
+        </div>
+
+        <div class="form-group" style="margin-top:32px">
+          <label>Additional Comments (optional):</label>
+          <textarea id="csat-comment" placeholder="Tell us more about your experience..."></textarea>
+        </div>
+
+        <button class="btn btn-primary" onclick="submitCSAT()" id="submit-csat" disabled>Submit Feedback</button>
+      </div>
+    </div>
+
+    <!-- Thank You View -->
+    <div id="thank-you-view" class="card hidden">
+      <div class="thank-you">
+        <div class="thank-you-icon">🎉</div>
+        <h1 class="thank-you-title">Thank You!</h1>
+        <p class="thank-you-text">Your feedback has been submitted successfully.</p>
+        <p class="thank-you-text" style="margin-top:16px">We appreciate your time and will use your feedback to improve our service.</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let selectedRating = 0;
+    let ticketToken = '';
+    let tenantCode = '';
+    let ticketId = '';
+
+    // Extract token from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    ticketToken = urlParams.get('token');
+
+    if (!ticketToken) {
+      document.getElementById('loading').innerHTML = '<h1 class="title">Invalid Link</h1><p class="subtitle">This ticket resolution link is invalid or has expired.</p>';
+    } else {
+      loadTicketInfo();
+    }
+
+    async function loadTicketInfo() {
+      try {
+        // Decode token to get basic info
+        const decoded = atob(ticketToken);
+        [tenantCode, ticketId] = decoded.split(':');
+
+        // Fetch ticket details from public endpoint
+        const response = await fetch(`http://localhost:3000/api/tickets/public/${ticketToken}/details`);
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.ticket) {
+            const ticket = data.ticket;
+            document.getElementById('ticket-id').textContent = `#${ticket.id}`;
+            document.getElementById('ticket-title').textContent = ticket.title || 'No title';
+            document.getElementById('ticket-status').textContent = ticket.status || 'Unknown';
+            document.getElementById('ticket-description').textContent = ticket.description || 'No description provided';
+
+            // Show resolution information if available
+            if (ticket.resolved_by_name) {
+              document.getElementById('ticket-resolved-by').textContent = ticket.resolved_by_name;
+              document.getElementById('resolved-by-row').style.display = 'flex';
+            }
+
+            if (ticket.resolution_comment) {
+              document.getElementById('ticket-resolution-comment').textContent = ticket.resolution_comment;
+              document.getElementById('resolution-comment-row').style.display = 'flex';
+            }
+
+            // Show the resolution view
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('resolution-view').classList.remove('hidden');
+          } else {
+            throw new Error(data.message || 'Failed to load ticket');
+          }
+        } else {
+          throw new Error('Failed to fetch ticket details');
+        }
+      } catch (error) {
+        console.error('Error loading ticket:', error);
+        document.getElementById('loading').innerHTML = '<h1 class="title">Error Loading Ticket</h1><p class="subtitle">Unable to load ticket details. The link may be invalid or expired.</p>';
+      }
+    }
+
+    function showMessage(text, type) {
+      const msg = document.getElementById('message');
+      msg.textContent = text;
+      msg.className = `message ${type}`;
+      msg.style.display = 'block';
+    }
+
+    function showRejectForm() {
+      document.getElementById('action-buttons').classList.add('hidden');
+      document.getElementById('reject-form').classList.remove('hidden');
+    }
+
+    function hideRejectForm() {
+      document.getElementById('action-buttons').classList.remove('hidden');
+      document.getElementById('reject-form').classList.add('hidden');
+    }
+
+    async function acceptResolution() {
+      try {
+        const response = await fetch(`http://localhost:3000/api/tickets/public/${ticketToken}/accept`, {
+          method: 'POST'
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          // Show CSAT view
+          document.getElementById('resolution-view').classList.add('hidden');
+          document.getElementById('csat-view').classList.remove('hidden');
+        } else {
+          showMessage(data.message || 'Failed to accept resolution', 'error');
+        }
+      } catch (error) {
+        showMessage('An error occurred. Please try again.', 'error');
+      }
+    }
+
+    async function submitRejection() {
+      const reason = document.getElementById('rejection-reason').value;
+      const comment = document.getElementById('rejection-comment').value;
+
+      if (!reason) {
+        showMessage('Please select a reason for rejection', 'error');
+        return;
+      }
+
+      if (!comment || comment.trim().length < 10) {
+        showMessage('Please provide detailed comments (minimum 10 characters)', 'error');
+        return;
+      }
+
+      try {
+        const response = await fetch(`http://localhost:3000/api/tickets/public/${ticketToken}/reject`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ reason, comment })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          document.getElementById('resolution-view').classList.add('hidden');
+          document.getElementById('thank-you-view').classList.remove('hidden');
+          document.querySelector('.thank-you-title').textContent = 'Rejection Submitted';
+          document.querySelector('.thank-you-text').textContent = 'The support team has been notified and will review your feedback.';
+        } else {
+          showMessage(data.message || 'Failed to submit rejection', 'error');
+        }
+      } catch (error) {
+        showMessage('An error occurred. Please try again.', 'error');
+      }
+    }
+
+    function selectRating(rating) {
+      selectedRating = rating;
+      const stars = document.querySelectorAll('.star');
+      stars.forEach((star, index) => {
+        if (index < rating) {
+          star.classList.add('active');
+        } else {
+          star.classList.remove('active');
+        }
+      });
+      document.getElementById('submit-csat').disabled = false;
+    }
+
+    async function submitCSAT() {
+      if (selectedRating === 0) {
+        alert('Please select a rating');
+        return;
+      }
+
+      const comment = document.getElementById('csat-comment').value;
+
+      try {
+        const response = await fetch(`http://localhost:3000/api/tickets/public/${ticketToken}/csat`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ rating: selectedRating, comment })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          document.getElementById('csat-view').classList.add('hidden');
+          document.getElementById('thank-you-view').classList.remove('hidden');
+        } else {
+          alert(data.message || 'Failed to submit feedback');
+        }
+      } catch (error) {
+        alert('An error occurred. Please try again.');
+      }
+    }
+  </script>
+</body>
+</html>

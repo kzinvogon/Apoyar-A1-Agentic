@@ -2,7 +2,15 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { getMasterConnection, getTenantConnection } = require('../config/database');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'a1-support-secret-key-2024';
+// JWT_SECRET is required - application will fail if not set
+if (!process.env.JWT_SECRET) {
+  console.error('FATAL ERROR: JWT_SECRET environment variable is not set.');
+  console.error('Please set JWT_SECRET in your .env file.');
+  console.error('Generate a secure secret with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"');
+  process.exit(1);
+}
+
+const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = '24h';
 
 // Master user authentication
@@ -85,9 +93,10 @@ async function authenticateTenantUser(tenantCode, username, password) {
         return { success: false, message: 'Invalid credentials' };
       }
 
-      // Update last login
+      // Note: last_login column doesn't exist in users table
+      // Update timestamp to track last activity
       await connection.query(
-        'UPDATE users SET last_login = NOW() WHERE id = ?',
+        'UPDATE users SET updated_at = NOW() WHERE id = ?',
         [user.id]
       );
 

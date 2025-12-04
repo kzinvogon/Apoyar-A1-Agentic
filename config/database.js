@@ -106,12 +106,16 @@ async function initializeMasterDatabase() {
         const [existingAdmin] = await connection.query('SELECT id FROM master_users WHERE username = ?', ['admin']);
         if (existingAdmin.length === 0) {
           const bcrypt = require('bcrypt');
-          const hashedPassword = await bcrypt.hash('admin123', 10);
+          const defaultPassword = process.env.DEFAULT_MASTER_PASSWORD || 'CHANGE_ME_IMMEDIATELY';
+          const hashedPassword = await bcrypt.hash(defaultPassword, 10);
           await connection.query(
             'INSERT INTO master_users (username, password_hash, role, email, full_name) VALUES (?, ?, ?, ?, ?)',
             ['admin', hashedPassword, 'super_admin', 'admin@a1support.com', 'Master Administrator']
           );
-          console.log('👑 Default master admin created (username: admin, password: admin123)');
+          console.log('👑 Default master admin created (username: admin)');
+          if (!process.env.DEFAULT_MASTER_PASSWORD) {
+            console.warn('⚠️  WARNING: Using default password. Set DEFAULT_MASTER_PASSWORD in .env!');
+          }
         }
       }
       
@@ -202,12 +206,16 @@ async function createMasterTables(connection) {
   const [existingAdmin] = await connection.query('SELECT id FROM master_users WHERE username = ?', ['admin']);
   if (existingAdmin.length === 0) {
     const bcrypt = require('bcrypt');
-    const hashedPassword = await bcrypt.hash('admin123', 10);
+    const defaultPassword = process.env.DEFAULT_MASTER_PASSWORD || 'CHANGE_ME_IMMEDIATELY';
+    const hashedPassword = await bcrypt.hash(defaultPassword, 10);
     await connection.query(
       'INSERT INTO master_users (username, email, password_hash, full_name, role) VALUES (?, ?, ?, ?, ?)',
       ['admin', 'admin@a1master.com', hashedPassword, 'Master Administrator', 'super_admin']
     );
-    console.log('👑 Default master admin created (username: admin, password: admin123)');
+    console.log('👑 Default master admin created (username: admin)');
+    if (!process.env.DEFAULT_MASTER_PASSWORD) {
+      console.warn('⚠️  WARNING: Using default password. Set DEFAULT_MASTER_PASSWORD in .env!');
+    }
   }
 }
 
@@ -280,6 +288,16 @@ async function createTenantTables(connection, tenantCode) {
       role ENUM('admin', 'expert', 'customer') NOT NULL,
       is_active BOOLEAN DEFAULT TRUE,
       last_login DATETIME,
+      phone VARCHAR(50),
+      department VARCHAR(100),
+      location VARCHAR(100),
+      street_address VARCHAR(255),
+      city VARCHAR(100),
+      state VARCHAR(100),
+      postcode VARCHAR(20),
+      country VARCHAR(100),
+      timezone VARCHAR(50),
+      language VARCHAR(50),
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     );
@@ -309,31 +327,45 @@ async function createTenantTables(connection, tenantCode) {
     CREATE TABLE IF NOT EXISTS cmdb_items (
       id INT PRIMARY KEY AUTO_INCREMENT,
       cmdb_id VARCHAR(50) UNIQUE NOT NULL,
-      name VARCHAR(255) NOT NULL,
-      description TEXT,
-      category VARCHAR(100),
+      asset_name VARCHAR(255) NOT NULL,
+      asset_category VARCHAR(100) NOT NULL,
+      category_field_value VARCHAR(255),
+      brand_name VARCHAR(100),
+      model_name VARCHAR(100),
+      customer_name VARCHAR(255),
+      employee_of VARCHAR(255),
+      asset_location VARCHAR(255),
+      comment TEXT,
       status ENUM('active', 'inactive', 'maintenance') DEFAULT 'active',
       created_by INT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      FOREIGN KEY (created_by) REFERENCES users(id)
+      FOREIGN KEY (created_by) REFERENCES users(id),
+      INDEX idx_customer_name (customer_name),
+      INDEX idx_asset_category (asset_category)
     );
 
     CREATE TABLE IF NOT EXISTS configuration_items (
       id INT PRIMARY KEY AUTO_INCREMENT,
       ci_id VARCHAR(50) UNIQUE NOT NULL,
       cmdb_item_id INT NOT NULL,
-      name VARCHAR(255) NOT NULL,
+      ci_name VARCHAR(255) NOT NULL,
       asset_category VARCHAR(100),
-      asset_category_field_name VARCHAR(100),
-      field_value TEXT,
+      category_field_value VARCHAR(255),
       brand_name VARCHAR(100),
+      model_name VARCHAR(100),
+      serial_number VARCHAR(100),
+      asset_location VARCHAR(255),
+      employee_of VARCHAR(255),
       comment TEXT,
+      status ENUM('active', 'inactive', 'maintenance') DEFAULT 'active',
       created_by INT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      FOREIGN KEY (cmdb_item_id) REFERENCES cmdb_items(id),
-      FOREIGN KEY (created_by) REFERENCES users(id)
+      FOREIGN KEY (cmdb_item_id) REFERENCES cmdb_items(id) ON DELETE CASCADE,
+      FOREIGN KEY (created_by) REFERENCES users(id),
+      INDEX idx_cmdb_item (cmdb_item_id),
+      INDEX idx_asset_category (asset_category)
     );
 
     CREATE TABLE IF NOT EXISTS tickets (
@@ -341,7 +373,7 @@ async function createTenantTables(connection, tenantCode) {
       ticket_number INT UNIQUE NOT NULL,
       title VARCHAR(255) NOT NULL,
       description TEXT,
-      priority ENUM('Low', 'Normal', 'High', 'Critical') DEFAULT 'Normal',
+      priority ENUM('low', 'medium', 'high', 'critical') DEFAULT 'medium',
       status ENUM('Open', 'In Progress', 'Pending', 'Resolved', 'Closed') DEFAULT 'Open',
       assignee_id INT,
       customer_id INT NOT NULL,
@@ -383,6 +415,29 @@ async function createTenantTables(connection, tenantCode) {
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users(id)
     );
+
+    CREATE TABLE IF NOT EXISTS ticket_access_tokens (
+      id INT PRIMARY KEY AUTO_INCREMENT,
+      ticket_id INT NOT NULL,
+      token VARCHAR(64) UNIQUE NOT NULL,
+      expires_at DATETIME NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      last_accessed_at DATETIME,
+      access_count INT DEFAULT 0,
+      FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE,
+      INDEX idx_token (token),
+      INDEX idx_ticket_id (ticket_id),
+      INDEX idx_expires_at (expires_at)
+    );
+
+    CREATE TABLE IF NOT EXISTS tenant_settings (
+      id INT PRIMARY KEY AUTO_INCREMENT,
+      setting_key VARCHAR(100) UNIQUE NOT NULL,
+      setting_value TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_setting_key (setting_key)
+    );
   `;
 
   const statements = createTablesSQL.split(';').filter(stmt => stmt.trim());
@@ -396,27 +451,31 @@ async function createTenantTables(connection, tenantCode) {
   const [existingUsers] = await connection.query('SELECT COUNT(*) as count FROM users');
   if (existingUsers[0].count === 0) {
     const bcrypt = require('bcrypt');
-    const hashedPassword = await bcrypt.hash('password123', 10);
-    
+    const defaultPassword = process.env.DEFAULT_TENANT_PASSWORD || 'CHANGE_ME_IMMEDIATELY';
+    const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+
     // Insert default admin user
     await connection.query(
       'INSERT INTO users (username, email, password_hash, full_name, role) VALUES (?, ?, ?, ?, ?)',
       ['admin', `admin@${tenantCode}.com`, hashedPassword, `${tenantCode} Administrator`, 'admin']
     );
-    
+
     // Insert default expert user
     await connection.query(
       'INSERT INTO users (username, email, password_hash, full_name, role) VALUES (?, ?, ?, ?, ?)',
       ['expert', `expert@${tenantCode}.com`, hashedPassword, `${tenantCode} Expert`, 'expert']
     );
-    
+
     // Insert default customer user
     await connection.query(
       'INSERT INTO users (username, email, password_hash, full_name, role) VALUES (?, ?, ?, ?, ?)',
       ['customer', `customer@${tenantCode}.com`, hashedPassword, `${tenantCode} Customer`, 'customer']
     );
-    
-    console.log(`👥 Default users created for tenant ${tenantCode} (password: password123)`);
+
+    console.log(`👥 Default users created for tenant ${tenantCode}`);
+    if (!process.env.DEFAULT_TENANT_PASSWORD) {
+      console.warn('⚠️  WARNING: Using default password. Set DEFAULT_TENANT_PASSWORD in .env!');
+    }
   }
 }
 
