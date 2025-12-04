@@ -1,0 +1,19 @@
+[build]
+  # Build command - install dependencies
+  command = "npm install"
+  # Publish directory - serve the HTML file
+  publish = "."
+
+# Redirect all requests to the main HTML file for SPA behavior
+[[redirects]]
+  from = "/*"
+  to = "/A1 Support Build from here .html"
+  status = 200
+
+# Headers for security and caching
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
