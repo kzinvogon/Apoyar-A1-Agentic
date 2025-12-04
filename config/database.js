@@ -50,13 +50,13 @@ async function getTenantConnection(tenantCode) {
       }
 
       const tenant = rows[0];
-      
-      // Create tenant database connection pool
+
+      // Create tenant database connection pool - use Railway MySQL vars as fallback
       const tenantConfig = {
-        host: process.env.MASTER_DB_HOST || 'localhost',
-        port: process.env.MASTER_DB_PORT || 3306,
-        user: tenant.database_user,
-        password: tenant.database_password,
+        host: process.env.MASTER_DB_HOST || process.env.MYSQLHOST || 'localhost',
+        port: process.env.MASTER_DB_PORT || process.env.MYSQLPORT || 3306,
+        user: tenant.database_user || process.env.MYSQLUSER,
+        password: tenant.database_password || process.env.MYSQLPASSWORD,
         database: tenant.database_name,
         waitForConnections: true,
         connectionLimit: 5,
