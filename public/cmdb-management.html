@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CMDB Management - A1 Support</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: #f5f7fa;
+      padding: 20px;
+    }
+
+    .container { max-width: 1400px; margin: 0 auto; }
+
+    .header {
+      background: white;
+      padding: 24px;
+      border-radius: 8px;
+      margin-bottom: 24px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .header h1 {
+      font-size: 28px;
+      color: #1a202c;
+      margin-bottom: 8px;
+    }
+
+    .header p {
+      color: #718096;
+      font-size: 14px;
+    }
+
+    .toolbar {
+      background: white;
+      padding: 16px 24px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .toolbar-left {
+      display: flex;
+      gap: 12px;
+      flex: 1;
+      flex-wrap: wrap;
+    }
+
+    .toolbar-right {
+      display: flex;
+      gap: 12px;
+    }
+
+    .search-box {
+      padding: 10px 16px;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      font-size: 14px;
+      min-width: 250px;
+    }
+
+    .select-box {
+      padding: 10px 16px;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      font-size: 14px;
+      min-width: 180px;
+      background: white;
+    }
+
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-success {
+      background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+      color: white;
+    }
+
+    .btn-success:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(72, 187, 120, 0.4);
+    }
+
+    .btn-danger {
+      background: linear-gradient(135deg, #f56565 0%, #e53e3e 100%);
+      color: white;
+    }
+
+    .btn-secondary {
+      background: #e2e8f0;
+      color: #4a5568;
+    }
+
+    .btn-sm {
+      padding: 6px 12px;
+      font-size: 13px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+
+    .table-container {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    thead {
+      background: #f7fafc;
+    }
+
+    th {
+      padding: 12px 16px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 13px;
+      color: #4a5568;
+      border-bottom: 2px solid #e2e8f0;
+    }
+
+    td {
+      padding: 12px 16px;
+      border-bottom: 1px solid #f7fafc;
+      font-size: 14px;
+      color: #2d3748;
+    }
+
+    tbody tr:hover {
+      background: #f7fafc;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .badge-active { background: #c6f6d5; color: #22543d; }
+    .badge-inactive { background: #fed7d7; color: #742a2a; }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal.active { display: flex; }
+
+    .modal-content {
+      background: white;
+      border-radius: 12px;
+      padding: 32px;
+      max-width: 800px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .modal-header {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 24px;
+      color: #1a202c;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      font-size: 14px;
+      color: #2d3748;
+    }
+
+    .form-label.required::after {
+      content: ' *';
+      color: #f56565;
+    }
+
+    .form-input, .form-textarea, .form-select {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: inherit;
+    }
+
+    .form-textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+
+    .form-input:focus, .form-textarea:focus, .form-select:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      margin-top: 24px;
+      padding-top: 24px;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #718096;
+    }
+
+    .empty-state-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+
+    .file-upload {
+      border: 2px dashed #e2e8f0;
+      border-radius: 8px;
+      padding: 40px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .file-upload:hover {
+      border-color: #667eea;
+      background: #f7fafc;
+    }
+
+    .file-upload input {
+      display: none;
+    }
+
+    .ci-list {
+      background: #f7fafc;
+      border-radius: 8px;
+      padding: 16px;
+      margin-top: 16px;
+    }
+
+    .ci-item {
+      background: white;
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #718096;
+    }
+
+    @media (max-width: 768px) {
+      .form-row {
+        grid-template-columns: 1fr;
+      }
+
+      .toolbar {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .toolbar-left, .toolbar-right {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>CMDB Management</h1>
+      <p>Manage Configuration Management Database items and their associated Configuration Items</p>
+    </div>
+
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <input type="text" id="searchInput" class="search-box" placeholder="Search assets...">
+        <select id="categoryFilter" class="select-box">
+          <option value="">All Categories</option>
+        </select>
+        <select id="customerFilter" class="select-box">
+          <option value="">All Customers</option>
+        </select>
+      </div>
+      <div class="toolbar-right">
+        <button class="btn btn-success" onclick="openImportModal()">
+          📥 Import CSV
+        </button>
+        <button class="btn btn-primary" onclick="openCreateModal()">
+          ➕ Add CMDB Item
+        </button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div id="loadingState" class="loading">
+        <div>Loading CMDB items...</div>
+      </div>
+
+      <div id="emptyState" class="empty-state" style="display:none;">
+        <div class="empty-state-icon">📦</div>
+        <h3>No CMDB Items Found</h3>
+        <p>Get started by adding your first CMDB item or importing from CSV</p>
+        <button class="btn btn-primary" onclick="openCreateModal()" style="margin-top:16px;">
+          Add First Item
+        </button>
+      </div>
+
+      <div id="tableContainer" class="table-container" style="display:none;">
+        <table>
+          <thead>
+            <tr>
+              <th>Asset Name</th>
+              <th>Category</th>
+              <th>Brand/Model</th>
+              <th>Customer</th>
+              <th>Location</th>
+              <th>CIs</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="cmdbTableBody">
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create/Edit CMDB Item Modal -->
+  <div id="cmdbModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header" id="cmdbModalTitle">Add CMDB Item</div>
+
+      <form id="cmdbForm" onsubmit="saveCMDBItem(event)">
+        <input type="hidden" id="cmdbId">
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label required">Asset Name</label>
+            <input type="text" id="assetName" class="form-input" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label required">Asset Category</label>
+            <input type="text" id="assetCategory" class="form-input" required>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Category Field Value</label>
+            <input type="text" id="categoryFieldValue" class="form-input">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Status</label>
+            <select id="itemStatus" class="form-select">
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+              <option value="maintenance">Maintenance</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Brand Name</label>
+            <input type="text" id="brandName" class="form-input">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Model Name</label>
+            <input type="text" id="modelName" class="form-input">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Customer Name</label>
+            <input type="text" id="customerName" class="form-input">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Employee Of</label>
+            <input type="text" id="employeeOf" class="form-input">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Asset Location</label>
+          <input type="text" id="assetLocation" class="form-input">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Comment</label>
+          <textarea id="comment" class="form-textarea"></textarea>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('cmdbModal')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- View CMDB Item with CIs Modal -->
+  <div id="viewModal" class="modal">
+    <div class="modal-content" style="max-width:1000px;">
+      <div class="modal-header">CMDB Item Details</div>
+
+      <div id="viewContent"></div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('viewModal')">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Import CSV Modal -->
+  <div id="importModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">Import CMDB Items from CSV</div>
+
+      <div class="form-group">
+        <p style="margin-bottom:16px;color:#718096;">
+          Download the <a href="#" onclick="downloadTemplate()" style="color:#667eea;font-weight:600;">CSV template</a>
+          to see the required format.
+        </p>
+
+        <div class="file-upload" onclick="document.getElementById('csvFile').click()">
+          <input type="file" id="csvFile" accept=".csv" onchange="handleFileSelect(event)">
+          <div style="font-size:48px;margin-bottom:16px;">📄</div>
+          <div id="fileNameDisplay" style="font-weight:600;margin-bottom:8px;">Click to select CSV file</div>
+          <div style="font-size:13px;color:#718096;">or drag and drop here</div>
+        </div>
+      </div>
+
+      <div id="importProgress" style="display:none;margin-top:20px;">
+        <div style="background:#f7fafc;padding:16px;border-radius:8px;">
+          <div id="importStatus"></div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('importModal')">Cancel</button>
+        <button class="btn btn-success" onclick="importCSV()" id="importBtn" disabled>Import</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = 'http://localhost:3000/api';
+    let authToken = localStorage.getItem('token');
+    let tenantCode = localStorage.getItem('tenant') || 'apoyar';
+    let currentItems = [];
+    let currentCMDBId = null;
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      loadCMDBItems();
+      setupFilters();
+    });
+
+    // Load CMDB Items
+    async function loadCMDBItems() {
+      try {
+        const response = await fetch(`${API_BASE}/cmdb/${tenantCode}/items`, {
+          headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          currentItems = data.items;
+          renderCMDBTable(currentItems);
+          populateFilters(currentItems);
+        }
+      } catch (error) {
+        console.error('Error loading CMDB items:', error);
+      }
+    }
+
+    // Render table
+    function renderCMDBTable(items) {
+      const tbody = document.getElementById('cmdbTableBody');
+      const loadingState = document.getElementById('loadingState');
+      const emptyState = document.getElementById('emptyState');
+      const tableContainer = document.getElementById('tableContainer');
+
+      loadingState.style.display = 'none';
+
+      if (items.length === 0) {
+        emptyState.style.display = 'block';
+        tableContainer.style.display = 'none';
+        return;
+      }
+
+      emptyState.style.display = 'none';
+      tableContainer.style.display = 'block';
+
+      tbody.innerHTML = items.map(item => `
+        <tr>
+          <td><strong>${item.asset_name}</strong></td>
+          <td>${item.asset_category || '-'}</td>
+          <td>${item.brand_name || '-'} ${item.model_name || ''}</td>
+          <td>${item.customer_name || '-'}</td>
+          <td>${item.asset_location || '-'}</td>
+          <td><span class="badge badge-active">${item.ci_count || 0} CIs</span></td>
+          <td><span class="badge badge-${item.status}">${item.status}</span></td>
+          <td>
+            <button class="btn btn-sm btn-primary" onclick="viewItem('${item.cmdb_id}')">View</button>
+            <button class="btn btn-sm btn-secondary" onclick="editItem('${item.cmdb_id}')">Edit</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteItem('${item.cmdb_id}')">Delete</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    // Populate filters
+    function populateFilters(items) {
+      const categories = [...new Set(items.map(i => i.asset_category).filter(Boolean))];
+      const customers = [...new Set(items.map(i => i.customer_name).filter(Boolean))];
+
+      const categoryFilter = document.getElementById('categoryFilter');
+      categoryFilter.innerHTML = '<option value="">All Categories</option>' +
+        categories.map(c => `<option value="${c}">${c}</option>`).join('');
+
+      const customerFilter = document.getElementById('customerFilter');
+      customerFilter.innerHTML = '<option value="">All Customers</option>' +
+        customers.map(c => `<option value="${c}">${c}</option>`).join('');
+    }
+
+    // Setup filters
+    function setupFilters() {
+      const searchInput = document.getElementById('searchInput');
+      const categoryFilter = document.getElementById('categoryFilter');
+      const customerFilter = document.getElementById('customerFilter');
+
+      searchInput.addEventListener('input', applyFilters);
+      categoryFilter.addEventListener('change', applyFilters);
+      customerFilter.addEventListener('change', applyFilters);
+    }
+
+    // Apply filters
+    function applyFilters() {
+      const search = document.getElementById('searchInput').value.toLowerCase();
+      const category = document.getElementById('categoryFilter').value;
+      const customer = document.getElementById('customerFilter').value;
+
+      const filtered = currentItems.filter(item => {
+        const matchesSearch = !search ||
+          item.asset_name.toLowerCase().includes(search) ||
+          (item.customer_name || '').toLowerCase().includes(search) ||
+          (item.asset_location || '').toLowerCase().includes(search);
+
+        const matchesCategory = !category || item.asset_category === category;
+        const matchesCustomer = !customer || item.customer_name === customer;
+
+        return matchesSearch && matchesCategory && matchesCustomer;
+      });
+
+      renderCMDBTable(filtered);
+    }
+
+    // Open create modal
+    function openCreateModal() {
+      document.getElementById('cmdbModalTitle').textContent = 'Add CMDB Item';
+      document.getElementById('cmdbForm').reset();
+      document.getElementById('cmdbId').value = '';
+      openModal('cmdbModal');
+    }
+
+    // Edit item
+    async function editItem(cmdbId) {
+      try {
+        const response = await fetch(`${API_BASE}/cmdb/${tenantCode}/items/${cmdbId}`, {
+          headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          const item = data.item;
+          document.getElementById('cmdbModalTitle').textContent = 'Edit CMDB Item';
+          document.getElementById('cmdbId').value = item.cmdb_id;
+          document.getElementById('assetName').value = item.asset_name;
+          document.getElementById('assetCategory').value = item.asset_category;
+          document.getElementById('categoryFieldValue').value = item.category_field_value || '';
+          document.getElementById('brandName').value = item.brand_name || '';
+          document.getElementById('modelName').value = item.model_name || '';
+          document.getElementById('customerName').value = item.customer_name || '';
+          document.getElementById('employeeOf').value = item.employee_of || '';
+          document.getElementById('assetLocation').value = item.asset_location || '';
+          document.getElementById('comment').value = item.comment || '';
+          document.getElementById('itemStatus').value = item.status;
+
+          openModal('cmdbModal');
+        }
+      } catch (error) {
+        alert('Error loading item: ' + error.message);
+      }
+    }
+
+    // Save CMDB item
+    async function saveCMDBItem(event) {
+      event.preventDefault();
+
+      const cmdbId = document.getElementById('cmdbId').value;
+      const itemData = {
+        asset_name: document.getElementById('assetName').value,
+        asset_category: document.getElementById('assetCategory').value,
+        category_field_value: document.getElementById('categoryFieldValue').value,
+        brand_name: document.getElementById('brandName').value,
+        model_name: document.getElementById('modelName').value,
+        customer_name: document.getElementById('customerName').value,
+        employee_of: document.getElementById('employeeOf').value,
+        asset_location: document.getElementById('assetLocation').value,
+        comment: document.getElementById('comment').value,
+        status: document.getElementById('itemStatus').value
+      };
+
+      try {
+        const url = cmdbId
+          ? `${API_BASE}/cmdb/${tenantCode}/items/${cmdbId}`
+          : `${API_BASE}/cmdb/${tenantCode}/items`;
+
+        const method = cmdbId ? 'PUT' : 'POST';
+
+        const response = await fetch(url, {
+          method,
+          headers: {
+            'Authorization': `Bearer ${authToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(itemData)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          closeModal('cmdbModal');
+          loadCMDBItems();
+          alert(data.message);
+        } else {
+          alert('Error: ' + data.message);
+        }
+      } catch (error) {
+        alert('Error saving item: ' + error.message);
+      }
+    }
+
+    // View item with CIs
+    async function viewItem(cmdbId) {
+      try {
+        const response = await fetch(`${API_BASE}/cmdb/${tenantCode}/items/${cmdbId}`, {
+          headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          const item = data.item;
+          const cis = item.configuration_items || [];
+
+          const content = `
+            <div style="margin-bottom:24px;">
+              <h3 style="margin-bottom:16px;font-size:20px;">${item.asset_name}</h3>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;background:#f7fafc;padding:20px;border-radius:8px;">
+                <div><strong>Category:</strong> ${item.asset_category}</div>
+                <div><strong>Brand:</strong> ${item.brand_name || '-'}</div>
+                <div><strong>Model:</strong> ${item.model_name || '-'}</div>
+                <div><strong>Customer:</strong> ${item.customer_name || '-'}</div>
+                <div><strong>Location:</strong> ${item.asset_location || '-'}</div>
+                <div><strong>Status:</strong> <span class="badge badge-${item.status}">${item.status}</span></div>
+              </div>
+            </div>
+
+            <div>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                <h3 style="font-size:18px;">Configuration Items (${cis.length})</h3>
+                <button class="btn btn-sm btn-primary" onclick="addCI('${item.cmdb_id}')">Add CI</button>
+              </div>
+
+              ${cis.length === 0 ? '<p style="text-align:center;color:#718096;padding:20px;">No Configuration Items yet</p>' :
+                cis.map(ci => `
+                  <div class="ci-item">
+                    <div>
+                      <strong>${ci.ci_name}</strong>
+                      <div style="font-size:13px;color:#718096;margin-top:4px;">
+                        ${ci.brand_name || ''} ${ci.model_name || ''} ${ci.serial_number ? '(S/N: ' + ci.serial_number + ')' : ''}
+                      </div>
+                    </div>
+                    <div>
+                      <button class="btn btn-sm btn-danger" onclick="deleteCI('${ci.ci_id}')">Delete</button>
+                    </div>
+                  </div>
+                `).join('')
+              }
+            </div>
+          `;
+
+          document.getElementById('viewContent').innerHTML = content;
+          currentCMDBId = cmdbId;
+          openModal('viewModal');
+        }
+      } catch (error) {
+        alert('Error loading item: ' + error.message);
+      }
+    }
+
+    // Add CI
+    function addCI(cmdbId) {
+      const ciName = prompt('Enter CI Name:');
+      if (!ciName) return;
+
+      const ciData = {
+        ci_name: ciName,
+        asset_category: prompt('Asset Category (optional):') || '',
+        brand_name: prompt('Brand Name (optional):') || '',
+        model_name: prompt('Model Name (optional):') || '',
+        serial_number: prompt('Serial Number (optional):') || '',
+        status: 'active'
+      };
+
+      fetch(`${API_BASE}/cmdb/${tenantCode}/items/${cmdbId}/cis`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(ciData)
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          viewItem(cmdbId);
+        } else {
+          alert('Error: ' + data.message);
+        }
+      });
+    }
+
+    // Delete CI
+    function deleteCI(ciId) {
+      if (!confirm('Delete this Configuration Item?')) return;
+
+      fetch(`${API_BASE}/cmdb/${tenantCode}/cis/${ciId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${authToken}` }
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          viewItem(currentCMDBId);
+        } else {
+          alert('Error: ' + data.message);
+        }
+      });
+    }
+
+    // Delete item
+    function deleteItem(cmdbId) {
+      if (!confirm('Delete this CMDB item and all its CIs?')) return;
+
+      fetch(`${API_BASE}/cmdb/${tenantCode}/items/${cmdbId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${authToken}` }
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          loadCMDBItems();
+          alert(data.message);
+        } else {
+          alert('Error: ' + data.message);
+        }
+      });
+    }
+
+    // Import CSV
+    function openImportModal() {
+      document.getElementById('csvFile').value = '';
+      document.getElementById('fileNameDisplay').textContent = 'Click to select CSV file';
+      document.getElementById('importBtn').disabled = true;
+      document.getElementById('importProgress').style.display = 'none';
+      openModal('importModal');
+    }
+
+    function handleFileSelect(event) {
+      const file = event.target.files[0];
+      if (file) {
+        document.getElementById('fileNameDisplay').textContent = file.name;
+        document.getElementById('importBtn').disabled = false;
+      }
+    }
+
+    async function importCSV() {
+      const fileInput = document.getElementById('csvFile');
+      const file = fileInput.files[0];
+
+      if (!file) {
+        alert('Please select a file');
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      document.getElementById('importProgress').style.display = 'block';
+      document.getElementById('importStatus').textContent = 'Importing...';
+      document.getElementById('importBtn').disabled = true;
+
+      try {
+        const response = await fetch(`${API_BASE}/cmdb/${tenantCode}/import/items`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${authToken}` },
+          body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          document.getElementById('importStatus').innerHTML = `
+            <div style="color:#38a169;font-weight:600;">✓ Success!</div>
+            <div style="margin-top:8px;">Imported ${data.imported} of ${data.total} items</div>
+            ${data.errors ? `<div style="margin-top:8px;color:#e53e3e;">Errors: ${data.errors.length}</div>` : ''}
+          `;
+
+          setTimeout(() => {
+            closeModal('importModal');
+            loadCMDBItems();
+          }, 2000);
+        } else {
+          document.getElementById('importStatus').innerHTML = `
+            <div style="color:#e53e3e;">Error: ${data.message}</div>
+          `;
+          document.getElementById('importBtn').disabled = false;
+        }
+      } catch (error) {
+        document.getElementById('importStatus').innerHTML = `
+          <div style="color:#e53e3e;">Error: ${error.message}</div>
+        `;
+        document.getElementById('importBtn').disabled = false;
+      }
+    }
+
+    function downloadTemplate() {
+      window.location.href = `${API_BASE}/cmdb/${tenantCode}/template/items`;
+    }
+
+    // Modal helpers
+    function openModal(modalId) {
+      document.getElementById(modalId).classList.add('active');
+    }
+
+    function closeModal(modalId) {
+      document.getElementById(modalId).classList.remove('active');
+    }
+
+    // Close modal on outside click
+    document.querySelectorAll('.modal').forEach(modal => {
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          modal.classList.remove('active');
+        }
+      });
+    });
+  </script>
+</body>
+</html>

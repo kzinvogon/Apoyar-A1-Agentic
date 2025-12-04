@@ -1,0 +1,362 @@
+<!-- AI Insights Dashboard - INSERT THIS AFTER THE ANALYTICS VIEW (around line 926) -->
+
+        <!-- AI Insights Dashboard -->
+        <div id="view-ai-insights" style="display:none">
+          <div class="row space mb-12">
+            <div class="row">
+              <button class="btn ghost" onclick="switchView('dash')">← Back</button>
+              <h3 class="title" style="margin:0 0 0 8px">🤖 AI Insights Dashboard</h3>
+            </div>
+            <div class="row">
+              <button class="btn" onclick="refreshAIInsights()">🔄 Refresh</button>
+              <button class="btn" onclick="triggerTrendDetection()">🔍 Detect Trends</button>
+              <select id="ai-period" class="input" style="width:auto" onchange="refreshAIInsights()">
+                <option value="1">Last 24 hours</option>
+                <option value="7" selected>Last 7 days</option>
+                <option value="30">Last 30 days</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Active Insights / Alerts -->
+          <div class="card p-16 mb-16">
+            <h4 class="mb-12">🚨 Active Insights & Alerts</h4>
+            <div id="ai-insights-list">
+              <div class="subtitle">Loading insights...</div>
+            </div>
+          </div>
+
+          <!-- AI Performance Metrics -->
+          <div class="grid3 mb-16">
+            <div class="card p-16">
+              <div class="subtitle">Tickets Analyzed</div>
+              <div id="ai-tickets-analyzed" style="font-size:32px;font-weight:800;color:#667eea">0</div>
+              <div class="subtitle" style="margin-top:4px">Total processed</div>
+            </div>
+            <div class="card p-16">
+              <div class="subtitle">Avg Confidence</div>
+              <div id="ai-avg-confidence" style="font-size:32px;font-weight:800;color:#48bb78">--</div>
+              <div class="subtitle" style="margin-top:4px">AI accuracy score</div>
+            </div>
+            <div class="card p-16">
+              <div class="subtitle">Processing Speed</div>
+              <div id="ai-avg-time" style="font-size:32px;font-weight:800;color:#ed8936">--</div>
+              <div class="subtitle" style="margin-top:4px">Average time per ticket</div>
+            </div>
+          </div>
+
+          <!-- Charts Row -->
+          <div class="grid2 mb-16">
+            <!-- Sentiment Distribution -->
+            <div class="card p-16">
+              <h4 class="mb-12">😊 Sentiment Distribution</h4>
+              <div id="sentiment-chart" style="min-height:200px"></div>
+            </div>
+
+            <!-- Top Categories -->
+            <div class="card p-16">
+              <h4 class="mb-12">📁 Top Categories</h4>
+              <div id="categories-chart" style="min-height:200px"></div>
+            </div>
+          </div>
+
+          <!-- Root Causes -->
+          <div class="card p-16 mb-16">
+            <h4 class="mb-12">🔍 Root Cause Analysis</h4>
+            <div id="root-causes-chart" style="min-height:180px"></div>
+          </div>
+        </div>
+
+<!-- END AI Insights Dashboard -->
+
+
+<!-- ADD TO NAVIGATION (around line 210, after Analytics nav link) -->
+<!--
+          <div class="navlink" data-target="ai-insights" onclick="nav(this)">🤖 AI Insights</div>
+-->
+
+
+<!-- ADD THESE JAVASCRIPT FUNCTIONS TO THE SCRIPT SECTION (around line 3000+) -->
+<script>
+// ====== AI Insights Functions ======
+
+let aiInsightsData = null;
+
+async function loadAIInsights() {
+  console.log('loadAIInsights() called');
+
+  const period = document.getElementById('ai-period')?.value || 7;
+
+  try {
+    const response = await fetch(`http://localhost:3000/api/analytics/${tenantCode}/ai-insights?period=${period}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      aiInsightsData = data.data;
+      displayAIInsights(aiInsightsData);
+    } else {
+      console.error('AI Insights API error:', data);
+      document.getElementById('ai-insights-list').innerHTML =
+        '<div class="subtitle" style="color:#f56565">Failed to load AI insights</div>';
+    }
+  } catch (error) {
+    console.error('Error loading AI insights:', error);
+    document.getElementById('ai-insights-list').innerHTML =
+      '<div class="subtitle" style="color:#f56565">Error loading AI insights. Make sure the server is running.</div>';
+  }
+}
+
+function displayAIInsights(data) {
+  console.log('Displaying AI insights:', data);
+
+  // Display insights/alerts
+  const insightsList = document.getElementById('ai-insights-list');
+  if (data.insights && data.insights.length > 0) {
+    insightsList.innerHTML = data.insights.map(insight => {
+      const severityColors = {
+        critical: '#f56565',
+        warning: '#ed8936',
+        info: '#4299e1'
+      };
+      const severityColor = severityColors[insight.severity] || '#718096';
+      const severityIcon = {
+        critical: '🔴',
+        warning: '⚠️',
+        info: 'ℹ️'
+      }[insight.severity] || '📊';
+
+      return `
+        <div class="card p-12 mb-8" style="border-left:4px solid ${severityColor}">
+          <div class="row space">
+            <div style="flex:1">
+              <div class="row" style="gap:8px;align-items:center;margin-bottom:4px">
+                <span style="font-size:18px">${severityIcon}</span>
+                <strong>${insight.title}</strong>
+                <span class="badge" style="background:${severityColor};color:white;text-transform:uppercase;font-size:10px;padding:2px 6px;border-radius:4px">${insight.severity}</span>
+              </div>
+              <div class="subtitle">${insight.description}</div>
+              ${insight.affected_tickets && insight.affected_tickets.length > 0 ?
+                `<div class="subtitle" style="margin-top:4px">Affected tickets: ${insight.affected_tickets.slice(0, 5).map(id => `#${id}`).join(', ')}${insight.affected_tickets.length > 5 ? ` +${insight.affected_tickets.length - 5} more` : ''}</div>` :
+                ''
+              }
+              <div class="subtitle" style="margin-top:4px;font-size:11px;color:#a0aec0">${new Date(insight.created_at).toLocaleString()}</div>
+            </div>
+            <div class="row" style="gap:4px">
+              <button class="btn ghost" style="padding:4px 8px;font-size:12px" onclick="acknowledgeInsight(${insight.id})">✓ Acknowledge</button>
+              <button class="btn ghost" style="padding:4px 8px;font-size:12px" onclick="dismissInsight(${insight.id})">✕ Dismiss</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  } else {
+    insightsList.innerHTML = '<div class="subtitle">✅ No active insights. Everything looks good!</div>';
+  }
+
+  // Display performance metrics
+  if (data.performance) {
+    document.getElementById('ai-tickets-analyzed').textContent = data.performance.total_analyzed || 0;
+
+    const avgConf = parseFloat(data.performance.avg_confidence);
+    document.getElementById('ai-avg-confidence').textContent = !isNaN(avgConf) ? avgConf.toFixed(1) + '%' : '--';
+
+    const avgTime = parseFloat(data.performance.avg_processing_time);
+    document.getElementById('ai-avg-time').textContent = !isNaN(avgTime) ? avgTime.toFixed(0) + 'ms' : '--';
+  }
+
+  // Display sentiment chart
+  if (data.sentiment && data.sentiment.distribution) {
+    renderSentimentChart(data.sentiment.distribution);
+  }
+
+  // Display categories chart
+  if (data.categories && data.categories.length > 0) {
+    renderCategoriesChart(data.categories);
+  }
+
+  // Display root causes chart
+  if (data.rootCauses && data.rootCauses.length > 0) {
+    renderRootCausesChart(data.rootCauses);
+  }
+}
+
+function renderSentimentChart(distribution) {
+  const container = document.getElementById('sentiment-chart');
+  const total = Object.values(distribution).reduce((sum, val) => sum + val, 0);
+
+  if (total === 0) {
+    container.innerHTML = '<div class="subtitle">No data available</div>';
+    return;
+  }
+
+  const sentimentColors = {
+    urgent: '#f56565',
+    negative: '#ed8936',
+    neutral: '#a0aec0',
+    positive: '#48bb78'
+  };
+
+  const sentimentIcons = {
+    urgent: '🔴',
+    negative: '😐',
+    neutral: '😶',
+    positive: '😊'
+  };
+
+  container.innerHTML = Object.entries(distribution).map(([sentiment, count]) => {
+    const percent = ((count / total) * 100).toFixed(1);
+    const color = sentimentColors[sentiment] || '#a0aec0';
+    const icon = sentimentIcons[sentiment] || '📊';
+
+    return `
+      <div style="margin-bottom:12px">
+        <div class="row space" style="margin-bottom:4px">
+          <span class="subtitle">${icon} ${sentiment.charAt(0).toUpperCase() + sentiment.slice(1)}</span>
+          <span class="subtitle"><strong>${count}</strong> (${percent}%)</span>
+        </div>
+        <div style="width:100%;height:8px;background:#e2e8f0;border-radius:4px;overflow:hidden">
+          <div style="width:${percent}%;height:100%;background:${color};border-radius:4px"></div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderCategoriesChart(categories) {
+  const container = document.getElementById('categories-chart');
+  const maxCount = Math.max(...categories.map(c => c.count));
+
+  container.innerHTML = categories.slice(0, 5).map(cat => {
+    const percent = ((cat.count / maxCount) * 100).toFixed(1);
+    const conf = parseFloat(cat.avg_confidence);
+    const confStr = !isNaN(conf) ? ` (${conf.toFixed(0)}% confidence)` : '';
+
+    return `
+      <div style="margin-bottom:12px">
+        <div class="row space" style="margin-bottom:4px">
+          <span class="subtitle">${cat.ai_category}</span>
+          <span class="subtitle"><strong>${cat.count}</strong>${confStr}</span>
+        </div>
+        <div style="width:100%;height:8px;background:#e2e8f0;border-radius:4px;overflow:hidden">
+          <div style="width:${percent}%;height:100%;background:#667eea;border-radius:4px"></div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderRootCausesChart(rootCauses) {
+  const container = document.getElementById('root-causes-chart');
+  const total = rootCauses.reduce((sum, rc) => sum + rc.count, 0);
+
+  const rootCauseColors = {
+    system: '#667eea',
+    hardware: '#ed8936',
+    software: '#4299e1',
+    network: '#48bb78',
+    database: '#9f7aea',
+    resource: '#f56565',
+    unknown: '#a0aec0'
+  };
+
+  container.innerHTML = `
+    <div class="row" style="gap:8px;flex-wrap:wrap">
+      ${rootCauses.map(rc => {
+        const percent = ((rc.count / total) * 100).toFixed(1);
+        const color = rootCauseColors[rc.root_cause_type] || '#a0aec0';
+
+        return `
+          <div class="card p-12" style="flex:1;min-width:120px;border-left:4px solid ${color}">
+            <div class="subtitle" style="margin-bottom:4px">${rc.root_cause_type || 'unknown'}</div>
+            <div style="font-size:24px;font-weight:800;color:${color}">${rc.count}</div>
+            <div class="subtitle" style="font-size:11px">${percent}% of total</div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+async function refreshAIInsights() {
+  await loadAIInsights();
+}
+
+async function triggerTrendDetection() {
+  try {
+    const btn = event.target;
+    btn.disabled = true;
+    btn.textContent = '⏳ Detecting...';
+
+    const response = await fetch(`http://localhost:3000/api/analytics/${tenantCode}/detect-trends`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ timeRangeHours: 24 })
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      alert(`✅ Trend detection complete!\n\n${data.message}\n\nRefreshing dashboard...`);
+      await refreshAIInsights();
+    } else {
+      alert('❌ Failed to detect trends. Check console for details.');
+    }
+  } catch (error) {
+    console.error('Error triggering trend detection:', error);
+    alert('❌ Error detecting trends: ' + error.message);
+  } finally {
+    event.target.disabled = false;
+    event.target.textContent = '🔍 Detect Trends';
+  }
+}
+
+async function acknowledgeInsight(insightId) {
+  try {
+    const response = await fetch(`http://localhost:3000/api/analytics/${tenantCode}/insights/${insightId}/acknowledge`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      await refreshAIInsights();
+    } else {
+      alert('Failed to acknowledge insight');
+    }
+  } catch (error) {
+    console.error('Error acknowledging insight:', error);
+    alert('Error acknowledging insight: ' + error.message);
+  }
+}
+
+async function dismissInsight(insightId) {
+  try {
+    const response = await fetch(`http://localhost:3000/api/analytics/${tenantCode}/insights/${insightId}/dismiss`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      await refreshAIInsights();
+    } else {
+      alert('Failed to dismiss insight');
+    }
+  } catch (error) {
+    console.error('Error dismissing insight:', error);
+    alert('Error dismissing insight: ' + error.message);
+  }
+}
+
+// ADD TO THE nav() FUNCTION SWITCH STATEMENT:
+// case 'ai-insights': loadAIInsights(); break;
+
+</script>

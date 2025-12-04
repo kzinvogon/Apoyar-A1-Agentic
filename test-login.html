@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Login</title>
+    <style>
+        body { font-family: Arial; padding: 40px; }
+        input, select, button { padding: 8px; margin: 8px 0; display: block; width: 300px; }
+        #result { margin-top: 20px; padding: 10px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <h1>Simple Login Test</h1>
+
+    <label>Username:</label>
+    <input type="text" id="username" value="admin">
+
+    <label>Password:</label>
+    <input type="password" id="password" value="password123">
+
+    <label>Tenant:</label>
+    <input type="text" id="tenant" value="apoyar">
+
+    <button onclick="testLogin()">Test Login</button>
+
+    <div id="result"></div>
+
+    <script>
+        async function testLogin() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const tenant = document.getElementById('tenant').value;
+            const resultDiv = document.getElementById('result');
+
+            resultDiv.textContent = 'Logging in...';
+            resultDiv.className = '';
+
+            try {
+                const response = await fetch('http://localhost:3000/api/auth/tenant/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: username,
+                        password: password,
+                        tenant_code: tenant
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    resultDiv.textContent = 'SUCCESS! Token: ' + data.token.substring(0, 50) + '...';
+                    resultDiv.className = 'success';
+                    localStorage.setItem('token', data.token);
+                } else {
+                    resultDiv.textContent = 'FAILED: ' + (data.message || 'Unknown error');
+                    resultDiv.className = 'error';
+                }
+            } catch (error) {
+                resultDiv.textContent = 'ERROR: ' + error.message;
+                resultDiv.className = 'error';
+            }
+        }
+    </script>
+</body>
+</html>

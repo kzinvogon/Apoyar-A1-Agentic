@@ -65,17 +65,6 @@ vNext-FULL-ActionsSLA:
   .modal .head{padding:14px 16px;background:#003366;color:#fff;font-weight:800}
   .modal .body{padding:16px}
   .modal .foot{padding:12px 16px;display:flex;gap:8px;justify-content:flex-end;border-top:1px solid #eef2f7}
-
-  /* Toggle Switch */
-  .toggle-switch{position:relative;display:inline-block;width:60px;height:32px}
-  .toggle-switch input{opacity:0;width:0;height:0}
-  .toggle-slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background-color:#e2e8f0;transition:.3s;border-radius:32px}
-  .toggle-slider:before{position:absolute;content:"";height:24px;width:24px;left:4px;bottom:4px;background-color:white;transition:.3s;border-radius:50%;box-shadow:0 2px 4px rgba(0,0,0,0.2)}
-  .toggle-switch input:checked+.toggle-slider{background-color:#22c55e}
-  .toggle-switch input:checked+.toggle-slider:before{transform:translateX(28px)}
-  .toggle-switch input:focus+.toggle-slider{box-shadow:0 0 0 2px rgba(34,197,94,0.3)}
-  .mt-16{margin-top:16px}
-  .btn.success{background:#22c55e;color:#fff}
 </style>
 </head>
 <body>
@@ -205,7 +194,6 @@ vNext-FULL-ActionsSLA:
           <div class="navlink" data-target="usage" onclick="nav(this)">📊 Usage & Limits</div>
           <div class="navlink" data-target="raise" onclick="nav(this)">📝 Raise Request</div>
           <div class="navlink" data-target="wizard" onclick="nav(this)">🪄 Admin Settings Wizard</div>
-          <div class="navlink" data-target="system-control" onclick="nav(this)">🔧 System Control</div>
         </div>
         <div id="nav-expert" style="display:none">
           <div class="subtitle">Expert Navigation</div>
@@ -276,7 +264,7 @@ vNext-FULL-ActionsSLA:
             <div class="grid2">
               <div class="card p-16">
                 <div class="row space"><strong>Recent tickets</strong><button class="btn ghost" onclick="navTo('tickets')">View all</button></div>
-                <table><thead><tr><th>ID</th><th>Title</th><th>Date/Time</th><th>Customer</th><th>Status</th></tr></thead><tbody id="ad-recent"></tbody></table>
+                <table><thead><tr><th>ID</th><th>Title</th><th>Customer</th><th>Status</th></tr></thead><tbody id="ad-recent"></tbody></table>
               </div>
               <div class="card p-16">
                 <div class="row space"><strong>Quick admin</strong><span class="subtitle">Common tasks</span></div>
@@ -332,7 +320,7 @@ vNext-FULL-ActionsSLA:
             <div class="grid2">
               <div class="card p-16">
                 <div class="row space"><strong>My tickets</strong><button class="btn ghost" onclick="navTo('tickets')">View all</button></div>
-                <table><thead><tr><th>ID</th><th>Title</th><th>Date/Time</th><th>Status</th><th>SLA</th></tr></thead><tbody id="ex-list"></tbody></table>
+                <table><thead><tr><th>ID</th><th>Title</th><th>Status</th><th>SLA</th></tr></thead><tbody id="ex-list"></tbody></table>
               </div>
               <div class="card p-16">
                 <div class="row space"><strong>Quick actions</strong><span class="subtitle">Work faster</span></div>
@@ -1184,16 +1172,10 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
                   <option value="unassigned">Unassigned</option>
                 </select>
               </div>
-              <div style="min-width:180px">
-                <label style="display:block;margin-bottom:4px;font-size:13px;font-weight:600">Company</label>
-                <select id="ticket-filter-company" class="input" onchange="onCompanyFilterChange(); saveFilterSettings('tickets')" style="width:100%">
-                  <option value="">All Companies</option>
-                </select>
-              </div>
-              <div style="min-width:180px">
-                <label style="display:block;margin-bottom:4px;font-size:13px;font-weight:600">Team Member</label>
+              <div style="min-width:150px">
+                <label style="display:block;margin-bottom:4px;font-size:13px;font-weight:600">Customer</label>
                 <select id="ticket-filter-customer" class="input" onchange="renderList(); saveFilterSettings('tickets')" style="width:100%">
-                  <option value="">All Team Members</option>
+                  <option value="">All Customers</option>
                 </select>
               </div>
               <div style="min-width:150px">
@@ -1214,14 +1196,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           </div>
 
           <div class="card p-16 mb-16">
-            <div id="bulk-actions-bar" class="row" style="display:none;gap:8px;margin-bottom:12px;padding:12px;background:#f0f4f8;border-radius:8px;align-items:center">
-              <span id="bulk-selected-count" style="font-weight:600">0 selected</span>
-              <button class="btn success" onclick="openBulkActionDialog('close')">Close Selected</button>
-              <button class="btn primary" onclick="openBulkActionDialog('assign')">Assign Selected</button>
-              <button class="btn" onclick="openBulkActionDialog('resolve')">Resolve Selected</button>
-              <button class="btn ghost" onclick="clearBulkSelection()">Clear Selection</button>
-            </div>
-            <table id="tickets-table"><thead><tr><th style="width:40px"><input type="checkbox" id="select-all-tickets" onchange="toggleSelectAllTickets()" title="Select All"></th><th style="width:120px;cursor:pointer" onclick="sortTicketsBy('id')">ID ⇅</th><th style="cursor:pointer" onclick="sortTicketsBy('title')">Title ⇅</th><th style="width:140px">Date/Time</th><th style="width:120px;cursor:pointer" onclick="sortTicketsBy('priority')">Priority ⇅</th><th style="width:140px;cursor:pointer" onclick="sortTicketsBy('status')">Status ⇅</th><th style="width:180px">Assignee</th><th style="width:160px">Customer</th><th style="width:220px;cursor:pointer" onclick="sortTicketsBy('sla')">SLA ⇅</th></tr></thead><tbody id="list-body"></tbody></table>
+            <table id="tickets-table"><thead><tr><th style="width:120px;cursor:pointer" onclick="sortTicketsBy('id')">ID ⇅</th><th style="cursor:pointer" onclick="sortTicketsBy('title')">Title ⇅</th><th style="width:120px;cursor:pointer" onclick="sortTicketsBy('priority')">Priority ⇅</th><th style="width:140px;cursor:pointer" onclick="sortTicketsBy('status')">Status ⇅</th><th style="width:180px">Assignee</th><th style="width:160px">Customer</th><th style="width:220px;cursor:pointer" onclick="sortTicketsBy('sla')">SLA ⇅</th></tr></thead><tbody id="list-body"></tbody></table>
           </div>
         </div>
 
@@ -1301,7 +1276,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
                   <th>Username</th>
                   <th>Location</th>
                   <th>Email</th>
-                  <th>Open Tickets</th>
+                  <th>Rating</th>
                   <th>Last Login</th>
                   <th style="width:180px">Actions</th>
                 </tr>
@@ -1329,7 +1304,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             <div class="row mb-8"><div class="subtitle" style="width:180px">Account Status:</div><div id="expert-status" style="font-weight:600"></div></div>
             <div class="row mb-8"><div class="subtitle" style="width:180px">Email Updates:</div><div id="expert-email-updates" style="font-weight:600"></div></div>
             <div class="row mb-8"><div class="subtitle" style="width:180px">Reference Code:</div><div id="expert-reference" style="font-weight:600"></div></div>
-            <div class="row mb-8"><div class="subtitle" style="width:180px">Open Tickets:</div><div id="expert-open-tickets" style="font-weight:600"></div></div>
+            <div class="row mb-8"><div class="subtitle" style="width:180px">Rating:</div><div id="expert-rating" style="font-weight:600"></div></div>
           </div>
 
           <!-- Account Statistics -->
@@ -1386,50 +1361,11 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           <div class="row space mb-12">
             <div class="row"><button class="btn ghost" onclick="switchView('dash')">← Back</button><h3 class="title" style="margin:0 0 0 8px">Manage Customers</h3></div>
             <div class="row" style="gap:8px">
-              <button class="btn primary" onclick="showCreateCustomerCompanyForm()">+ Add Company</button>
-              <button class="btn" onclick="showCreateCustomerForm()">+ Add Team Member</button>
+              <button class="btn primary" onclick="showCreateCustomerForm()">+ Add Customer</button>
+              <input id="cust-search" class="input" placeholder="Search customers…" oninput="renderCustomers(); saveFilterSettings('customers')"/>
             </div>
           </div>
-          <!-- Filters -->
-          <div class="card p-16 mb-16">
-            <div class="row space mb-12">
-              <h4 style="margin:0">Filters</h4>
-              <button class="btn ghost" onclick="clearCustomerFilters()">Clear Filters</button>
-            </div>
-            <div class="row wrap" style="gap:12px">
-              <div style="min-width:200px">
-                <label style="display:block;margin-bottom:4px;font-size:13px;font-weight:600">Search</label>
-                <input id="cust-search" class="input" placeholder="Search by name, email..." oninput="renderCustomers(); saveFilterSettings('customers')" style="width:100%">
-              </div>
-              <div style="min-width:200px">
-                <label style="display:block;margin-bottom:4px;font-size:13px;font-weight:600">Company</label>
-                <select id="cust-filter-company" class="input" onchange="renderCustomers(); saveFilterSettings('customers')" style="width:100%">
-                  <option value="">All Companies</option>
-                </select>
-              </div>
-              <div style="min-width:150px">
-                <label style="display:block;margin-bottom:4px;font-size:13px;font-weight:600">SLA Level</label>
-                <select id="cust-filter-sla" class="input" onchange="renderCustomers(); saveFilterSettings('customers')" style="width:100%">
-                  <option value="">All SLA Levels</option>
-                  <option value="basic">Basic</option>
-                  <option value="premium">Premium</option>
-                  <option value="enterprise">Enterprise</option>
-                </select>
-              </div>
-              <div style="min-width:150px">
-                <label style="display:block;margin-bottom:4px;font-size:13px;font-weight:600">Status</label>
-                <select id="cust-filter-status" class="input" onchange="renderCustomers(); saveFilterSettings('customers')" style="width:100%">
-                  <option value="">All</option>
-                  <option value="active">Active Only</option>
-                  <option value="inactive">Inactive Only</option>
-                </select>
-              </div>
-            </div>
-            <div class="row" style="margin-top:12px">
-              <div id="customer-count" class="subtitle">Showing 0 customers</div>
-            </div>
-          </div>
-          <div class="card p-16"><table><thead><tr><th style="cursor:pointer" onclick="sortCustomersBy('name')">Name ⇅</th><th>Email</th><th>Company</th><th>Role</th><th style="width:80px;cursor:pointer" onclick="sortCustomersBy('tickets')"># Tickets ⇅</th><th>SLA</th><th style="width:180px">Actions</th></tr></thead><tbody id="customers-body"></tbody></table></div>
+          <div class="card p-16"><table><thead><tr><th>Name</th><th>Email</th><th>Company</th><th>Domain</th><th>SLA</th><th style="width:180px">Actions</th></tr></thead><tbody id="customers-body"></tbody></table></div>
         </div>
 
         <!-- Customer Form Modal -->
@@ -1500,67 +1436,6 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
                 <button type="button" class="btn ghost" onclick="closeCustomerModal()">Cancel</button>
                 <button type="submit" class="btn primary">
                   <span id="customer-save-btn-text">Create Customer</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-
-        <!-- Customer Company Form Modal -->
-        <div id="company-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:1000;overflow-y:auto">
-          <div style="max-width:600px;margin:40px auto;background:white;border-radius:8px;padding:24px">
-            <div class="row space mb-16">
-              <h3 id="company-modal-title" class="title" style="margin:0">Add Customer Company</h3>
-              <button class="btn ghost" onclick="closeCompanyModal()">✕</button>
-            </div>
-
-            <form id="company-form" onsubmit="saveCustomerCompany(event); return false;">
-              <input type="hidden" id="company-id"/>
-
-              <p class="subtitle mb-16">Create a new customer company. An admin user will be automatically created with email admin@{domain}.</p>
-
-              <div class="mb-12">
-                <label class="subtitle">Company Name *</label>
-                <input id="company-name" class="input" required placeholder="e.g., Acme Corporation"/>
-              </div>
-
-              <div class="mb-12">
-                <label class="subtitle">Company Domain *</label>
-                <input id="company-domain" class="input" required placeholder="e.g., acme.com" pattern="[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]?(\.[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]?)*\.[a-zA-Z]{2,}" title="Valid domain like example.com"/>
-                <div class="subtitle" style="color:#6b7280;font-size:12px;margin-top:4px">Admin email will be: admin@{domain}</div>
-              </div>
-
-              <div class="mb-12">
-                <label class="subtitle">Contact Phone</label>
-                <input id="company-phone" class="input" type="tel" placeholder="e.g., +1-555-0123"/>
-              </div>
-
-              <div class="mb-12">
-                <label class="subtitle">Address</label>
-                <textarea id="company-address" class="input" rows="3" placeholder="Company address"></textarea>
-              </div>
-
-              <div class="mb-12">
-                <label class="subtitle">SLA Level</label>
-                <select id="company-sla" class="input">
-                  <option value="basic">Basic (48h response)</option>
-                  <option value="premium">Premium (24h response)</option>
-                  <option value="enterprise">Enterprise (4h response)</option>
-                </select>
-              </div>
-
-              <div class="mb-12">
-                <label class="subtitle">Notes</label>
-                <textarea id="company-notes" class="input" rows="2" placeholder="Internal notes about this company"></textarea>
-              </div>
-
-              <div id="company-form-message" class="subtitle" style="color:#16a34a;display:none;margin-top:8px"></div>
-              <div id="company-form-error" class="subtitle" style="color:#b91c1c;display:none;margin-top:8px"></div>
-
-              <div class="row" style="gap:8px;margin-top:24px;justify-content:flex-end">
-                <button type="button" class="btn ghost" onclick="closeCompanyModal()">Cancel</button>
-                <button type="submit" class="btn primary">
-                  <span id="company-save-btn-text">Create Company</span>
                 </button>
               </div>
             </form>
@@ -1927,84 +1802,6 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           </div>
         </div>
 
-        <!-- System Control -->
-        <div id="view-system-control" style="display:none">
-          <div class="row space mb-12">
-            <div class="row"><button class="btn ghost" onclick="switchView('dash')">← Back</button><h3 class="title" style="margin:0 0 0 8px">System Control</h3></div>
-            <button class="btn primary" onclick="loadSystemControlSettings()">Refresh</button>
-          </div>
-          <div class="card p-16 mb-16" style="background:#fef3c7;border:1px solid #f59e0b">
-            <div class="row" style="gap:8px;align-items:center">
-              <span style="font-size:24px">⚠️</span>
-              <div>
-                <strong>Testing Kill Switches</strong>
-                <div class="subtitle" style="color:#92400e">These controls disable system functionality for testing purposes. Use with caution in production.</div>
-              </div>
-            </div>
-          </div>
-          <div class="grid2">
-            <div class="card p-16">
-              <h4 class="mb-12">Email Controls</h4>
-
-              <div class="card p-16 mb-12" style="border:2px solid #e2e8f0">
-                <div class="row space" style="align-items:center">
-                  <div>
-                    <div style="font-weight:600;font-size:16px">Send Emails</div>
-                    <div class="subtitle">Enable/disable outgoing email notifications (ticket updates, alerts, etc.)</div>
-                  </div>
-                  <label class="toggle-switch">
-                    <input type="checkbox" id="sc-send-emails" onchange="toggleSystemSetting('send_emails', this.checked)">
-                    <span class="toggle-slider"></span>
-                  </label>
-                </div>
-                <div id="sc-send-emails-status" class="subtitle" style="margin-top:8px;padding:8px;border-radius:4px"></div>
-              </div>
-
-              <div class="card p-16 mb-12" style="border:2px solid #e2e8f0">
-                <div class="row space" style="align-items:center">
-                  <div>
-                    <div style="font-weight:600;font-size:16px">Process Emails</div>
-                    <div class="subtitle">Enable/disable inbound email processing (automatic ticket creation)</div>
-                  </div>
-                  <label class="toggle-switch">
-                    <input type="checkbox" id="sc-process-emails" onchange="toggleSystemSetting('process_emails', this.checked)">
-                    <span class="toggle-slider"></span>
-                  </label>
-                </div>
-                <div id="sc-process-emails-status" class="subtitle" style="margin-top:8px;padding:8px;border-radius:4px"></div>
-              </div>
-            </div>
-
-            <div class="card p-16">
-              <h4 class="mb-12">System Status</h4>
-              <div id="sc-status-log" style="background:#f8fafc;border-radius:8px;padding:12px;max-height:300px;overflow-y:auto;font-family:monospace;font-size:12px">
-                Loading system status...
-              </div>
-              <div class="subtitle" style="margin-top:12px">
-                <strong>Last Updated:</strong> <span id="sc-last-updated">—</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="card p-16 mt-16">
-            <h4 class="mb-12">Recent Setting Changes</h4>
-            <table>
-              <thead>
-                <tr>
-                  <th>Setting</th>
-                  <th>Old Value</th>
-                  <th>New Value</th>
-                  <th>Changed By</th>
-                  <th>Time</th>
-                </tr>
-              </thead>
-              <tbody id="sc-audit-log">
-                <tr><td colspan="5" class="subtitle" style="text-align:center">No recent changes</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
       </main>
     </div>
   </section>
@@ -2040,36 +1837,6 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     <div class="foot">
       <button class="btn ghost" onclick="closeDlg()">Cancel</button>
       <button class="btn primary" onclick="submitDlg()">Confirm</button>
-    </div>
-  </div>
-</div>
-
-<!-- Bulk Action Modal -->
-<div id="bulk-action-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="bulk-action-title" style="display:none">
-  <div class="sheet" style="max-width:500px">
-    <div class="head"><span id="bulk-action-title">Bulk Action</span></div>
-    <div class="body">
-      <div id="bulk-action-summary" class="mb-12" style="padding:12px;background:#e0f2fe;border-radius:8px;font-weight:600"></div>
-      <div id="bulk-action-assignee-row" class="mb-12" style="display:none">
-        <div class="subtitle">Assign to Expert *</div>
-        <select id="bulk-action-assignee" class="input">
-          <option value="">-- Select Expert --</option>
-        </select>
-      </div>
-      <div class="mb-12">
-        <div class="subtitle">Action Note (applies to all selected tickets) *</div>
-        <textarea id="bulk-action-note" class="input" placeholder="Enter a note that will be added to all selected tickets..." rows="3"></textarea>
-      </div>
-      <div id="bulk-action-error" class="subtitle" style="color:#b91c1c;display:none"></div>
-      <div id="bulk-action-progress" style="display:none">
-        <div class="subtitle">Processing...</div>
-        <div class="progress"><span id="bulk-action-progress-bar" style="width:0%"></span></div>
-        <div id="bulk-action-progress-text" class="subtitle" style="margin-top:4px">0 of 0 completed</div>
-      </div>
-    </div>
-    <div class="foot">
-      <button class="btn ghost" onclick="closeBulkActionDialog()">Cancel</button>
-      <button id="bulk-action-submit-btn" class="btn primary" onclick="submitBulkAction()">Confirm</button>
     </div>
   </div>
 </div>
@@ -2348,26 +2115,16 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         // Tenant login - get tenant from form
         const tenant = document.getElementById('tenant').value;
         console.log('Using tenant:', tenant);
-        console.log('Request body:', { username, password, tenant_code: tenant });
-
-        try {
-          response = await fetch('http://localhost:3000/api/auth/tenant/login', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ username, password, tenant_code: tenant })
-          });
-          console.log('Fetch completed');
-        } catch (fetchError) {
-          console.error('Fetch error:', fetchError);
-          throw fetchError;
-        }
+        response = await fetch('http://localhost:3000/api/auth/tenant/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ username, password, tenant_code: tenant })
+        });
       }
-
+      
       console.log('Response status:', response.status);
-      console.log('Response ok:', response.ok);
-
       const data = await response.json();
       console.log('Response data:', data);
       
@@ -2622,7 +2379,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   function nav(el){ document.querySelectorAll('.navlink').forEach(n=>n.classList.remove('active')); el.classList.add('active'); switchView(el.getAttribute('data-target')); if(el.getAttribute('data-target')==='dash') renderAllDashboards(); }
   function navTo(view){ switchView(view); }
-  function switchView(view){ currentView=view; ['dash','profile','tickets','ticket-detail','experts','expert-detail','customers','cmdb','cmdb-detail','manage-cmdb','wizard','raise','tenants','subscriptions','billing','plans','system','usage','customer-plans','customer-billing','analytics','ai-insights','ticket-rules','email-processing','system-control'].forEach(n=>{ const el=document.getElementById('view-'+n); if(el) el.style.display=(n===view)?'block':'none'; }); if(view==='tickets') { loadFilterSettings('tickets'); renderList(); } if(view==='experts') { loadFilterSettings('experts'); renderExperts(); } if(view==='expert-detail') renderExpertDetail(); if(view==='customers') { loadFilterSettings('customers'); renderCustomers(); } if(view==='cmdb') { loadFilterSettings('cmdb'); renderCMDB(); } if(view==='cmdb-detail') renderCMDBDetail(); if(view==='manage-cmdb') loadManageCMDB(); if(view==='raise') loadRaiseFormOptions(); if(view==='ticket-detail') renderTicketDetail(); if(view==='tenants') loadTenants(); if(view==='subscriptions') loadSubscriptions(); if(view==='billing') loadBilling(); if(view==='plans') loadPlans(); if(view==='system') loadSystemOverview(); if(view==='usage') loadUsageDashboard(); if(view==='customer-plans') loadCustomerPlans(); if(view==='customer-billing') loadCustomerBilling(); if(view==='analytics') loadAnalytics(); if(view==='ai-insights') loadAIInsights(); if(view==='ticket-rules') loadTicketRules(); if(view==='email-processing') loadEmailProcessing(); if(view==='system-control') loadSystemControlSettings(); if(view==='wizard') { loadCompanyProfile(); loadEmailIngestSettings(); } if(view==='profile') loadProfile(); }
+  function switchView(view){ currentView=view; ['dash','profile','tickets','ticket-detail','experts','expert-detail','customers','cmdb','cmdb-detail','manage-cmdb','wizard','raise','tenants','subscriptions','billing','plans','system','usage','customer-plans','customer-billing','analytics','ai-insights','ticket-rules','email-processing'].forEach(n=>{ const el=document.getElementById('view-'+n); if(el) el.style.display=(n===view)?'block':'none'; }); if(view==='tickets') { loadFilterSettings('tickets'); renderList(); } if(view==='experts') { loadFilterSettings('experts'); renderExperts(); } if(view==='expert-detail') renderExpertDetail(); if(view==='customers') { loadFilterSettings('customers'); renderCustomers(); } if(view==='cmdb') { loadFilterSettings('cmdb'); renderCMDB(); } if(view==='cmdb-detail') renderCMDBDetail(); if(view==='manage-cmdb') loadManageCMDB(); if(view==='raise') loadRaiseFormOptions(); if(view==='ticket-detail') renderTicketDetail(); if(view==='tenants') loadTenants(); if(view==='subscriptions') loadSubscriptions(); if(view==='billing') loadBilling(); if(view==='plans') loadPlans(); if(view==='system') loadSystemOverview(); if(view==='usage') loadUsageDashboard(); if(view==='customer-plans') loadCustomerPlans(); if(view==='customer-billing') loadCustomerBilling(); if(view==='analytics') loadAnalytics(); if(view==='ai-insights') loadAIInsights(); if(view==='ticket-rules') loadTicketRules(); if(view==='email-processing') loadEmailProcessing(); if(view==='wizard') { loadCompanyProfile(); loadEmailIngestSettings(); } if(view==='profile') loadProfile(); }
   function configureRole(){
     const currentRole = window.role || role; // Use global role from login, fallback to local
     document.getElementById('nav-admin').style.display = (currentRole==='admin') ? 'block' : 'none';
@@ -2678,7 +2435,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       renderCustomerDash(); 
     }
   }
-  function renderAdminDash(){ const currentRole = window.role || role; if(currentRole!=='admin') return; const openAll=tickets.filter(t=>t.status!=='Resolved').length; const slaRisk=tickets.filter(t=>t.status!=='Resolved' && getSLAState(t).cls!=='ok').length; const totalItems=CMDB_ITEMS.length; document.getElementById('ad-open').textContent=openAll; document.getElementById('ad-sla-risk').textContent=slaRisk; document.getElementById('ad-items').textContent=totalItems; const tb=document.getElementById('ad-recent'); tb.innerHTML=''; tickets.slice(0,5).forEach(t=>{ const tr=document.createElement('tr'); tr.onclick=()=>openTicket(t.id); const sla=getSLAState(t); const dateTime=formatDateTime(t.created); tr.innerHTML=`<td>#${t.id}</td><td>${t.title}</td><td>${dateTime}</td><td>${t.customer}</td><td>${t.status} ${slaBadgeHTML(sla)}</td>`; tb.appendChild(tr); }); loadFeedbackScoreboard(); }
+  function renderAdminDash(){ const currentRole = window.role || role; if(currentRole!=='admin') return; const openAll=tickets.filter(t=>t.status!=='Resolved').length; const slaRisk=tickets.filter(t=>t.status!=='Resolved' && getSLAState(t).cls!=='ok').length; const totalItems=CMDB_ITEMS.length; document.getElementById('ad-open').textContent=openAll; document.getElementById('ad-sla-risk').textContent=slaRisk; document.getElementById('ad-items').textContent=totalItems; const tb=document.getElementById('ad-recent'); tb.innerHTML=''; tickets.slice(0,5).forEach(t=>{ const tr=document.createElement('tr'); tr.onclick=()=>openTicket(t.id); const sla=getSLAState(t); tr.innerHTML=`<td>#${t.id}</td><td>${t.title}</td><td>${t.customer}</td><td>${t.status} ${slaBadgeHTML(sla)}</td>`; tb.appendChild(tr); }); loadFeedbackScoreboard(); }
 
   async function loadFeedbackScoreboard() {
     try {
@@ -2796,7 +2553,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     switchView('cmdb');
   }
 
-  function renderExpertDash(){ const currentRole = window.role || role; if(currentRole!=='expert') return; const me='Jane Doe'; const my=tickets.filter(t=>t.assignee===me && t.status!=='Resolved'); const today=my.filter(t=>{ const now=new Date(); const due=parseDueEndOfDay(t.due); return due && now.toDateString()===due.toDateString(); }); const risk=my.filter(t=>getSLAState(t).cls!=='ok'); document.getElementById('ex-open').textContent=my.length; document.getElementById('ex-today').textContent=today.length; document.getElementById('ex-risk').textContent=risk.length; const tb=document.getElementById('ex-list'); tb.innerHTML=''; my.slice(0,6).forEach(t=>{ const tr=document.createElement('tr'); const sla=getSLAState(t); const dateTime=formatDateTime(t.created); tr.onclick=()=>openTicket(t.id); tr.innerHTML = `<td>#${t.id}</td><td>${t.title}</td><td>${dateTime}</td><td>${t.status}</td><td>${slaBadgeHTML(sla)}</td>`; tb.appendChild(tr); }); }
+  function renderExpertDash(){ const currentRole = window.role || role; if(currentRole!=='expert') return; const me='Jane Doe'; const my=tickets.filter(t=>t.assignee===me && t.status!=='Resolved'); const today=my.filter(t=>{ const now=new Date(); const due=parseDueEndOfDay(t.due); return due && now.toDateString()===due.toDateString(); }); const risk=my.filter(t=>getSLAState(t).cls!=='ok'); document.getElementById('ex-open').textContent=my.length; document.getElementById('ex-today').textContent=today.length; document.getElementById('ex-risk').textContent=risk.length; const tb=document.getElementById('ex-list'); tb.innerHTML=''; my.slice(0,6).forEach(t=>{ const tr=document.createElement('tr'); const sla=getSLAState(t); tr.onclick=()=>openTicket(t.id); tr.innerHTML = `<td>#${t.id}</td><td>${t.title}</td><td>${t.status}</td><td>${slaBadgeHTML(sla)}</td>`; tb.appendChild(tr); }); }
   function renderCustomerDash(){ const currentRole = window.role || role; if(currentRole!=='customer') return; const items = CMDB_ITEMS.filter(i => !tenant || i.customer===tenant); const ciCount = items.reduce((a,i)=>a+(CIS_BY_ITEM[i.cmdb_id]?.length||0),0); const openTickets = tickets.filter(t => (!tenant || (t.customer===tenant)) && t.status!=='Resolved').length; document.getElementById('cu-open').textContent=openTickets; document.getElementById('cu-items').textContent=items.length; document.getElementById('cu-cis').textContent=ciCount; const tbody=document.getElementById('cu-ci-body'); tbody.innerHTML=''; const all=[]; items.forEach(i => (CIS_BY_ITEM[i.cmdb_id]||[]).forEach(ci => all.push({item:i, ci}))); all.slice(0,8).forEach(r => { const tr=document.createElement('tr'); const m=r.ci.Model||r.ci.model||''; const loc=r.ci.Location||r.ci.location||''; const life=r.ci.Lifecycle||r.ci.lifecycle||r.ci.life||''; tr.innerHTML = `<td>${r.item.name}</td><td>${r.ci.name}</td><td>${m}</td><td>${loc}</td><td>${life}</td>`; tbody.appendChild(tr); }); }
   function renderMasterDash(){ 
     const currentRole = window.role || role;
@@ -4645,10 +4402,6 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           assignee: t.assignee_name || '—',
           assignee_id: t.assignee_id,
           customer: t.requester_name || '—',
-          customer_id: t.requester_id,
-          customer_company_id: t.customer_company_id,
-          company_name: t.company_name || '—',
-          company_domain: t.company_domain,
           created: t.created_at,
           sla_deadline: t.sla_deadline,
           cmdb_item_name: t.cmdb_item_name
@@ -4657,10 +4410,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         // Populate assignee filter dropdown
         populateAssigneeFilter();
 
-        // Populate company filter dropdown
-        populateCompanyFilter();
-
-        // Populate customer/team member filter dropdown
+        // Populate customer filter dropdown
         populateCustomerFilter();
 
         // Apply filters
@@ -4685,28 +4435,23 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
         // Render tickets
         if (filteredTickets.length === 0) {
-          tb.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px;">No tickets match your filters</td></tr>';
+          tb.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;">No tickets match your filters</td></tr>';
         } else {
           filteredTickets.forEach(t=>{
             const tr=document.createElement('tr');
+            tr.onclick=()=>openTicket(t.id);
             const sla = getSLAState(t);
-            const dateTime = formatDateTime(t.created);
-            const isSelected = selectedTicketIds.has(t.id);
-            tr.innerHTML = `<td onclick="event.stopPropagation()"><input type="checkbox" class="ticket-checkbox" data-ticket-id="${t.id}" ${isSelected ? 'checked' : ''} onchange="onTicketCheckboxChange(${t.id}, this.checked)"></td><td onclick="openTicket(${t.id})">#${t.id}</td><td onclick="openTicket(${t.id})">${t.title}</td><td onclick="openTicket(${t.id})">${dateTime}</td><td onclick="openTicket(${t.id})">${t.priority||'—'}</td><td onclick="openTicket(${t.id})">${t.status}</td><td onclick="openTicket(${t.id})">${t.assignee||'—'}</td><td onclick="openTicket(${t.id})">${t.customer}</td><td onclick="openTicket(${t.id})">${slaBadgeHTML(sla)}</td>`;
-            if (isSelected) tr.style.backgroundColor = '#e0f2fe';
+            tr.innerHTML = `<td>#${t.id}</td><td>${t.title}</td><td>${t.priority||'—'}</td><td>${t.status}</td><td>${t.assignee||'—'}</td><td>${t.customer}</td><td>${slaBadgeHTML(sla)}</td>`;
             tb.appendChild(tr);
           });
         }
-
-        // Update select all checkbox state
-        updateSelectAllCheckbox();
       } else {
         console.error('Failed to load tickets:', data.message);
-        tb.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;">Failed to load tickets</td></tr>';
+        tb.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;">Failed to load tickets</td></tr>';
       }
     } catch (error) {
       console.error('Error loading tickets:', error);
-      tb.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;">Error loading tickets</td></tr>';
+      tb.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;">Error loading tickets</td></tr>';
     }
   }
 
@@ -4736,47 +4481,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     assigneeFilter.value = currentValue;
   }
 
-  // Populate company filter with unique companies from tickets
-  function populateCompanyFilter() {
-    const companyFilter = document.getElementById('ticket-filter-company');
-    if (!companyFilter) return;
-
-    // Get current selection
-    const currentValue = companyFilter.value;
-
-    // Get unique companies (by company_company_id to avoid duplicates)
-    const companiesMap = new Map();
-    tickets.forEach(t => {
-      if (t.customer_company_id && t.company_name && t.company_name !== '—') {
-        companiesMap.set(t.customer_company_id, t.company_name);
-      }
-    });
-
-    // Sort by company name
-    const companies = Array.from(companiesMap.entries()).sort((a, b) => a[1].localeCompare(b[1]));
-
-    // Keep first option (All Companies)
-    companyFilter.innerHTML = '<option value="">All Companies</option>';
-
-    // Add company options
-    companies.forEach(([id, name]) => {
-      const option = document.createElement('option');
-      option.value = id;
-      option.textContent = name;
-      companyFilter.appendChild(option);
-    });
-
-    // Restore selection
-    companyFilter.value = currentValue;
-  }
-
-  // When company filter changes, update team member filter
-  function onCompanyFilterChange() {
-    populateCustomerFilter();
-    renderList();
-  }
-
-  // Populate customer/team member filter with customers from selected company (or all)
+  // Populate customer filter with unique customers from tickets
   function populateCustomerFilter() {
     const customerFilter = document.getElementById('ticket-filter-customer');
     if (!customerFilter) return;
@@ -4784,39 +4489,22 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     // Get current selection
     const currentValue = customerFilter.value;
 
-    // Get selected company filter
-    const companyFilter = document.getElementById('ticket-filter-company')?.value || '';
+    // Get unique customers
+    const customers = [...new Set(tickets.map(t => t.customer).filter(c => c && c !== '—'))].sort();
 
-    // Get unique customers, filtered by company if selected
-    const customersMap = new Map();
-    tickets.forEach(t => {
-      if (t.customer && t.customer !== '—') {
-        // If company filter is set, only include customers from that company
-        if (companyFilter && t.customer_company_id != companyFilter) return;
-        customersMap.set(t.customer_id, t.customer);
-      }
-    });
-
-    // Sort by customer name
-    const customers = Array.from(customersMap.entries()).sort((a, b) => a[1].localeCompare(b[1]));
-
-    // Keep first option (All Team Members)
-    customerFilter.innerHTML = '<option value="">All Team Members</option>';
+    // Keep first option (All Customers)
+    customerFilter.innerHTML = '<option value="">All Customers</option>';
 
     // Add customer options
-    customers.forEach(([id, name]) => {
+    customers.forEach(customer => {
       const option = document.createElement('option');
-      option.value = id;
-      option.textContent = name;
+      option.value = customer;
+      option.textContent = customer;
       customerFilter.appendChild(option);
     });
 
-    // Restore selection if still valid
-    if (customersMap.has(parseInt(currentValue))) {
-      customerFilter.value = currentValue;
-    } else {
-      customerFilter.value = '';
-    }
+    // Restore selection
+    customerFilter.value = currentValue;
   }
 
   // Apply ticket filters
@@ -4825,7 +4513,6 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const statusFilter = document.getElementById('ticket-filter-status')?.value || '';
     const priorityFilter = document.getElementById('ticket-filter-priority')?.value || '';
     const assigneeFilter = document.getElementById('ticket-filter-assignee')?.value || '';
-    const companyFilter = document.getElementById('ticket-filter-company')?.value || '';
     const customerFilter = document.getElementById('ticket-filter-customer')?.value || '';
 
     return ticketList.filter(t => {
@@ -4840,8 +4527,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           String(t.id).includes(searchTerm) ||
           (t.title || '').toLowerCase().includes(searchTerm) ||
           (t.description || '').toLowerCase().includes(searchTerm) ||
-          (t.customer || '').toLowerCase().includes(searchTerm) ||
-          (t.company_name || '').toLowerCase().includes(searchTerm);
+          (t.customer || '').toLowerCase().includes(searchTerm);
         if (!matchesSearch) return false;
       }
 
@@ -4860,14 +4546,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         }
       }
 
-      // Company filter - if company selected, filter by company
-      if (companyFilter) {
-        if (t.customer_company_id != companyFilter) return false;
-      }
-
-      // Customer/Team Member filter - if specific team member selected
+      // Customer filter
       if (customerFilter) {
-        if (t.customer_id != customerFilter) return false;
+        if (t.customer !== customerFilter) return false;
       }
 
       // SLA at risk filter (when clicked from dashboard)
@@ -4918,7 +4599,6 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const statusFilter = document.getElementById('ticket-filter-status');
     const priorityFilter = document.getElementById('ticket-filter-priority');
     const assigneeFilter = document.getElementById('ticket-filter-assignee');
-    const companyFilter = document.getElementById('ticket-filter-company');
     const customerFilter = document.getElementById('ticket-filter-customer');
     const sortSelect = document.getElementById('ticket-sort');
 
@@ -4926,14 +4606,12 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     if (statusFilter) statusFilter.value = '';
     if (priorityFilter) priorityFilter.value = '';
     if (assigneeFilter) assigneeFilter.value = '';
-    if (companyFilter) companyFilter.value = '';
     if (customerFilter) customerFilter.value = '';
     if (sortSelect) sortSelect.value = 'id-desc';
 
     // Also clear insight filters
     clearInsightFilter();
 
-    saveFilterSettings('tickets');
     renderList();
   }
 
@@ -4960,249 +4638,6 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
     sortSelect.value = sortMap[column] || 'id-desc';
     renderList();
-  }
-
-  // ---- Bulk Selection ----
-  let selectedTicketIds = new Set();
-  let currentBulkAction = null;
-
-  function onTicketCheckboxChange(ticketId, checked) {
-    if (checked) {
-      selectedTicketIds.add(ticketId);
-    } else {
-      selectedTicketIds.delete(ticketId);
-    }
-    updateBulkActionsBar();
-    updateSelectAllCheckbox();
-    // Highlight selected rows
-    const checkbox = document.querySelector(`input[data-ticket-id="${ticketId}"]`);
-    if (checkbox) {
-      const row = checkbox.closest('tr');
-      if (row) row.style.backgroundColor = checked ? '#e0f2fe' : '';
-    }
-  }
-
-  function toggleSelectAllTickets() {
-    const selectAll = document.getElementById('select-all-tickets');
-    const checkboxes = document.querySelectorAll('.ticket-checkbox');
-
-    if (selectAll.checked) {
-      checkboxes.forEach(cb => {
-        const ticketId = parseInt(cb.dataset.ticketId);
-        selectedTicketIds.add(ticketId);
-        cb.checked = true;
-        const row = cb.closest('tr');
-        if (row) row.style.backgroundColor = '#e0f2fe';
-      });
-    } else {
-      checkboxes.forEach(cb => {
-        const ticketId = parseInt(cb.dataset.ticketId);
-        selectedTicketIds.delete(ticketId);
-        cb.checked = false;
-        const row = cb.closest('tr');
-        if (row) row.style.backgroundColor = '';
-      });
-    }
-    updateBulkActionsBar();
-  }
-
-  function updateSelectAllCheckbox() {
-    const selectAll = document.getElementById('select-all-tickets');
-    const checkboxes = document.querySelectorAll('.ticket-checkbox');
-    if (!selectAll || checkboxes.length === 0) return;
-
-    const allChecked = Array.from(checkboxes).every(cb => cb.checked);
-    const someChecked = Array.from(checkboxes).some(cb => cb.checked);
-
-    selectAll.checked = allChecked;
-    selectAll.indeterminate = someChecked && !allChecked;
-  }
-
-  function updateBulkActionsBar() {
-    const bar = document.getElementById('bulk-actions-bar');
-    const countSpan = document.getElementById('bulk-selected-count');
-    if (!bar) return;
-
-    if (selectedTicketIds.size > 0) {
-      bar.style.display = 'flex';
-      countSpan.textContent = `${selectedTicketIds.size} ticket${selectedTicketIds.size > 1 ? 's' : ''} selected`;
-    } else {
-      bar.style.display = 'none';
-    }
-  }
-
-  function clearBulkSelection() {
-    selectedTicketIds.clear();
-    const checkboxes = document.querySelectorAll('.ticket-checkbox');
-    checkboxes.forEach(cb => {
-      cb.checked = false;
-      const row = cb.closest('tr');
-      if (row) row.style.backgroundColor = '';
-    });
-    const selectAll = document.getElementById('select-all-tickets');
-    if (selectAll) selectAll.checked = false;
-    updateBulkActionsBar();
-  }
-
-  async function openBulkActionDialog(action) {
-    if (selectedTicketIds.size === 0) {
-      alert('Please select at least one ticket');
-      return;
-    }
-
-    currentBulkAction = action;
-    const modal = document.getElementById('bulk-action-modal');
-    const title = document.getElementById('bulk-action-title');
-    const summary = document.getElementById('bulk-action-summary');
-    const assigneeRow = document.getElementById('bulk-action-assignee-row');
-    const noteInput = document.getElementById('bulk-action-note');
-    const errorDiv = document.getElementById('bulk-action-error');
-    const progressDiv = document.getElementById('bulk-action-progress');
-    const submitBtn = document.getElementById('bulk-action-submit-btn');
-
-    // Reset state
-    noteInput.value = '';
-    errorDiv.style.display = 'none';
-    progressDiv.style.display = 'none';
-    submitBtn.disabled = false;
-
-    // Set title and summary based on action
-    const ticketWord = selectedTicketIds.size > 1 ? 'tickets' : 'ticket';
-    switch (action) {
-      case 'close':
-        title.textContent = 'Close Selected Tickets';
-        summary.innerHTML = `You are about to <strong>close</strong> ${selectedTicketIds.size} ${ticketWord}.`;
-        assigneeRow.style.display = 'none';
-        break;
-      case 'assign':
-        title.textContent = 'Assign Selected Tickets';
-        summary.innerHTML = `You are about to <strong>assign</strong> ${selectedTicketIds.size} ${ticketWord} to an expert.`;
-        assigneeRow.style.display = 'block';
-        await loadBulkActionExperts();
-        break;
-      case 'resolve':
-        title.textContent = 'Resolve Selected Tickets';
-        summary.innerHTML = `You are about to <strong>resolve</strong> ${selectedTicketIds.size} ${ticketWord}.`;
-        assigneeRow.style.display = 'none';
-        break;
-    }
-
-    modal.style.display = 'flex';
-  }
-
-  function closeBulkActionDialog() {
-    const modal = document.getElementById('bulk-action-modal');
-    modal.style.display = 'none';
-    currentBulkAction = null;
-  }
-
-  async function loadBulkActionExperts() {
-    const select = document.getElementById('bulk-action-assignee');
-    select.innerHTML = '<option value="">-- Select Expert --</option>';
-
-    try {
-      const token = localStorage.getItem('token');
-      const tenantCode = window.tenant || 'apoyar';
-
-      const response = await fetch(`http://localhost:3000/api/experts/${tenantCode}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-
-      const data = await response.json();
-      if (data.success && data.experts) {
-        data.experts.forEach(expert => {
-          const option = document.createElement('option');
-          option.value = expert.id;
-          option.textContent = expert.full_name || expert.username;
-          select.appendChild(option);
-        });
-      }
-    } catch (error) {
-      console.error('Error loading experts:', error);
-    }
-  }
-
-  async function submitBulkAction() {
-    const noteInput = document.getElementById('bulk-action-note');
-    const errorDiv = document.getElementById('bulk-action-error');
-    const progressDiv = document.getElementById('bulk-action-progress');
-    const progressBar = document.getElementById('bulk-action-progress-bar');
-    const progressText = document.getElementById('bulk-action-progress-text');
-    const submitBtn = document.getElementById('bulk-action-submit-btn');
-
-    const note = noteInput.value.trim();
-    if (!note) {
-      errorDiv.textContent = 'Please enter an action note';
-      errorDiv.style.display = 'block';
-      return;
-    }
-
-    if (currentBulkAction === 'assign') {
-      const assignee = document.getElementById('bulk-action-assignee').value;
-      if (!assignee) {
-        errorDiv.textContent = 'Please select an expert to assign';
-        errorDiv.style.display = 'block';
-        return;
-      }
-    }
-
-    // Hide error and show progress
-    errorDiv.style.display = 'none';
-    progressDiv.style.display = 'block';
-    submitBtn.disabled = true;
-
-    const ticketIds = Array.from(selectedTicketIds);
-    const total = ticketIds.length;
-    let completed = 0;
-    let failed = 0;
-
-    const token = localStorage.getItem('token');
-    const tenantCode = window.tenant || 'apoyar';
-
-    // Process tickets using bulk API endpoint
-    try {
-      const response = await fetch(`http://localhost:3000/api/tickets/${tenantCode}/bulk-action`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          action: currentBulkAction,
-          ticket_ids: ticketIds,
-          comment: note,
-          assignee_id: currentBulkAction === 'assign' ? document.getElementById('bulk-action-assignee').value : null
-        })
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        completed = data.processed || total;
-        failed = data.failed || 0;
-        progressBar.style.width = '100%';
-        progressText.textContent = `${completed} of ${total} completed` + (failed > 0 ? `, ${failed} failed` : '');
-
-        // Close dialog after short delay and refresh
-        setTimeout(() => {
-          closeBulkActionDialog();
-          clearBulkSelection();
-          renderList();
-          alert(`Bulk action completed: ${completed} ticket${completed > 1 ? 's' : ''} ${currentBulkAction === 'close' ? 'closed' : currentBulkAction === 'assign' ? 'assigned' : 'resolved'}`);
-        }, 500);
-      } else {
-        errorDiv.textContent = data.message || 'Bulk action failed';
-        errorDiv.style.display = 'block';
-        progressDiv.style.display = 'none';
-        submitBtn.disabled = false;
-      }
-    } catch (error) {
-      console.error('Bulk action error:', error);
-      errorDiv.textContent = 'Error processing bulk action';
-      errorDiv.style.display = 'block';
-      progressDiv.style.display = 'none';
-      submitBtn.disabled = false;
-    }
   }
 
   function openTicket(id){ currentTicketId=id; switchView('ticket-detail'); }
@@ -5510,7 +4945,6 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   // ---- Experts & Customers ----
   let allExperts = []; // Store all experts for searching
   let currentExpertId = null; // Store current expert for editing
-  let currentTicket = null; // Store current ticket for operations
 
   async function renderExperts(){
     const body=document.getElementById('experts-body');
@@ -5551,16 +4985,13 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           filteredExperts.forEach(e=>{
             const tr=document.createElement('tr');
             const lastLogin = e.last_login ? new Date(e.last_login).toLocaleString() : 'Never';
-            const openTickets = e.open_tickets || 0;
-            const ticketBadge = openTickets > 0
-              ? `<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:12px;font-weight:600">${openTickets}</span>`
-              : '<span style="color:#6b7280">0</span>';
+            const stars = '⭐'.repeat(Math.floor(e.rating || 0));
             tr.innerHTML=`
               <td>${e.full_name || e.username}</td>
               <td>${e.username}</td>
               <td>${e.location || '-'}</td>
               <td>${e.email || '-'}</td>
-              <td>${ticketBadge}</td>
+              <td>${stars || '-'}</td>
               <td>${lastLogin}</td>
               <td>
                 <button class="btn ghost" style="padding:4px 8px;font-size:12px" onclick="viewExpertDetail(${e.id})">View</button>
@@ -5614,7 +5045,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         document.getElementById('expert-status').textContent = e.status || 'active';
         document.getElementById('expert-email-updates').textContent = e.email_updates !== false ? 'Enabled' : 'Disabled';
         document.getElementById('expert-reference').textContent = e.reference_code || '-';
-        document.getElementById('expert-open-tickets').textContent = e.open_tickets || '0';
+        document.getElementById('expert-rating').textContent = '⭐'.repeat(Math.floor(e.rating || 0)) || '-';
 
         // Account Statistics
         document.getElementById('expert-created-by').textContent = e.created_by || '-';
@@ -5644,9 +5075,6 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         document.getElementById('expert-department').textContent = e.department || '-';
         document.getElementById('expert-email').textContent = e.email || '-';
       } else {
-
-        // Load expert permissions
-        await loadExpertPermissions();
         alert('Failed to load expert details');
         switchView('experts');
       }
@@ -5689,7 +5117,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         document.getElementById('expert-form-username').value = e.username || '';
         document.getElementById('expert-form-email').value = e.email || '';
         document.getElementById('expert-form-role').value = e.role || 'expert';
-        document.getElementById('expert-form-status').value = e.is_active === false ? 'inactive' : 'active';
+        document.getElementById('expert-form-status').value = e.status || 'active';
         document.getElementById('expert-form-rating').value = e.rating || '';
         document.getElementById('expert-form-reference').value = e.reference_code || '';
         document.getElementById('expert-form-email-updates').checked = e.email_updates !== false;
@@ -5891,443 +5319,12 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   }
 
   // Customer Management Functions
-
-  // ========================================
-  // EXPERT TICKET PERMISSIONS FUNCTIONS
-  // ========================================
-
-
-  // Show expert permissions modal
-  async function showExpertPermissionsModal() {
-    console.log('🚀 showExpertPermissionsModal() called');
-    console.log('  → currentExpertId:', currentExpertId);
-
-    if (!currentExpertId) {
-      alert('No expert selected');
-      return;
-    }
-
-    document.getElementById('expert-permissions-modal').style.display = 'block';
-    console.log('  → Modal opened');
-
-    console.log('  → Loading expert permissions...');
-    await loadExpertPermissions();
-
-    console.log('  → Loading available customers...');
-    await loadAvailableCustomers();
-
-    console.log('  ✅ Modal fully initialized');
-  }
-
-  // Close expert permissions modal
-  function closeExpertPermissionsModal() {
-    document.getElementById('expert-permissions-modal').style.display = 'none';
-    // Reset form
-    document.getElementById('perm-type').value = '';
-    document.getElementById('perm-customer').value = '';
-    document.getElementById('perm-pattern').value = '';
-    updatePermissionForm();
-    hideMessage('perm-form-message');
-    hideMessage('perm-form-error');
-  }
-
-  // Load expert permissions
-  async function loadExpertPermissions() {
-    try {
-      const token = localStorage.getItem('token');
-      const tenantCode = localStorage.getItem('tenantCode') || 'apoyar';
-
-      const response = await fetch(`/api/expert-permissions/${tenantCode}/${currentExpertId}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        renderPermissionsList(data.permissions);
-        renderPermissionsOnDetailPage(data.permissions);
-      } else {
-        renderPermissionsList([]);
-      }
-    } catch (error) {
-      console.error('Error loading expert permissions:', error);
-      document.getElementById('current-permissions-list').innerHTML =
-        '<div class="subtitle" style="color:#b91c1c">Failed to load permissions</div>';
-    }
-  }
-
-  // Render permissions list in modal
-  function renderPermissionsList(permissions) {
-    const container = document.getElementById('current-permissions-list');
-
-    if (!permissions || permissions.length === 0) {
-      container.innerHTML = '<div class="subtitle" style="color:#999">No permissions configured</div>';
-      return;
-    }
-
-    let html = '<div style="display:flex;flex-direction:column;gap:8px">';
-
-    permissions.forEach(perm => {
-      let permText = '';
-      let permIcon = '';
-
-      if (perm.permission_type === 'all_tickets') {
-        permIcon = '🌐';
-        permText = 'All Tickets';
-      } else if (perm.permission_type === 'specific_customers') {
-        permIcon = '👤';
-        permText = `Customer: ${perm.customer_name || perm.customer_username || 'Unknown'}`;
-        if (perm.company_name) {
-          permText += ` (${perm.company_name})`;
-        }
-      } else if (perm.permission_type === 'title_patterns') {
-        permIcon = '🔍';
-        permText = `Title contains: "${perm.title_pattern}"`;
-      }
-
-      html += `
-        <div class="row space" style="padding:8px;background:white;border-radius:4px;border:1px solid #e5e7eb">
-          <div class="row" style="gap:8px">
-            <span style="font-size:18px">${permIcon}</span>
-            <span>${permText}</span>
-          </div>
-          <button class="btn ghost small" onclick="deleteExpertPermission(${perm.id})">Remove</button>
-        </div>
-      `;
-    });
-
-    html += '</div>';
-    container.innerHTML = html;
-  }
-
-  // Render permissions on expert detail page
-  function renderPermissionsOnDetailPage(permissions) {
-    const container = document.getElementById('expert-permissions-list');
-
-    if (!permissions || permissions.length === 0) {
-      container.innerHTML = '<div class="subtitle" style="color:#999">No permissions configured. Click "Manage Permissions" to add.</div>';
-      return;
-    }
-
-    let html = '<div style="display:flex;flex-direction:column;gap:6px">';
-
-    permissions.forEach(perm => {
-      let permText = '';
-      let permIcon = '';
-
-      if (perm.permission_type === 'all_tickets') {
-        permIcon = '🌐';
-        permText = '<strong>All Tickets</strong> - Can view and work on all tickets';
-      } else if (perm.permission_type === 'specific_customers') {
-        permIcon = '👤';
-        permText = `Customer: <strong>${perm.customer_name || perm.customer_username}</strong>`;
-        if (perm.company_name) {
-          permText += ` (${perm.company_name})`;
-        }
-      } else if (perm.permission_type === 'title_patterns') {
-        permIcon = '🔍';
-        permText = `Tickets with title containing: <strong>"${perm.title_pattern}"</strong>`;
-      }
-
-      html += `
-        <div class="row" style="gap:8px;padding:4px 0">
-          <span style="font-size:16px">${permIcon}</span>
-          <span class="subtitle">${permText}</span>
-        </div>
-      `;
-    });
-
-    html += '</div>';
-    container.innerHTML = html;
-  }
-
-  // Load available customers for dropdown
-  async function loadAvailableCustomers() {
-    console.log('🔍 loadAvailableCustomers() called');
-    try {
-      const token = localStorage.getItem('token');
-      const tenantCode = localStorage.getItem('tenantCode') || 'apoyar';
-      console.log('  → tenantCode:', tenantCode);
-
-      const response = await fetch(`/api/expert-permissions/${tenantCode}/customers/available`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-
-      const data = await response.json();
-      console.log('  → API response:', data);
-
-      if (data.success) {
-        const select = document.getElementById('perm-customer');
-        console.log('  → Customer dropdown element:', select ? 'FOUND' : 'NOT FOUND');
-
-        select.innerHTML = '<option value="">Select customer...</option>';
-
-        data.customers.forEach(customer => {
-          const displayName = customer.full_name || customer.username;
-          const companyInfo = customer.company_name ? ` (${customer.company_name})` : '';
-          select.innerHTML += `<option value="${customer.id}">${displayName}${companyInfo}</option>`;
-        });
-
-        console.log('  ✅ Loaded', data.customers.length, 'customers into dropdown');
-        console.log('  → Dropdown now has', select.options.length, 'total options');
-      } else {
-        console.error('  ❌ API returned success=false:', data);
-      }
-    } catch (error) {
-      console.error('❌ Error loading customers:', error);
-    }
-  }
-
-  // Update permission form based on selected type
-  function updatePermissionForm() {
-    console.log('🔄 updatePermissionForm() called');
-    const permType = document.getElementById('perm-type').value;
-    console.log('  → Permission type selected:', permType);
-
-    const customerSection = document.getElementById('perm-customer-section');
-    const patternSection = document.getElementById('perm-pattern-section');
-
-    console.log('  → Customer section element:', customerSection ? 'FOUND' : 'NOT FOUND');
-    console.log('  → Pattern section element:', patternSection ? 'FOUND' : 'NOT FOUND');
-
-    customerSection.style.display = permType === 'specific_customers' ? 'block' : 'none';
-    patternSection.style.display = permType === 'title_patterns' ? 'block' : 'none';
-
-    console.log('  → Customer section display:', customerSection.style.display);
-    console.log('  → Pattern section display:', patternSection.style.display);
-
-    if (permType === 'specific_customers') {
-      const select = document.getElementById('perm-customer');
-      console.log('  → Customer dropdown has', select ? select.options.length : 0, 'options');
-    }
-
-    // Clear validation messages
-    hideMessage('perm-form-message');
-    hideMessage('perm-form-error');
-  }
-
-  // Add expert permission
-  async function addExpertPermission() {
-    const permType = document.getElementById('perm-type').value;
-    const customerId = document.getElementById('perm-customer').value;
-    const pattern = document.getElementById('perm-pattern').value;
-
-    // Validation
-    if (!permType) {
-      showMessage('perm-form-error', 'Please select a permission type');
-      return;
-    }
-
-    if (permType === 'specific_customers' && !customerId) {
-      showMessage('perm-form-error', 'Please select a customer');
-      return;
-    }
-
-    if (permType === 'title_patterns' && !pattern.trim()) {
-      showMessage('perm-form-error', 'Please enter a title pattern');
-      return;
-    }
-
-    try {
-      const token = localStorage.getItem('token');
-      const tenantCode = localStorage.getItem('tenantCode') || 'apoyar';
-
-      const response = await fetch(`/api/expert-permissions/${tenantCode}/${currentExpertId}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          permission_type: permType,
-          customer_id: permType === 'specific_customers' ? parseInt(customerId) : null,
-          title_pattern: permType === 'title_patterns' ? pattern.trim() : null
-        })
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        showMessage('perm-form-message', 'Permission added successfully');
-        // Reset form
-        document.getElementById('perm-type').value = '';
-        document.getElementById('perm-customer').value = '';
-        document.getElementById('perm-pattern').value = '';
-        updatePermissionForm();
-        // Reload permissions
-        await loadExpertPermissions();
-
-        // Hide success message after 2 seconds
-        setTimeout(() => hideMessage('perm-form-message'), 2000);
-      } else {
-        showMessage('perm-form-error', data.error || 'Failed to add permission');
-      }
-    } catch (error) {
-      console.error('Error adding permission:', error);
-      showMessage('perm-form-error', 'Error adding permission');
-    }
-  }
-
-  // Delete expert permission
-  async function deleteExpertPermission(permissionId) {
-    if (!confirm('Remove this permission?')) return;
-
-    try {
-      const token = localStorage.getItem('token');
-      const tenantCode = localStorage.getItem('tenantCode') || 'apoyar';
-
-      const response = await fetch(`/api/expert-permissions/${tenantCode}/${permissionId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        await loadExpertPermissions();
-      } else {
-        alert('Failed to remove permission: ' + (data.error || 'Unknown error'));
-      }
-    } catch (error) {
-      console.error('Error deleting permission:', error);
-      alert('Error deleting permission');
-    }
-  }
-
-  // Self-assign ticket
-  async function selfAssignTicket() {
-    const ticketId = currentTicket.id;
-
-    if (!confirm('Assign this ticket to yourself?')) return;
-
-    try {
-      const token = localStorage.getItem('token');
-      const tenantCode = localStorage.getItem('tenantCode') || 'apoyar';
-
-      const response = await fetch(`/api/tickets/${tenantCode}/${ticketId}/self-assign`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        alert(data.message);
-        await showTicketDetail(ticketId);
-        await loadTickets();
-      } else {
-        alert('Failed to self-assign: ' + (data.message || 'Unknown error'));
-      }
-    } catch (error) {
-      console.error('Error self-assigning ticket:', error);
-      alert('Error self-assigning ticket');
-    }
-  }
-
-  // Helper functions
-  function showMessage(elementId, message) {
-    const el = document.getElementById(elementId);
-    if (el) {
-      el.textContent = message;
-      el.style.display = 'block';
-    }
-  }
-
-  function hideMessage(elementId) {
-    const el = document.getElementById(elementId);
-    if (el) {
-      el.style.display = 'none';
-    }
-  }
-
-  // Format date and time - returns "DD MMM HH:mm" format
-  function formatDateTime(dateString) {
-    if (!dateString) return '—';
-
-    try {
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) return '—';
-
-      const day = date.getDate();
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      const month = months[date.getMonth()];
-      const hours = String(date.getHours()).padStart(2, '0');
-      const minutes = String(date.getMinutes()).padStart(2, '0');
-
-      return `${day} ${month} ${hours}:${minutes}`;
-    } catch (error) {
-      return '—';
-    }
-  }
-
   let allCustomers = [];
-  let allCustomerCompanies = [];
-  let customerSortField = 'name';
-  let customerSortAsc = true;
-
-  // Load customer companies for filter dropdown
-  async function loadCustomerCompanies() {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3000/api/customer-companies', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      const data = await response.json();
-      if (data.success && data.companies) {
-        allCustomerCompanies = data.companies;
-        populateCustomerCompanyFilter();
-      }
-    } catch (error) {
-      console.error('Error loading customer companies:', error);
-    }
-  }
-
-  // Populate customer company filter dropdown
-  function populateCustomerCompanyFilter() {
-    const companyFilter = document.getElementById('cust-filter-company');
-    if (!companyFilter) return;
-
-    const currentValue = companyFilter.value;
-    companyFilter.innerHTML = '<option value="">All Companies</option>';
-
-    allCustomerCompanies.forEach(company => {
-      const option = document.createElement('option');
-      option.value = company.id;
-      option.textContent = `${company.company_name} (${company.team_member_count || 0})`;
-      companyFilter.appendChild(option);
-    });
-
-    companyFilter.value = currentValue;
-  }
-
-  // Clear customer filters
-  function clearCustomerFilters() {
-    const searchEl = document.getElementById('cust-search');
-    const companyEl = document.getElementById('cust-filter-company');
-    const slaEl = document.getElementById('cust-filter-sla');
-    const statusEl = document.getElementById('cust-filter-status');
-
-    if (searchEl) searchEl.value = '';
-    if (companyEl) companyEl.value = '';
-    if (slaEl) slaEl.value = '';
-    if (statusEl) statusEl.value = '';
-
-    saveFilterSettings('customers');
-    renderCustomers();
-  }
 
   async function renderCustomers(){
     const body=document.getElementById('customers-body');
     if(!body) return;
     body.innerHTML='<tr><td colspan="6" style="text-align:center;">Loading...</td></tr>';
-
-    // Load companies if not loaded
-    if (allCustomerCompanies.length === 0) {
-      await loadCustomerCompanies();
-    }
 
     try {
       const token = localStorage.getItem('token');
@@ -6350,86 +5347,31 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           company: c.company_name || c.full_name || c.username
         }));
 
-        // Get filter values
-        const searchQ = (document.getElementById('cust-search')?.value || '').toLowerCase();
-        const companyFilter = document.getElementById('cust-filter-company')?.value || '';
-        const slaFilter = document.getElementById('cust-filter-sla')?.value || '';
-        const statusFilter = document.getElementById('cust-filter-status')?.value || '';
-
-        // Apply filters
-        const filteredCustomers = allCustomers.filter(c => {
-          // Search filter
-          if (searchQ) {
-            const name = (c.full_name || c.username || '').toLowerCase();
-            const email = (c.email || '').toLowerCase();
-            const company = (c.company_name || '').toLowerCase();
-            const domain = (c.company_domain || '').toLowerCase();
-            if (!name.includes(searchQ) && !email.includes(searchQ) && !company.includes(searchQ) && !domain.includes(searchQ)) {
-              return false;
-            }
-          }
-
-          // Company filter
-          if (companyFilter && c.customer_company_id != companyFilter) {
-            return false;
-          }
-
-          // SLA filter
-          if (slaFilter && c.sla_level !== slaFilter) {
-            return false;
-          }
-
-          // Status filter
-          if (statusFilter === 'active' && c.is_active === false) {
-            return false;
-          }
-          if (statusFilter === 'inactive' && c.is_active !== false) {
-            return false;
-          }
-
-          return true;
+        // Apply search filter
+        const q=(document.getElementById('cust-search').value||'').toLowerCase();
+        const filteredCustomers = allCustomers.filter(c=>{
+          const name = (c.full_name || c.username || '').toLowerCase();
+          const email = (c.email || '').toLowerCase();
+          const company = (c.company_name || '').toLowerCase();
+          const domain = (c.company_domain || '').toLowerCase();
+          return !q || name.includes(q) || email.includes(q) || company.includes(q) || domain.includes(q);
         });
-
-        // Apply sorting
-        filteredCustomers.sort((a, b) => {
-          let valA, valB;
-          if (customerSortField === 'name') {
-            valA = (a.full_name || a.username || '').toLowerCase();
-            valB = (b.full_name || b.username || '').toLowerCase();
-          } else if (customerSortField === 'tickets') {
-            valA = a.open_ticket_count || 0;
-            valB = b.open_ticket_count || 0;
-          }
-          if (valA < valB) return customerSortAsc ? -1 : 1;
-          if (valA > valB) return customerSortAsc ? 1 : -1;
-          return 0;
-        });
-
-        // Update count
-        const countDiv = document.getElementById('customer-count');
-        if (countDiv) {
-          countDiv.textContent = `Showing ${filteredCustomers.length} of ${allCustomers.length} customers`;
-        }
 
         // Render customers
         body.innerHTML='';
         if (filteredCustomers.length === 0) {
-          body.innerHTML='<tr><td colspan="7" style="text-align:center;">No customers found</td></tr>';
+          body.innerHTML='<tr><td colspan="6" style="text-align:center;">No customers found</td></tr>';
         } else {
           filteredCustomers.forEach(c=>{
             const tr=document.createElement('tr');
             const slaColor = c.sla_level === 'enterprise' ? '#16a34a' : c.sla_level === 'premium' ? '#2563eb' : '#6b7280';
             const isActive = c.is_active !== false;
             const statusStyle = isActive ? '' : 'opacity:0.5;text-decoration:line-through';
-            const roleLabel = c.is_company_admin ? '👑 Admin' : (c.job_title || 'Team Member');
-            const ticketCount = c.open_ticket_count || 0;
-            const ticketStyle = ticketCount > 0 ? 'color:#2563eb;font-weight:600;cursor:pointer' : 'color:#6b7280';
             tr.innerHTML=`
               <td style="${statusStyle}">${c.full_name || c.username}</td>
               <td style="${statusStyle}">${c.email || '-'}</td>
               <td style="${statusStyle}">${c.company_name || '-'}</td>
-              <td style="${statusStyle};font-size:13px">${roleLabel}</td>
-              <td style="${statusStyle};${ticketStyle}" ${ticketCount > 0 ? `onclick="viewCustomerTickets(${c.id}, '${(c.full_name || c.username).replace(/'/g, "\\'")}')"` : ''}>${ticketCount}</td>
+              <td style="${statusStyle};font-family:monospace;font-size:13px">${c.company_domain || '-'}</td>
               <td style="${statusStyle};color:${slaColor};font-weight:600;text-transform:capitalize">${c.sla_level || 'basic'}</td>
               <td>
                 <button class="btn ghost" onclick="editCustomer(${c.id})" style="padding:4px 8px;font-size:13px" ${!isActive ? 'disabled' : ''}>Edit</button>
@@ -6443,42 +5385,17 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           });
         }
       } else {
-        body.innerHTML='<tr><td colspan="7" style="text-align:center;color:red;">Failed to load customers</td></tr>';
+        body.innerHTML='<tr><td colspan="6" style="text-align:center;color:red;">Failed to load customers</td></tr>';
       }
     } catch (error) {
       console.error('Error loading customers:', error);
-      body.innerHTML='<tr><td colspan="7" style="text-align:center;color:red;">Error loading customers</td></tr>';
+      body.innerHTML='<tr><td colspan="6" style="text-align:center;color:red;">Error loading customers</td></tr>';
     }
-  }
-
-  // Sort customers by field
-  function sortCustomersBy(field) {
-    if (customerSortField === field) {
-      customerSortAsc = !customerSortAsc;
-    } else {
-      customerSortField = field;
-      customerSortAsc = true;
-    }
-    renderCustomers();
-  }
-
-  // View tickets for a specific customer
-  function viewCustomerTickets(customerId, customerName) {
-    // Switch to tickets view and set the customer filter
-    switchView('tickets');
-    // Wait for tickets to load then set filter
-    setTimeout(() => {
-      const customerFilter = document.getElementById('ticket-filter-customer');
-      if (customerFilter) {
-        customerFilter.value = customerId;
-        renderList();
-      }
-    }, 500);
   }
 
   function showCreateCustomerForm() {
-    document.getElementById('customer-modal-title').textContent = 'Add Team Member';
-    document.getElementById('customer-save-btn-text').textContent = 'Create Team Member';
+    document.getElementById('customer-modal-title').textContent = 'Add Customer';
+    document.getElementById('customer-save-btn-text').textContent = 'Create Customer';
     document.getElementById('customer-form').reset();
     document.getElementById('customer-id').value = '';
     document.getElementById('customer-username').disabled = false;
@@ -6528,89 +5445,6 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   function closeCustomerModal() {
     document.getElementById('customer-modal').style.display = 'none';
     document.getElementById('customer-form').reset();
-  }
-
-  // Customer Company functions
-  function showCreateCustomerCompanyForm() {
-    document.getElementById('company-modal-title').textContent = 'Add Customer Company';
-    document.getElementById('company-save-btn-text').textContent = 'Create Company';
-    document.getElementById('company-form').reset();
-    document.getElementById('company-id').value = '';
-    document.getElementById('company-form-message').style.display = 'none';
-    document.getElementById('company-form-error').style.display = 'none';
-    document.getElementById('company-modal').style.display = 'block';
-  }
-
-  function closeCompanyModal() {
-    document.getElementById('company-modal').style.display = 'none';
-    document.getElementById('company-form').reset();
-  }
-
-  async function saveCustomerCompany(event) {
-    event.preventDefault();
-
-    const companyId = document.getElementById('company-id').value;
-    const companyData = {
-      company_name: document.getElementById('company-name').value,
-      company_domain: document.getElementById('company-domain').value,
-      contact_phone: document.getElementById('company-phone').value,
-      address: document.getElementById('company-address').value,
-      sla_level: document.getElementById('company-sla').value,
-      notes: document.getElementById('company-notes').value
-    };
-
-    try {
-      const token = localStorage.getItem('token');
-      const url = companyId
-        ? `http://localhost:3000/api/customer-companies/${companyId}`
-        : 'http://localhost:3000/api/customer-companies';
-      const method = companyId ? 'PUT' : 'POST';
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(companyData)
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        const msgEl = document.getElementById('company-form-message');
-        const errEl = document.getElementById('company-form-error');
-        errEl.style.display = 'none';
-
-        if (data.admin) {
-          msgEl.innerHTML = `Company created! Admin credentials:<br><strong>Username:</strong> ${data.admin.username}<br><strong>Email:</strong> ${data.admin.email}<br><strong>Temp Password:</strong> ${data.admin.tempPassword}`;
-        } else {
-          msgEl.textContent = companyId ? 'Company updated successfully!' : 'Company created successfully!';
-        }
-        msgEl.style.display = 'block';
-
-        // Reload customer companies list
-        allCustomerCompanies = [];
-        await loadCustomerCompanies();
-
-        // Close modal after a delay if just updating
-        if (companyId) {
-          setTimeout(() => {
-            closeCompanyModal();
-            renderCustomers();
-          }, 1500);
-        }
-      } else {
-        const errEl = document.getElementById('company-form-error');
-        errEl.textContent = data.message || 'Failed to save company';
-        errEl.style.display = 'block';
-      }
-    } catch (error) {
-      console.error('Error saving company:', error);
-      const errEl = document.getElementById('company-form-error');
-      errEl.textContent = 'Error saving company';
-      errEl.style.display = 'block';
-    }
   }
 
   async function saveCustomer(event) {
@@ -7051,185 +5885,6 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     }
   }
 
-
-  // ====== System Control Functions ======
-
-  let systemControlAuditLog = [];
-
-  async function loadSystemControlSettings() {
-    try {
-      const token = localStorage.getItem('token');
-      const tenantCode = window.tenant || 'apoyar';
-
-      console.log('Loading system control settings for tenant:', tenantCode);
-
-      const response = await fetch(`http://localhost:3000/api/tickets/settings/${tenantCode}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      const data = await response.json();
-      console.log('Settings response:', data);
-
-      if (data.success && data.settings) {
-        // Update Send Emails toggle - check explicitly for 'false' string
-        const sendEmailsCheckbox = document.getElementById('sc-send-emails');
-        const sendEmailsValue = data.settings.send_emails;
-        // Only disabled if explicitly set to 'false'
-        const sendEmailsEnabled = sendEmailsValue !== 'false';
-        console.log('send_emails value:', sendEmailsValue, 'enabled:', sendEmailsEnabled);
-        if (sendEmailsCheckbox) {
-          sendEmailsCheckbox.checked = sendEmailsEnabled;
-        }
-        updateSystemSettingStatus('send_emails', sendEmailsEnabled);
-
-        // Update Process Emails toggle - check explicitly for 'false' string
-        const processEmailsCheckbox = document.getElementById('sc-process-emails');
-        const processEmailsValue = data.settings.process_emails;
-        // Only disabled if explicitly set to 'false'
-        const processEmailsEnabled = processEmailsValue !== 'false';
-        console.log('process_emails value:', processEmailsValue, 'enabled:', processEmailsEnabled);
-        if (processEmailsCheckbox) {
-          processEmailsCheckbox.checked = processEmailsEnabled;
-        }
-        updateSystemSettingStatus('process_emails', processEmailsEnabled);
-      } else {
-        console.log('No settings found, defaulting to enabled');
-        // Default to enabled if no settings found
-        const sendCheckbox = document.getElementById('sc-send-emails');
-        const processCheckbox = document.getElementById('sc-process-emails');
-        if (sendCheckbox) sendCheckbox.checked = true;
-        if (processCheckbox) processCheckbox.checked = true;
-        updateSystemSettingStatus('send_emails', true);
-        updateSystemSettingStatus('process_emails', true);
-      }
-
-      // Update status log
-      updateSystemStatusLog();
-
-      // Update last updated timestamp
-      const lastUpdated = document.getElementById('sc-last-updated');
-      if (lastUpdated) lastUpdated.textContent = new Date().toLocaleString();
-
-      // Load audit log
-      loadSystemControlAuditLog();
-
-    } catch (error) {
-      console.error('Error loading system control settings:', error);
-      const statusLog = document.getElementById('sc-status-log');
-      if (statusLog) statusLog.innerHTML = '<div style="color:#b91c1c">Error loading system settings</div>';
-    }
-  }
-
-  function updateSystemSettingStatus(setting, enabled) {
-    const statusDiv = document.getElementById(`sc-${setting.replace('_', '-')}-status`);
-    if (statusDiv) {
-      if (enabled) {
-        statusDiv.style.background = '#dcfce7';
-        statusDiv.style.color = '#166534';
-        statusDiv.innerHTML = '✓ <strong>ENABLED</strong> - ' + (setting === 'send_emails' ? 'Outgoing emails will be sent' : 'Inbound emails will be processed');
-      } else {
-        statusDiv.style.background = '#fef2f2';
-        statusDiv.style.color = '#b91c1c';
-        statusDiv.innerHTML = '✗ <strong>DISABLED</strong> - ' + (setting === 'send_emails' ? 'No outgoing emails will be sent' : 'No inbound emails will be processed');
-      }
-    }
-  }
-
-  async function toggleSystemSetting(setting, enabled) {
-    try {
-      const token = localStorage.getItem('token');
-      const tenantCode = window.tenant || 'apoyar';
-
-      const response = await fetch(`http://localhost:3000/api/tickets/settings/${tenantCode}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          key: setting,
-          value: enabled ? 'true' : 'false'
-        })
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        updateSystemSettingStatus(setting, enabled);
-
-        // Add to local audit log
-        const username = localStorage.getItem('username') || 'Unknown';
-        systemControlAuditLog.unshift({
-          setting: setting === 'send_emails' ? 'Send Emails' : 'Process Emails',
-          old_value: enabled ? 'OFF' : 'ON',
-          new_value: enabled ? 'ON' : 'OFF',
-          changed_by: username,
-          time: new Date().toLocaleString()
-        });
-
-        renderSystemControlAuditLog();
-        updateSystemStatusLog();
-      } else {
-        alert('Failed to update setting: ' + (data.message || 'Unknown error'));
-        // Revert the checkbox
-        document.getElementById(`sc-${setting.replace('_', '-')}`).checked = !enabled;
-      }
-    } catch (error) {
-      console.error('Error toggling system setting:', error);
-      alert('Error updating setting. Please try again.');
-      // Revert the checkbox
-      document.getElementById(`sc-${setting.replace('_', '-')}`).checked = !enabled;
-    }
-  }
-
-  function updateSystemStatusLog() {
-    const statusLog = document.getElementById('sc-status-log');
-    const sendEmails = document.getElementById('sc-send-emails')?.checked;
-    const processEmails = document.getElementById('sc-process-emails')?.checked;
-
-    let logHtml = '';
-    logHtml += `<div style="margin-bottom:8px">[${new Date().toLocaleTimeString()}] System Control Status Check</div>`;
-    logHtml += `<div style="margin-bottom:4px;color:${sendEmails ? '#166534' : '#b91c1c'}">  → send_emails: ${sendEmails ? 'ENABLED' : 'DISABLED'}</div>`;
-    logHtml += `<div style="margin-bottom:4px;color:${processEmails ? '#166534' : '#b91c1c'}">  → process_emails: ${processEmails ? 'ENABLED' : 'DISABLED'}</div>`;
-    logHtml += `<div style="margin-top:8px;border-top:1px solid #e2e8f0;padding-top:8px">`;
-
-    if (!sendEmails || !processEmails) {
-      logHtml += `<div style="color:#b45309">⚠️ Warning: Some email functionality is disabled</div>`;
-    } else {
-      logHtml += `<div style="color:#166534">✓ All email systems operational</div>`;
-    }
-    logHtml += '</div>';
-
-    statusLog.innerHTML = logHtml;
-  }
-
-  async function loadSystemControlAuditLog() {
-    // For now, just show the in-memory audit log
-    // In a full implementation, this would fetch from the backend
-    renderSystemControlAuditLog();
-  }
-
-  function renderSystemControlAuditLog() {
-    const tbody = document.getElementById('sc-audit-log');
-
-    if (systemControlAuditLog.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="5" class="subtitle" style="text-align:center">No recent changes</td></tr>';
-      return;
-    }
-
-    tbody.innerHTML = systemControlAuditLog.slice(0, 10).map(log => `
-      <tr>
-        <td>${log.setting}</td>
-        <td><span class="badge" style="background:${log.old_value === 'ON' ? '#dcfce7' : '#fef2f2'}">${log.old_value}</span></td>
-        <td><span class="badge" style="background:${log.new_value === 'ON' ? '#dcfce7' : '#fef2f2'}">${log.new_value}</span></td>
-        <td>${log.changed_by}</td>
-        <td>${log.time}</td>
-      </tr>
-    `).join('');
-  }
 
   // ====== AI Insights Functions ======
 
