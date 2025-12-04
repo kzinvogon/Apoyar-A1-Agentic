@@ -1,12 +1,12 @@
 const mysql = require('mysql2/promise');
 
-// Master database configuration
+// Master database configuration - supports both custom and Railway MySQL env vars
 const masterConfig = {
-  host: process.env.MASTER_DB_HOST || 'localhost',
-  port: process.env.MASTER_DB_PORT || 3306,
-  user: process.env.MASTER_DB_USER || 'root',
-  password: process.env.MASTER_DB_PASSWORD || '',
-  database: process.env.MASTER_DB_NAME || 'a1_master',
+  host: process.env.MASTER_DB_HOST || process.env.MYSQLHOST || 'localhost',
+  port: process.env.MASTER_DB_PORT || process.env.MYSQLPORT || 3306,
+  user: process.env.MASTER_DB_USER || process.env.MYSQLUSER || 'root',
+  password: process.env.MASTER_DB_PASSWORD || process.env.MYSQLPASSWORD || '',
+  database: process.env.MASTER_DB_NAME || process.env.MYSQLDATABASE || 'a1_master',
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
