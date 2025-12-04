@@ -2209,6 +2209,11 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 </div>
 
 <script>
+  // API Base URL - use current origin for deployed version, localhost for development
+  const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:3000'
+    : window.location.origin;
+
   // Error banner
   window.addEventListener('error', function(e) { const el=document.getElementById('err'); el.textContent='JavaScript error: ' + (e.message || e.error); el.style.display='block'; });
 
@@ -2255,7 +2260,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       
       console.log('Fetching tickets from API for tenant:', tenantCode);
       
-      const response = await fetch(`http://localhost:3000/api/tickets/${tenantCode}`, {
+      const response = await fetch(`${API_BASE}/api/tickets/${tenantCode}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -2333,7 +2338,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       
       if (role === 'master_admin') {
         console.log('Attempting master admin login');
-        const url = 'http://localhost:3000/api/auth/master/login';
+        const url = `${API_BASE}/api/auth/master/login`;
         console.log('Fetching URL:', url);
         // Master Admin login
         response = await fetch(url, {
@@ -2351,7 +2356,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         console.log('Request body:', { username, password, tenant_code: tenant });
 
         try {
-          response = await fetch('http://localhost:3000/api/auth/tenant/login', {
+          response = await fetch(`${API_BASE}/api/auth/tenant/login`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'
@@ -2474,7 +2479,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     }
 
     try {
-      const response = await fetch('http://localhost:3000/api/auth/tenant/forgot-password', {
+      const response = await fetch(`${API_BASE}/api/auth/tenant/forgot-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -2683,7 +2688,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   async function loadFeedbackScoreboard() {
     try {
       const tenantCode = window.tenant || 'apoyar';
-      const response = await fetch(`http://localhost:3000/api/tickets/public/${tenantCode}/feedback-scoreboard`);
+      const response = await fetch(`${API_BASE}/api/tickets/public/${tenantCode}/feedback-scoreboard`);
 
       if (!response.ok) {
         console.error('Failed to load feedback scoreboard');
@@ -4624,7 +4629,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       const token = localStorage.getItem('token');
       const tenantCode = window.tenant || 'apoyar';
 
-      const response = await fetch(`http://localhost:3000/api/tickets/${tenantCode}`, {
+      const response = await fetch(`${API_BASE}/api/tickets/${tenantCode}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -5104,7 +5109,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       const token = localStorage.getItem('token');
       const tenantCode = window.tenant || 'apoyar';
 
-      const response = await fetch(`http://localhost:3000/api/experts/${tenantCode}`, {
+      const response = await fetch(`${API_BASE}/api/experts/${tenantCode}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
@@ -5161,7 +5166,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
     // Process tickets using bulk API endpoint
     try {
-      const response = await fetch(`http://localhost:3000/api/tickets/${tenantCode}/bulk-action`, {
+      const response = await fetch(`${API_BASE}/api/tickets/${tenantCode}/bulk-action`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -5215,7 +5220,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       const token = localStorage.getItem('token');
       const tenantCode = window.tenant || 'apoyar';
 
-      const response = await fetch(`http://localhost:3000/api/tickets/${tenantCode}/${currentTicketId}`, {
+      const response = await fetch(`${API_BASE}/api/tickets/${tenantCode}/${currentTicketId}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -5308,7 +5313,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
       // Fetch experts from API if not cached
       if (cachedExperts.length === 0) {
-        const response = await fetch(`http://localhost:3000/api/auth/experts`, {
+        const response = await fetch(`${API_BASE}/api/auth/experts`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -5374,7 +5379,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       }
 
       // Call the assignment API
-      const response = await fetch(`http://localhost:3000/api/tickets/${tenantCode}/${currentTicketId}`, {
+      const response = await fetch(`${API_BASE}/api/tickets/${tenantCode}/${currentTicketId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -5470,7 +5475,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         requestBody.comment = comment;
       }
 
-      const response = await fetch(`http://localhost:3000/api/tickets/${tenantCode}/${currentTicketId}`, {
+      const response = await fetch(`${API_BASE}/api/tickets/${tenantCode}/${currentTicketId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -5520,7 +5525,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     try {
       const token = localStorage.getItem('token');
       const tenantCode = localStorage.getItem('tenantCode') || 'apoyar';
-      const response = await fetch(`http://localhost:3000/api/experts/${tenantCode}`, {
+      const response = await fetch(`${API_BASE}/api/experts/${tenantCode}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -5596,7 +5601,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     try {
       const token = localStorage.getItem('token');
       const tenantCode = localStorage.getItem('tenantCode') || 'apoyar';
-      const response = await fetch(`http://localhost:3000/api/experts/${tenantCode}/${currentExpertId}`, {
+      const response = await fetch(`${API_BASE}/api/experts/${tenantCode}/${currentExpertId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -5675,7 +5680,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     try {
       const token = localStorage.getItem('token');
       const tenantCode = localStorage.getItem('tenantCode') || 'apoyar';
-      const response = await fetch(`http://localhost:3000/api/experts/${tenantCode}/${expertId}`, {
+      const response = await fetch(`${API_BASE}/api/experts/${tenantCode}/${expertId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -5820,8 +5825,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       const token = localStorage.getItem('token');
       const tenantCode = localStorage.getItem('tenantCode') || 'apoyar';
       const url = currentExpertId
-        ? `http://localhost:3000/api/experts/${tenantCode}/${currentExpertId}`
-        : `http://localhost:3000/api/experts/${tenantCode}`;
+        ? `${API_BASE}/api/experts/${tenantCode}/${currentExpertId}`
+        : `${API_BASE}/api/experts/${tenantCode}`;
       const method = currentExpertId ? 'PUT' : 'POST';
 
       const response = await fetch(url, {
@@ -5864,7 +5869,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     try {
       const token = localStorage.getItem('token');
       const tenantCode = localStorage.getItem('tenantCode') || 'apoyar';
-      const response = await fetch(`http://localhost:3000/api/experts/${tenantCode}/${idToDelete}`, {
+      const response = await fetch(`${API_BASE}/api/experts/${tenantCode}/${idToDelete}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -6269,7 +6274,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   async function loadCustomerCompanies() {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3000/api/customer-companies', {
+      const response = await fetch(`${API_BASE}/api/customer-companies`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -6331,7 +6336,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3000/api/customers', {
+      const response = await fetch(`${API_BASE}/api/customers`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -6490,7 +6495,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   async function editCustomer(customerId) {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:3000/api/customers/${customerId}`, {
+      const response = await fetch(`${API_BASE}/api/customers/${customerId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -6562,8 +6567,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     try {
       const token = localStorage.getItem('token');
       const url = companyId
-        ? `http://localhost:3000/api/customer-companies/${companyId}`
-        : 'http://localhost:3000/api/customer-companies';
+        ? `${API_BASE}/api/customer-companies/${companyId}`
+        : `${API_BASE}/api/customer-companies`;
       const method = companyId ? 'PUT' : 'POST';
 
       const response = await fetch(url, {
@@ -6633,8 +6638,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     try {
       const token = localStorage.getItem('token');
       const url = isEdit
-        ? `http://localhost:3000/api/customers/${customerId}`
-        : 'http://localhost:3000/api/customers';
+        ? `${API_BASE}/api/customers/${customerId}`
+        : `${API_BASE}/api/customers`;
       const method = isEdit ? 'PUT' : 'POST';
 
       const response = await fetch(url, {
@@ -6692,7 +6697,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:3000/api/customers/${customerId}`, {
+      const response = await fetch(`${API_BASE}/api/customers/${customerId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -6724,7 +6729,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:3000/api/customers/${customerId}/reactivate`, {
+      const response = await fetch(`${API_BASE}/api/customers/${customerId}/reactivate`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -6751,7 +6756,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     try{ 
       const token=localStorage.getItem('token'); 
       if(!token){ alert('Session expired'); window.location.reload(); return; } 
-      const res=await fetch('http://localhost:3000/api/auth/profile',{headers:{'Authorization':`Bearer ${token}`}}); 
+      const res=await fetch(`${API_BASE}/api/auth/profile`,{headers:{'Authorization':`Bearer ${token}`}}); 
       const data=await res.json(); 
       if(!data.success){ alert('Failed to load profile: '+data.message); return; } 
       const profile=data.profile; 
@@ -6770,7 +6775,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       const token=localStorage.getItem('token'); 
       if(!token){ alert('Session expired'); window.location.reload(); return; } 
       const profileData={ full_name:document.getElementById('profile-fullname').value, email:document.getElementById('profile-email').value, phone:document.getElementById('profile-phone').value, department:document.getElementById('profile-department').value }; 
-      const res=await fetch('http://localhost:3000/api/auth/profile',{method:'PUT',headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify(profileData)}); 
+      const res=await fetch(`${API_BASE}/api/auth/profile`,{method:'PUT',headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify(profileData)}); 
       const data=await res.json(); 
       if(!data.success){ alert('Failed to update profile: '+data.message); return; } 
       alert('Profile updated successfully!'); 
@@ -6794,7 +6799,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     try{ 
       const token=localStorage.getItem('token'); 
       if(!token){ alert('Session expired'); window.location.reload(); return; } 
-      const res=await fetch('http://localhost:3000/api/cmdb-types/apoyar/item-types',{headers:{'Authorization':`Bearer ${token}`}}); 
+      const res=await fetch(`${API_BASE}/api/cmdb-types/apoyar/item-types`,{headers:{'Authorization':`Bearer ${token}`}}); 
       const data=await res.json(); 
       if(!data.success){ alert('Failed to load CMDB types: '+data.message); return; } 
       const body=document.getElementById('item-types-body'); body.innerHTML=''; data.itemTypes.forEach(t=>{ const tr=document.createElement('tr'); tr.innerHTML=`<td>${t.name}</td><td>${t.description||'—'}</td><td>${t.ci_count||0}</td><td><span class="badge ${t.is_active?'success':'danger'}">${t.is_active?'Active':'Inactive'}</span></td><td><button class="btn" onclick='viewCITypes(${t.id},\"${t.name}\")'>View CI Types</button></td>`; body.appendChild(tr); }); 
@@ -6805,7 +6810,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     document.getElementById('ci-types-section').style.display='block'; 
     try{ 
       const token=localStorage.getItem('token'); 
-      const res=await fetch(`http://localhost:3000/api/cmdb-types/apoyar/item-types/${itemTypeId}/ci-types`,{headers:{'Authorization':`Bearer ${token}`}}); 
+      const res=await fetch(`${API_BASE}/api/cmdb-types/apoyar/item-types/${itemTypeId}/ci-types`,{headers:{'Authorization':`Bearer ${token}`}}); 
       const data=await res.json(); 
       if(!data.success){ alert('Failed to load CI types: '+data.message); return; } 
       const body=document.getElementById('ci-types-body'); body.innerHTML=''; data.ciTypes.forEach(ci=>{ const tr=document.createElement('tr'); tr.innerHTML=`<td>${ci.name}</td><td>${ci.description||'—'}</td><td><span class="badge ${ci.is_active?'success':'danger'}">${ci.is_active?'Active':'Inactive'}</span></td><td><button class="btn">Edit</button></td>`; body.appendChild(tr); }); 
@@ -6841,7 +6846,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   async function loadCustomersForRaiseRequest() {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:3000/api/auth/customers', {
+      const res = await fetch(`${API_BASE}/api/auth/customers`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -6869,7 +6874,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:3000/api/cmdb/apoyar/items?customer_id=${customerId}`, {
+      const res = await fetch(`${API_BASE}/api/cmdb/apoyar/items?customer_id=${customerId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -6920,7 +6925,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     // Create ticket via API
     try {
       const tenantCode = tenant || 'apoyar';
-      const res = await fetch(`http://localhost:3000/api/tickets/${tenantCode}`, {
+      const res = await fetch(`${API_BASE}/api/tickets/${tenantCode}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -7063,7 +7068,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
       console.log('Loading system control settings for tenant:', tenantCode);
 
-      const response = await fetch(`http://localhost:3000/api/tickets/settings/${tenantCode}`, {
+      const response = await fetch(`${API_BASE}/api/tickets/settings/${tenantCode}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -7143,7 +7148,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       const token = localStorage.getItem('token');
       const tenantCode = window.tenant || 'apoyar';
 
-      const response = await fetch(`http://localhost:3000/api/tickets/settings/${tenantCode}`, {
+      const response = await fetch(`${API_BASE}/api/tickets/settings/${tenantCode}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
