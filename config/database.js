@@ -1,16 +1,29 @@
 const mysql = require('mysql2/promise');
 
+// Log database environment for debugging
+console.log('🔧 Database environment check:');
+console.log(`   MYSQLHOST: ${process.env.MYSQLHOST || '(not set)'}`);
+console.log(`   MYSQL_HOST: ${process.env.MYSQL_HOST || '(not set)'}`);
+console.log(`   MYSQLPORT: ${process.env.MYSQLPORT || '(not set)'}`);
+console.log(`   MYSQLUSER: ${process.env.MYSQLUSER || '(not set)'}`);
+console.log(`   MYSQL_USER: ${process.env.MYSQL_USER || '(not set)'}`);
+console.log(`   MYSQLDATABASE: ${process.env.MYSQLDATABASE || '(not set)'}`);
+console.log(`   MYSQL_DATABASE: ${process.env.MYSQL_DATABASE || '(not set)'}`);
+
 // Master database configuration - supports both custom and Railway MySQL env vars
+// Railway uses both MYSQLHOST and MYSQL_HOST formats depending on how the service is linked
 const masterConfig = {
-  host: process.env.MASTER_DB_HOST || process.env.MYSQLHOST || 'localhost',
-  port: process.env.MASTER_DB_PORT || process.env.MYSQLPORT || 3306,
-  user: process.env.MASTER_DB_USER || process.env.MYSQLUSER || 'root',
-  password: process.env.MASTER_DB_PASSWORD || process.env.MYSQLPASSWORD || '',
-  database: process.env.MASTER_DB_NAME || process.env.MYSQLDATABASE || 'a1_master',
+  host: process.env.MASTER_DB_HOST || process.env.MYSQLHOST || process.env.MYSQL_HOST || 'localhost',
+  port: process.env.MASTER_DB_PORT || process.env.MYSQLPORT || process.env.MYSQL_PORT || 3306,
+  user: process.env.MASTER_DB_USER || process.env.MYSQLUSER || process.env.MYSQL_USER || 'root',
+  password: process.env.MASTER_DB_PASSWORD || process.env.MYSQLPASSWORD || process.env.MYSQL_PASSWORD || '',
+  database: process.env.MASTER_DB_NAME || process.env.MYSQLDATABASE || process.env.MYSQL_DATABASE || 'a1_master',
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
 };
+
+console.log(`🔧 Using database host: ${masterConfig.host}:${masterConfig.port}`);
 
 // Create master database connection pool
 const masterPool = mysql.createPool(masterConfig);
@@ -53,10 +66,10 @@ async function getTenantConnection(tenantCode) {
 
       // Create tenant database connection pool - use Railway MySQL vars as fallback
       const tenantConfig = {
-        host: process.env.MASTER_DB_HOST || process.env.MYSQLHOST || 'localhost',
-        port: process.env.MASTER_DB_PORT || process.env.MYSQLPORT || 3306,
-        user: tenant.database_user || process.env.MYSQLUSER,
-        password: tenant.database_password || process.env.MYSQLPASSWORD,
+        host: process.env.MASTER_DB_HOST || process.env.MYSQLHOST || process.env.MYSQL_HOST || 'localhost',
+        port: process.env.MASTER_DB_PORT || process.env.MYSQLPORT || process.env.MYSQL_PORT || 3306,
+        user: tenant.database_user || process.env.MYSQLUSER || process.env.MYSQL_USER,
+        password: tenant.database_password || process.env.MYSQLPASSWORD || process.env.MYSQL_PASSWORD,
         database: tenant.database_name,
         waitForConnections: true,
         connectionLimit: 5,
