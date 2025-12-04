@@ -7,6 +7,9 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust proxy for Railway (needed for rate limiting behind reverse proxy)
+app.set('trust proxy', 1);
+
 // Track database status for health check
 let dbStatus = { initialized: false, error: null };
 
