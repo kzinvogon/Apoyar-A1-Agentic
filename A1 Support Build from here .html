@@ -2417,15 +2417,12 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   
   function showDemoCredentials() {
     const credentials = [
-      'Master Admin: master / master123',
       'Apoyar Tenant:',
-      '  Admin: admin / admin123 (tenant: apoyar)',
+      '  Admin: admin / password123 (tenant: apoyar)',
       '  Expert: expert / password123 (tenant: apoyar)',
-      '  Customer: customer / password123 (tenant: apoyar)',
-      'TestCompany Tenant:',
-      '  Admin: testadmin / admin123 (tenant: testcompany)'
+      '  Customer: customer / password123 (tenant: apoyar)'
     ].join('\n');
-    
+
     alert('Demo Credentials:\n\n' + credentials);
   }
   
