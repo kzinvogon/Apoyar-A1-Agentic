@@ -2047,7 +2047,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       </div>
       <div id="dlg-assignee-row" class="mb-12" style="display:none">
         <div class="subtitle">New assignee</div>
-        <input id="dlg-assignee" class="input" placeholder="Type a name (e.g., Jane Doe)"/>
+        <select id="dlg-assignee" class="input">
+          <option value="">-- Select Expert --</option>
+        </select>
       </div>
       <div id="dlg-error" class="subtitle" style="color:#b91c1c;display:none"></div>
     </div>
@@ -5428,11 +5430,54 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     document.getElementById('dlg-error').style.display='none';
     const assRow = document.getElementById('dlg-assignee-row');
     assRow.style.display = (action==='reassign') ? 'block' : 'none';
-    if(action==='reassign'){ document.getElementById('dlg-assignee').value = ''; }
+    if(action==='reassign'){
+      document.getElementById('dlg-assignee').value = '';
+      loadReassignExpertsDropdown();
+    }
     document.getElementById('dlg').style.display='flex';
     setTimeout(()=>document.getElementById('dlg-note').focus(), 0);
   }
   function closeDlg(){ document.getElementById('dlg').style.display='none'; }
+
+  async function loadReassignExpertsDropdown() {
+    const dropdown = document.getElementById('dlg-assignee');
+    if (!dropdown) return;
+
+    // Clear and add placeholder
+    dropdown.innerHTML = '<option value="">-- Select Expert --</option>';
+
+    try {
+      const token = localStorage.getItem('token');
+      const tenantCode = window.tenant || 'apoyar';
+
+      // Use cached experts if available, otherwise fetch
+      if (cachedExperts.length === 0) {
+        const response = await fetch(`${API_BASE}/api/auth/experts`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        const data = await response.json();
+        if (data.success && Array.isArray(data.experts)) {
+          cachedExperts = data.experts;
+        }
+      }
+
+      // Populate dropdown with experts
+      cachedExperts.forEach(expert => {
+        const option = document.createElement('option');
+        option.value = expert.id;
+        option.textContent = `${expert.full_name} (${expert.username})`;
+        option.dataset.fullName = expert.full_name;
+        dropdown.appendChild(option);
+      });
+    } catch (error) {
+      console.error('Error loading experts for reassign:', error);
+    }
+  }
+
   function submitDlg(){
     const note = (document.getElementById('dlg-note').value||'').trim();
     const err = document.getElementById('dlg-error');
@@ -5447,15 +5492,71 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       act.appendChild(log);
       setStatus('Resolved', note, /*silent*/true);
     } else if(dlgAction==='reassign'){
-      const newAsg = (document.getElementById('dlg-assignee').value||'').trim();
-      if(!newAsg){ err.textContent='Please enter a new assignee.'; err.style.display='block'; return; }
-      t.assignee = newAsg;
-      document.getElementById('td-assignee').value = newAsg;
-      log.innerHTML = `<strong>${role==='admin'?'Admin':'Expert'}</strong>: Reassigned to ${newAsg} — ${note}`;
-      act.appendChild(log);
-      renderList(); renderExpertDash();
+      const dropdown = document.getElementById('dlg-assignee');
+      const newAsgId = (dropdown.value||'').trim();
+      if(!newAsgId){ err.textContent='Please select an expert.'; err.style.display='block'; return; }
+
+      // Get the expert name from the selected option
+      const selectedOption = dropdown.options[dropdown.selectedIndex];
+      const expertName = selectedOption.dataset.fullName || selectedOption.textContent;
+
+      // Call API to reassign the ticket
+      reassignTicket(currentTicketId, newAsgId, note, expertName, log, act);
+      return; // Don't close dialog until API call completes
     }
     closeDlg();
+  }
+
+  async function reassignTicket(ticketId, assigneeId, note, expertName, logEl, actContainer) {
+    try {
+      const token = localStorage.getItem('token');
+      const tenantCode = window.tenant || 'apoyar';
+
+      const response = await fetch(`${API_BASE}/api/tickets/${tenantCode}/${ticketId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          assignee_id: assigneeId,
+          status: 'In Progress',
+          comment: note
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Update local ticket data
+        const t = tickets.find(x => x.id === ticketId);
+        if (t) {
+          t.assignee_id = assigneeId;
+          t.assignee_name = expertName;
+          t.status = 'In Progress';
+        }
+
+        // Update the assignee dropdown in the detail view
+        document.getElementById('td-assignee').value = assigneeId;
+
+        // Add activity log entry
+        logEl.innerHTML = `<strong>${role==='admin'?'Admin':'Expert'}</strong>: Reassigned to ${expertName} — ${note}`;
+        actContainer.appendChild(logEl);
+
+        renderList();
+        renderExpertDash();
+        closeDlg();
+      } else {
+        const err = document.getElementById('dlg-error');
+        err.textContent = 'Failed to reassign: ' + (data.message || 'Unknown error');
+        err.style.display = 'block';
+      }
+    } catch (error) {
+      console.error('Error reassigning ticket:', error);
+      const err = document.getElementById('dlg-error');
+      err.textContent = 'Error reassigning ticket. Please try again.';
+      err.style.display = 'block';
+    }
   }
 
   // ---- SLA updates on detail view ----
