@@ -1949,15 +1949,29 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               <div class="card p-16 mb-12" style="border:2px solid #e2e8f0">
                 <div class="row space" style="align-items:center">
                   <div>
-                    <div style="font-weight:600;font-size:16px">Send Emails</div>
-                    <div class="subtitle">Enable/disable outgoing email notifications (ticket updates, alerts, etc.)</div>
+                    <div style="font-weight:600;font-size:16px">Send Updates to Experts</div>
+                    <div class="subtitle">Enable/disable email notifications to experts (ticket assignments, updates)</div>
                   </div>
                   <label class="toggle-switch">
-                    <input type="checkbox" id="sc-send-emails" onchange="toggleSystemSetting('send_emails', this.checked)">
+                    <input type="checkbox" id="sc-send-emails-experts" onchange="toggleSystemSetting('send_emails_experts', this.checked)">
                     <span class="toggle-slider"></span>
                   </label>
                 </div>
-                <div id="sc-send-emails-status" class="subtitle" style="margin-top:8px;padding:8px;border-radius:4px"></div>
+                <div id="sc-send-emails-experts-status" class="subtitle" style="margin-top:8px;padding:8px;border-radius:4px"></div>
+              </div>
+
+              <div class="card p-16 mb-12" style="border:2px solid #e2e8f0">
+                <div class="row space" style="align-items:center">
+                  <div>
+                    <div style="font-weight:600;font-size:16px">Send Updates to Customers</div>
+                    <div class="subtitle">Enable/disable email notifications to customers (ticket status updates, responses)</div>
+                  </div>
+                  <label class="toggle-switch">
+                    <input type="checkbox" id="sc-send-emails-customers" onchange="toggleSystemSetting('send_emails_customers', this.checked)">
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+                <div id="sc-send-emails-customers-status" class="subtitle" style="margin-top:8px;padding:8px;border-radius:4px"></div>
               </div>
 
               <div class="card p-16 mb-12" style="border:2px solid #e2e8f0">
@@ -7076,16 +7090,25 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       console.log('Settings response:', data);
 
       if (data.success && data.settings) {
-        // Update Send Emails toggle - check explicitly for 'false' string
-        const sendEmailsCheckbox = document.getElementById('sc-send-emails');
-        const sendEmailsValue = data.settings.send_emails;
-        // Only disabled if explicitly set to 'false'
-        const sendEmailsEnabled = sendEmailsValue !== 'false';
-        console.log('send_emails value:', sendEmailsValue, 'enabled:', sendEmailsEnabled);
-        if (sendEmailsCheckbox) {
-          sendEmailsCheckbox.checked = sendEmailsEnabled;
+        // Update Send Emails to Experts toggle
+        const sendExpertsCheckbox = document.getElementById('sc-send-emails-experts');
+        const sendExpertsValue = data.settings.send_emails_experts;
+        const sendExpertsEnabled = sendExpertsValue !== 'false';
+        console.log('send_emails_experts value:', sendExpertsValue, 'enabled:', sendExpertsEnabled);
+        if (sendExpertsCheckbox) {
+          sendExpertsCheckbox.checked = sendExpertsEnabled;
         }
-        updateSystemSettingStatus('send_emails', sendEmailsEnabled);
+        updateSystemSettingStatus('send_emails_experts', sendExpertsEnabled);
+
+        // Update Send Emails to Customers toggle
+        const sendCustomersCheckbox = document.getElementById('sc-send-emails-customers');
+        const sendCustomersValue = data.settings.send_emails_customers;
+        const sendCustomersEnabled = sendCustomersValue !== 'false';
+        console.log('send_emails_customers value:', sendCustomersValue, 'enabled:', sendCustomersEnabled);
+        if (sendCustomersCheckbox) {
+          sendCustomersCheckbox.checked = sendCustomersEnabled;
+        }
+        updateSystemSettingStatus('send_emails_customers', sendCustomersEnabled);
 
         // Update Process Emails toggle - check explicitly for 'false' string
         const processEmailsCheckbox = document.getElementById('sc-process-emails');
@@ -7100,11 +7123,14 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       } else {
         console.log('No settings found, defaulting to enabled');
         // Default to enabled if no settings found
-        const sendCheckbox = document.getElementById('sc-send-emails');
+        const sendExpertsCheckbox = document.getElementById('sc-send-emails-experts');
+        const sendCustomersCheckbox = document.getElementById('sc-send-emails-customers');
         const processCheckbox = document.getElementById('sc-process-emails');
-        if (sendCheckbox) sendCheckbox.checked = true;
+        if (sendExpertsCheckbox) sendExpertsCheckbox.checked = true;
+        if (sendCustomersCheckbox) sendCustomersCheckbox.checked = true;
         if (processCheckbox) processCheckbox.checked = true;
-        updateSystemSettingStatus('send_emails', true);
+        updateSystemSettingStatus('send_emails_experts', true);
+        updateSystemSettingStatus('send_emails_customers', true);
         updateSystemSettingStatus('process_emails', true);
       }
 
@@ -7126,16 +7152,37 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   }
 
   function updateSystemSettingStatus(setting, enabled) {
-    const statusDiv = document.getElementById(`sc-${setting.replace('_', '-')}-status`);
+    const statusDiv = document.getElementById(`sc-${setting.replace(/_/g, '-')}-status`);
     if (statusDiv) {
+      let enabledMsg = '';
+      let disabledMsg = '';
+
+      switch(setting) {
+        case 'send_emails_experts':
+          enabledMsg = 'Email notifications to experts are enabled';
+          disabledMsg = 'Email notifications to experts are disabled';
+          break;
+        case 'send_emails_customers':
+          enabledMsg = 'Email notifications to customers are enabled';
+          disabledMsg = 'Email notifications to customers are disabled';
+          break;
+        case 'process_emails':
+          enabledMsg = 'Inbound emails will be processed';
+          disabledMsg = 'No inbound emails will be processed';
+          break;
+        default:
+          enabledMsg = 'Setting is enabled';
+          disabledMsg = 'Setting is disabled';
+      }
+
       if (enabled) {
         statusDiv.style.background = '#dcfce7';
         statusDiv.style.color = '#166534';
-        statusDiv.innerHTML = '✓ <strong>ENABLED</strong> - ' + (setting === 'send_emails' ? 'Outgoing emails will be sent' : 'Inbound emails will be processed');
+        statusDiv.innerHTML = '✓ <strong>ENABLED</strong> - ' + enabledMsg;
       } else {
         statusDiv.style.background = '#fef2f2';
         statusDiv.style.color = '#b91c1c';
-        statusDiv.innerHTML = '✗ <strong>DISABLED</strong> - ' + (setting === 'send_emails' ? 'No outgoing emails will be sent' : 'No inbound emails will be processed');
+        statusDiv.innerHTML = '✗ <strong>DISABLED</strong> - ' + disabledMsg;
       }
     }
   }
@@ -7164,8 +7211,13 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
         // Add to local audit log
         const username = localStorage.getItem('username') || 'Unknown';
+        const settingNames = {
+          'send_emails_experts': 'Send to Experts',
+          'send_emails_customers': 'Send to Customers',
+          'process_emails': 'Process Emails'
+        };
         systemControlAuditLog.unshift({
-          setting: setting === 'send_emails' ? 'Send Emails' : 'Process Emails',
+          setting: settingNames[setting] || setting,
           old_value: enabled ? 'OFF' : 'ON',
           new_value: enabled ? 'ON' : 'OFF',
           changed_by: username,
@@ -7177,28 +7229,30 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       } else {
         alert('Failed to update setting: ' + (data.message || 'Unknown error'));
         // Revert the checkbox
-        document.getElementById(`sc-${setting.replace('_', '-')}`).checked = !enabled;
+        document.getElementById(`sc-${setting.replace(/_/g, '-')}`).checked = !enabled;
       }
     } catch (error) {
       console.error('Error toggling system setting:', error);
       alert('Error updating setting. Please try again.');
       // Revert the checkbox
-      document.getElementById(`sc-${setting.replace('_', '-')}`).checked = !enabled;
+      document.getElementById(`sc-${setting.replace(/_/g, '-')}`).checked = !enabled;
     }
   }
 
   function updateSystemStatusLog() {
     const statusLog = document.getElementById('sc-status-log');
-    const sendEmails = document.getElementById('sc-send-emails')?.checked;
+    const sendExperts = document.getElementById('sc-send-emails-experts')?.checked;
+    const sendCustomers = document.getElementById('sc-send-emails-customers')?.checked;
     const processEmails = document.getElementById('sc-process-emails')?.checked;
 
     let logHtml = '';
     logHtml += `<div style="margin-bottom:8px">[${new Date().toLocaleTimeString()}] System Control Status Check</div>`;
-    logHtml += `<div style="margin-bottom:4px;color:${sendEmails ? '#166534' : '#b91c1c'}">  → send_emails: ${sendEmails ? 'ENABLED' : 'DISABLED'}</div>`;
+    logHtml += `<div style="margin-bottom:4px;color:${sendExperts ? '#166534' : '#b91c1c'}">  → send_to_experts: ${sendExperts ? 'ENABLED' : 'DISABLED'}</div>`;
+    logHtml += `<div style="margin-bottom:4px;color:${sendCustomers ? '#166534' : '#b91c1c'}">  → send_to_customers: ${sendCustomers ? 'ENABLED' : 'DISABLED'}</div>`;
     logHtml += `<div style="margin-bottom:4px;color:${processEmails ? '#166534' : '#b91c1c'}">  → process_emails: ${processEmails ? 'ENABLED' : 'DISABLED'}</div>`;
     logHtml += `<div style="margin-top:8px;border-top:1px solid #e2e8f0;padding-top:8px">`;
 
-    if (!sendEmails || !processEmails) {
+    if (!sendExperts || !sendCustomers || !processEmails) {
       logHtml += `<div style="color:#b45309">⚠️ Warning: Some email functionality is disabled</div>`;
     } else {
       logHtml += `<div style="color:#166534">✓ All email systems operational</div>`;
