@@ -54,7 +54,7 @@ async function getTenantConnection(tenantCode) {
     const masterConn = await getMasterConnection();
     try {
       const [rows] = await masterConn.query(
-        "SELECT database_name, database_user, database_password FROM tenants WHERE tenant_code = ? AND status = 'active'",
+        "SELECT database_name, database_user, database_password FROM tenants WHERE tenant_code = ? AND is_active = 1",
         [tenantCode]
       );
 
