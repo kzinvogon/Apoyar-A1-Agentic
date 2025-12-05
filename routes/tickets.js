@@ -932,7 +932,13 @@ router.put('/:tenantId/:ticketId', writeOperationsLimiter, validateTicketUpdate,
         }
       }
       if (assignee_id && status && status.toLowerCase() !== 'resolved') {
-        actionDescription.push(`Assigned to user ID ${assignee_id}`);
+        // Look up the assignee's name
+        const [assigneeUser] = await connection.query(
+          'SELECT full_name FROM users WHERE id = ?',
+          [assignee_id]
+        );
+        const assigneeName = assigneeUser[0]?.full_name || `User ID ${assignee_id}`;
+        actionDescription.push(`Assigned to ${assigneeName}`);
       }
       if (priority) {
         actionDescription.push(`Priority changed to ${priority}`);
