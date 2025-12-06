@@ -273,7 +273,7 @@ async function createTenantTables(host, port, dbUser, dbPass) {
       id INT AUTO_INCREMENT PRIMARY KEY,
       title VARCHAR(200) NOT NULL,
       description TEXT,
-      status ENUM('open', 'in_progress', 'resolved', 'closed') DEFAULT 'open',
+      status ENUM('Open', 'In Progress', 'Pending', 'Resolved', 'Closed') DEFAULT 'Open',
       priority ENUM('low', 'medium', 'high', 'critical') DEFAULT 'medium',
       category VARCHAR(50),
       requester_id INT NOT NULL,
