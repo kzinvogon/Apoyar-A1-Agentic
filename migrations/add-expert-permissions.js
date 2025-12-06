@@ -79,10 +79,10 @@ async function applyMigration() {
         // Add ticket status support for 'paused'
         await tenantConnection.execute(`
           ALTER TABLE tickets
-          MODIFY COLUMN status ENUM('open', 'in_progress', 'paused', 'resolved', 'closed') DEFAULT 'open'
+          MODIFY COLUMN status ENUM('Open', 'In Progress', 'Pending', 'Resolved', 'Closed') DEFAULT 'Open'
         `);
 
-        console.log(`   ✅ Added 'paused' status to tickets table`);
+        console.log(`   ✅ Updated ticket status ENUM to use proper case values`);
 
         // Add columns to track ticket assignment history
         const [columns] = await tenantConnection.query(
