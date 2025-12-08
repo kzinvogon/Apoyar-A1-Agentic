@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#003366"/>
+      <stop offset="100%" style="stop-color:#0066cc"/>
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="512" height="512" rx="90" fill="url(#bg)"/>
+  <!-- S letter stylized as flow/wave -->
+  <path d="M160 160
+           Q160 120 200 120
+           L312 120
+           Q352 120 352 160
+           Q352 200 312 200
+           L200 200
+           Q160 200 160 240
+           Q160 280 200 280
+           L312 280
+           Q352 280 352 320
+           Q352 360 312 360
+           L200 360
+           Q160 360 160 400"
+        fill="none"
+        stroke="white"
+        stroke-width="40"
+        stroke-linecap="round"/>
+  <!-- Ticket icon -->
+  <g transform="translate(340, 340)">
+    <rect x="0" y="0" width="100" height="70" rx="8" fill="rgba(255,255,255,0.9)"/>
+    <line x1="15" y1="20" x2="85" y2="20" stroke="#003366" stroke-width="6" stroke-linecap="round"/>
+    <line x1="15" y1="35" x2="65" y2="35" stroke="#003366" stroke-width="4" stroke-linecap="round"/>
+    <line x1="15" y1="50" x2="50" y2="50" stroke="#0066cc" stroke-width="4" stroke-linecap="round"/>
+  </g>
+</svg>
