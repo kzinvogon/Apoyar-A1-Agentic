@@ -37,6 +37,7 @@ const customersRoutes = require('./routes/customers');
 const customerCompaniesRoutes = require('./routes/customer-companies');
 const ticketRulesRoutes = require('./routes/ticket-rules');
 const expertPermissionsRoutes = require('./routes/expert-permissions');
+const aiSuggestionsRoutes = require('./routes/ai-suggestions');
 
 // Import email processor service
 const { startEmailProcessing } = require('./services/email-processor');
@@ -74,6 +75,7 @@ app.use('/api/customers', customersRoutes);
 app.use('/api/customer-companies', customerCompaniesRoutes);
 app.use('/api/ticket-rules', ticketRulesRoutes);
 app.use('/api/expert-permissions', expertPermissionsRoutes);
+app.use('/api/ai', aiSuggestionsRoutes);
 
 // Public routes (no authentication required) - Must be before authenticated routes
 app.use('/ticket', publicTicketRoutes);
@@ -98,7 +100,7 @@ app.get('/ticket/:id', (req, res) => {
 app.get('/health', (req, res) => {
   res.json({
     status: 'OK',
-    message: 'A1 Support Dashboard Prototype is running',
+    message: 'ServiFlow Support Platform is running',
     timestamp: new Date().toISOString(),
     database: dbStatus.initialized ? 'connected' : (dbStatus.error || 'initializing'),
     features: [
@@ -145,11 +147,11 @@ app.get('/api/db/status', async (req, res) => {
 
 // Initialize database and start server
 async function startServer() {
-  console.log('🚀 Starting A1 Support Dashboard Prototype...');
+  console.log('🚀 Starting ServiFlow Support Platform...');
 
   // Start the HTTP server FIRST so health checks work
   app.listen(PORT, '0.0.0.0', async () => {
-    console.log(`🚀 A1 Support Dashboard Prototype is running!`);
+    console.log(`🚀 ServiFlow Support Platform is running!`);
     console.log(`📱 Open your browser and go to: http://localhost:${PORT}`);
     console.log(`🔧 Health check: http://localhost:${PORT}/health`);
     console.log(`📊 Database status: http://localhost:${PORT}/api/db/status`);
@@ -163,7 +165,7 @@ async function startServer() {
       console.log('✅ Master database initialized');
       dbStatus.initialized = true;
 
-      // Initialize Apoyar tenant database
+      // Initialize default tenant database
       try {
         await initializeTenantDatabase('apoyar');
         console.log('✅ Tenant database "apoyar" initialized');
@@ -190,7 +192,7 @@ async function startServer() {
       console.log(`   • Interactive chatbot`);
       console.log(`\n🏗️  Architecture:`);
       console.log(`   • Master DB: a1_master (system management)`);
-      console.log(`   • Tenant DB: a1_tenant_apoyar (Apoyar company)`);
+      console.log(`   • Tenant DB: a1_tenant_apoyar (Demo company)`);
       console.log(`\n🔐 Default Credentials:`);
       console.log(`   Master Admin: admin / admin123`);
       console.log(`   Tenant Users: admin / password123, expert / password123, customer / password123`);

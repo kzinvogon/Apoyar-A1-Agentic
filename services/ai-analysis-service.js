@@ -122,25 +122,435 @@ class AIAnalysisService {
    * Analyze with Anthropic Claude
    */
   async analyzeWithAnthropic(emailData) {
-    // This would require the Anthropic SDK: npm install @anthropic-ai/sdk
-    // For now, returning a structured response format
-    throw new Error('Anthropic integration requires installing the @anthropic-ai/sdk package');
-
-    /* Example implementation:
     const Anthropic = require('@anthropic-ai/sdk');
     const anthropic = new Anthropic({ apiKey: this.apiKey });
 
+    const systemPrompt = `You are an expert IT support ticket analyzer. Analyze support tickets and provide structured recommendations.
+
+Your response must be valid JSON with this exact structure:
+{
+  "sentiment": "urgent|negative|neutral|positive",
+  "confidence": 0-100,
+  "category": "Infrastructure|Database|Network|Storage|Performance|Security|Application|General",
+  "rootCause": "system|database|hardware|network|resource|configuration|user_error|unknown",
+  "impactLevel": "critical|high|medium|low",
+  "keyPhrases": ["phrase1", "phrase2"],
+  "technicalTerms": ["term1", "term2"],
+  "suggestedAssignee": "team-name or null",
+  "estimatedResolutionTime": minutes as number,
+  "similarTicketIds": [],
+  "suggestedPriority": "critical|high|medium|low",
+  "suggestedActions": [
+    {
+      "action": "action_type",
+      "label": "Button label",
+      "description": "What this action does",
+      "params": {}
+    }
+  ],
+  "draftResponse": "Suggested initial response to the customer",
+  "nextSteps": ["Step 1", "Step 2", "Step 3"],
+  "reasoning": "Brief explanation of the analysis"
+}
+
+Available action types: assign_expert, set_priority, set_category, add_response, escalate, link_cmdb, close_ticket`;
+
     const response = await anthropic.messages.create({
-      model: this.model,
-      max_tokens: 1024,
+      model: this.model || 'claude-3-haiku-20240307',
+      max_tokens: 2048,
       messages: [{
         role: 'user',
-        content: `Analyze this IT support email and provide structured JSON...`
-      }]
+        content: `Analyze this IT support ticket and provide recommendations:
+
+Subject: ${emailData.subject}
+
+Description:
+${emailData.body}
+
+Customer: ${emailData.customerName || 'Unknown'}
+Company: ${emailData.companyName || 'Unknown'}
+Created: ${emailData.createdAt || 'Unknown'}
+
+Respond with valid JSON only, no markdown formatting.`
+      }],
+      system: systemPrompt
     });
 
-    return JSON.parse(response.content[0].text);
-    */
+    const responseText = response.content[0].text;
+
+    // Parse JSON, handling potential markdown code blocks
+    let jsonText = responseText;
+    if (responseText.includes('```')) {
+      jsonText = responseText.replace(/```json?\n?/g, '').replace(/```/g, '').trim();
+    }
+
+    return JSON.parse(jsonText);
+  }
+
+  /**
+   * Get AI-powered suggestions for a specific ticket (one-click actions)
+   */
+  async getTicketSuggestions(ticketId) {
+    const connection = await getTenantConnection(this.tenantCode);
+    try {
+      // Get ticket details
+      const [tickets] = await connection.query(`
+        SELECT t.*,
+               u.full_name as requester_name,
+               u.email as requester_email,
+               c.company_name,
+               a.full_name as assignee_name
+        FROM tickets t
+        LEFT JOIN users u ON t.requester_id = u.id
+        LEFT JOIN customers c ON u.id = c.user_id
+        LEFT JOIN users a ON t.assignee_id = a.id
+        WHERE t.id = ?
+      `, [ticketId]);
+
+      if (tickets.length === 0) {
+        throw new Error('Ticket not found');
+      }
+
+      const ticket = tickets[0];
+
+      // Get ticket activity/comments
+      const [activities] = await connection.query(`
+        SELECT ta.*, u.full_name as user_name
+        FROM ticket_activity ta
+        LEFT JOIN users u ON ta.user_id = u.id
+        WHERE ta.ticket_id = ?
+        ORDER BY ta.created_at DESC
+        LIMIT 10
+      `, [ticketId]);
+
+      // Get available experts (users with expert or admin role)
+      const [experts] = await connection.query(`
+        SELECT u.id, u.full_name, u.email,
+               COALESCE(e.skills, '') as skills,
+               COALESCE(e.availability_status, 'available') as availability_status,
+               COALESCE(e.max_concurrent_tickets, 10) as max_concurrent_tickets,
+               (SELECT COUNT(*) FROM tickets WHERE assignee_id = u.id AND status NOT IN ('Resolved', 'Closed')) as current_tickets
+        FROM users u
+        LEFT JOIN experts e ON u.id = e.user_id
+        WHERE u.role IN ('expert', 'admin') AND u.is_active = TRUE
+        ORDER BY e.availability_status = 'available' DESC, current_tickets ASC
+      `);
+
+      // Check for existing AI analysis
+      const [existingAnalysis] = await connection.query(`
+        SELECT * FROM ai_email_analysis WHERE ticket_id = ? ORDER BY analysis_timestamp DESC LIMIT 1
+      `, [ticketId]);
+
+      // Build context for AI
+      const emailData = {
+        subject: ticket.title,
+        body: ticket.description,
+        customerName: ticket.requester_name,
+        companyName: ticket.company_name,
+        createdAt: ticket.created_at,
+        ticketId: ticketId,
+        currentStatus: ticket.status,
+        currentPriority: ticket.priority,
+        currentAssignee: ticket.assignee_name,
+        activityHistory: activities.map(a => ({
+          type: a.activity_type,
+          description: a.description,
+          user: a.user_name,
+          timestamp: a.created_at
+        }))
+      };
+
+      let analysis;
+
+      // Only use Claude if we have a valid API key (not placeholder)
+      const hasValidApiKey = this.apiKey &&
+                             this.apiKey !== 'your_anthropic_api_key_here' &&
+                             this.apiKey.startsWith('sk-');
+
+      if (this.aiProvider === 'anthropic' && hasValidApiKey) {
+        try {
+          analysis = await this.getClaudeSuggestions(emailData, experts);
+        } catch (error) {
+          console.warn('Claude API failed, falling back to pattern matching:', error.message);
+          analysis = await this.getPatternSuggestions(emailData, experts);
+        }
+      } else {
+        // Fallback to pattern-based suggestions
+        analysis = await this.getPatternSuggestions(emailData, experts);
+      }
+
+      // Add expert recommendations
+      analysis.availableExperts = experts.map(e => ({
+        id: e.id,
+        name: e.full_name,
+        skills: e.skills,
+        status: e.availability_status,
+        currentLoad: `${e.current_tickets}/${e.max_concurrent_tickets}`
+      }));
+
+      return analysis;
+
+    } finally {
+      connection.release();
+    }
+  }
+
+  /**
+   * Get Claude-powered suggestions with one-click actions
+   */
+  async getClaudeSuggestions(emailData, experts) {
+    const Anthropic = require('@anthropic-ai/sdk');
+    const anthropic = new Anthropic({ apiKey: this.apiKey });
+
+    const expertList = experts.map(e =>
+      `- ${e.full_name} (ID: ${e.id}): ${e.skills || 'General'}, Status: ${e.availability_status}, Load: ${e.current_tickets}/${e.max_concurrent_tickets}`
+    ).join('\n');
+
+    const activitySummary = emailData.activityHistory?.map(a =>
+      `[${a.type}] ${a.user}: ${a.description?.substring(0, 100) || 'N/A'}`
+    ).join('\n') || 'No activity yet';
+
+    const systemPrompt = `You are an expert IT support assistant helping agents triage and resolve tickets efficiently.
+
+Provide actionable suggestions in valid JSON format:
+{
+  "analysis": {
+    "summary": "Brief 1-2 sentence summary of the issue",
+    "urgency": "critical|high|medium|low",
+    "complexity": "simple|moderate|complex",
+    "estimatedTime": "Time estimate to resolve"
+  },
+  "suggestedActions": [
+    {
+      "id": "unique_id",
+      "type": "assign|priority|category|respond|escalate|close",
+      "label": "Button text (short)",
+      "description": "What this does",
+      "confidence": 0-100,
+      "params": {
+        "assignee_id": number or null,
+        "priority": "string or null",
+        "category": "string or null",
+        "response": "string or null",
+        "status": "string or null"
+      }
+    }
+  ],
+  "draftResponse": "Suggested response to send to customer",
+  "nextSteps": ["Recommended step 1", "Recommended step 2"],
+  "knowledgeHints": ["Relevant KB article suggestion 1"],
+  "warnings": ["Any concerns or things to watch out for"]
+}
+
+Provide 3-5 actionable suggestions ordered by confidence/relevance.
+For assign actions, include assignee_id from the expert list.
+For respond actions, include a professional draft response.`;
+
+    const response = await anthropic.messages.create({
+      model: this.model || 'claude-3-haiku-20240307',
+      max_tokens: 2048,
+      messages: [{
+        role: 'user',
+        content: `Analyze this ticket and suggest one-click actions:
+
+TICKET #${emailData.ticketId}
+Title: ${emailData.subject}
+Status: ${emailData.currentStatus}
+Priority: ${emailData.currentPriority}
+Assignee: ${emailData.currentAssignee || 'Unassigned'}
+Customer: ${emailData.customerName} (${emailData.companyName})
+
+Description:
+${emailData.body}
+
+Activity History:
+${activitySummary}
+
+Available Experts:
+${expertList}
+
+Provide JSON suggestions for efficient ticket handling.`
+      }],
+      system: systemPrompt
+    });
+
+    const responseText = response.content[0].text;
+    let jsonText = responseText;
+    if (responseText.includes('```')) {
+      jsonText = responseText.replace(/```json?\n?/g, '').replace(/```/g, '').trim();
+    }
+
+    return JSON.parse(jsonText);
+  }
+
+  /**
+   * Pattern-based suggestions fallback
+   */
+  async getPatternSuggestions(emailData, experts) {
+    const text = `${emailData.subject} ${emailData.body}`.toLowerCase();
+
+    const suggestions = [];
+
+    // Suggest priority based on keywords
+    if (/(critical|emergency|down|outage|urgent)/i.test(text)) {
+      suggestions.push({
+        id: 'set_critical',
+        type: 'priority',
+        label: 'Set Critical Priority',
+        description: 'Detected urgent keywords in ticket',
+        confidence: 85,
+        params: { priority: 'critical' }
+      });
+    }
+
+    // Suggest category
+    let suggestedCategory = 'General';
+    if (/(server|host|monitoring|nagios)/i.test(text)) {
+      suggestedCategory = 'Infrastructure';
+    } else if (/(database|mysql|sql|query)/i.test(text)) {
+      suggestedCategory = 'Database';
+    } else if (/(network|vpn|dns|firewall)/i.test(text)) {
+      suggestedCategory = 'Network';
+    }
+
+    suggestions.push({
+      id: 'set_category',
+      type: 'category',
+      label: `Categorize: ${suggestedCategory}`,
+      description: `Based on ticket content analysis`,
+      confidence: 70,
+      params: { category: suggestedCategory }
+    });
+
+    // Suggest best available expert
+    const availableExpert = experts.find(e => e.availability_status === 'available');
+    if (availableExpert) {
+      suggestions.push({
+        id: 'assign_expert',
+        type: 'assign',
+        label: `Assign to ${availableExpert.full_name}`,
+        description: `Available expert with lowest workload`,
+        confidence: 75,
+        params: { assignee_id: availableExpert.id }
+      });
+    }
+
+    // Suggest initial response
+    suggestions.push({
+      id: 'send_ack',
+      type: 'respond',
+      label: 'Send Acknowledgment',
+      description: 'Send standard acknowledgment to customer',
+      confidence: 90,
+      params: {
+        response: `Thank you for contacting support. We have received your ticket regarding "${emailData.subject}" and a team member will be reviewing it shortly. We'll keep you updated on our progress.`
+      }
+    });
+
+    return {
+      analysis: {
+        summary: `Ticket about ${suggestedCategory.toLowerCase()} issue`,
+        urgency: /(critical|emergency|down)/i.test(text) ? 'high' : 'medium',
+        complexity: 'moderate',
+        estimatedTime: '1-2 hours'
+      },
+      suggestedActions: suggestions,
+      draftResponse: `Thank you for reaching out. We understand you're experiencing an issue with ${suggestedCategory.toLowerCase()}. Our team is reviewing your request and will respond shortly.`,
+      nextSteps: [
+        'Review ticket details',
+        'Assign to appropriate expert',
+        'Send acknowledgment to customer'
+      ],
+      knowledgeHints: [],
+      warnings: []
+    };
+  }
+
+  /**
+   * Execute a suggested action
+   */
+  async executeSuggestion(ticketId, action, userId) {
+    const connection = await getTenantConnection(this.tenantCode);
+    try {
+      const results = [];
+
+      switch (action.type) {
+        case 'assign':
+          if (action.params.assignee_id) {
+            await connection.query(
+              'UPDATE tickets SET assignee_id = ?, status = ? WHERE id = ?',
+              [action.params.assignee_id, 'In Progress', ticketId]
+            );
+            await connection.query(
+              `INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
+               VALUES (?, ?, 'assigned', ?)`,
+              [ticketId, userId, `AI suggested assignment accepted`]
+            );
+            results.push({ success: true, action: 'assign', message: 'Ticket assigned' });
+          }
+          break;
+
+        case 'priority':
+          if (action.params.priority) {
+            await connection.query(
+              'UPDATE tickets SET priority = ? WHERE id = ?',
+              [action.params.priority, ticketId]
+            );
+            await connection.query(
+              `INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
+               VALUES (?, ?, 'updated', ?)`,
+              [ticketId, userId, `Priority set to ${action.params.priority} (AI suggestion)`]
+            );
+            results.push({ success: true, action: 'priority', message: `Priority set to ${action.params.priority}` });
+          }
+          break;
+
+        case 'category':
+          if (action.params.category) {
+            await connection.query(
+              'UPDATE tickets SET category = ? WHERE id = ?',
+              [action.params.category, ticketId]
+            );
+            results.push({ success: true, action: 'category', message: `Category set to ${action.params.category}` });
+          }
+          break;
+
+        case 'respond':
+          if (action.params.response) {
+            await connection.query(
+              `INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
+               VALUES (?, ?, 'comment', ?)`,
+              [ticketId, userId, action.params.response]
+            );
+            results.push({ success: true, action: 'respond', message: 'Response added to ticket' });
+          }
+          break;
+
+        case 'close':
+          await connection.query(
+            'UPDATE tickets SET status = ? WHERE id = ?',
+            ['Closed', ticketId]
+          );
+          await connection.query(
+            `INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
+             VALUES (?, ?, 'closed', 'Ticket closed via AI suggestion')`,
+            [ticketId, userId]
+          );
+          results.push({ success: true, action: 'close', message: 'Ticket closed' });
+          break;
+      }
+
+      // Log AI action execution
+      await connection.query(`
+        INSERT INTO ai_action_log (ticket_id, user_id, action_type, action_params, executed_at)
+        VALUES (?, ?, ?, ?, NOW())
+      `, [ticketId, userId, action.type, JSON.stringify(action.params)]);
+
+      return results;
+
+    } finally {
+      connection.release();
+    }
   }
 
   /**
