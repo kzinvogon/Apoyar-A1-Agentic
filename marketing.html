@@ -1,0 +1,1307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ServiFlow - AI-Powered IT Service Management</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --primary-light: #3b82f6;
+            --secondary: #10b981;
+            --accent: #8b5cf6;
+            --dark: #0f172a;
+            --dark-light: #1e293b;
+            --gray: #64748b;
+            --gray-light: #94a3b8;
+            --light: #f1f5f9;
+            --white: #ffffff;
+            --gradient: linear-gradient(135deg, #2563eb 0%, #8b5cf6 100%);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--white);
+            color: var(--dark);
+            line-height: 1.6;
+        }
+
+        /* Navigation */
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            padding: 1rem 2rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--primary);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .logo-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+        }
+
+        .logo-icon svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--gray);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        .nav-links a:hover {
+            color: var(--primary);
+        }
+
+        .nav-cta {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.3s;
+            cursor: pointer;
+            border: none;
+            font-size: 0.95rem;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 2px solid var(--primary);
+            color: var(--primary);
+        }
+
+        .btn-outline:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary {
+            background: var(--gradient);
+            color: white;
+            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
+        }
+
+        .btn-large {
+            padding: 1rem 2rem;
+            font-size: 1.1rem;
+        }
+
+        /* Hero Section */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            padding: 8rem 2rem 4rem;
+            background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 80%;
+            height: 150%;
+            background: radial-gradient(circle, rgba(37, 99, 235, 0.05) 0%, transparent 70%);
+            z-index: 0;
+        }
+
+        .hero-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4rem;
+            align-items: center;
+            position: relative;
+            z-index: 1;
+        }
+
+        .hero-content h1 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero-content p {
+            font-size: 1.25rem;
+            color: var(--gray);
+            margin-bottom: 2rem;
+            max-width: 500px;
+        }
+
+        .hero-stats {
+            display: flex;
+            gap: 3rem;
+            margin-top: 3rem;
+        }
+
+        .stat {
+            text-align: left;
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: var(--primary);
+        }
+
+        .stat-label {
+            color: var(--gray);
+            font-size: 0.9rem;
+        }
+
+        .hero-visual {
+            position: relative;
+        }
+
+        .hero-image {
+            width: 100%;
+            max-width: 600px;
+            border-radius: 16px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+            background: var(--dark);
+            padding: 1rem;
+        }
+
+        .dashboard-preview {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            border-radius: 12px;
+            padding: 2rem;
+            color: white;
+        }
+
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .dashboard-title {
+            font-weight: 600;
+        }
+
+        .status-badge {
+            background: var(--secondary);
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .ticket-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .ticket-item {
+            background: rgba(255,255,255,0.05);
+            padding: 1rem;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .ticket-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .ticket-number {
+            background: var(--primary);
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .priority-high { color: #ef4444; }
+        .priority-medium { color: #f59e0b; }
+        .priority-low { color: #10b981; }
+
+        /* Features Section */
+        .features {
+            padding: 6rem 2rem;
+            background: white;
+        }
+
+        .section-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 4rem;
+        }
+
+        .section-label {
+            color: var(--primary);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-size: 0.875rem;
+            margin-bottom: 1rem;
+        }
+
+        .section-title {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 1rem;
+        }
+
+        .section-subtitle {
+            color: var(--gray);
+            font-size: 1.125rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+        }
+
+        .feature-card {
+            background: var(--light);
+            padding: 2rem;
+            border-radius: 16px;
+            transition: all 0.3s;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .feature-icon {
+            width: 56px;
+            height: 56px;
+            background: var(--gradient);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1.5rem;
+            font-size: 1.5rem;
+        }
+
+        .feature-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 0.75rem;
+        }
+
+        .feature-description {
+            color: var(--gray);
+            font-size: 0.95rem;
+        }
+
+        /* Pricing Section */
+        .pricing {
+            padding: 6rem 2rem;
+            background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+        }
+
+        .pricing-toggle {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 3rem;
+        }
+
+        .toggle-label {
+            font-weight: 500;
+            color: var(--gray);
+        }
+
+        .toggle-label.active {
+            color: var(--dark);
+        }
+
+        .toggle-switch {
+            width: 60px;
+            height: 30px;
+            background: var(--primary);
+            border-radius: 15px;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            background: white;
+            border-radius: 50%;
+            top: 3px;
+            left: 3px;
+            transition: 0.3s;
+        }
+
+        .toggle-switch.annual::after {
+            left: 33px;
+        }
+
+        .save-badge {
+            background: var(--secondary);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .pricing-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.5rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .pricing-card {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            border: 2px solid var(--light);
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .pricing-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .pricing-card.popular {
+            border-color: var(--primary);
+            transform: scale(1.05);
+        }
+
+        .popular-badge {
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--gradient);
+            color: white;
+            padding: 0.25rem 1rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .plan-name {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .plan-description {
+            color: var(--gray);
+            font-size: 0.875rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .plan-price {
+            margin-bottom: 1.5rem;
+        }
+
+        .price {
+            font-size: 3rem;
+            font-weight: 800;
+            color: var(--dark);
+        }
+
+        .price-currency {
+            font-size: 1.5rem;
+            vertical-align: top;
+        }
+
+        .price-period {
+            color: var(--gray);
+            font-size: 0.875rem;
+        }
+
+        .plan-limits {
+            background: var(--light);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+        }
+
+        .limit-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            font-size: 0.875rem;
+        }
+
+        .limit-label {
+            color: var(--gray);
+        }
+
+        .limit-value {
+            font-weight: 600;
+        }
+
+        .plan-features {
+            list-style: none;
+            margin-bottom: 2rem;
+        }
+
+        .plan-features li {
+            padding: 0.5rem 0;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 0.875rem;
+        }
+
+        .check-icon {
+            color: var(--secondary);
+            font-weight: bold;
+        }
+
+        .cross-icon {
+            color: var(--gray-light);
+        }
+
+        .plan-cta {
+            width: 100%;
+        }
+
+        /* AI Section */
+        .ai-section {
+            padding: 6rem 2rem;
+            background: var(--dark);
+            color: white;
+        }
+
+        .ai-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4rem;
+            align-items: center;
+        }
+
+        .ai-content h2 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 1.5rem;
+        }
+
+        .ai-content p {
+            color: var(--gray-light);
+            font-size: 1.125rem;
+            margin-bottom: 2rem;
+        }
+
+        .ai-features {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .ai-feature {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: rgba(255,255,255,0.05);
+            padding: 1rem;
+            border-radius: 8px;
+        }
+
+        .ai-feature-icon {
+            width: 40px;
+            height: 40px;
+            background: var(--gradient);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .ai-visual {
+            background: rgba(255,255,255,0.05);
+            border-radius: 16px;
+            padding: 2rem;
+        }
+
+        .ai-chat {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .ai-message {
+            padding: 1rem;
+            border-radius: 12px;
+            max-width: 80%;
+        }
+
+        .ai-message.user {
+            background: var(--primary);
+            align-self: flex-end;
+        }
+
+        .ai-message.assistant {
+            background: rgba(255,255,255,0.1);
+            align-self: flex-start;
+        }
+
+        /* Comparison Table */
+        .comparison {
+            padding: 6rem 2rem;
+            background: white;
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 3rem;
+        }
+
+        .comparison-table th,
+        .comparison-table td {
+            padding: 1rem;
+            text-align: center;
+            border-bottom: 1px solid var(--light);
+        }
+
+        .comparison-table th {
+            background: var(--light);
+            font-weight: 600;
+        }
+
+        .comparison-table th:first-child,
+        .comparison-table td:first-child {
+            text-align: left;
+            font-weight: 500;
+        }
+
+        .comparison-table tr:hover {
+            background: var(--light);
+        }
+
+        /* CTA Section */
+        .cta-section {
+            padding: 6rem 2rem;
+            background: var(--gradient);
+            text-align: center;
+            color: white;
+        }
+
+        .cta-section h2 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 1rem;
+        }
+
+        .cta-section p {
+            font-size: 1.25rem;
+            opacity: 0.9;
+            margin-bottom: 2rem;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .cta-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+        }
+
+        .btn-white {
+            background: white;
+            color: var(--primary);
+        }
+
+        .btn-white:hover {
+            background: var(--light);
+        }
+
+        .btn-outline-white {
+            background: transparent;
+            border: 2px solid white;
+            color: white;
+        }
+
+        .btn-outline-white:hover {
+            background: white;
+            color: var(--primary);
+        }
+
+        /* Footer */
+        footer {
+            background: var(--dark);
+            color: white;
+            padding: 4rem 2rem 2rem;
+        }
+
+        .footer-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 3rem;
+        }
+
+        .footer-brand p {
+            color: var(--gray-light);
+            margin-top: 1rem;
+            max-width: 300px;
+        }
+
+        .footer-links h4 {
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
+
+        .footer-links ul {
+            list-style: none;
+        }
+
+        .footer-links a {
+            color: var(--gray-light);
+            text-decoration: none;
+            line-height: 2;
+            transition: color 0.3s;
+        }
+
+        .footer-links a:hover {
+            color: white;
+        }
+
+        .footer-bottom {
+            border-top: 1px solid var(--dark-light);
+            margin-top: 3rem;
+            padding-top: 2rem;
+            text-align: center;
+            color: var(--gray-light);
+            font-size: 0.875rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .pricing-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .features-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .hero-container,
+            .ai-container {
+                grid-template-columns: 1fr;
+                text-align: center;
+            }
+
+            .hero-content h1 {
+                font-size: 2.5rem;
+            }
+
+            .hero-stats {
+                justify-content: center;
+            }
+
+            .nav-links {
+                display: none;
+            }
+
+            .pricing-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .footer-container {
+                grid-template-columns: 1fr;
+            }
+
+            .pricing-card.popular {
+                transform: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-container">
+            <a href="#" class="logo">
+                <div class="logo-icon">
+                    <svg viewBox="0 0 100 100">
+                        <defs><linearGradient id="navGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#2563eb"/><stop offset="100%" style="stop-color:#8b5cf6"/></linearGradient></defs>
+                        <rect width="100" height="100" rx="20" fill="url(#navGrad)"/>
+                        <text x="50" y="68" text-anchor="middle" font-family="system-ui, sans-serif" font-size="48" font-weight="700" fill="white">SF</text>
+                        <circle cx="82" cy="24" r="8" fill="#10b981"/>
+                    </svg>
+                </div>
+                ServiFlow
+            </a>
+            <ul class="nav-links">
+                <li><a href="#features">Features</a></li>
+                <li><a href="#pricing">Pricing</a></li>
+                <li><a href="#ai">AI Insights</a></li>
+                <li><a href="#comparison">Compare</a></li>
+            </ul>
+            <div class="nav-cta">
+                <a href="/" class="btn btn-outline">Login</a>
+                <a href="#pricing" class="btn btn-primary">Start Free Trial</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-container">
+            <div class="hero-content">
+                <h1>AI-Powered IT Service Management</h1>
+                <p>Transform your support operations with intelligent ticket routing, automated insights, and real-time SLA tracking. Built for teams that demand excellence.</p>
+                <div style="display: flex; gap: 1rem;">
+                    <a href="#pricing" class="btn btn-primary btn-large">Start 14-Day Free Trial</a>
+                    <a href="#features" class="btn btn-outline btn-large">See How It Works</a>
+                </div>
+                <div class="hero-stats">
+                    <div class="stat">
+                        <div class="stat-number">40%</div>
+                        <div class="stat-label">Faster Resolution</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-number">99.9%</div>
+                        <div class="stat-label">Uptime SLA</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-number">24/7</div>
+                        <div class="stat-label">AI Assistance</div>
+                    </div>
+                </div>
+            </div>
+            <div class="hero-visual">
+                <div class="hero-image">
+                    <div class="dashboard-preview">
+                        <div class="dashboard-header">
+                            <span class="dashboard-title">Support Dashboard</span>
+                            <span class="status-badge">Live</span>
+                        </div>
+                        <div class="ticket-list">
+                            <div class="ticket-item">
+                                <div class="ticket-info">
+                                    <span class="ticket-number">#1842</span>
+                                    <span>Server connectivity issue</span>
+                                </div>
+                                <span class="priority-high">Critical</span>
+                            </div>
+                            <div class="ticket-item">
+                                <div class="ticket-info">
+                                    <span class="ticket-number">#1841</span>
+                                    <span>Password reset request</span>
+                                </div>
+                                <span class="priority-low">Low</span>
+                            </div>
+                            <div class="ticket-item">
+                                <div class="ticket-info">
+                                    <span class="ticket-number">#1840</span>
+                                    <span>Database backup failed</span>
+                                </div>
+                                <span class="priority-medium">Medium</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features" id="features">
+        <div class="section-container">
+            <div class="section-header">
+                <div class="section-label">Features</div>
+                <h2 class="section-title">Everything You Need to Deliver Exceptional Support</h2>
+                <p class="section-subtitle">Powerful tools designed for modern IT teams, from startups to enterprises.</p>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">&#x1F916;</div>
+                    <h3 class="feature-title">AI-Powered Insights</h3>
+                    <p class="feature-description">Automatic ticket classification, priority suggestions, and resolution recommendations powered by advanced AI.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">&#x1F4E7;</div>
+                    <h3 class="feature-title">Email-to-Ticket</h3>
+                    <p class="feature-description">Automatically convert incoming emails into tickets with intelligent customer matching and routing.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">&#x23F1;</div>
+                    <h3 class="feature-title">SLA Management</h3>
+                    <p class="feature-description">Real-time SLA tracking with automated alerts, escalations, and comprehensive reporting.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">&#x1F5C4;</div>
+                    <h3 class="feature-title">CMDB Integration</h3>
+                    <p class="feature-description">Full Configuration Management Database to track assets, relationships, and impact analysis.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">&#x1F465;</div>
+                    <h3 class="feature-title">Multi-Tenant</h3>
+                    <p class="feature-description">Serve multiple customers with complete data isolation, custom branding, and dedicated instances.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">&#x1F512;</div>
+                    <h3 class="feature-title">Role-Based Access</h3>
+                    <p class="feature-description">Granular permissions for admins, experts, and customers with audit logging.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pricing Section -->
+    <section class="pricing" id="pricing">
+        <div class="section-container">
+            <div class="section-header">
+                <div class="section-label">Pricing</div>
+                <h2 class="section-title">Simple, Transparent Pricing</h2>
+                <p class="section-subtitle">Choose the plan that fits your team. All plans include a 14-day free trial.</p>
+            </div>
+
+            <div class="pricing-toggle">
+                <span class="toggle-label active">Monthly</span>
+                <div class="toggle-switch" onclick="this.classList.toggle('annual')"></div>
+                <span class="toggle-label">Annual</span>
+                <span class="save-badge">Save 20%</span>
+            </div>
+
+            <div class="pricing-grid">
+                <!-- Starter Plan -->
+                <div class="pricing-card">
+                    <div class="plan-name">Starter</div>
+                    <div class="plan-description">For small teams getting started</div>
+                    <div class="plan-price">
+                        <span class="price"><span class="price-currency">$</span>29</span>
+                        <span class="price-period">/month</span>
+                    </div>
+                    <div class="plan-limits">
+                        <div class="limit-item">
+                            <span class="limit-label">Support Agents</span>
+                            <span class="limit-value">3</span>
+                        </div>
+                        <div class="limit-item">
+                            <span class="limit-label">Tickets/month</span>
+                            <span class="limit-value">500</span>
+                        </div>
+                        <div class="limit-item">
+                            <span class="limit-label">Customer Companies</span>
+                            <span class="limit-value">10</span>
+                        </div>
+                    </div>
+                    <ul class="plan-features">
+                        <li><span class="check-icon">&#x2713;</span> Email-to-Ticket</li>
+                        <li><span class="check-icon">&#x2713;</span> Basic SLA Tracking</li>
+                        <li><span class="check-icon">&#x2713;</span> Knowledge Base</li>
+                        <li><span class="cross-icon">&#x2717;</span> AI Insights</li>
+                        <li><span class="cross-icon">&#x2717;</span> CMDB</li>
+                        <li><span class="cross-icon">&#x2717;</span> API Access</li>
+                    </ul>
+                    <a href="#" class="btn btn-outline plan-cta">Start Free Trial</a>
+                </div>
+
+                <!-- Professional Plan -->
+                <div class="pricing-card popular">
+                    <div class="popular-badge">Most Popular</div>
+                    <div class="plan-name">Professional</div>
+                    <div class="plan-description">For growing support teams</div>
+                    <div class="plan-price">
+                        <span class="price"><span class="price-currency">$</span>79</span>
+                        <span class="price-period">/month</span>
+                    </div>
+                    <div class="plan-limits">
+                        <div class="limit-item">
+                            <span class="limit-label">Support Agents</span>
+                            <span class="limit-value">10</span>
+                        </div>
+                        <div class="limit-item">
+                            <span class="limit-label">Tickets/month</span>
+                            <span class="limit-value">2,000</span>
+                        </div>
+                        <div class="limit-item">
+                            <span class="limit-label">Customer Companies</span>
+                            <span class="limit-value">50</span>
+                        </div>
+                    </div>
+                    <ul class="plan-features">
+                        <li><span class="check-icon">&#x2713;</span> Everything in Starter</li>
+                        <li><span class="check-icon">&#x2713;</span> AI Insights & Classification</li>
+                        <li><span class="check-icon">&#x2713;</span> Advanced SLA Rules</li>
+                        <li><span class="check-icon">&#x2713;</span> Basic CMDB</li>
+                        <li><span class="check-icon">&#x2713;</span> API Access</li>
+                        <li><span class="cross-icon">&#x2717;</span> Custom Integrations</li>
+                    </ul>
+                    <a href="#" class="btn btn-primary plan-cta">Start Free Trial</a>
+                </div>
+
+                <!-- Business Plan -->
+                <div class="pricing-card">
+                    <div class="plan-name">Business</div>
+                    <div class="plan-description">For larger organizations</div>
+                    <div class="plan-price">
+                        <span class="price"><span class="price-currency">$</span>199</span>
+                        <span class="price-period">/month</span>
+                    </div>
+                    <div class="plan-limits">
+                        <div class="limit-item">
+                            <span class="limit-label">Support Agents</span>
+                            <span class="limit-value">25</span>
+                        </div>
+                        <div class="limit-item">
+                            <span class="limit-label">Tickets/month</span>
+                            <span class="limit-value">10,000</span>
+                        </div>
+                        <div class="limit-item">
+                            <span class="limit-label">Customer Companies</span>
+                            <span class="limit-value">Unlimited</span>
+                        </div>
+                    </div>
+                    <ul class="plan-features">
+                        <li><span class="check-icon">&#x2713;</span> Everything in Professional</li>
+                        <li><span class="check-icon">&#x2713;</span> Full CMDB with Relationships</li>
+                        <li><span class="check-icon">&#x2713;</span> Custom Integrations</li>
+                        <li><span class="check-icon">&#x2713;</span> Priority Support</li>
+                        <li><span class="check-icon">&#x2713;</span> Custom Reports</li>
+                        <li><span class="cross-icon">&#x2717;</span> Dedicated Instance</li>
+                    </ul>
+                    <a href="#" class="btn btn-outline plan-cta">Start Free Trial</a>
+                </div>
+
+                <!-- Enterprise Plan -->
+                <div class="pricing-card">
+                    <div class="plan-name">Enterprise</div>
+                    <div class="plan-description">For large-scale operations</div>
+                    <div class="plan-price">
+                        <span class="price">Custom</span>
+                    </div>
+                    <div class="plan-limits">
+                        <div class="limit-item">
+                            <span class="limit-label">Support Agents</span>
+                            <span class="limit-value">Unlimited</span>
+                        </div>
+                        <div class="limit-item">
+                            <span class="limit-label">Tickets/month</span>
+                            <span class="limit-value">Unlimited</span>
+                        </div>
+                        <div class="limit-item">
+                            <span class="limit-label">Customer Companies</span>
+                            <span class="limit-value">Unlimited</span>
+                        </div>
+                    </div>
+                    <ul class="plan-features">
+                        <li><span class="check-icon">&#x2713;</span> Everything in Business</li>
+                        <li><span class="check-icon">&#x2713;</span> Dedicated Instance</li>
+                        <li><span class="check-icon">&#x2713;</span> Custom SLA (99.99%)</li>
+                        <li><span class="check-icon">&#x2713;</span> On-premise Option</li>
+                        <li><span class="check-icon">&#x2713;</span> 24/7 Phone Support</li>
+                        <li><span class="check-icon">&#x2713;</span> Dedicated CSM</li>
+                    </ul>
+                    <a href="#" class="btn btn-outline plan-cta">Contact Sales</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- AI Section -->
+    <section class="ai-section" id="ai">
+        <div class="ai-container">
+            <div class="ai-content">
+                <h2>AI That Actually Helps</h2>
+                <p>Our AI doesn't just classify tickets - it provides actionable insights, suggests solutions, and helps your team resolve issues faster than ever.</p>
+                <div class="ai-features">
+                    <div class="ai-feature">
+                        <div class="ai-feature-icon">&#x1F4CA;</div>
+                        <div>
+                            <strong>Smart Classification</strong>
+                            <p style="font-size: 0.875rem; color: var(--gray-light); margin-top: 0.25rem;">Automatically categorize and prioritize incoming tickets</p>
+                        </div>
+                    </div>
+                    <div class="ai-feature">
+                        <div class="ai-feature-icon">&#x1F4A1;</div>
+                        <div>
+                            <strong>Resolution Suggestions</strong>
+                            <p style="font-size: 0.875rem; color: var(--gray-light); margin-top: 0.25rem;">Get AI-powered suggestions based on similar past tickets</p>
+                        </div>
+                    </div>
+                    <div class="ai-feature">
+                        <div class="ai-feature-icon">&#x26A0;</div>
+                        <div>
+                            <strong>Risk Analysis</strong>
+                            <p style="font-size: 0.875rem; color: var(--gray-light); margin-top: 0.25rem;">Identify high-risk tickets before they escalate</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="ai-visual">
+                <div class="ai-chat">
+                    <div class="ai-message user">
+                        Analyze ticket #1842 - Server connectivity issue
+                    </div>
+                    <div class="ai-message assistant">
+                        <strong>AI Analysis:</strong><br><br>
+                        <strong>Priority:</strong> Critical (P1)<br>
+                        <strong>Category:</strong> Infrastructure > Network<br>
+                        <strong>Estimated Impact:</strong> 150+ users affected<br><br>
+                        <strong>Suggested Actions:</strong><br>
+                        1. Check network switch logs<br>
+                        2. Verify DNS resolution<br>
+                        3. Review recent firewall changes<br><br>
+                        <strong>Similar Resolved:</strong> Ticket #1756 (DNS misconfiguration)
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Comparison Section -->
+    <section class="comparison" id="comparison">
+        <div class="section-container">
+            <div class="section-header">
+                <div class="section-label">Compare Plans</div>
+                <h2 class="section-title">Detailed Feature Comparison</h2>
+                <p class="section-subtitle">See exactly what's included in each plan.</p>
+            </div>
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>Feature</th>
+                        <th>Starter</th>
+                        <th>Professional</th>
+                        <th>Business</th>
+                        <th>Enterprise</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Support Agents</td>
+                        <td>3</td>
+                        <td>10</td>
+                        <td>25</td>
+                        <td>Unlimited</td>
+                    </tr>
+                    <tr>
+                        <td>Tickets per Month</td>
+                        <td>500</td>
+                        <td>2,000</td>
+                        <td>10,000</td>
+                        <td>Unlimited</td>
+                    </tr>
+                    <tr>
+                        <td>Customer Companies</td>
+                        <td>10</td>
+                        <td>50</td>
+                        <td>Unlimited</td>
+                        <td>Unlimited</td>
+                    </tr>
+                    <tr>
+                        <td>Email-to-Ticket</td>
+                        <td>&#x2713;</td>
+                        <td>&#x2713;</td>
+                        <td>&#x2713;</td>
+                        <td>&#x2713;</td>
+                    </tr>
+                    <tr>
+                        <td>SLA Tracking</td>
+                        <td>Basic</td>
+                        <td>Advanced</td>
+                        <td>Advanced</td>
+                        <td>Custom</td>
+                    </tr>
+                    <tr>
+                        <td>AI Insights</td>
+                        <td>&#x2717;</td>
+                        <td>&#x2713;</td>
+                        <td>&#x2713;</td>
+                        <td>&#x2713;</td>
+                    </tr>
+                    <tr>
+                        <td>CMDB</td>
+                        <td>&#x2717;</td>
+                        <td>Basic</td>
+                        <td>Full</td>
+                        <td>Full + Custom</td>
+                    </tr>
+                    <tr>
+                        <td>API Access</td>
+                        <td>&#x2717;</td>
+                        <td>&#x2713;</td>
+                        <td>&#x2713;</td>
+                        <td>&#x2713;</td>
+                    </tr>
+                    <tr>
+                        <td>Custom Integrations</td>
+                        <td>&#x2717;</td>
+                        <td>&#x2717;</td>
+                        <td>&#x2713;</td>
+                        <td>&#x2713;</td>
+                    </tr>
+                    <tr>
+                        <td>Dedicated Instance</td>
+                        <td>&#x2717;</td>
+                        <td>&#x2717;</td>
+                        <td>&#x2717;</td>
+                        <td>&#x2713;</td>
+                    </tr>
+                    <tr>
+                        <td>Support</td>
+                        <td>Email</td>
+                        <td>Email + Chat</td>
+                        <td>Priority</td>
+                        <td>24/7 + CSM</td>
+                    </tr>
+                    <tr>
+                        <td>Data Retention</td>
+                        <td>1 year</td>
+                        <td>2 years</td>
+                        <td>5 years</td>
+                        <td>Unlimited</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta-section">
+        <div class="section-container">
+            <h2>Ready to Transform Your Support?</h2>
+            <p>Join thousands of teams delivering exceptional customer support with ServiFlow. Start your free 14-day trial today.</p>
+            <div class="cta-buttons">
+                <a href="#pricing" class="btn btn-white btn-large">Start Free Trial</a>
+                <a href="#" class="btn btn-outline-white btn-large">Schedule a Demo</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-container">
+            <div class="footer-brand">
+                <a href="#" class="logo" style="color: white;">
+                    <div class="logo-icon">
+                        <svg viewBox="0 0 100 100">
+                            <defs><linearGradient id="footGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#2563eb"/><stop offset="100%" style="stop-color:#8b5cf6"/></linearGradient></defs>
+                            <rect width="100" height="100" rx="20" fill="url(#footGrad)"/>
+                            <text x="50" y="68" text-anchor="middle" font-family="system-ui, sans-serif" font-size="48" font-weight="700" fill="white">SF</text>
+                            <circle cx="82" cy="24" r="8" fill="#10b981"/>
+                        </svg>
+                    </div>
+                    ServiFlow
+                </a>
+                <p>AI-powered IT service management for teams that demand excellence. Transform your support operations today.</p>
+            </div>
+            <div class="footer-links">
+                <h4>Product</h4>
+                <ul>
+                    <li><a href="#features">Features</a></li>
+                    <li><a href="#pricing">Pricing</a></li>
+                    <li><a href="#ai">AI Insights</a></li>
+                    <li><a href="#">Integrations</a></li>
+                </ul>
+            </div>
+            <div class="footer-links">
+                <h4>Company</h4>
+                <ul>
+                    <li><a href="#">About</a></li>
+                    <li><a href="#">Blog</a></li>
+                    <li><a href="#">Careers</a></li>
+                    <li><a href="#">Contact</a></li>
+                </ul>
+            </div>
+            <div class="footer-links">
+                <h4>Legal</h4>
+                <ul>
+                    <li><a href="#">Privacy Policy</a></li>
+                    <li><a href="#">Terms of Service</a></li>
+                    <li><a href="#">Security</a></li>
+                    <li><a href="#">GDPR</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2024 ServiFlow. All rights reserved.</p>
+        </div>
+    </footer>
+</body>
+</html>

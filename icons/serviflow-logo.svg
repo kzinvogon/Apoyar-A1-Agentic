@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 50">
+  <defs>
+    <linearGradient id="brandGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#2563eb"/>
+      <stop offset="100%" style="stop-color:#8b5cf6"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Logo Mark - Flowing S shape with service lines -->
+  <g transform="translate(5, 5)">
+    <!-- Main S flow shape -->
+    <path d="M12 2 C20 2, 26 8, 26 14 C26 20, 20 22, 14 22 C8 22, 2 28, 2 34 C2 40, 8 46, 16 46"
+          stroke="url(#brandGradient)" stroke-width="4" fill="none" stroke-linecap="round"/>
+    <!-- Flow lines -->
+    <path d="M8 10 L22 10" stroke="url(#brandGradient)" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+    <path d="M6 22 L22 22" stroke="url(#brandGradient)" stroke-width="2" stroke-linecap="round" opacity="0.8"/>
+    <path d="M6 34 L20 34" stroke="url(#brandGradient)" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+    <!-- Dot accent -->
+    <circle cx="28" cy="14" r="3" fill="#10b981"/>
+  </g>
+
+  <!-- Wordmark -->
+  <text x="50" y="35" font-family="Inter, system-ui, sans-serif" font-size="26" font-weight="700" fill="#0f172a">
+    Servi<tspan fill="url(#brandGradient)">Flow</tspan>
+  </text>
+</svg>
