@@ -80,6 +80,11 @@ app.use('/api/ai', aiSuggestionsRoutes);
 // Public routes (no authentication required) - Must be before authenticated routes
 app.use('/ticket', publicTicketRoutes);
 
+// Marketing site route
+app.get('/marketing', (req, res) => {
+  res.sendFile(path.join(__dirname, 'marketing.html'));
+});
+
 // Main route - serve the HTML file
 app.get('/', (req, res) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
