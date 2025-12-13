@@ -42,18 +42,50 @@ vNext-FULL-ActionsSLA:
 - NON‑DESTRUCTIVE: prior flows preserved.
 -->
 <style>
-  :root{--bg:#f6f7fb;--card:#ffffff;--ink:#0f172a;--muted:#607089;--primary:#003366;--accent:#009688;--danger:#b91c1c;--warn:#b45309;--ok:#166534;--radius:16px;--shadow:0 10px 25px rgba(2,6,23,.08);}
-  *{box-sizing:border-box} body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Ubuntu,Arial,"Noto Sans",sans-serif;background:var(--bg);color:var(--ink);}
-  .container{max-width:1240px;margin:24px auto;padding:0 16px}
-  .brandbar{display:flex;align-items:center;gap:12px;margin-bottom:24px}
-  .brandbar .logo-icon{width:42px;height:42px;flex-shrink:0}
-  .brandbar .logo-icon svg{width:100%;height:100%;display:block}
+  :root{--bg:#fafafa;--card:#ffffff;--ink:#1a1a1a;--muted:#717171;--primary:#1a1a1a;--primary-dark:#000000;--accent:#1a1a1a;--danger:#dc2626;--warn:#ca8a04;--ok:#16a34a;--radius:8px;--shadow:0 1px 2px rgba(0,0,0,.04);--shadow-lg:0 2px 8px rgba(0,0,0,.08);--border:#e5e5e5;--card-hover:#f5f5f5;--table-header:#fafafa;--input-bg:#ffffff;--topnav-bg:#ffffff;--logo-bg:#1a1a1a;--logo-text:#ffffff;--avatar-bg:#1a1a1a;--badge-bg:#fafafa}
+
+  /* Dark Mode */
+  body.dark-mode{--bg:#0a0a0a;--card:#141414;--ink:#f5f5f5;--muted:#a3a3a3;--primary:#ffffff;--primary-dark:#e5e5e5;--accent:#ffffff;--border:#262626;--card-hover:#1f1f1f;--table-header:#141414;--input-bg:#1a1a1a;--topnav-bg:#0a0a0a;--logo-bg:#ffffff;--logo-text:#0a0a0a;--avatar-bg:#ffffff;--badge-bg:#1a1a1a}
+
+  *{box-sizing:border-box} body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);padding-top:56px;transition:background .2s,color .2s}
+
+  /* Clean Top Navigation */
+  .topnav{position:fixed;top:0;left:0;right:0;height:56px;background:var(--topnav-bg);border-bottom:1px solid var(--border);z-index:100;display:flex;align-items:center;padding:0 24px;transition:background .2s,border-color .2s}
+  .topnav-inner{max-width:1200px;width:100%;margin:0 auto;display:flex;align-items:center;justify-content:space-between}
+  .topnav-brand{display:flex;align-items:center;gap:10px;text-decoration:none}
+  .topnav-brand .logo-icon{width:32px;height:32px;flex-shrink:0}
+  .topnav-brand .logo-icon svg{width:100%;height:100%;display:block}
+  .topnav-brand .logo-icon svg rect{fill:var(--logo-bg);transition:fill .2s}
+  .topnav-brand .logo-icon svg text{fill:var(--logo-text);transition:fill .2s}
+  .topnav-brand span{font-weight:600;font-size:16px;color:var(--ink);letter-spacing:-.3px}
+  .topnav-right{display:flex;align-items:center;gap:12px}
+  .topnav-user{display:flex;align-items:center;gap:8px;padding:4px 10px 4px 4px;border:1px solid var(--border);border-radius:999px;cursor:pointer;transition:all .15s}
+  .topnav-user:hover{background:var(--card-hover)}
+  .topnav-avatar{width:28px;height:28px;border-radius:999px;background:var(--avatar-bg);display:flex;align-items:center;justify-content:center;color:var(--logo-text);font-weight:500;font-size:12px;transition:background .2s}
+  .topnav-name{font-weight:500;font-size:13px;color:var(--ink)}
+  .topnav-role{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+  .topnav-actions{display:flex;gap:6px}
+  .topnav-btn{padding:6px 12px;border-radius:6px;font-size:13px;font-weight:500;border:1px solid var(--border);cursor:pointer;transition:all .15s;background:var(--card)}
+  .topnav-btn.ghost{background:transparent;color:var(--muted);border-color:transparent}
+  .topnav-btn.ghost:hover{background:var(--card-hover);color:var(--ink)}
+  .topnav-btn.primary{background:var(--primary);color:var(--bg);border-color:var(--primary)}
+  .topnav-btn.primary:hover{background:var(--primary-dark)}
+
+  /* Theme Toggle */
+  .theme-toggle{width:36px;height:36px;border-radius:8px;border:1px solid var(--border);background:var(--card);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
+  .theme-toggle:hover{background:var(--card-hover)}
+  .theme-toggle svg{width:18px;height:18px;color:var(--ink)}
+
+  .container{max-width:1200px;margin:0 auto;padding:20px}
+
+  /* Hide old brandbar - replaced by topnav */
+  .brandbar{display:none}
   .screen{display:none;animation:fade .2s ease-in} .screen.active{display:block}
   @keyframes fade{from{opacity:.7;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
-  .card{background:var(--card);border-radius:16px;box-shadow:var(--shadow)}
+  .card{background:var(--card);border-radius:12px;box-shadow:var(--shadow);border:1px solid var(--border);transition:background .2s,border-color .2s}
   .p-12{padding:12px} .p-16{padding:16px} .p-20{padding:20px} .p-24{padding:24px}
   .mb-8{margin-bottom:8px} .mb-12{margin-bottom:12px} .mb-16{margin-bottom:16px} .mb-24{margin-bottom:24px}
-  .title{font-size:22px;font-weight:800;margin:0 0 8px} .subtitle{font-size:14px;color:var(--muted);margin:0 0 12px}
+  .title{font-size:20px;font-weight:600;margin:0 0 6px;letter-spacing:-.3px} .subtitle{font-size:13px;color:var(--muted);margin:0 0 12px}
   .row{display:flex;gap:12px;align-items:center} .space{justify-content:space-between} .wrap{flex-wrap:wrap}
   .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px} .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px} .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
 .ai-trend-card{background:rgba(255,255,255,0.08);border-radius:8px;padding:16px;border-left:4px solid #667eea}
@@ -61,25 +93,39 @@ vNext-FULL-ActionsSLA:
 .ai-trend-card.warning{border-left-color:#ffc107;background:rgba(255,193,7,0.1)}
 .ai-trend-card.info{border-left-color:#48bb78;background:rgba(72,187,120,0.1)}
 .ai-category-badge{background:rgba(255,255,255,0.15);padding:6px 12px;border-radius:20px;font-size:12px;display:inline-flex;align-items:center;gap:6px}
-  .two-col{display:grid;grid-template-columns:240px 1fr;gap:16px} .leftnav{position:sticky;top:24px}
-  .navlink{display:block;padding:10px 12px;border-radius:10px;margin-bottom:6px;cursor:pointer} .navlink.active{background:#e5edff}
-  .btn{appearance:none;border:0;border-radius:12px;padding:10px 14px;font-weight:700;cursor:pointer;background:#e2e8f0;color:#0f172a} .btn.primary{background:#003366;color:#fff} .btn.ghost{background:transparent;border:1px solid #e5e7eb} .btn.accent{background:#009688;color:#fff}
-  .btn.warn{background:#fff7ed;border:1px solid #fed7aa} .btn.danger{background:#fef2f2;border:1px solid #fecaca}
-  .btn.ai-btn{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;border:none;font-weight:700}
-  .btn.ai-btn:hover{opacity:0.9} .btn.ai-action{background:rgba(255,255,255,0.2);color:white;border:1px solid rgba(255,255,255,0.3);font-size:13px;padding:8px 12px}
-  .btn.ai-action:hover{background:rgba(255,255,255,0.3)} .ai-action-confidence{font-size:11px;opacity:0.8;margin-left:4px}
-  .input, select, textarea{width:100%;padding:10px 12px;border:1px solid #dde3ec;border-radius:12px;background:white} textarea{min-height:100px;resize:vertical}
-  table{width:100%;border-collapse:collapse} th,td{text-align:left;padding:12px;border-bottom:1px solid #eef2f7;font-size:14px} tr:hover{background:#f8fafc;cursor:pointer}
-  .badge{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;font-size:12px;border:1px solid #e5e7eb;background:#f8fafc}
-  .badge.plan-trial{background:#9C27B0;color:white}
-  .badge.plan-starter{background:#2196F3;color:white}
-  .badge.plan-pro{background:#FF9800;color:white}
-  .badge.status-active{background:#4CAF50;color:white}
-  .badge.status-pending{background:#FF9800;color:white}
-  .badge.status-cancelled{background:#F44336;color:white}
-  .badge.status-success{background:#4CAF50;color:white}
-  .badge.status-warning{background:#FF9800;color:white}
-  .badge.status-error{background:#F44336;color:white}
+  /* Clean Sidebar Layout */
+  .two-col{display:grid;grid-template-columns:220px 1fr;gap:24px}
+  .leftnav{position:sticky;top:76px;height:fit-content}
+  .leftnav .subtitle{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:0 0 8px 12px;font-weight:500}
+  .navlink{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;margin-bottom:2px;cursor:pointer;font-size:14px;font-weight:400;color:var(--muted);transition:all .15s ease}
+  .navlink:hover{background:var(--card-hover);color:var(--ink)}
+  .navlink.active{background:var(--primary);color:var(--bg)}
+  .btn{appearance:none;border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-weight:500;font-size:13px;cursor:pointer;background:var(--card);color:var(--ink);transition:all .15s ease}
+  .btn:hover{background:var(--card-hover)}
+  .btn.primary{background:var(--primary);color:var(--bg);border-color:var(--primary)}
+  .btn.primary:hover{opacity:.9}
+  .btn.ghost{background:transparent;border-color:transparent;color:var(--muted)}
+  .btn.ghost:hover{background:var(--card-hover);color:var(--ink)}
+  .btn.accent{background:var(--primary);color:var(--bg);border-color:var(--primary)}
+  .btn.warn{background:#fefce8;border-color:#fde047;color:#a16207} .btn.danger{background:#fef2f2;border-color:#fecaca;color:#dc2626}
+  .btn.ai-btn{background:var(--primary);color:var(--bg);border:1px solid var(--primary);font-weight:500}
+  .btn.ai-btn:hover{opacity:.9} .btn.ai-action{background:rgba(255,255,255,0.1);color:white;border:1px solid rgba(255,255,255,0.2);font-size:12px;padding:6px 10px}
+  .btn.ai-action:hover{background:rgba(255,255,255,0.2)} .ai-action-confidence{font-size:10px;opacity:0.7;margin-left:4px}
+  .input, select, textarea{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--input-bg);color:var(--ink);font-size:14px;transition:all .15s}
+  .input:focus, select:focus, textarea:focus{outline:none;border-color:var(--primary)}
+  textarea{min-height:100px;resize:vertical}
+  table{width:100%;border-collapse:collapse} th{text-align:left;padding:10px 12px;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:500;border-bottom:1px solid var(--border);background:var(--table-header)}
+  td{text-align:left;padding:12px;border-bottom:1px solid var(--border);font-size:13px} tr:hover{background:var(--card-hover);cursor:pointer}
+  .badge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:500;border:1px solid var(--border);background:#fafafa;color:var(--ink)}
+  .badge.plan-trial{background:#f3e8ff;color:#7c3aed;border-color:#e9d5ff}
+  .badge.plan-starter{background:#dbeafe;color:#2563eb;border-color:#bfdbfe}
+  .badge.plan-pro{background:#fef3c7;color:#d97706;border-color:#fde68a}
+  .badge.status-active{background:#dcfce7;color:#16a34a;border-color:#bbf7d0}
+  .badge.status-pending{background:#fef3c7;color:#d97706;border-color:#fde68a}
+  .badge.status-cancelled{background:#fef2f2;color:#dc2626;border-color:#fecaca}
+  .badge.status-success{background:#dcfce7;color:#16a34a;border-color:#bbf7d0}
+  .badge.status-warning{background:#fef3c7;color:#d97706;border-color:#fde68a}
+  .badge.status-error{background:#fef2f2;color:#dc2626;border-color:#fecaca}
   
   .progress-bar{width:100%;height:8px;background:#e0e0e0;border-radius:4px;overflow:hidden}
   .progress-fill{height:100%;background:linear-gradient(90deg,#4caf50 0%,#ff9800 70%,#f44336 100%);transition:width 0.3s ease}
@@ -90,21 +136,22 @@ vNext-FULL-ActionsSLA:
   .sla.ok{color:var(--ok);border-color:#bbf7d0;background:#f0fdf4}
   .sla.warn{color:var(--warn);border-color:#fed7aa;background:#fffbeb}
   .sla.danger{color:var(--danger);border-color:#fecaca;background:#fef2f2}
-  .progress{height:10px;border-radius:999px;background:#eef2f7;overflow:hidden}
-  .progress>span{display:block;height:100%;background:#003366}
-  #chat-toggle{position:fixed;right:20px;bottom:20px;border-radius:999px;padding:12px 16px;box-shadow:var(--shadow)}
-  #chat{position:fixed;right:20px;bottom:80px;width:360px;max-height:70vh;display:none;flex-direction:column;gap:8px}
-  #chat .panel{background:#fff;border-radius:16px;box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column;max-height:70vh}
-  #chat .header{padding:12px 16px;background:#003366;color:#fff;font-weight:700}
-  #chat .body{padding:12px;overflow-y:auto} #chat .msg{padding:10px 12px;border-radius:12px;margin-bottom:8px;max-width:85%} #chat .ai{background:#eef2ff} #chat .me{background:#eaf5f4;align-self:flex-end}
-  #err{display:none;position:fixed;left:0;right:0;bottom:0;background:#fee2e2;color:#991b1b;padding:10px 14px;font-size:14px;border-top:1px solid #fecaca}
+  .progress{height:6px;border-radius:999px;background:var(--border);overflow:hidden}
+  .progress>span{display:block;height:100%;background:var(--primary)}
+  #chat-toggle{position:fixed;right:20px;bottom:20px;border-radius:999px;padding:12px 16px;box-shadow:var(--shadow-lg);background:var(--primary);color:var(--bg);border:none;cursor:pointer;font-weight:500;font-size:13px;transition:all .2s}
+  #chat-toggle:hover{opacity:.9}
+  #chat{position:fixed;right:20px;bottom:72px;width:360px;max-height:70vh;display:none;flex-direction:column;gap:8px;z-index:90}
+  #chat .panel{background:var(--card);border-radius:12px;box-shadow:var(--shadow-lg);overflow:hidden;display:flex;flex-direction:column;max-height:70vh;border:1px solid var(--border)}
+  #chat .header{padding:14px 16px;background:var(--primary);color:var(--bg);font-weight:500;font-size:14px}
+  #chat .body{padding:14px;overflow-y:auto;background:var(--bg)} #chat .msg{padding:10px 12px;border-radius:10px;margin-bottom:8px;max-width:85%;font-size:13px;line-height:1.5} #chat .ai{background:var(--card);border:1px solid var(--border)} #chat .me{background:var(--primary);color:var(--bg);align-self:flex-end}
+  #err{display:none;position:fixed;left:0;right:0;bottom:0;background:#fef2f2;color:#dc2626;padding:10px 16px;font-size:13px;border-top:1px solid #fecaca;z-index:200}
 
   /* Modal */
-  .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(15,23,42,.45);backdrop-filter:saturate(140%) blur(2px);}
-  .modal .sheet{width:min(620px,calc(100vw - 32px));background:#fff;border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
-  .modal .head{padding:14px 16px;background:#003366;color:#fff;font-weight:800}
-  .modal .body{padding:16px}
-  .modal .foot{padding:12px 16px;display:flex;gap:8px;justify-content:flex-end;border-top:1px solid #eef2f7}
+  .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);z-index:150}
+  .modal .sheet{width:min(560px,calc(100vw - 32px));background:var(--card);border-radius:12px;box-shadow:var(--shadow-lg);overflow:hidden;border:1px solid var(--border)}
+  .modal .head{padding:16px 20px;background:var(--primary);color:var(--bg);font-weight:500;font-size:15px}
+  .modal .body{padding:20px}
+  .modal .foot{padding:12px 20px;display:flex;gap:8px;justify-content:flex-end;border-top:1px solid var(--border);background:var(--table-header)}
 
   /* Toggle Switch */
   .toggle-switch{position:relative;display:inline-block;width:60px;height:32px}
@@ -119,6 +166,52 @@ vNext-FULL-ActionsSLA:
 </style>
 </head>
 <body>
+<!-- Modern Top Navigation -->
+<nav class="topnav" id="topnav">
+  <div class="topnav-inner">
+    <a href="#" class="topnav-brand" onclick="go('login'); return false;">
+      <div class="logo-icon">
+        <svg viewBox="0 0 100 100">
+          <rect width="100" height="100" rx="16"/>
+          <text x="50" y="66" text-anchor="middle" font-family="system-ui, sans-serif" font-size="44" font-weight="600">SF</text>
+        </svg>
+      </div>
+      <span>ServiFlow</span>
+    </a>
+    <div style="display:flex;align-items:center;gap:12px">
+      <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark/light mode" id="theme-toggle-btn">
+        <svg id="theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="5"></circle>
+          <line x1="12" y1="1" x2="12" y2="3"></line>
+          <line x1="12" y1="21" x2="12" y2="23"></line>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+          <line x1="1" y1="12" x2="3" y2="12"></line>
+          <line x1="21" y1="12" x2="23" y2="12"></line>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        </svg>
+        <svg id="theme-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
+      </button>
+      <div class="topnav-right" id="topnav-right" style="display:none">
+      <div class="topnav-user" onclick="go('login')">
+        <div class="topnav-avatar" id="topnav-avatar">A</div>
+        <div>
+          <div class="topnav-name" id="topnav-username">Admin</div>
+          <div class="topnav-role" id="topnav-role">Admin</div>
+        </div>
+      </div>
+      <div class="topnav-actions">
+        <button class="topnav-btn ghost" onclick="switchRole()">Switch</button>
+        <button class="topnav-btn ghost" onclick="go('login')">Sign out</button>
+      </div>
+    </div>
+    </div>
+  </div>
+</nav>
+
 <div id="err"></div>
 <div class="container">
   <div class="brandbar">
@@ -135,23 +228,28 @@ vNext-FULL-ActionsSLA:
 
   <!-- LOGIN -->
   <section id="scr-login" class="screen active">
-    <div class="card p-24" style="max-width:760px;margin:20px auto;">
-      <h1 class="title">Sign in</h1>
-      <p class="subtitle">Enter your credentials to access ServiFlow.</p>
-      
-      <div class="mb-16">
-        <label for="username" style="display:block;margin-bottom:8px;font-weight:600;">Username:</label>
-        <input type="text" id="username" class="input" placeholder="Enter username" value="master">
+    <div class="card p-24" style="max-width:380px;margin:40px auto">
+      <div style="text-align:center;margin-bottom:24px">
+        <div style="width:48px;height:48px;margin:0 auto 14px;border-radius:12px;background:var(--logo-bg);display:flex;align-items:center;justify-content:center;transition:background .2s">
+          <span style="color:var(--logo-text);font-weight:600;font-size:18px;transition:color .2s">SF</span>
+        </div>
+        <h1 class="title" style="margin-bottom:4px">Sign in</h1>
+        <p class="subtitle" style="margin:0">Welcome back to ServiFlow</p>
       </div>
       
       <div class="mb-16">
-        <label for="password" style="display:block;margin-bottom:8px;font-weight:600;">Password:</label>
-        <input type="password" id="password" class="input" placeholder="Enter password" value="master123">
+        <label for="username" style="display:block;margin-bottom:6px;font-weight:500;font-size:14px;color:var(--ink)">Username</label>
+        <input type="text" id="username" class="input" placeholder="Enter your username" value="master">
       </div>
       
       <div class="mb-16">
-        <label for="role" style="display:block;margin-bottom:8px;font-weight:600;">Role:</label>
-        <select id="role" class="input" onchange="toggleTenantField()">
+        <label for="password" style="display:block;margin-bottom:6px;font-weight:500;font-size:14px;color:var(--ink)">Password</label>
+        <input type="password" id="password" class="input" placeholder="Enter your password" value="master123">
+      </div>
+      
+      <div class="mb-16">
+        <label for="role" style="display:block;margin-bottom:6px;font-weight:500;font-size:14px;color:var(--ink)">Role</label>
+        <select id="role" class="input" onchange="toggleTenantField()" style="cursor:pointer">
           <option value="master_admin">Master Admin</option>
             <option value="admin">Admin</option>
             <option value="expert">Expert</option>
@@ -160,25 +258,27 @@ vNext-FULL-ActionsSLA:
         </div>
       
       <div class="mb-16" id="tenant-field" style="display:none">
-        <label for="tenant" style="display:block;margin-bottom:8px;font-weight:600;">Tenant:</label>
-        <select id="tenant" class="input">
+        <label for="tenant" style="display:block;margin-bottom:6px;font-weight:500;font-size:14px;color:var(--ink)">Tenant</label>
+        <select id="tenant" class="input" style="cursor:pointer">
           <option value="apoyar">Apoyar</option>
           <option value="testcompany">TestCompany</option>
         </select>
         </div>
       
-      <div class="row mb-12">
-        <button class="btn primary" onclick="login()">Login</button>
-        <button class="btn ghost" onclick="showDemoCredentials()">Demo Credentials</button>
+      <div style="margin-bottom:16px">
+        <button class="btn primary" onclick="login()" style="width:100%;padding:10px;font-size:14px">Sign in</button>
       </div>
 
-      <div style="text-align:center;margin-top:12px;">
-        <a href="#" onclick="showForgotPassword(); return false;" style="color:#0066cc;text-decoration:none;font-size:14px;">Forgot Password?</a>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <a href="#" onclick="showForgotPassword(); return false;" style="color:var(--ink);text-decoration:none;font-size:12px;font-weight:500">Forgot password?</a>
+        <a href="#" onclick="showDemoCredentials(); return false;" style="color:var(--muted);text-decoration:none;font-size:12px">Demo credentials</a>
       </div>
 
-      <div id="login-error" style="display:none;color:#dc2626;background:#fef2f2;padding:12px;border-radius:8px;margin-top:12px;border:1px solid #fecaca;"></div>
-      
-      <div class="subtitle">Session policy enforced · Audit logging enabled</div>
+      <div id="login-error" style="display:none;color:#dc2626;background:#fef2f2;padding:10px;border-radius:8px;margin-bottom:12px;border:1px solid #fecaca;font-size:13px"></div>
+
+      <div style="text-align:center;padding-top:14px;border-top:1px solid var(--border)">
+        <span style="font-size:11px;color:var(--muted)">Enterprise-grade security</span>
+      </div>
     </div>
   </section>
 
@@ -209,16 +309,16 @@ vNext-FULL-ActionsSLA:
 
   <!-- APP -->
   <section id="scr-app" class="screen">
-    <div class="row space mb-16 wrap">
+    <div class="row space mb-20 wrap" style="padding-bottom:16px;border-bottom:1px solid var(--border)">
       <div>
         <h2 class="title" id="app-title">Dashboard</h2>
         <div class="subtitle" id="app-subtitle">ServiFlow – role-based workspace</div>
       </div>
-      <div class="row wrap">
-        <span class="card p-16" style="border-radius:999px;border:1px solid #cde0df;background:#e6f3f2">Role: <strong id="chip-role">admin</strong></span>
-        <div id="tenant-chip" class="card p-16" style="display:none;border-radius:999px;border:1px solid #cde0df;background:#eef2ff">Customer: <strong id="chip-tenant">—</strong></div>
-        <button class="btn" onclick="switchRole()">Switch role</button>
-        <button class="btn ghost" onclick="go('login')">Sign out</button>
+      <div class="row wrap" style="gap:8px">
+        <span id="chip-role" style="display:none">admin</span>
+        <div id="tenant-chip" style="display:none;padding:4px 12px;border-radius:999px;background:var(--primary);color:var(--bg);font-size:12px;font-weight:500">
+          <span id="chip-tenant">—</span>
+        </div>
       </div>
     </div>
 
@@ -2493,7 +2593,37 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     }); 
     if(tenants.length) t.value=tenants[0]; 
   }
-  function go(where){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); document.getElementById(where==='login'?'scr-login':'scr-app').classList.add('active'); }
+  function go(where){
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+    document.getElementById(where==='login'?'scr-login':'scr-app').classList.add('active');
+    // Show/hide top nav user section based on screen
+    document.getElementById('topnav-right').style.display = (where==='login') ? 'none' : 'flex';
+  }
+
+  // Theme toggle functionality
+  function toggleTheme() {
+    const body = document.body;
+    const isDark = body.classList.toggle('dark-mode');
+    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    updateThemeIcon(isDark);
+  }
+
+  function updateThemeIcon(isDark) {
+    document.getElementById('theme-icon-sun').style.display = isDark ? 'none' : 'block';
+    document.getElementById('theme-icon-moon').style.display = isDark ? 'block' : 'none';
+  }
+
+  // Initialize theme from localStorage
+  function initTheme() {
+    const savedTheme = localStorage.getItem('theme');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const isDark = savedTheme === 'dark' || (savedTheme === null && prefersDark);
+    if (isDark) {
+      document.body.classList.add('dark-mode');
+    }
+    updateThemeIcon(isDark);
+  }
+  initTheme();
   async function login(){
     console.log('Login function called');
     const username = document.getElementById('username').value;
@@ -2809,6 +2939,13 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     document.getElementById('dash-master').style.display = currentRole==='super_admin' ? 'block' : 'none';
     document.getElementById('app-title').textContent = currentRole==='customer' ? 'My Dashboard' : (currentRole==='expert' ? 'Expert Dashboard' : (currentRole==='super_admin' ? 'Master Admin Dashboard' : 'Admin Dashboard'));
     document.getElementById('app-subtitle').textContent = currentRole==='customer' ? 'Welcome to your ServiFlow portal' : (currentRole==='expert' ? 'SLA focus & queue' : (currentRole==='super_admin' ? 'System-wide management & tenant oversight' : 'Platform health & governance'));
+
+    // Update top navigation user info
+    const username = (window.currentUser && window.currentUser.username) ? window.currentUser.username : 'User';
+    const roleDisplay = currentRole === 'super_admin' ? 'Master Admin' : (currentRole.charAt(0).toUpperCase() + currentRole.slice(1));
+    document.getElementById('topnav-username').textContent = username;
+    document.getElementById('topnav-role').textContent = roleDisplay;
+    document.getElementById('topnav-avatar').textContent = username.charAt(0).toUpperCase();
 
     // Hide/show admin-only sections in Admin Settings Wizard
     const isAdmin = (currentRole === 'admin');
