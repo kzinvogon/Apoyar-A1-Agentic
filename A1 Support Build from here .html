@@ -5323,6 +5323,12 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const companyFilter = document.getElementById('ticket-filter-company')?.value || '';
     const customerFilter = document.getElementById('ticket-filter-customer')?.value || '';
 
+    // Debug: Log filter state
+    if (window.insightTicketFilter && window.insightTicketFilter.length > 0) {
+      console.log('Filtering tickets by insight. Filter IDs:', window.insightTicketFilter);
+      console.log('Total tickets before filter:', ticketList.length);
+    }
+
     return ticketList.filter(t => {
       // Insight ticket filter (from AI Insights dashboard)
       if (window.insightTicketFilter && window.insightTicketFilter.length > 0) {
@@ -9043,17 +9049,25 @@ function escapeHtml(text) {
 async function openTicketsFromInsight(ticketIds, insightTitle) {
   console.log('Opening tickets from insight:', ticketIds);
 
-  // Store the filter in window object
+  // Store the filter in window object BEFORE switching view
   window.insightTicketFilter = ticketIds;
   window.insightTitle = insightTitle || 'Insight Tickets';
 
-  // Navigate to tickets view
-  switchView('tickets');
+  // Flag to prevent double-rendering - switchView will call renderList
+  // but we need the filter to be set first, which it now is
 
-  // Wait for view to render
-  await new Promise(resolve => setTimeout(resolve, 100));
+  // Show the tickets view (this will trigger renderList with our filter)
+  currentView = 'tickets';
+  ['dash','profile','tickets','ticket-detail','experts','expert-detail','customers','cmdb','cmdb-detail','manage-cmdb','wizard','raise','tenants','subscriptions','billing','plans','system','usage','customer-plans','customer-billing','analytics','ai-insights','ticket-rules','email-processing','system-control'].forEach(n=>{
+    const el=document.getElementById('view-'+n);
+    if(el) el.style.display=(n==='tickets')?'block':'none';
+  });
 
-  // Apply the insight filter
+  // Load filter settings (but our insight filter takes precedence)
+  loadFilterSettings('tickets');
+
+  // Now render with the insight filter applied
+  console.log('Calling renderList with insightTicketFilter:', window.insightTicketFilter);
   await renderList();
 }
 
