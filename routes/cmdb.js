@@ -546,39 +546,79 @@ router.post('/:tenantCode/import/items', upload.single('file'), async (req, res)
           .on('error', reject);
       });
 
-      // Insert consolidated assets and their field values as CIs
+      // Insert or update consolidated assets and their field values as CIs
       let assetCount = 0;
+      let assetUpdated = 0;
       let ciCount = 0;
 
       for (const [, asset] of assetMap) {
         try {
-          const cmdb_id = `CMDB-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-          // Insert the main CMDB item
-          const [result] = await connection.query(
-            `INSERT INTO cmdb_items (
-              cmdb_id, asset_name, asset_category, category_field_value,
-              brand_name, model_name, customer_name, employee_of,
-              asset_location, comment, status, created_by
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-              cmdb_id,
-              asset.asset_name,
-              asset.asset_category,
-              null, // We store individual fields as CIs instead
-              asset.brand_name,
-              asset.model_name,
-              asset.customer_name,
-              asset.employee_of,
-              asset.asset_location,
-              asset.comment,
-              'active',
-              req.user.userId
-            ]
+          // Check if asset already exists (by name and category)
+          const [existing] = await connection.query(
+            'SELECT id, cmdb_id FROM cmdb_items WHERE asset_name = ? AND asset_category = ?',
+            [asset.asset_name, asset.asset_category]
           );
 
-          const cmdbItemId = result.insertId;
-          assetCount++;
+          let cmdbItemId;
+          let cmdb_id;
+
+          if (existing.length > 0) {
+            // Update existing item
+            cmdbItemId = existing[0].id;
+            cmdb_id = existing[0].cmdb_id;
+
+            await connection.query(
+              `UPDATE cmdb_items SET
+                brand_name = COALESCE(?, brand_name),
+                model_name = COALESCE(?, model_name),
+                customer_name = COALESCE(?, customer_name),
+                employee_of = COALESCE(?, employee_of),
+                asset_location = COALESCE(?, asset_location),
+                comment = COALESCE(?, comment)
+              WHERE id = ?`,
+              [
+                asset.brand_name,
+                asset.model_name,
+                asset.customer_name,
+                asset.employee_of,
+                asset.asset_location,
+                asset.comment,
+                cmdbItemId
+              ]
+            );
+
+            // Delete existing CIs for this item (will be replaced with new ones)
+            await connection.query('DELETE FROM configuration_items WHERE cmdb_item_id = ?', [cmdbItemId]);
+            assetUpdated++;
+          } else {
+            // Insert new CMDB item
+            cmdb_id = `CMDB-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+            const [result] = await connection.query(
+              `INSERT INTO cmdb_items (
+                cmdb_id, asset_name, asset_category, category_field_value,
+                brand_name, model_name, customer_name, employee_of,
+                asset_location, comment, status, created_by
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              [
+                cmdb_id,
+                asset.asset_name,
+                asset.asset_category,
+                null,
+                asset.brand_name,
+                asset.model_name,
+                asset.customer_name,
+                asset.employee_of,
+                asset.asset_location,
+                asset.comment,
+                'active',
+                req.user.userId
+              ]
+            );
+
+            cmdbItemId = result.insertId;
+            assetCount++;
+          }
 
           // Insert each field name/value pair as a Configuration Item
           for (const field of asset.fields) {
@@ -626,8 +666,9 @@ router.post('/:tenantCode/import/items', upload.single('file'), async (req, res)
 
       res.json({
         success: true,
-        message: `Imported ${assetCount} assets with ${ciCount} configuration items`,
+        message: `Imported ${assetCount} new assets, updated ${assetUpdated} existing assets, with ${ciCount} configuration items`,
         assets_imported: assetCount,
+        assets_updated: assetUpdated,
         configuration_items_imported: ciCount,
         total_csv_rows: lineNumber - 1,
         errors: errors.length > 0 ? errors : undefined
