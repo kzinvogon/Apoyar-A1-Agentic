@@ -403,71 +403,44 @@ vNext-FULL-ActionsSLA:
           <div id="dash-admin" class="card p-16 mb-16">
             <h3 class="title">Admin Dashboard</h3>
             <div class="subtitle">Health & governance at a glance</div>
-            <div class="grid3 mb-16">
-              <div class="card p-16 stat-card" onclick="viewOpenTickets()" style="cursor:pointer;transition:all 0.2s" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
-                <div class="subtitle">Open tickets (all)</div>
-                <div id="ad-open" style="font-size:28px;font-weight:800">0</div>
-                <div class="subtitle" style="margin-top:8px;color:#667eea;font-size:12px">Click to view →</div>
+
+            <!-- Quick Admin Section (First) -->
+            <div class="card p-12 mb-16" style="background:var(--table-header)">
+              <div class="row space">
+                <strong>Quick Admin</strong>
+                <span class="subtitle">Common tasks</span>
               </div>
-              <div class="card p-16 stat-card" onclick="viewSLAAtRisk()" style="cursor:pointer;transition:all 0.2s" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
-                <div class="subtitle">SLA at risk</div>
-                <div id="ad-sla-risk" style="font-size:28px;font-weight:800">0</div>
-                <div class="subtitle" style="margin-top:8px;color:#f56565;font-size:12px">Click to view →</div>
-              </div>
-              <div class="card p-16 stat-card" onclick="viewCMDBItems()" style="cursor:pointer;transition:all 0.2s" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
-                <div class="subtitle">CMDB items</div>
-                <div id="ad-items" style="font-size:28px;font-weight:800">0</div>
-                <div class="subtitle" style="margin-top:8px;color:#48bb78;font-size:12px">Click to view →</div>
-              </div>
-            </div>
-            <div class="grid2">
-              <div class="card p-16">
-                <div class="row space"><strong>Recent tickets</strong><button class="btn ghost" onclick="navTo('tickets')">View all</button></div>
-                <table><thead><tr><th>ID</th><th>Title</th><th>Date/Time</th><th>Customer</th><th>Status</th></tr></thead><tbody id="ad-recent"></tbody></table>
-              </div>
-              <div class="card p-16">
-                <div class="row space"><strong>Quick admin</strong><span class="subtitle">Common tasks</span></div>
-                <div class="row wrap">
-                  <button class="btn primary" onclick="navTo('experts')">Manage experts</button>
-                  <button class="btn primary" onclick="navTo('customers')">Manage customers</button>
-                  <button class="btn primary" onclick="navTo('cmdb')">Open CMDB</button>
-                  <button class="btn" onclick="navTo('wizard')">Settings wizard</button>
-                </div>
+              <div class="row wrap" style="margin-top:12px;gap:8px">
+                <button class="btn primary" onclick="navTo('experts')">Manage Experts</button>
+                <button class="btn primary" onclick="navTo('customers')">Manage Customers</button>
+                <button class="btn primary" onclick="navTo('cmdb')">Open CMDB</button>
+                <button class="btn" onclick="navTo('tickets')">View All Tickets</button>
+                <button class="btn" onclick="navTo('wizard')">Settings Wizard</button>
               </div>
             </div>
 
-            <!-- Feedback Scoreboard -->
-            <div class="card p-16 mb-16" style="margin-top:16px">
-              <div class="row space"><strong>Customer Satisfaction Feedback</strong><button class="btn ghost" onclick="loadFeedbackScoreboard()">🔄 Refresh</button></div>
-              <div class="grid3 mb-16">
-                <div class="card p-16">
-                  <div class="subtitle">Average Rating</div>
-                  <div id="feedback-avg-rating" style="font-size:28px;font-weight:800">-</div>
-                  <div id="feedback-avg-stars" style="font-size:20px;margin-top:4px"></div>
-                </div>
-                <div class="card p-16">
-                  <div class="subtitle">Total Feedback</div>
-                  <div id="feedback-total-count" style="font-size:28px;font-weight:800">0</div>
-                </div>
-                <div class="card p-16">
-                  <div class="subtitle">Rating Distribution</div>
-                  <div id="feedback-distribution" style="font-size:14px;margin-top:8px">
-                    <div class="row space"><span>5⭐</span><span id="feedback-5star">0</span></div>
-                    <div class="row space"><span>4⭐</span><span id="feedback-4star">0</span></div>
-                    <div class="row space"><span>3⭐</span><span id="feedback-3star">0</span></div>
-                    <div class="row space"><span>2⭐</span><span id="feedback-2star">0</span></div>
-                    <div class="row space"><span>1⭐</span><span id="feedback-1star">0</span></div>
-                  </div>
-                </div>
+            <!-- Compact Stats Row -->
+            <div class="grid4 mb-16" style="gap:12px">
+              <div class="card p-12 stat-card" onclick="viewOpenTickets()" style="cursor:pointer;transition:all 0.2s" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+                <div class="subtitle" style="font-size:11px">Open Tickets</div>
+                <div id="ad-open" style="font-size:24px;font-weight:800">0</div>
               </div>
-              <div class="card p-16">
-                <strong>Recent Feedback</strong>
-                <table><thead><tr><th>Ticket</th><th>Rating</th><th>Resolved By</th><th>Comment</th><th>Date</th></tr></thead><tbody id="feedback-recent"></tbody></table>
+              <div class="card p-12 stat-card" onclick="viewSLAAtRisk()" style="cursor:pointer;transition:all 0.2s" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+                <div class="subtitle" style="font-size:11px">SLA at Risk</div>
+                <div id="ad-sla-risk" style="font-size:24px;font-weight:800;color:var(--danger)">0</div>
+              </div>
+              <div class="card p-12 stat-card" onclick="viewCMDBItems()" style="cursor:pointer;transition:all 0.2s" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+                <div class="subtitle" style="font-size:11px">CMDB Items</div>
+                <div id="ad-items" style="font-size:24px;font-weight:800;color:var(--ok)">0</div>
+              </div>
+              <div class="card p-12">
+                <div class="subtitle" style="font-size:11px">Resolved Today</div>
+                <div id="ad-resolved-today" style="font-size:24px;font-weight:800;color:#667eea">0</div>
               </div>
             </div>
 
-            <!-- AI Trending Conditions Panel -->
-            <div id="ai-trends-panel" class="card p-16 mb-16" style="margin-top:16px;background:linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);color:white;border:none;">
+            <!-- AI Insights & Trends (Second) -->
+            <div id="ai-trends-panel" class="card p-16 mb-16" style="background:linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);color:white;border:none;">
               <div class="row space">
                 <div class="row" style="gap:12px;align-items:center">
                   <span style="font-size:24px">AI</span>
@@ -525,6 +498,36 @@ vNext-FULL-ActionsSLA:
                   <div style="font-weight:600;margin-bottom:12px">Issue Categories</div>
                   <div id="ai-categories" class="row wrap" style="gap:8px"></div>
                 </div>
+              </div>
+            </div>
+
+            <!-- Feedback Scoreboard -->
+            <div class="card p-16 mb-16">
+              <div class="row space"><strong>Customer Satisfaction Feedback</strong><button class="btn ghost" onclick="loadFeedbackScoreboard()">🔄 Refresh</button></div>
+              <div class="grid3 mb-16">
+                <div class="card p-16">
+                  <div class="subtitle">Average Rating</div>
+                  <div id="feedback-avg-rating" style="font-size:28px;font-weight:800">-</div>
+                  <div id="feedback-avg-stars" style="font-size:20px;margin-top:4px"></div>
+                </div>
+                <div class="card p-16">
+                  <div class="subtitle">Total Feedback</div>
+                  <div id="feedback-total-count" style="font-size:28px;font-weight:800">0</div>
+                </div>
+                <div class="card p-16">
+                  <div class="subtitle">Rating Distribution</div>
+                  <div id="feedback-distribution" style="font-size:14px;margin-top:8px">
+                    <div class="row space"><span>5⭐</span><span id="feedback-5star">0</span></div>
+                    <div class="row space"><span>4⭐</span><span id="feedback-4star">0</span></div>
+                    <div class="row space"><span>3⭐</span><span id="feedback-3star">0</span></div>
+                    <div class="row space"><span>2⭐</span><span id="feedback-2star">0</span></div>
+                    <div class="row space"><span>1⭐</span><span id="feedback-1star">0</span></div>
+                  </div>
+                </div>
+              </div>
+              <div class="card p-16">
+                <strong>Recent Feedback</strong>
+                <table><thead><tr><th>Ticket</th><th>Rating</th><th>Resolved By</th><th>Comment</th><th>Date</th></tr></thead><tbody id="feedback-recent"></tbody></table>
               </div>
             </div>
           </div>
@@ -3152,7 +3155,21 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       renderCustomerDash(); 
     }
   }
-  function renderAdminDash(){ const currentRole = window.role || role; if(currentRole!=='admin') return; const openAll=tickets.filter(t=>t.status!=='Resolved').length; const slaRisk=tickets.filter(t=>t.status!=='Resolved' && getSLAState(t).cls!=='ok').length; const totalItems=CMDB_ITEMS.length; document.getElementById('ad-open').textContent=openAll; document.getElementById('ad-sla-risk').textContent=slaRisk; document.getElementById('ad-items').textContent=totalItems; const tb=document.getElementById('ad-recent'); tb.innerHTML=''; tickets.slice(0,5).forEach(t=>{ const tr=document.createElement('tr'); tr.onclick=()=>openTicket(t.id); const sla=getSLAState(t); const dateTime=formatDateTime(t.created); tr.innerHTML=`<td>#${t.id}</td><td>${t.title}</td><td>${dateTime}</td><td>${t.customer}</td><td>${t.status} ${slaBadgeHTML(sla)}</td>`; tb.appendChild(tr); }); loadFeedbackScoreboard(); }
+  function renderAdminDash(){
+    const currentRole = window.role || role;
+    if(currentRole!=='admin') return;
+    const openAll=tickets.filter(t=>t.status!=='Resolved').length;
+    const slaRisk=tickets.filter(t=>t.status!=='Resolved' && getSLAState(t).cls!=='ok').length;
+    const totalItems=CMDB_ITEMS.length;
+    const today = new Date().toDateString();
+    const resolvedToday = tickets.filter(t=>t.status==='Resolved' && new Date(t.updated || t.created).toDateString() === today).length;
+    document.getElementById('ad-open').textContent=openAll;
+    document.getElementById('ad-sla-risk').textContent=slaRisk;
+    document.getElementById('ad-items').textContent=totalItems;
+    const resolvedEl = document.getElementById('ad-resolved-today');
+    if(resolvedEl) resolvedEl.textContent=resolvedToday;
+    loadFeedbackScoreboard();
+  }
 
   async function loadFeedbackScoreboard() {
     try {
