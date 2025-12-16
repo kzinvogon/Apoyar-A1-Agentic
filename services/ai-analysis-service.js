@@ -942,7 +942,7 @@ Provide JSON suggestions for efficient ticket handling.`
       const [tickets] = await connection.query(`
         SELECT t.*, u.full_name as customer_name, c.company_name
         FROM tickets t
-        LEFT JOIN users u ON t.customer_id = u.id
+        LEFT JOIN users u ON t.requester_id = u.id
         LEFT JOIN customers c ON u.id = c.user_id
         WHERE t.id = ?
       `, [ticketId]);
