@@ -16,8 +16,8 @@ async function runCMDBMigration(tenantCode) {
     // Check if already migrated (has new columns)
     if (columnNames.includes('cmdb_id') && columnNames.includes('asset_name')) {
       console.log('  CMDB table already has new schema');
-      return;
-    }
+      // Continue to check configuration_items table
+    } else
 
     // Check if has old schema
     if (columnNames.includes('name') && columnNames.includes('type')) {
@@ -69,12 +69,13 @@ async function runCMDBMigration(tenantCode) {
       }
     }
 
-    // Ensure configuration_items table exists
+    // Check configuration_items table
     const [tables] = await connection.query(
       "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'configuration_items'"
     );
 
     if (tables.length === 0) {
+      // Create new table
       await connection.query(`
         CREATE TABLE configuration_items (
           id INT PRIMARY KEY AUTO_INCREMENT,
@@ -99,6 +100,43 @@ async function runCMDBMigration(tenantCode) {
         )
       `);
       console.log('  Created configuration_items table');
+    } else {
+      // Table exists, check if it needs migration (old schema has key_name/value columns)
+      const [ciCols] = await connection.query('DESCRIBE configuration_items');
+      const ciColNames = ciCols.map(c => c.Field);
+
+      if (ciColNames.includes('key_name') && !ciColNames.includes('ci_id')) {
+        console.log('  Migrating configuration_items table from old schema...');
+
+        // Drop the old table and create new one (old data format is incompatible)
+        await connection.query('DROP TABLE configuration_items');
+        await connection.query(`
+          CREATE TABLE configuration_items (
+            id INT PRIMARY KEY AUTO_INCREMENT,
+            ci_id VARCHAR(50) UNIQUE NOT NULL,
+            cmdb_item_id INT NOT NULL,
+            ci_name VARCHAR(255) NOT NULL,
+            asset_category VARCHAR(100),
+            category_field_value VARCHAR(255),
+            brand_name VARCHAR(100),
+            model_name VARCHAR(100),
+            serial_number VARCHAR(100),
+            asset_location VARCHAR(255),
+            employee_of VARCHAR(255),
+            comment TEXT,
+            status ENUM('active', 'inactive', 'maintenance') DEFAULT 'active',
+            created_by INT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            FOREIGN KEY (cmdb_item_id) REFERENCES cmdb_items(id) ON DELETE CASCADE,
+            INDEX idx_cmdb_item (cmdb_item_id),
+            INDEX idx_asset_category (asset_category)
+          )
+        `);
+        console.log('  Recreated configuration_items table with new schema');
+      } else {
+        console.log('  configuration_items table already has correct schema');
+      }
     }
 
   } finally {
