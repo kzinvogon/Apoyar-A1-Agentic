@@ -913,9 +913,20 @@
         if (data.success) {
           document.getElementById('importStatus').innerHTML = `
             <div style="color:#38a169;font-weight:600;">✓ Success!</div>
-            <div style="margin-top:8px;">Imported ${data.assets_imported || data.imported} assets with ${data.configuration_items_imported || 0} configuration items</div>
+            <div style="margin-top:8px;">
+              New assets: ${data.assets_imported || 0}<br>
+              Updated assets: ${data.assets_updated || 0}<br>
+              Configuration Items: ${data.configuration_items_imported || 0}
+            </div>
             <div style="margin-top:4px;font-size:13px;color:#718096;">Processed ${data.total_csv_rows || data.total} CSV rows</div>
-            ${data.errors ? `<div style="margin-top:8px;color:#e53e3e;">Errors: ${data.errors.length}</div>` : ''}
+            ${data.errors && data.errors.length > 0 ? `
+              <div style="margin-top:8px;color:#e53e3e;">
+                Errors: ${data.errors.length}
+                <div style="max-height:100px;overflow:auto;font-size:11px;background:#fee;padding:4px;margin-top:4px;">
+                  ${data.errors.slice(0, 5).map(e => `${e.asset || e.field || 'Row ' + e.line}: ${e.error}`).join('<br>')}
+                  ${data.errors.length > 5 ? `<br>...and ${data.errors.length - 5} more` : ''}
+                </div>
+              </div>` : ''}
           `;
 
           setTimeout(() => {
