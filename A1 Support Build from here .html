@@ -5326,7 +5326,10 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     return ticketList.filter(t => {
       // Insight ticket filter (from AI Insights dashboard)
       if (window.insightTicketFilter && window.insightTicketFilter.length > 0) {
-        if (!window.insightTicketFilter.includes(t.id)) return false;
+        // Convert both to numbers for comparison to handle string/number mismatch
+        const ticketId = parseInt(t.id);
+        const matchesInsight = window.insightTicketFilter.some(id => parseInt(id) === ticketId);
+        if (!matchesInsight) return false;
       }
 
       // Search filter
