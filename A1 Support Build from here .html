@@ -6788,11 +6788,16 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     }
   }
 
+  // Store current AI trends data for click-through (must be declared before use)
+  let currentAITrendsData = { insights: [] };
+
   function renderAITrends(data, period) {
     const { insights = [], ticketStats = {} } = data;
 
     // Store data for click-through functionality
     currentAITrendsData = data;
+    console.log('AI Trends data stored:', currentAITrendsData);
+    console.log('Insights with affected_tickets:', insights.filter(i => i.affected_tickets && i.affected_tickets.length > 0));
 
     document.getElementById('ai-trends-count').textContent = insights.length;
     document.getElementById('ai-critical-count').textContent = insights.filter(i => i.severity === 'critical').length;
@@ -6835,39 +6840,46 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     }).join('');
   }
 
-  // Store current AI trends data for click-through
-  let currentAITrendsData = { insights: [] };
-
   // View all tickets from all trends
   function viewAllTrendTickets() {
+    console.log('viewAllTrendTickets called, currentAITrendsData:', currentAITrendsData);
     const allTicketIds = [];
     (currentAITrendsData.insights || []).forEach(insight => {
+      console.log('Insight:', insight.title, 'affected_tickets:', insight.affected_tickets);
       if (insight.affected_tickets && insight.affected_tickets.length > 0) {
         allTicketIds.push(...insight.affected_tickets);
       }
     });
 
+    console.log('All ticket IDs collected:', allTicketIds);
+
     if (allTicketIds.length === 0) {
-      alert('No tickets associated with current trends');
+      alert('No tickets associated with current trends. The AI insights may not have ticket IDs attached.');
       return;
     }
 
     // Remove duplicates
     const uniqueIds = [...new Set(allTicketIds)];
+    console.log('Unique IDs to filter:', uniqueIds);
     openTicketsFromInsight(uniqueIds, 'All Trend Tickets');
   }
 
   // View tickets filtered by severity
   function viewTrendTicketsBySeverity(severity) {
+    console.log('viewTrendTicketsBySeverity called with:', severity);
+    console.log('currentAITrendsData:', currentAITrendsData);
     const ticketIds = [];
     (currentAITrendsData.insights || []).forEach(insight => {
+      console.log('Checking insight:', insight.title, 'severity:', insight.severity, 'affected_tickets:', insight.affected_tickets);
       if (insight.severity === severity && insight.affected_tickets && insight.affected_tickets.length > 0) {
         ticketIds.push(...insight.affected_tickets);
       }
     });
 
+    console.log('Ticket IDs for severity', severity, ':', ticketIds);
+
     if (ticketIds.length === 0) {
-      alert(`No tickets with ${severity} severity`);
+      alert(`No tickets with ${severity} severity found in the current trends.`);
       return;
     }
 
