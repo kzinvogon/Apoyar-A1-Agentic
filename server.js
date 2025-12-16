@@ -175,6 +175,15 @@ async function startServer() {
         await initializeTenantDatabase('apoyar');
         console.log('✅ Tenant database "apoyar" initialized');
 
+        // Run CMDB migration to ensure schema is up to date
+        try {
+          const { runCMDBMigration } = require('./scripts/migrate-cmdb-inline');
+          await runCMDBMigration('apoyar');
+          console.log('✅ CMDB schema migration completed');
+        } catch (migrationError) {
+          console.warn(`⚠️  Warning: CMDB migration:`, migrationError.message);
+        }
+
         // Start email processing for apoyar tenant
         try {
           await startEmailProcessing('apoyar');
