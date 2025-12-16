@@ -517,12 +517,25 @@
     // Use current origin for API calls (works for both localhost and production)
     const API_BASE = window.location.origin + '/api';
     let authToken = localStorage.getItem('token');
-    let tenantCode = localStorage.getItem('tenant') || 'apoyar';
+    // Get tenant from stored user data or default to apoyar
+    let storedUser = null;
+    try {
+      storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+    } catch (e) {
+      storedUser = {};
+    }
+    let tenantCode = storedUser.tenantCode || localStorage.getItem('tenant') || 'apoyar';
     let currentItems = [];
     let currentCMDBId = null;
 
     // Initialize
     document.addEventListener('DOMContentLoaded', () => {
+      // Check if user is logged in
+      if (!authToken) {
+        alert('Please log in first');
+        window.location.href = '/';
+        return;
+      }
       loadCMDBItems();
       setupFilters();
     });
@@ -530,9 +543,17 @@
     // Load CMDB Items
     async function loadCMDBItems() {
       try {
+        console.log('Loading CMDB items for tenant:', tenantCode);
         const response = await fetch(`${API_BASE}/cmdb/${tenantCode}/items`, {
           headers: { 'Authorization': `Bearer ${authToken}` }
         });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Server error:', response.status, errorText);
+          document.getElementById('loadingState').innerHTML = `<div style="color:#e53e3e;">Error loading items: ${response.status}</div>`;
+          return;
+        }
 
         const data = await response.json();
 
@@ -540,9 +561,12 @@
           currentItems = data.items;
           renderCMDBTable(currentItems);
           populateFilters(currentItems);
+        } else {
+          document.getElementById('loadingState').innerHTML = `<div style="color:#e53e3e;">Error: ${data.message}</div>`;
         }
       } catch (error) {
         console.error('Error loading CMDB items:', error);
+        document.getElementById('loadingState').innerHTML = `<div style="color:#e53e3e;">Error: ${error.message}</div>`;
       }
     }
 
