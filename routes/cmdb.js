@@ -22,9 +22,13 @@ const upload = multer({
 
 // Public route - CSV template (no auth required)
 router.get('/:tenantCode/template/items', (req, res) => {
-  const template = `asset_name,asset_category,category_field_value,brand_name,model_name,customer_name,employee_of,asset_location,comment,status
-Example Server,Hardware,Dell PowerEdge,Dell,R740,Acme Corp,IT Department,Data Center A,Production server,active
-Example Laptop,Hardware,Dell Latitude,Dell,5520,John Smith,Sales,Office Building B,Sales team laptop,active`;
+  // Template matches the denormalized format from inventory exports
+  // Multiple rows per asset with different field name/value pairs are supported
+  const template = `Username,AssetName,Asset Category,Asset Category FieldName,Field Value,Brand Name,Model Name,Customer Name,Employee of,Asset Location,Comment,CreatedDateTime,Software Inventory
+admin,Example Server,Windows server,External IP Address,192.168.1.100,Dell,PowerEdge R740,Acme Corp,IT Department,Data Center A,Production web server,01/01/2024 12:00:00,
+admin,Example Server,Windows server,Host name,webserver01.local,Dell,PowerEdge R740,Acme Corp,IT Department,Data Center A,Production web server,01/01/2024 12:00:00,
+admin,Example Server,Windows server,Memory MB,16384,Dell,PowerEdge R740,Acme Corp,IT Department,Data Center A,Production web server,01/01/2024 12:00:00,
+admin,Example Laptop,Hardware,Username,jsmith,Lenovo,ThinkPad X1,John Smith,Sales,Office Building B,Sales team laptop,01/01/2024 12:00:00,`;
 
   res.setHeader('Content-Type', 'text/csv');
   res.setHeader('Content-Disposition', 'attachment; filename=cmdb_template.csv');
@@ -457,6 +461,8 @@ router.delete('/:tenantCode/cis/:ciId', async (req, res) => {
 // ============================================================================
 
 // Import CMDB items from CSV
+// Supports denormalized format where multiple rows can represent the same asset
+// with different field name/value pairs stored as Configuration Items (CIs)
 router.post('/:tenantCode/import/items', upload.single('file'), async (req, res) => {
   try {
     const { tenantCode } = req.params;
@@ -466,9 +472,12 @@ router.post('/:tenantCode/import/items', upload.single('file'), async (req, res)
     }
 
     const connection = await getTenantConnection(tenantCode);
-    const results = [];
     const errors = [];
     let lineNumber = 1;
+
+    // Map to consolidate rows by asset name
+    // Key: AssetName, Value: { asset info, fields: [{field_name, field_value}] }
+    const assetMap = new Map();
 
     try {
       // Parse CSV
@@ -480,39 +489,73 @@ router.post('/:tenantCode/import/items', upload.single('file'), async (req, res)
           .on('data', (row) => {
             lineNumber++;
 
+            // Support both old format (asset_name) and new format (AssetName)
+            const assetName = row['AssetName'] || row['AssetName*'] || row.asset_name;
+            const assetCategory = row['Asset Category'] || row['Asset Category*'] || row.asset_category;
+            const fieldName = row['Asset Category FieldName'] || row['Asset Category FieldName*'];
+            const fieldValue = row['Field Value'] || row.category_field_value;
+            const brandName = row['Brand Name'] || row.brand_name;
+            const modelName = row['Model Name'] || row.model_name;
+            const customerName = row['Customer Name'] || row.customer_name;
+            const employeeOf = row['Employee of'] || row.employee_of;
+            const assetLocation = row['Asset Location'] || row.asset_location;
+            const comment = row['Comment'] || row.comment;
+            const createdDateTime = row['CreatedDateTime'];
+            const softwareInventory = row['Software Inventory'];
+
             // Validate required fields
-            if (!row.asset_name || !row.asset_category) {
+            if (!assetName || !assetCategory) {
               errors.push({
                 line: lineNumber,
-                error: 'Missing required fields: asset_name and asset_category'
+                error: 'Missing required fields: AssetName and Asset Category'
               });
               return;
             }
 
-            results.push({
-              asset_name: row.asset_name,
-              asset_category: row.asset_category,
-              category_field_value: row.category_field_value || null,
-              brand_name: row.brand_name || null,
-              model_name: row.model_name || null,
-              customer_name: row.customer_name || null,
-              employee_of: row.employee_of || null,
-              asset_location: row.asset_location || null,
-              comment: row.comment || null,
-              status: row.status || 'active'
-            });
+            // Create unique key for the asset (combining name and category)
+            const assetKey = `${assetName}|||${assetCategory}`;
+
+            if (!assetMap.has(assetKey)) {
+              // First row for this asset - create the base record
+              assetMap.set(assetKey, {
+                asset_name: assetName,
+                asset_category: assetCategory,
+                brand_name: brandName && brandName !== 'N/A' ? brandName : null,
+                model_name: modelName && modelName !== 'N/A' ? modelName : null,
+                customer_name: customerName ? customerName.trim() : null,
+                employee_of: employeeOf && employeeOf !== 'N/A' ? employeeOf.trim() : null,
+                asset_location: assetLocation && assetLocation !== 'N/A' ? assetLocation : null,
+                comment: comment && comment !== 'N/A' ? comment : null,
+                created_date: createdDateTime || null,
+                software_inventory: softwareInventory || null,
+                fields: []
+              });
+            }
+
+            const asset = assetMap.get(assetKey);
+
+            // Add field name/value pair if present
+            if (fieldName && fieldValue && fieldValue !== 'N/A') {
+              asset.fields.push({
+                field_name: fieldName,
+                field_value: fieldValue
+              });
+            }
           })
           .on('end', resolve)
           .on('error', reject);
       });
 
-      // Insert items
-      let successCount = 0;
-      for (const item of results) {
+      // Insert consolidated assets and their field values as CIs
+      let assetCount = 0;
+      let ciCount = 0;
+
+      for (const [, asset] of assetMap) {
         try {
           const cmdb_id = `CMDB-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-          await connection.query(
+          // Insert the main CMDB item
+          const [result] = await connection.query(
             `INSERT INTO cmdb_items (
               cmdb_id, asset_name, asset_category, category_field_value,
               brand_name, model_name, customer_name, employee_of,
@@ -520,23 +563,62 @@ router.post('/:tenantCode/import/items', upload.single('file'), async (req, res)
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               cmdb_id,
-              item.asset_name,
-              item.asset_category,
-              item.category_field_value,
-              item.brand_name,
-              item.model_name,
-              item.customer_name,
-              item.employee_of,
-              item.asset_location,
-              item.comment,
-              item.status,
+              asset.asset_name,
+              asset.asset_category,
+              null, // We store individual fields as CIs instead
+              asset.brand_name,
+              asset.model_name,
+              asset.customer_name,
+              asset.employee_of,
+              asset.asset_location,
+              asset.comment,
+              'active',
               req.user.userId
             ]
           );
-          successCount++;
+
+          const cmdbItemId = result.insertId;
+          assetCount++;
+
+          // Insert each field name/value pair as a Configuration Item
+          for (const field of asset.fields) {
+            try {
+              const ci_id = `CI-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+              await connection.query(
+                `INSERT INTO configuration_items (
+                  ci_id, cmdb_item_id, ci_name, asset_category, category_field_value,
+                  brand_name, model_name, serial_number, asset_location, employee_of,
+                  comment, status, created_by
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [
+                  ci_id,
+                  cmdbItemId,
+                  field.field_name, // Field name becomes CI name
+                  asset.asset_category,
+                  field.field_value, // Field value stored in category_field_value
+                  null,
+                  null,
+                  null,
+                  null,
+                  null,
+                  null,
+                  'active',
+                  req.user.userId
+                ]
+              );
+              ciCount++;
+            } catch (ciErr) {
+              errors.push({
+                asset: asset.asset_name,
+                field: field.field_name,
+                error: ciErr.message
+              });
+            }
+          }
         } catch (err) {
           errors.push({
-            item: item.asset_name,
+            asset: asset.asset_name,
             error: err.message
           });
         }
@@ -544,9 +626,10 @@ router.post('/:tenantCode/import/items', upload.single('file'), async (req, res)
 
       res.json({
         success: true,
-        message: `Imported ${successCount} of ${results.length} items`,
-        imported: successCount,
-        total: results.length,
+        message: `Imported ${assetCount} assets with ${ciCount} configuration items`,
+        assets_imported: assetCount,
+        configuration_items_imported: ciCount,
+        total_csv_rows: lineNumber - 1,
         errors: errors.length > 0 ? errors : undefined
       });
     } finally {
@@ -556,17 +639,6 @@ router.post('/:tenantCode/import/items', upload.single('file'), async (req, res)
     console.error('Error importing CSV:', error);
     res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
   }
-});
-
-// Get CSV template
-router.get('/:tenantCode/template/items', (req, res) => {
-  const template = `asset_name,asset_category,category_field_value,brand_name,model_name,customer_name,employee_of,asset_location,comment,status
-Example Server,Hardware,Dell PowerEdge,Dell,R740,Acme Corp,IT Department,Data Center A,Production server,active
-Example Laptop,Hardware,Dell Latitude,Dell,5520,John Smith,Sales,Office Building B,Sales team laptop,active`;
-
-  res.setHeader('Content-Type', 'text/csv');
-  res.setHeader('Content-Disposition', 'attachment; filename=cmdb_template.csv');
-  res.send(template);
 });
 
 module.exports = router;

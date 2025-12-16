@@ -489,7 +489,7 @@
       <div class="form-group">
         <p style="margin-bottom:16px;color:#718096;">
           Download the <a href="#" onclick="downloadTemplate()" style="color:#667eea;font-weight:600;">CSV template</a>
-          to see the required format.
+          to see the required format. The import supports denormalized CSV files where each asset can have multiple rows for different field name/value pairs.
         </p>
 
         <div class="file-upload" onclick="document.getElementById('csvFile').click()">
@@ -514,7 +514,8 @@
   </div>
 
   <script>
-    const API_BASE = 'http://localhost:3000/api';
+    // Use current origin for API calls (works for both localhost and production)
+    const API_BASE = window.location.origin + '/api';
     let authToken = localStorage.getItem('token');
     let tenantCode = localStorage.getItem('tenant') || 'apoyar';
     let currentItems = [];
@@ -752,7 +753,8 @@
                     <div>
                       <strong>${ci.ci_name}</strong>
                       <div style="font-size:13px;color:#718096;margin-top:4px;">
-                        ${ci.brand_name || ''} ${ci.model_name || ''} ${ci.serial_number ? '(S/N: ' + ci.serial_number + ')' : ''}
+                        ${ci.category_field_value ? `<span style="color:#2d3748;font-weight:500;">${ci.category_field_value}</span>` : ''}
+                        ${ci.brand_name ? ` | Brand: ${ci.brand_name}` : ''}${ci.model_name ? ` | Model: ${ci.model_name}` : ''}${ci.serial_number ? ` | S/N: ${ci.serial_number}` : ''}
                       </div>
                     </div>
                     <div>
@@ -887,7 +889,8 @@
         if (data.success) {
           document.getElementById('importStatus').innerHTML = `
             <div style="color:#38a169;font-weight:600;">✓ Success!</div>
-            <div style="margin-top:8px;">Imported ${data.imported} of ${data.total} items</div>
+            <div style="margin-top:8px;">Imported ${data.assets_imported || data.imported} assets with ${data.configuration_items_imported || 0} configuration items</div>
+            <div style="margin-top:4px;font-size:13px;color:#718096;">Processed ${data.total_csv_rows || data.total} CSV rows</div>
             ${data.errors ? `<div style="margin-top:8px;color:#e53e3e;">Errors: ${data.errors.length}</div>` : ''}
           `;
 
