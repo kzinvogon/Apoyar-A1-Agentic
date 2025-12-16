@@ -1288,8 +1288,8 @@ Find all relevant infrastructure items. Respond with JSON only.`
       // Log activity
       await connection.query(`
         INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
-        VALUES (?, ?, 'cmdb_linked', ?)
-      `, [ticketId, userId, `Linked ${results.cmdbLinked} CMDB items and ${results.ciLinked} CIs (${matchedBy})`]);
+        VALUES (?, ?, 'note', ?)
+      `, [ticketId, userId, `CMDB Linked: ${results.cmdbLinked} CMDB items and ${results.ciLinked} CIs (${matchedBy})`]);
 
       return results;
 
@@ -1357,7 +1357,7 @@ Find all relevant infrastructure items. Respond with JSON only.`
 
       await connection.query(`
         INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
-        VALUES (?, ?, 'cmdb_unlinked', 'Removed CMDB item link')
+        VALUES (?, ?, 'note', 'CMDB Unlinked: Removed CMDB item link')
       `, [ticketId, userId]);
 
       return { success: true };
@@ -1380,7 +1380,7 @@ Find all relevant infrastructure items. Respond with JSON only.`
 
       await connection.query(`
         INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
-        VALUES (?, ?, 'ci_unlinked', 'Removed CI link')
+        VALUES (?, ?, 'note', 'CMDB Unlinked: Removed CI link')
       `, [ticketId, userId]);
 
       return { success: true };
