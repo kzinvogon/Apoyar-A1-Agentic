@@ -184,6 +184,15 @@ async function startServer() {
           console.warn(`⚠️  Warning: CMDB migration:`, migrationError.message);
         }
 
+        // Run ticket-CMDB relations migration
+        try {
+          const { runMigration: runTicketCMDBMigration } = require('./migrations/add-ticket-cmdb-relations');
+          await runTicketCMDBMigration('apoyar');
+          console.log('✅ Ticket-CMDB relations migration completed');
+        } catch (migrationError) {
+          console.warn(`⚠️  Warning: Ticket-CMDB migration:`, migrationError.message);
+        }
+
         // Start email processing for apoyar tenant
         try {
           await startEmailProcessing('apoyar');

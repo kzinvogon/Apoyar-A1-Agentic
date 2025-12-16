@@ -289,4 +289,219 @@ router.post('/:tenantCode/detect-trends', async (req, res) => {
   }
 });
 
+// ============================================================================
+// CMDB MATCHING ROUTES - AI-powered ticket to CMDB item matching
+// ============================================================================
+
+// Get AI-suggested CMDB matches for a ticket
+router.get('/:tenantCode/tickets/:ticketId/cmdb-matches', async (req, res) => {
+  try {
+    const { tenantCode, ticketId } = req.params;
+
+    // Verify user has access
+    if (req.user.tenantCode !== tenantCode && req.user.role !== 'super_admin') {
+      return res.status(403).json({ error: 'Access denied to this tenant' });
+    }
+
+    if (!['admin', 'expert'].includes(req.user.role)) {
+      return res.status(403).json({ error: 'Only experts and admins can access CMDB matching' });
+    }
+
+    const aiService = new AIAnalysisService(tenantCode, {
+      aiProvider: process.env.AI_PROVIDER || 'anthropic',
+      apiKey: process.env.ANTHROPIC_API_KEY || process.env.AI_API_KEY
+    });
+
+    const matches = await aiService.matchTicketToCMDB(parseInt(ticketId));
+
+    res.json(matches);
+
+  } catch (error) {
+    console.error('Error matching ticket to CMDB:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to match ticket to CMDB',
+      message: error.message
+    });
+  }
+});
+
+// Get linked CMDB items for a ticket
+router.get('/:tenantCode/tickets/:ticketId/cmdb-items', async (req, res) => {
+  try {
+    const { tenantCode, ticketId } = req.params;
+
+    // Verify user has access
+    if (req.user.tenantCode !== tenantCode && req.user.role !== 'super_admin') {
+      return res.status(403).json({ error: 'Access denied to this tenant' });
+    }
+
+    const aiService = new AIAnalysisService(tenantCode);
+    const items = await aiService.getTicketCMDBItems(parseInt(ticketId));
+
+    res.json({
+      success: true,
+      ticketId: parseInt(ticketId),
+      ...items
+    });
+
+  } catch (error) {
+    console.error('Error getting ticket CMDB items:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get ticket CMDB items',
+      message: error.message
+    });
+  }
+});
+
+// Link CMDB items and CIs to a ticket
+router.post('/:tenantCode/tickets/:ticketId/cmdb-items', async (req, res) => {
+  try {
+    const { tenantCode, ticketId } = req.params;
+    const { cmdbItemIds = [], ciIds = [], matchedBy = 'manual' } = req.body;
+
+    // Verify user has access
+    if (req.user.tenantCode !== tenantCode && req.user.role !== 'super_admin') {
+      return res.status(403).json({ error: 'Access denied to this tenant' });
+    }
+
+    if (!['admin', 'expert'].includes(req.user.role)) {
+      return res.status(403).json({ error: 'Only experts and admins can link CMDB items' });
+    }
+
+    if (cmdbItemIds.length === 0 && ciIds.length === 0) {
+      return res.status(400).json({ error: 'At least one CMDB item or CI must be provided' });
+    }
+
+    const aiService = new AIAnalysisService(tenantCode);
+    const results = await aiService.linkTicketToCMDB(
+      parseInt(ticketId),
+      cmdbItemIds,
+      ciIds,
+      req.user.userId,
+      matchedBy
+    );
+
+    res.json({
+      success: true,
+      ticketId: parseInt(ticketId),
+      ...results
+    });
+
+  } catch (error) {
+    console.error('Error linking CMDB items:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to link CMDB items',
+      message: error.message
+    });
+  }
+});
+
+// Apply AI-suggested CMDB matches to a ticket
+router.post('/:tenantCode/tickets/:ticketId/apply-cmdb-matches', async (req, res) => {
+  try {
+    const { tenantCode, ticketId } = req.params;
+    const { cmdbItemIds = [], ciIds = [] } = req.body;
+
+    // Verify user has access
+    if (req.user.tenantCode !== tenantCode && req.user.role !== 'super_admin') {
+      return res.status(403).json({ error: 'Access denied to this tenant' });
+    }
+
+    if (!['admin', 'expert'].includes(req.user.role)) {
+      return res.status(403).json({ error: 'Only experts and admins can apply CMDB matches' });
+    }
+
+    const aiService = new AIAnalysisService(tenantCode);
+    const results = await aiService.linkTicketToCMDB(
+      parseInt(ticketId),
+      cmdbItemIds,
+      ciIds,
+      req.user.userId,
+      'ai'
+    );
+
+    res.json({
+      success: true,
+      ticketId: parseInt(ticketId),
+      message: `Applied ${results.cmdbLinked} CMDB items and ${results.ciLinked} CIs`,
+      ...results
+    });
+
+  } catch (error) {
+    console.error('Error applying CMDB matches:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to apply CMDB matches',
+      message: error.message
+    });
+  }
+});
+
+// Remove a CMDB item link from a ticket
+router.delete('/:tenantCode/tickets/:ticketId/cmdb-items/:cmdbItemId', async (req, res) => {
+  try {
+    const { tenantCode, ticketId, cmdbItemId } = req.params;
+
+    // Verify user has access
+    if (req.user.tenantCode !== tenantCode && req.user.role !== 'super_admin') {
+      return res.status(403).json({ error: 'Access denied to this tenant' });
+    }
+
+    if (!['admin', 'expert'].includes(req.user.role)) {
+      return res.status(403).json({ error: 'Only experts and admins can unlink CMDB items' });
+    }
+
+    const aiService = new AIAnalysisService(tenantCode);
+    await aiService.unlinkCMDBItem(parseInt(ticketId), parseInt(cmdbItemId), req.user.userId);
+
+    res.json({
+      success: true,
+      message: 'CMDB item unlinked successfully'
+    });
+
+  } catch (error) {
+    console.error('Error unlinking CMDB item:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to unlink CMDB item',
+      message: error.message
+    });
+  }
+});
+
+// Remove a CI link from a ticket
+router.delete('/:tenantCode/tickets/:ticketId/cis/:ciId', async (req, res) => {
+  try {
+    const { tenantCode, ticketId, ciId } = req.params;
+
+    // Verify user has access
+    if (req.user.tenantCode !== tenantCode && req.user.role !== 'super_admin') {
+      return res.status(403).json({ error: 'Access denied to this tenant' });
+    }
+
+    if (!['admin', 'expert'].includes(req.user.role)) {
+      return res.status(403).json({ error: 'Only experts and admins can unlink CIs' });
+    }
+
+    const aiService = new AIAnalysisService(tenantCode);
+    await aiService.unlinkCI(parseInt(ticketId), parseInt(ciId), req.user.userId);
+
+    res.json({
+      success: true,
+      message: 'CI unlinked successfully'
+    });
+
+  } catch (error) {
+    console.error('Error unlinking CI:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to unlink CI',
+      message: error.message
+    });
+  }
+});
+
 module.exports = router;

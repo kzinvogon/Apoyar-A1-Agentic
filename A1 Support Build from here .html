@@ -1538,6 +1538,96 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               </div>
             </div>
           </div>
+
+          <!-- Related CMDB Items Section -->
+          <div class="card p-16 mt-16" id="cmdb-relations-section">
+            <div class="row space mb-12">
+              <div class="row" style="gap:8px">
+                <strong>Related CMDB Items</strong>
+                <span id="cmdb-count-badge" class="badge" style="display:none">0</span>
+              </div>
+              <div class="row" style="gap:8px">
+                <button class="btn ai-btn" onclick="findCMDBMatches()" title="Use AI to find related CMDB items">
+                  AI Match CMDB
+                </button>
+                <button class="btn" onclick="showManualCMDBLink()">+ Link Manually</button>
+              </div>
+            </div>
+
+            <!-- AI Matching Results -->
+            <div id="cmdb-ai-results" style="display:none" class="mb-16">
+              <div style="background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);border-radius:8px;padding:16px;color:white;">
+                <div class="row space mb-12">
+                  <strong>AI Suggested Matches</strong>
+                  <button class="btn ghost" onclick="hideCMDBMatches()" style="color:white;border-color:rgba(255,255,255,0.3);padding:4px 8px;font-size:12px">Close</button>
+                </div>
+                <div id="cmdb-ai-loading" style="text-align:center;padding:16px;">Analyzing ticket for CMDB matches...</div>
+                <div id="cmdb-ai-content" style="display:none">
+                  <div id="cmdb-ai-reasoning" class="mb-12" style="font-size:13px;opacity:0.9;"></div>
+                  <div id="cmdb-ai-items" class="mb-12"></div>
+                  <div id="cmdb-ai-cis"></div>
+                  <div class="row" style="gap:8px;margin-top:12px">
+                    <button class="btn" onclick="applyAllCMDBMatches()" style="background:white;color:#764ba2">Apply All Selected</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Linked CMDB Items Table -->
+            <div id="linked-cmdb-loading" style="text-align:center;padding:16px;color:var(--muted);display:none;">Loading linked items...</div>
+            <div id="linked-cmdb-empty" style="text-align:center;padding:24px;color:var(--muted);">
+              <div style="font-size:32px;margin-bottom:8px;">📦</div>
+              <div>No CMDB items linked to this ticket</div>
+              <div style="font-size:12px;margin-top:4px;">Use "AI Match CMDB" to find related infrastructure</div>
+            </div>
+            <table id="linked-cmdb-table" style="display:none">
+              <thead>
+                <tr>
+                  <th>Asset Name</th>
+                  <th>Category</th>
+                  <th>Customer</th>
+                  <th>Matched By</th>
+                  <th style="width:80px"></th>
+                </tr>
+              </thead>
+              <tbody id="linked-cmdb-body"></tbody>
+            </table>
+
+            <!-- Linked CIs Section -->
+            <div id="linked-cis-section" style="display:none;margin-top:16px;border-top:1px solid var(--border);padding-top:16px;">
+              <div class="subtitle mb-8"><strong>Linked Configuration Items</strong></div>
+              <table id="linked-cis-table">
+                <thead>
+                  <tr>
+                    <th>Field Name</th>
+                    <th>Value</th>
+                    <th>Parent Asset</th>
+                    <th style="width:80px"></th>
+                  </tr>
+                </thead>
+                <tbody id="linked-cis-body"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Manual CMDB Link Modal -->
+          <div id="modal-cmdb-link" class="modal">
+            <div class="sheet" style="max-width:600px">
+              <div class="head">Link CMDB Item to Ticket</div>
+              <div class="body">
+                <div class="mb-12">
+                  <div class="subtitle">Search CMDB Items</div>
+                  <input id="cmdb-link-search" class="input" placeholder="Search by asset name, customer, category..." oninput="searchCMDBForLink()"/>
+                </div>
+                <div id="cmdb-link-results" style="max-height:300px;overflow:auto;">
+                  <div style="text-align:center;padding:20px;color:var(--muted);">Enter search terms to find CMDB items</div>
+                </div>
+              </div>
+              <div class="foot">
+                <button class="btn" onclick="closeModal('modal-cmdb-link')">Cancel</button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Experts List -->
@@ -5677,6 +5767,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     }
 
     updateTicketSLA();
+
+    // Load linked CMDB items
+    loadLinkedCMDBItems();
   }
 
   // ---- Assignment functions ----
@@ -6152,6 +6245,347 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   function hideAIPanel() {
     document.getElementById('ai-panel').style.display = 'none';
+  }
+
+  // ---- AI CMDB Matching Functions ----
+  let currentCMDBMatches = { cmdbItems: [], configItems: [] };
+
+  async function loadLinkedCMDBItems() {
+    if (!currentTicketId) return;
+
+    const loading = document.getElementById('linked-cmdb-loading');
+    const empty = document.getElementById('linked-cmdb-empty');
+    const table = document.getElementById('linked-cmdb-table');
+    const cisSection = document.getElementById('linked-cis-section');
+    const badge = document.getElementById('cmdb-count-badge');
+
+    loading.style.display = 'block';
+    empty.style.display = 'none';
+    table.style.display = 'none';
+    cisSection.style.display = 'none';
+
+    try {
+      const token = localStorage.getItem('token');
+      const tenantCode = window.tenant || 'apoyar';
+
+      const response = await fetch(`${API_BASE}/api/ai/${tenantCode}/tickets/${currentTicketId}/cmdb-items`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      const data = await response.json();
+      loading.style.display = 'none';
+
+      if (data.success) {
+        const totalItems = (data.cmdbItems?.length || 0) + (data.configItems?.length || 0);
+
+        if (totalItems === 0) {
+          empty.style.display = 'block';
+          badge.style.display = 'none';
+        } else {
+          badge.textContent = totalItems;
+          badge.style.display = 'inline-flex';
+
+          // Render CMDB items
+          if (data.cmdbItems?.length > 0) {
+            table.style.display = 'table';
+            const tbody = document.getElementById('linked-cmdb-body');
+            tbody.innerHTML = data.cmdbItems.map(item => `
+              <tr>
+                <td><strong>${item.asset_name || '—'}</strong></td>
+                <td>${item.asset_category || '—'}</td>
+                <td>${item.customer_name || '—'}</td>
+                <td><span class="badge">${item.matched_by || 'manual'}</span></td>
+                <td><button class="btn danger" onclick="unlinkCMDBItem(${item.cmdb_item_id})" style="padding:4px 8px;font-size:12px">Remove</button></td>
+              </tr>
+            `).join('');
+          }
+
+          // Render CIs
+          if (data.configItems?.length > 0) {
+            cisSection.style.display = 'block';
+            const ciBody = document.getElementById('linked-cis-body');
+            ciBody.innerHTML = data.configItems.map(ci => `
+              <tr>
+                <td>${ci.ci_name || '—'}</td>
+                <td>${ci.category_field_value || '—'}</td>
+                <td>${ci.parent_asset_name || '—'}</td>
+                <td><button class="btn danger" onclick="unlinkCI(${ci.ci_id})" style="padding:4px 8px;font-size:12px">Remove</button></td>
+              </tr>
+            `).join('');
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error loading linked CMDB items:', error);
+      loading.style.display = 'none';
+      empty.style.display = 'block';
+    }
+  }
+
+  async function findCMDBMatches() {
+    if (!currentTicketId) {
+      alert('No ticket selected');
+      return;
+    }
+
+    const resultsPanel = document.getElementById('cmdb-ai-results');
+    const loading = document.getElementById('cmdb-ai-loading');
+    const content = document.getElementById('cmdb-ai-content');
+
+    resultsPanel.style.display = 'block';
+    loading.style.display = 'block';
+    content.style.display = 'none';
+
+    try {
+      const token = localStorage.getItem('token');
+      const tenantCode = window.tenant || 'apoyar';
+
+      const response = await fetch(`${API_BASE}/api/ai/${tenantCode}/tickets/${currentTicketId}/cmdb-matches`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        currentCMDBMatches = {
+          cmdbItems: data.cmdbItems || [],
+          configItems: data.configItems || []
+        };
+        renderCMDBMatches(data);
+        loading.style.display = 'none';
+        content.style.display = 'block';
+      } else {
+        throw new Error(data.message || 'Failed to find CMDB matches');
+      }
+    } catch (error) {
+      console.error('Error finding CMDB matches:', error);
+      loading.innerHTML = '<div style="color:#ffc">Error: ' + error.message + '</div>';
+    }
+  }
+
+  function renderCMDBMatches(data) {
+    // Reasoning
+    document.getElementById('cmdb-ai-reasoning').textContent = data.reasoning || '';
+
+    // CMDB Items
+    const itemsContainer = document.getElementById('cmdb-ai-items');
+    if (data.cmdbItems?.length > 0) {
+      itemsContainer.innerHTML = `
+        <div style="font-weight:600;margin-bottom:8px">CMDB Items (${data.cmdbItems.length})</div>
+        ${data.cmdbItems.map((item, idx) => `
+          <div style="background:rgba(255,255,255,0.1);border-radius:6px;padding:10px;margin-bottom:8px;display:flex;align-items:center;gap:12px">
+            <input type="checkbox" id="cmdb-match-${idx}" data-id="${item.id}" data-type="cmdb" checked style="width:18px;height:18px"/>
+            <div style="flex:1">
+              <div style="font-weight:600">${item.asset_name || '—'}</div>
+              <div style="font-size:12px;opacity:0.8">${item.asset_category || '—'} | ${item.customer_name || '—'}</div>
+              <div style="font-size:11px;opacity:0.7;margin-top:4px">${item.reason || ''}</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-size:24px;font-weight:600">${item.confidence}%</div>
+              <div style="font-size:11px;opacity:0.7">${item.relationship || 'affected'}</div>
+            </div>
+          </div>
+        `).join('')}
+      `;
+    } else {
+      itemsContainer.innerHTML = '<div style="opacity:0.7;font-size:13px">No matching CMDB items found</div>';
+    }
+
+    // CIs
+    const cisContainer = document.getElementById('cmdb-ai-cis');
+    if (data.configItems?.length > 0) {
+      cisContainer.innerHTML = `
+        <div style="font-weight:600;margin-bottom:8px">Configuration Items (${data.configItems.length})</div>
+        ${data.configItems.slice(0, 10).map((ci, idx) => `
+          <div style="background:rgba(255,255,255,0.1);border-radius:6px;padding:8px 10px;margin-bottom:6px;display:flex;align-items:center;gap:12px">
+            <input type="checkbox" id="ci-match-${idx}" data-id="${ci.id}" data-type="ci" checked style="width:16px;height:16px"/>
+            <div style="flex:1;font-size:13px">
+              <span style="font-weight:500">${ci.ci_name || '—'}:</span> ${ci.category_field_value || '—'}
+              <span style="opacity:0.7;font-size:11px;margin-left:8px">(${ci.parent_asset_name || 'Unknown'})</span>
+            </div>
+            <div style="font-weight:600">${ci.confidence}%</div>
+          </div>
+        `).join('')}
+        ${data.configItems.length > 10 ? `<div style="font-size:12px;opacity:0.7">...and ${data.configItems.length - 10} more</div>` : ''}
+      `;
+    } else {
+      cisContainer.innerHTML = '';
+    }
+  }
+
+  function hideCMDBMatches() {
+    document.getElementById('cmdb-ai-results').style.display = 'none';
+  }
+
+  async function applyAllCMDBMatches() {
+    const cmdbIds = [];
+    const ciIds = [];
+
+    // Get selected CMDB items
+    document.querySelectorAll('[id^="cmdb-match-"]:checked').forEach(cb => {
+      cmdbIds.push(parseInt(cb.dataset.id));
+    });
+
+    // Get selected CIs
+    document.querySelectorAll('[id^="ci-match-"]:checked').forEach(cb => {
+      ciIds.push(parseInt(cb.dataset.id));
+    });
+
+    if (cmdbIds.length === 0 && ciIds.length === 0) {
+      alert('No items selected');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const tenantCode = window.tenant || 'apoyar';
+
+      const response = await fetch(`${API_BASE}/api/ai/${tenantCode}/tickets/${currentTicketId}/apply-cmdb-matches`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ cmdbItemIds: cmdbIds, ciIds: ciIds })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        alert(`Linked ${data.cmdbLinked} CMDB items and ${data.ciLinked} CIs`);
+        hideCMDBMatches();
+        await loadLinkedCMDBItems();
+      } else {
+        throw new Error(data.message || 'Failed to apply matches');
+      }
+    } catch (error) {
+      console.error('Error applying CMDB matches:', error);
+      alert('Error: ' + error.message);
+    }
+  }
+
+  async function unlinkCMDBItem(cmdbItemId) {
+    if (!confirm('Remove this CMDB item from the ticket?')) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const tenantCode = window.tenant || 'apoyar';
+
+      const response = await fetch(`${API_BASE}/api/ai/${tenantCode}/tickets/${currentTicketId}/cmdb-items/${cmdbItemId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        await loadLinkedCMDBItems();
+      } else {
+        throw new Error(data.message || 'Failed to unlink item');
+      }
+    } catch (error) {
+      console.error('Error unlinking CMDB item:', error);
+      alert('Error: ' + error.message);
+    }
+  }
+
+  async function unlinkCI(ciId) {
+    if (!confirm('Remove this CI from the ticket?')) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const tenantCode = window.tenant || 'apoyar';
+
+      const response = await fetch(`${API_BASE}/api/ai/${tenantCode}/tickets/${currentTicketId}/cis/${ciId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        await loadLinkedCMDBItems();
+      } else {
+        throw new Error(data.message || 'Failed to unlink CI');
+      }
+    } catch (error) {
+      console.error('Error unlinking CI:', error);
+      alert('Error: ' + error.message);
+    }
+  }
+
+  function showManualCMDBLink() {
+    document.getElementById('cmdb-link-search').value = '';
+    document.getElementById('cmdb-link-results').innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);">Enter search terms to find CMDB items</div>';
+    document.getElementById('modal-cmdb-link').style.display = 'flex';
+  }
+
+  async function searchCMDBForLink() {
+    const query = document.getElementById('cmdb-link-search').value.trim();
+    const resultsDiv = document.getElementById('cmdb-link-results');
+
+    if (query.length < 2) {
+      resultsDiv.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);">Enter at least 2 characters to search</div>';
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const tenantCode = window.tenant || 'apoyar';
+
+      const response = await fetch(`${API_BASE}/api/cmdb/${tenantCode}/items?search=${encodeURIComponent(query)}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.items?.length > 0) {
+        resultsDiv.innerHTML = data.items.map(item => `
+          <div style="padding:12px;border-bottom:1px solid var(--border);cursor:pointer;transition:background 0.15s"
+               onmouseover="this.style.background='var(--card-hover)'"
+               onmouseout="this.style.background=''"
+               onclick="linkCMDBItemManually(${item.id}, '${(item.asset_name || '').replace(/'/g, "\\'")}')">
+            <div style="font-weight:600">${item.asset_name || '—'}</div>
+            <div style="font-size:12px;color:var(--muted)">${item.asset_category || '—'} | ${item.customer_name || '—'}</div>
+          </div>
+        `).join('');
+      } else {
+        resultsDiv.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);">No items found matching "' + query + '"</div>';
+      }
+    } catch (error) {
+      console.error('Error searching CMDB:', error);
+      resultsDiv.innerHTML = '<div style="text-align:center;padding:20px;color:var(--danger);">Error searching CMDB</div>';
+    }
+  }
+
+  async function linkCMDBItemManually(cmdbItemId, assetName) {
+    if (!confirm(`Link "${assetName}" to this ticket?`)) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const tenantCode = window.tenant || 'apoyar';
+
+      const response = await fetch(`${API_BASE}/api/ai/${tenantCode}/tickets/${currentTicketId}/cmdb-items`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ cmdbItemIds: [cmdbItemId], ciIds: [], matchedBy: 'manual' })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        closeModal('modal-cmdb-link');
+        await loadLinkedCMDBItems();
+      } else {
+        throw new Error(data.message || 'Failed to link item');
+      }
+    } catch (error) {
+      console.error('Error linking CMDB item:', error);
+      alert('Error: ' + error.message);
+    }
   }
 
   // ---- AI Trends Dashboard Functions ----
