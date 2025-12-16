@@ -412,7 +412,7 @@ router.get('/:tenantId', readOperationsLimiter, validateTicketGet, async (req, r
         SELECT t.*,
                u1.full_name as assignee_name,
                u2.full_name as requester_name,
-               ci.name as cmdb_item_name,
+               ci.asset_name as cmdb_item_name,
                c.customer_company_id,
                cc.company_name as company_name,
                cc.company_domain as company_domain
@@ -512,7 +512,7 @@ router.get('/:tenantId/:ticketId', readOperationsLimiter, validateTicketGet, asy
         `SELECT t.*,
                 u1.full_name as assignee_name,
                 u2.full_name as requester_name,
-                ci.name as cmdb_item_name
+                ci.asset_name as cmdb_item_name
          FROM tickets t
          LEFT JOIN users u1 ON t.assignee_id = u1.id
          LEFT JOIN users u2 ON t.requester_id = u2.id
@@ -559,7 +559,7 @@ router.get('/:tenantId/export/csv', readOperationsLimiter, validateTicketGet, as
                t.created_at, t.updated_at, t.sla_deadline,
                u1.full_name as assignee_name,
                u2.full_name as requester_name,
-               ci.name as cmdb_item_name
+               ci.asset_name as cmdb_item_name
         FROM tickets t
         LEFT JOIN users u1 ON t.assignee_id = u1.id
         LEFT JOIN users u2 ON t.requester_id = u2.id
@@ -674,7 +674,7 @@ router.post('/:tenantId', writeOperationsLimiter, validateTicketCreate, async (r
                 u2.email as requester_email,
                 u2.username as requester_username,
                 u2.role as requester_role,
-                ci.name as cmdb_item_name
+                ci.asset_name as cmdb_item_name
          FROM tickets t
          LEFT JOIN users u1 ON t.assignee_id = u1.id
          LEFT JOIN users u2 ON t.requester_id = u2.id
@@ -811,7 +811,7 @@ router.post('/:tenantId/:ticketId/self-assign', writeOperationsLimiter, requireR
                 u1.email as assignee_email,
                 u2.full_name as requester_name,
                 u2.email as requester_email,
-                ci.name as cmdb_item_name
+                ci.asset_name as cmdb_item_name
          FROM tickets t
          LEFT JOIN users u1 ON t.assignee_id = u1.id
          LEFT JOIN users u2 ON t.requester_id = u2.id
@@ -964,7 +964,7 @@ router.put('/:tenantId/:ticketId', writeOperationsLimiter, validateTicketUpdate,
                 u2.email as requester_email,
                 u2.username as requester_username,
                 u2.role as requester_role,
-                ci.name as cmdb_item_name
+                ci.asset_name as cmdb_item_name
          FROM tickets t
          LEFT JOIN users u1 ON t.assignee_id = u1.id
          LEFT JOIN users u2 ON t.requester_id = u2.id
