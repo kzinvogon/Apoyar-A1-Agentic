@@ -259,6 +259,34 @@ router.put('/:tenantCode/items/:cmdbId', async (req, res) => {
   }
 });
 
+// Delete ALL CMDB items (dangerous - requires confirmation)
+router.delete('/:tenantCode/items/all', async (req, res) => {
+  try {
+    const { tenantCode } = req.params;
+    const connection = await getTenantConnection(tenantCode);
+
+    try {
+      // Delete all CIs first (foreign key constraint)
+      const [ciResult] = await connection.query('DELETE FROM configuration_items');
+
+      // Delete all CMDB items
+      const [cmdbResult] = await connection.query('DELETE FROM cmdb_items');
+
+      res.json({
+        success: true,
+        message: 'All CMDB items deleted successfully',
+        deleted_items: cmdbResult.affectedRows,
+        deleted_cis: ciResult.affectedRows
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error deleting all CMDB items:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
 // Delete CMDB item (and cascade delete CIs)
 router.delete('/:tenantCode/items/:cmdbId', async (req, res) => {
   try {

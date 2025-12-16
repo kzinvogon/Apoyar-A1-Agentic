@@ -346,6 +346,9 @@
         </select>
       </div>
       <div class="toolbar-right">
+        <button class="btn btn-danger" onclick="deleteAllCMDB()" style="background:#e53e3e;">
+          🗑️ Delete All
+        </button>
         <button class="btn btn-success" onclick="openImportModal()">
           📥 Import CSV
         </button>
@@ -866,6 +869,41 @@
           alert('Error: ' + data.message);
         }
       });
+    }
+
+    // Delete ALL CMDB items
+    async function deleteAllCMDB() {
+      const count = currentItems.length;
+      if (count === 0) {
+        alert('No CMDB items to delete');
+        return;
+      }
+
+      if (!confirm(`Are you sure you want to delete ALL ${count} CMDB items and their Configuration Items?\n\nThis cannot be undone!`)) return;
+      if (!confirm(`FINAL WARNING: This will permanently delete ${count} CMDB items. Type "yes" in the next prompt to confirm.`)) return;
+
+      const confirmation = prompt('Type "DELETE ALL" to confirm deletion of all CMDB items:');
+      if (confirmation !== 'DELETE ALL') {
+        alert('Deletion cancelled - confirmation text did not match');
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE}/cmdb/${tenantCode}/items/all`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        const data = await response.json();
+
+        if (data.success) {
+          alert(`Deleted ${data.deleted_items} CMDB items and ${data.deleted_cis} Configuration Items`);
+          loadCMDBItems();
+        } else {
+          alert('Error: ' + data.message);
+        }
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
     }
 
     // Import CSV
