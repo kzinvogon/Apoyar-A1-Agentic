@@ -1885,8 +1885,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           <div class="row space mb-12">
             <div class="row"><h3 class="title" style="margin:0">CMDB Items</h3></div>
             <div class="row" style="gap:8px">
-              <button class="btn primary" onclick="showCreateCMDBForm()">+ Add CMDB Item</button>
-              <button class="btn" onclick="showImportCMDBDialog()">📥 Import CMDB Items</button>
+              <a href="/public/cmdb-management.html" class="btn primary" target="_blank">Open CMDB Management</a>
               <input id="cmdb-search" class="input" style="min-width:260px" placeholder="Search by Item or Customer" oninput="renderCMDB(); saveFilterSettings('cmdb')"/>
               <select id="cmdb-customer" class="input" style="max-width:220px" onchange="renderCMDB(); saveFilterSettings('cmdb')">
                 <option value="">All customers</option>
@@ -1894,10 +1893,16 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             </div>
           </div>
           <div class="card p-16">
-            <table>
-              <thead><tr><th style="width:200px">Customer</th><th>CMDB Item</th><th style="width:160px"></th></tr></thead>
+            <div id="cmdb-loading" style="text-align:center;padding:40px;color:var(--muted);">Loading CMDB items...</div>
+            <table id="cmdb-table" style="display:none">
+              <thead><tr><th style="width:180px">Customer</th><th>Asset Name</th><th>Category</th><th>Brand/Model</th><th style="width:60px">CIs</th><th style="width:100px"></th></tr></thead>
               <tbody id="cmdb-body"></tbody>
             </table>
+            <div id="cmdb-empty" style="display:none;text-align:center;padding:40px;color:var(--muted);">
+              <div style="font-size:48px;margin-bottom:16px;">🗃️</div>
+              <div>No CMDB items found</div>
+              <div style="margin-top:8px;font-size:13px;">Use <a href="/public/cmdb-management.html" target="_blank">CMDB Management</a> to import or add items</div>
+            </div>
           </div>
         </div>
 
@@ -1906,12 +1911,20 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             <div class="row"><button class="btn ghost" onclick="switchView('cmdb')">← Back</button><h3 class="title" style="margin:0 0 0 8px">CMDB Item: <span id="cmdb-name-h"></span></h3></div>
           </div>
           <div class="card p-16 mb-16">
-            <div class="row"><div class="subtitle">Customer:</div><div id="cmdb-customer-h" style="font-weight:600"></div></div>
-            <div class="row"><div class="subtitle">CMDB ID:</div><div id="cmdb-id-h" style="font-weight:600"></div></div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;">
+              <div><div class="subtitle">Customer</div><div id="cmdb-customer-h" style="font-weight:600;font-size:15px;"></div></div>
+              <div><div class="subtitle">Category</div><div id="cmdb-category-h" style="font-weight:600;font-size:15px;"></div></div>
+              <div><div class="subtitle">Brand</div><div id="cmdb-brand-h" style="font-weight:600;font-size:15px;"></div></div>
+              <div><div class="subtitle">Model</div><div id="cmdb-model-h" style="font-weight:600;font-size:15px;"></div></div>
+              <div><div class="subtitle">Location</div><div id="cmdb-location-h" style="font-weight:600;font-size:15px;"></div></div>
+              <div><div class="subtitle">CMDB ID</div><div id="cmdb-id-h" style="font-weight:500;font-size:12px;color:var(--muted);"></div></div>
+            </div>
           </div>
           <div class="card p-16">
-            <h4 class="mb-12">Configurable Items (CIs)</h4>
-            <table><thead id="ci-head"></thead><tbody id="ci-body"></tbody></table>
+            <h4 class="mb-12">Configuration Items (<span id="ci-count">0</span>)</h4>
+            <div id="ci-loading" style="text-align:center;padding:20px;color:var(--muted);">Loading configuration items...</div>
+            <table id="ci-table" style="display:none"><thead id="ci-head"></thead><tbody id="ci-body"></tbody></table>
+            <div id="ci-empty" style="display:none;text-align:center;padding:20px;color:var(--muted);">No configuration items for this asset</div>
           </div>
         </div>
 
@@ -2534,12 +2547,14 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       if (data.success && data.items) {
         CMDB_ITEMS = data.items.map(item => ({
           cmdb_id: item.cmdb_id,
+          asset_name: item.asset_name,
           name: item.asset_name,
+          customer_name: item.customer_name || '',
           customer: item.customer_name || '',
-          category: item.asset_category,
-          brand: item.brand_name,
-          model: item.model_name,
-          location: item.asset_location,
+          asset_category: item.asset_category,
+          brand_name: item.brand_name,
+          model_name: item.model_name,
+          asset_location: item.asset_location,
           status: item.status,
           ci_count: item.ci_count || 0
         }));
@@ -7607,24 +7622,119 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   }
 
   // ---- CMDB ----
-  function renderCMDB(){ if(CMDB_ITEMS.length===0){loadCMDBItemsFromAPI();return;} const sel=document.getElementById('cmdb-customer'); const current=sel.value; sel.innerHTML='<option value="">All customers</option>'; [...new Set(CMDB_ITEMS.map(i=>i.customer||''))].sort().forEach(c=>{ const o=document.createElement('option'); o.value=c; o.textContent = c || '—'; if(c===current) o.selected=true; sel.appendChild(o); }); const q=(document.getElementById('cmdb-search').value||'').toLowerCase(); const custFilter = role==='customer' ? (tenant || '') : sel.value; const body=document.getElementById('cmdb-body'); body.innerHTML=''; CMDB_ITEMS.filter(i=>(!custFilter || i.customer===custFilter) && (!q || (i.name||'').toLowerCase().includes(q) || (i.customer||'').toLowerCase().includes(q))).forEach(i=>{ const tr=document.createElement('tr'); tr.innerHTML = `<td>${i.customer||'—'}</td><td>${i.name}</td><td><button class='btn primary' onclick='openItem("${i.cmdb_id}")'>Open</button></td>`; body.appendChild(tr); }); }
+  function renderCMDB(){
+    const loading = document.getElementById('cmdb-loading');
+    const table = document.getElementById('cmdb-table');
+    const empty = document.getElementById('cmdb-empty');
+
+    if(CMDB_ITEMS.length===0){
+      if(loading) loading.style.display='block';
+      if(table) table.style.display='none';
+      if(empty) empty.style.display='none';
+      loadCMDBItemsFromAPI();
+      return;
+    }
+
+    // Populate customer dropdown
+    const sel=document.getElementById('cmdb-customer');
+    const current=sel.value;
+    sel.innerHTML='<option value="">All customers</option>';
+    [...new Set(CMDB_ITEMS.map(i=>i.customer_name||i.customer||''))].filter(c=>c).sort().forEach(c=>{
+      const o=document.createElement('option');
+      o.value=c;
+      o.textContent = c;
+      if(c===current) o.selected=true;
+      sel.appendChild(o);
+    });
+
+    const q=(document.getElementById('cmdb-search').value||'').toLowerCase();
+    const custFilter = role==='customer' ? (tenant || '') : sel.value;
+    const body=document.getElementById('cmdb-body');
+    body.innerHTML='';
+
+    const filtered = CMDB_ITEMS.filter(i=>{
+      const customerName = i.customer_name || i.customer || '';
+      const assetName = i.asset_name || i.name || '';
+      return (!custFilter || customerName===custFilter) &&
+             (!q || assetName.toLowerCase().includes(q) || customerName.toLowerCase().includes(q));
+    });
+
+    if(loading) loading.style.display='none';
+
+    if(filtered.length === 0){
+      if(table) table.style.display='none';
+      if(empty) empty.style.display='block';
+      return;
+    }
+
+    if(table) table.style.display='table';
+    if(empty) empty.style.display='none';
+
+    filtered.forEach(i=>{
+      const tr=document.createElement('tr');
+      const customerName = i.customer_name || i.customer || '—';
+      const assetName = i.asset_name || i.name || '—';
+      const category = i.asset_category || i.type || '—';
+      const brandModel = [i.brand_name, i.model_name].filter(Boolean).join(' / ') || '—';
+      const ciCount = i.ci_count || '—';
+      tr.innerHTML = `<td>${customerName}</td><td>${assetName}</td><td>${category}</td><td>${brandModel}</td><td style="text-align:center">${ciCount}</td><td><button class='btn primary' onclick='openItem("${i.cmdb_id}")'>Open</button></td>`;
+      body.appendChild(tr);
+    });
+  }
   function openItem(id){ currentItemId=id; switchView('cmdb-detail'); }
-  async function renderCMDBDetail(){ 
-    const item = CMDB_ITEMS.find(i=>i.cmdb_id===currentItemId) || {}; 
-    document.getElementById('cmdb-name-h').textContent = item.name || '(Unnamed)'; 
-    document.getElementById('cmdb-customer-h').textContent = item.customer || '—'; 
-    document.getElementById('cmdb-id-h').textContent = currentItemId || '—'; 
+  async function renderCMDBDetail(){
+    const item = CMDB_ITEMS.find(i=>i.cmdb_id===currentItemId) || {};
+
+    // Populate header info
+    document.getElementById('cmdb-name-h').textContent = item.asset_name || item.name || '(Unnamed)';
+    document.getElementById('cmdb-customer-h').textContent = item.customer_name || item.customer || '—';
+    document.getElementById('cmdb-category-h').textContent = item.asset_category || item.type || '—';
+    document.getElementById('cmdb-brand-h').textContent = item.brand_name || '—';
+    document.getElementById('cmdb-model-h').textContent = item.model_name || '—';
+    document.getElementById('cmdb-location-h').textContent = item.asset_location || '—';
+    document.getElementById('cmdb-id-h').textContent = currentItemId || '—';
+
+    // Show loading state
+    const ciLoading = document.getElementById('ci-loading');
+    const ciTable = document.getElementById('ci-table');
+    const ciEmpty = document.getElementById('ci-empty');
+    const ciCount = document.getElementById('ci-count');
+
+    if(ciLoading) ciLoading.style.display='block';
+    if(ciTable) ciTable.style.display='none';
+    if(ciEmpty) ciEmpty.style.display='none';
+
     // Load CIs from API if not cached
     let list = CIS_BY_ITEM[currentItemId];
     if (!list) { list = await loadCIsForItem(currentItemId); }
-    const head = document.getElementById('ci-head'); 
-    const body = document.getElementById('ci-body'); 
-    head.innerHTML=''; body.innerHTML=''; 
-    if(!list || list.length===0){ head.innerHTML='<tr><th>CI Name</th></tr>'; body.innerHTML='<tr><td class="subtitle">No CIs</td></tr>'; return; } 
-    const ignore = new Set(['ci_id','cmdb_id']); 
-    const cols = Object.keys(list[0]).filter(k=>!ignore.has(k)); 
-    head.innerHTML = '<tr>' + cols.map(c=>`<th>${c}</th>`).join('') + '</tr>'; 
-    list.forEach(ci=>{ const tr = document.createElement('tr'); tr.innerHTML = cols.map(c=>`<td>${ci[c]||''}</td>`).join(''); body.appendChild(tr); }); 
+
+    if(ciLoading) ciLoading.style.display='none';
+
+    const head = document.getElementById('ci-head');
+    const body = document.getElementById('ci-body');
+    head.innerHTML='';
+    body.innerHTML='';
+
+    if(!list || list.length===0){
+      if(ciTable) ciTable.style.display='none';
+      if(ciEmpty) ciEmpty.style.display='block';
+      if(ciCount) ciCount.textContent='0';
+      return;
+    }
+
+    if(ciCount) ciCount.textContent = list.length;
+    if(ciTable) ciTable.style.display='table';
+    if(ciEmpty) ciEmpty.style.display='none';
+
+    // Display CIs as Field Name / Value table
+    head.innerHTML = '<tr><th>Field Name</th><th>Value</th></tr>';
+    list.forEach(ci=>{
+      const tr = document.createElement('tr');
+      const fieldName = ci.ci_name || ci.category_field_value || '—';
+      const fieldValue = ci.serial_number || ci.comment || '—';
+      tr.innerHTML = `<td>${fieldName}</td><td>${fieldValue}</td>`;
+      body.appendChild(tr);
+    });
   }
   function showCreateCMDBForm(){
     window.open('/public/cmdb-management.html', '_blank');
