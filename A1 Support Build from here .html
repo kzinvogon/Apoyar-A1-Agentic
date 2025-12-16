@@ -6588,6 +6588,14 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     }
   }
 
+  // Generic modal close function
+  function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+      modal.style.display = 'none';
+    }
+  }
+
   // ---- AI Trends Dashboard Functions ----
   async function loadAITrends() {
     const loading = document.getElementById('ai-trends-loading');
