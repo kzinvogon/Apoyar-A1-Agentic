@@ -926,6 +926,469 @@ Provide JSON suggestions for efficient ticket handling.`
       connection.release();
     }
   }
+
+  /**
+   * Match ticket to CMDB items and CIs using AI
+   * Analyzes ticket content and finds related infrastructure items
+   */
+  async matchTicketToCMDB(ticketId) {
+    const startTime = Date.now();
+    const connection = await getTenantConnection(this.tenantCode);
+
+    try {
+      console.log(`🔍 AI matching CMDB items for ticket #${ticketId}...`);
+
+      // Get ticket details
+      const [tickets] = await connection.query(`
+        SELECT t.*, u.full_name as customer_name, c.company_name
+        FROM tickets t
+        LEFT JOIN users u ON t.customer_id = u.id
+        LEFT JOIN customers c ON u.id = c.user_id
+        WHERE t.id = ?
+      `, [ticketId]);
+
+      if (tickets.length === 0) {
+        throw new Error('Ticket not found');
+      }
+
+      const ticket = tickets[0];
+
+      // Get all CMDB items with their CIs
+      const [cmdbItems] = await connection.query(`
+        SELECT
+          ci.id, ci.cmdb_id, ci.asset_name, ci.asset_category,
+          ci.brand_name, ci.model_name, ci.customer_name,
+          ci.asset_location, ci.comment,
+          (SELECT COUNT(*) FROM configuration_items WHERE cmdb_item_id = ci.id) as ci_count
+        FROM cmdb_items ci
+        ORDER BY ci.asset_name
+      `);
+
+      // Get all CIs with their parent CMDB item info
+      const [configItems] = await connection.query(`
+        SELECT
+          cfg.id, cfg.ci_id, cfg.ci_name, cfg.category_field_value,
+          cfg.cmdb_item_id, cmdb.asset_name as parent_asset_name,
+          cmdb.customer_name as parent_customer_name
+        FROM configuration_items cfg
+        LEFT JOIN cmdb_items cmdb ON cfg.cmdb_item_id = cmdb.id
+      `);
+
+      let matches;
+
+      // Use Claude if available, otherwise pattern matching
+      const hasValidApiKey = this.apiKey &&
+                             this.apiKey !== 'your_anthropic_api_key_here' &&
+                             this.apiKey.startsWith('sk-');
+
+      if (this.aiProvider === 'anthropic' && hasValidApiKey) {
+        try {
+          matches = await this.matchWithClaude(ticket, cmdbItems, configItems);
+        } catch (error) {
+          console.warn('Claude API failed, falling back to pattern matching:', error.message);
+          matches = await this.matchWithPatterns(ticket, cmdbItems, configItems);
+        }
+      } else {
+        matches = await this.matchWithPatterns(ticket, cmdbItems, configItems);
+      }
+
+      const processingTime = Date.now() - startTime;
+
+      // Store match results
+      await connection.query(`
+        INSERT INTO ai_cmdb_match_log (ticket_id, matched_cmdb_ids, matched_ci_ids, ai_model, match_criteria, processing_time_ms)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `, [
+        ticketId,
+        JSON.stringify(matches.cmdbItems.map(m => m.id)),
+        JSON.stringify(matches.configItems.map(m => m.id)),
+        this.model,
+        matches.reasoning,
+        processingTime
+      ]);
+
+      console.log(`✅ Found ${matches.cmdbItems.length} CMDB items and ${matches.configItems.length} CIs for ticket #${ticketId} (${processingTime}ms)`);
+
+      return {
+        success: true,
+        ticketId,
+        cmdbItems: matches.cmdbItems,
+        configItems: matches.configItems,
+        reasoning: matches.reasoning,
+        processingTime
+      };
+
+    } finally {
+      connection.release();
+    }
+  }
+
+  /**
+   * Match using Claude AI
+   */
+  async matchWithClaude(ticket, cmdbItems, configItems) {
+    const Anthropic = require('@anthropic-ai/sdk');
+    const anthropic = new Anthropic({ apiKey: this.apiKey });
+
+    // Build CMDB context
+    const cmdbContext = cmdbItems.map(item =>
+      `ID:${item.id} | ${item.asset_name} | Category: ${item.asset_category || 'N/A'} | Customer: ${item.customer_name || 'N/A'} | Location: ${item.asset_location || 'N/A'} | CIs: ${item.ci_count}`
+    ).join('\n');
+
+    const ciContext = configItems.slice(0, 100).map(ci =>
+      `ID:${ci.id} | ${ci.ci_name}: ${ci.category_field_value || 'N/A'} | Parent: ${ci.parent_asset_name || 'N/A'}`
+    ).join('\n');
+
+    const systemPrompt = `You are an IT infrastructure expert that matches support tickets to Configuration Management Database (CMDB) items.
+
+Analyze the ticket and identify which CMDB items (servers, services, applications) and Configuration Items (CIs like IP addresses, credentials, settings) are relevant.
+
+Respond with valid JSON:
+{
+  "cmdb_matches": [
+    {
+      "id": number,
+      "confidence": 0-100,
+      "relationship": "affected|caused_by|related",
+      "reason": "Why this item matches"
+    }
+  ],
+  "ci_matches": [
+    {
+      "id": number,
+      "confidence": 0-100,
+      "relationship": "affected|caused_by|related",
+      "reason": "Why this CI matches"
+    }
+  ],
+  "reasoning": "Overall explanation of the matches"
+}
+
+Only include items with confidence >= 60. Order by confidence descending.`;
+
+    const response = await anthropic.messages.create({
+      model: this.model || 'claude-3-haiku-20240307',
+      max_tokens: 2048,
+      messages: [{
+        role: 'user',
+        content: `Match this support ticket to relevant CMDB items and CIs:
+
+TICKET #${ticket.id}
+Title: ${ticket.title}
+Description: ${ticket.description}
+Customer: ${ticket.customer_name || 'Unknown'} (${ticket.company_name || 'Unknown'})
+Priority: ${ticket.priority}
+
+AVAILABLE CMDB ITEMS:
+${cmdbContext}
+
+AVAILABLE CONFIGURATION ITEMS (sample):
+${ciContext}
+
+Find all relevant infrastructure items. Respond with JSON only.`
+      }],
+      system: systemPrompt
+    });
+
+    const responseText = response.content[0].text;
+    let jsonText = responseText;
+    if (responseText.includes('```')) {
+      jsonText = responseText.replace(/```json?\n?/g, '').replace(/```/g, '').trim();
+    }
+
+    const result = JSON.parse(jsonText);
+
+    // Map results to full item data
+    const cmdbMatches = (result.cmdb_matches || []).map(match => {
+      const item = cmdbItems.find(i => i.id === match.id);
+      return item ? {
+        ...item,
+        confidence: match.confidence,
+        relationship: match.relationship,
+        reason: match.reason
+      } : null;
+    }).filter(Boolean);
+
+    const ciMatches = (result.ci_matches || []).map(match => {
+      const item = configItems.find(i => i.id === match.id);
+      return item ? {
+        ...item,
+        confidence: match.confidence,
+        relationship: match.relationship,
+        reason: match.reason
+      } : null;
+    }).filter(Boolean);
+
+    return {
+      cmdbItems: cmdbMatches,
+      configItems: ciMatches,
+      reasoning: result.reasoning || 'AI-powered matching'
+    };
+  }
+
+  /**
+   * Match using pattern matching (fallback)
+   */
+  async matchWithPatterns(ticket, cmdbItems, configItems) {
+    const text = `${ticket.title} ${ticket.description}`.toLowerCase();
+    const customerName = (ticket.customer_name || ticket.company_name || '').toLowerCase();
+
+    const cmdbMatches = [];
+    const ciMatches = [];
+
+    // Match CMDB items
+    for (const item of cmdbItems) {
+      let confidence = 0;
+      let reasons = [];
+
+      // Check if asset name is mentioned in ticket
+      const assetName = (item.asset_name || '').toLowerCase();
+      if (assetName && text.includes(assetName)) {
+        confidence += 50;
+        reasons.push('Asset name mentioned in ticket');
+      }
+
+      // Check if customer matches
+      const itemCustomer = (item.customer_name || '').toLowerCase();
+      if (itemCustomer && customerName && itemCustomer.includes(customerName)) {
+        confidence += 30;
+        reasons.push('Customer match');
+      }
+
+      // Check for category keywords
+      const category = (item.asset_category || '').toLowerCase();
+      if (category) {
+        if (category.includes('server') && /(server|host|vm|instance)/i.test(text)) {
+          confidence += 20;
+          reasons.push('Server category matches server keywords');
+        }
+        if (category.includes('database') && /(database|mysql|sql|db)/i.test(text)) {
+          confidence += 20;
+          reasons.push('Database category matches database keywords');
+        }
+        if (category.includes('network') && /(network|vpn|firewall|router)/i.test(text)) {
+          confidence += 20;
+          reasons.push('Network category matches network keywords');
+        }
+        if (category.includes('application') && /(app|application|software|service)/i.test(text)) {
+          confidence += 20;
+          reasons.push('Application category matches app keywords');
+        }
+      }
+
+      // Check location keywords
+      const location = (item.asset_location || '').toLowerCase();
+      if (location && text.includes(location)) {
+        confidence += 15;
+        reasons.push('Location mentioned in ticket');
+      }
+
+      if (confidence >= 40) {
+        cmdbMatches.push({
+          ...item,
+          confidence: Math.min(confidence, 95),
+          relationship: 'affected',
+          reason: reasons.join('; ')
+        });
+      }
+    }
+
+    // Match Configuration Items
+    for (const ci of configItems) {
+      let confidence = 0;
+      let reasons = [];
+
+      // Check if CI name is mentioned
+      const ciName = (ci.ci_name || '').toLowerCase();
+      if (ciName && text.includes(ciName)) {
+        confidence += 40;
+        reasons.push('CI name mentioned in ticket');
+      }
+
+      // Check if CI value is mentioned (IP addresses, hostnames, etc.)
+      const ciValue = (ci.category_field_value || '').toLowerCase();
+      if (ciValue && ciValue.length > 3) {
+        // Check for IP address pattern
+        if (/\d+\.\d+\.\d+\.\d+/.test(ciValue) && text.includes(ciValue)) {
+          confidence += 60;
+          reasons.push('IP address mentioned in ticket');
+        }
+        // Check for hostname/URL
+        else if (text.includes(ciValue)) {
+          confidence += 50;
+          reasons.push('CI value found in ticket');
+        }
+      }
+
+      // Check if parent asset matches
+      const parentAsset = (ci.parent_asset_name || '').toLowerCase();
+      if (parentAsset && text.includes(parentAsset)) {
+        confidence += 30;
+        reasons.push('Parent asset mentioned');
+      }
+
+      if (confidence >= 40) {
+        ciMatches.push({
+          ...ci,
+          confidence: Math.min(confidence, 95),
+          relationship: 'affected',
+          reason: reasons.join('; ')
+        });
+      }
+    }
+
+    // Sort by confidence
+    cmdbMatches.sort((a, b) => b.confidence - a.confidence);
+    ciMatches.sort((a, b) => b.confidence - a.confidence);
+
+    return {
+      cmdbItems: cmdbMatches.slice(0, 10),
+      configItems: ciMatches.slice(0, 20),
+      reasoning: 'Pattern-based matching using keyword analysis'
+    };
+  }
+
+  /**
+   * Link a ticket to CMDB items (save the relationship)
+   */
+  async linkTicketToCMDB(ticketId, cmdbItemIds, ciIds, userId, matchedBy = 'manual') {
+    const connection = await getTenantConnection(this.tenantCode);
+
+    try {
+      const results = { cmdbLinked: 0, ciLinked: 0 };
+
+      // Link CMDB items
+      for (const itemId of cmdbItemIds) {
+        try {
+          await connection.query(`
+            INSERT INTO ticket_cmdb_items (ticket_id, cmdb_item_id, matched_by, created_by)
+            VALUES (?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE matched_by = VALUES(matched_by)
+          `, [ticketId, itemId, matchedBy, userId]);
+          results.cmdbLinked++;
+        } catch (err) {
+          console.warn(`Could not link CMDB item ${itemId}:`, err.message);
+        }
+      }
+
+      // Link CIs
+      for (const ciId of ciIds) {
+        try {
+          await connection.query(`
+            INSERT INTO ticket_configuration_items (ticket_id, ci_id, matched_by, created_by)
+            VALUES (?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE matched_by = VALUES(matched_by)
+          `, [ticketId, ciId, matchedBy, userId]);
+          results.ciLinked++;
+        } catch (err) {
+          console.warn(`Could not link CI ${ciId}:`, err.message);
+        }
+      }
+
+      // Log activity
+      await connection.query(`
+        INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
+        VALUES (?, ?, 'cmdb_linked', ?)
+      `, [ticketId, userId, `Linked ${results.cmdbLinked} CMDB items and ${results.ciLinked} CIs (${matchedBy})`]);
+
+      return results;
+
+    } finally {
+      connection.release();
+    }
+  }
+
+  /**
+   * Get linked CMDB items for a ticket
+   */
+  async getTicketCMDBItems(ticketId) {
+    const connection = await getTenantConnection(this.tenantCode);
+
+    try {
+      // Get linked CMDB items
+      const [cmdbItems] = await connection.query(`
+        SELECT
+          tcm.*,
+          cm.cmdb_id, cm.asset_name, cm.asset_category, cm.customer_name,
+          cm.brand_name, cm.model_name, cm.asset_location,
+          u.full_name as linked_by_name
+        FROM ticket_cmdb_items tcm
+        JOIN cmdb_items cm ON tcm.cmdb_item_id = cm.id
+        LEFT JOIN users u ON tcm.created_by = u.id
+        WHERE tcm.ticket_id = ?
+        ORDER BY tcm.created_at DESC
+      `, [ticketId]);
+
+      // Get linked CIs
+      const [configItems] = await connection.query(`
+        SELECT
+          tci.*,
+          ci.ci_id, ci.ci_name, ci.category_field_value,
+          cm.asset_name as parent_asset_name, cm.cmdb_id as parent_cmdb_id,
+          u.full_name as linked_by_name
+        FROM ticket_configuration_items tci
+        JOIN configuration_items ci ON tci.ci_id = ci.id
+        LEFT JOIN cmdb_items cm ON ci.cmdb_item_id = cm.id
+        LEFT JOIN users u ON tci.created_by = u.id
+        WHERE tci.ticket_id = ?
+        ORDER BY tci.created_at DESC
+      `, [ticketId]);
+
+      return {
+        cmdbItems,
+        configItems
+      };
+
+    } finally {
+      connection.release();
+    }
+  }
+
+  /**
+   * Remove CMDB link from ticket
+   */
+  async unlinkCMDBItem(ticketId, cmdbItemId, userId) {
+    const connection = await getTenantConnection(this.tenantCode);
+
+    try {
+      await connection.query(`
+        DELETE FROM ticket_cmdb_items WHERE ticket_id = ? AND cmdb_item_id = ?
+      `, [ticketId, cmdbItemId]);
+
+      await connection.query(`
+        INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
+        VALUES (?, ?, 'cmdb_unlinked', 'Removed CMDB item link')
+      `, [ticketId, userId]);
+
+      return { success: true };
+
+    } finally {
+      connection.release();
+    }
+  }
+
+  /**
+   * Remove CI link from ticket
+   */
+  async unlinkCI(ticketId, ciId, userId) {
+    const connection = await getTenantConnection(this.tenantCode);
+
+    try {
+      await connection.query(`
+        DELETE FROM ticket_configuration_items WHERE ticket_id = ? AND ci_id = ?
+      `, [ticketId, ciId]);
+
+      await connection.query(`
+        INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
+        VALUES (?, ?, 'ci_unlinked', 'Removed CI link')
+      `, [ticketId, userId]);
+
+      return { success: true };
+
+    } finally {
+      connection.release();
+    }
+  }
 }
 
 module.exports = { AIAnalysisService };
