@@ -2582,10 +2582,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         CIS_BY_ITEM[cmdbId] = data.item.configuration_items.map(ci => ({
           ci_id: ci.ci_id,
           cmdb_id: cmdbId,
-          name: ci.ci_name,
-          'Field Value': ci.category_field_value || '',
-          'Asset Category*': ci.asset_category,
-          status: ci.status
+          ci_name: ci.ci_name || '',
+          category_field_value: ci.category_field_value || ''
         }));
         return CIS_BY_ITEM[cmdbId];
       }
@@ -7730,8 +7728,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     head.innerHTML = '<tr><th>Field Name</th><th>Value</th></tr>';
     list.forEach(ci=>{
       const tr = document.createElement('tr');
-      const fieldName = ci.ci_name || ci.category_field_value || '—';
-      const fieldValue = ci.serial_number || ci.comment || '—';
+      const fieldName = ci.ci_name || '—';
+      const fieldValue = ci.category_field_value || '—';
       tr.innerHTML = `<td>${fieldName}</td><td>${fieldValue}</td>`;
       body.appendChild(tr);
     });
