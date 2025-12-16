@@ -468,21 +468,25 @@ vNext-FULL-ActionsSLA:
               <!-- Summary Stats -->
               <div id="ai-trends-content" style="margin-top:20px">
                 <div class="grid4" style="gap:12px;margin-bottom:20px">
-                  <div class="card p-12" style="background:rgba(255,255,255,0.1);border:none;text-align:center">
+                  <div class="card p-12" onclick="viewAllTrendTickets()" style="background:rgba(255,255,255,0.1);border:none;text-align:center;cursor:pointer;transition:all 0.2s" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform=''">
                     <div style="font-size:11px;opacity:0.7;text-transform:uppercase">Active Trends</div>
                     <div id="ai-trends-count" style="font-size:28px;font-weight:800">0</div>
+                    <div style="font-size:10px;opacity:0.5;margin-top:4px">Click to view all</div>
                   </div>
-                  <div class="card p-12" style="background:rgba(255,99,71,0.2);border:none;text-align:center">
+                  <div class="card p-12" onclick="viewTrendTicketsBySeverity('critical')" style="background:rgba(255,99,71,0.2);border:none;text-align:center;cursor:pointer;transition:all 0.2s" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform=''">
                     <div style="font-size:11px;opacity:0.7;text-transform:uppercase">Critical Issues</div>
                     <div id="ai-critical-count" style="font-size:28px;font-weight:800;color:#ff6b6b">0</div>
+                    <div style="font-size:10px;opacity:0.5;margin-top:4px">Click to view</div>
                   </div>
-                  <div class="card p-12" style="background:rgba(255,193,7,0.2);border:none;text-align:center">
+                  <div class="card p-12" onclick="viewTrendTicketsBySeverity('warning')" style="background:rgba(255,193,7,0.2);border:none;text-align:center;cursor:pointer;transition:all 0.2s" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform=''">
                     <div style="font-size:11px;opacity:0.7;text-transform:uppercase">Warnings</div>
                     <div id="ai-warning-count" style="font-size:28px;font-weight:800;color:#ffc107">0</div>
+                    <div style="font-size:10px;opacity:0.5;margin-top:4px">Click to view</div>
                   </div>
-                  <div class="card p-12" style="background:rgba(72,187,120,0.2);border:none;text-align:center">
+                  <div class="card p-12" onclick="navTo('tickets')" style="background:rgba(72,187,120,0.2);border:none;text-align:center;cursor:pointer;transition:all 0.2s" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform=''">
                     <div style="font-size:11px;opacity:0.7;text-transform:uppercase">Tickets Analyzed</div>
                     <div id="ai-analyzed-count" style="font-size:28px;font-weight:800;color:#48bb78">0</div>
+                    <div style="font-size:10px;opacity:0.5;margin-top:4px">View all tickets</div>
                   </div>
                 </div>
 
@@ -6784,6 +6788,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   function renderAITrends(data, period) {
     const { insights = [], ticketStats = {} } = data;
 
+    // Store data for click-through functionality
+    currentAITrendsData = data;
+
     document.getElementById('ai-trends-count').textContent = insights.length;
     document.getElementById('ai-critical-count').textContent = insights.filter(i => i.severity === 'critical').length;
     document.getElementById('ai-warning-count').textContent = insights.filter(i => i.severity === 'warning').length;
@@ -6796,20 +6803,75 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       return;
     }
 
-    listEl.innerHTML = insights.map(insight => `
-      <div class="ai-trend-card ${insight.severity || 'info'}">
-        <div class="row space">
-          <div>
-            <div style="font-weight:600;font-size:15px">${insight.title}</div>
-            <div style="font-size:13px;opacity:0.8;margin-top:4px">${insight.description}</div>
-            ${insight.affected_tickets ? `<div style="font-size:11px;margin-top:8px;opacity:0.6">${insight.affected_tickets.length} affected tickets</div>` : ''}
-          </div>
-          <div style="text-align:right">
-            ${insight.metrics?.count ? `<div style="font-size:24px;font-weight:800">${insight.metrics.count}</div><div style="font-size:11px;opacity:0.7">occurrences</div>` : ''}
+    listEl.innerHTML = insights.map(insight => {
+      const hasTickets = insight.affected_tickets && insight.affected_tickets.length > 0;
+      const ticketIds = hasTickets ? insight.affected_tickets.join(',') : '';
+      const clickAction = hasTickets ? `onclick="openTicketsFromInsight([${ticketIds}], '${(insight.title || '').replace(/'/g, "\\'")}')"` : '';
+      const cursorStyle = hasTickets ? 'cursor:pointer' : '';
+
+      return `
+        <div class="ai-trend-card ${insight.severity || 'info'}" ${clickAction} style="${cursorStyle};transition:all 0.2s" ${hasTickets ? 'onmouseover="this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 4px 12px rgba(0,0,0,0.3)\'" onmouseout="this.style.transform=\'\';this.style.boxShadow=\'\'"' : ''}>
+          <div class="row space">
+            <div style="flex:1">
+              <div style="font-weight:600;font-size:15px">${insight.title}</div>
+              <div style="font-size:13px;opacity:0.8;margin-top:4px">${insight.description}</div>
+              ${hasTickets ? `
+                <div style="margin-top:10px">
+                  <span style="background:rgba(255,255,255,0.2);padding:4px 10px;border-radius:12px;font-size:12px;font-weight:500">
+                    📋 ${insight.affected_tickets.length} ticket${insight.affected_tickets.length > 1 ? 's' : ''} - Click to view
+                  </span>
+                </div>
+              ` : ''}
+            </div>
+            <div style="text-align:right">
+              ${insight.metrics?.count ? `<div style="font-size:24px;font-weight:800">${insight.metrics.count}</div><div style="font-size:11px;opacity:0.7">occurrences</div>` : ''}
+            </div>
           </div>
         </div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
+  }
+
+  // Store current AI trends data for click-through
+  let currentAITrendsData = { insights: [] };
+
+  // View all tickets from all trends
+  function viewAllTrendTickets() {
+    const allTicketIds = [];
+    (currentAITrendsData.insights || []).forEach(insight => {
+      if (insight.affected_tickets && insight.affected_tickets.length > 0) {
+        allTicketIds.push(...insight.affected_tickets);
+      }
+    });
+
+    if (allTicketIds.length === 0) {
+      alert('No tickets associated with current trends');
+      return;
+    }
+
+    // Remove duplicates
+    const uniqueIds = [...new Set(allTicketIds)];
+    openTicketsFromInsight(uniqueIds, 'All Trend Tickets');
+  }
+
+  // View tickets filtered by severity
+  function viewTrendTicketsBySeverity(severity) {
+    const ticketIds = [];
+    (currentAITrendsData.insights || []).forEach(insight => {
+      if (insight.severity === severity && insight.affected_tickets && insight.affected_tickets.length > 0) {
+        ticketIds.push(...insight.affected_tickets);
+      }
+    });
+
+    if (ticketIds.length === 0) {
+      alert(`No tickets with ${severity} severity`);
+      return;
+    }
+
+    // Remove duplicates
+    const uniqueIds = [...new Set(ticketIds)];
+    const title = severity === 'critical' ? 'Critical Issue Tickets' : 'Warning Tickets';
+    openTicketsFromInsight(uniqueIds, title);
   }
 
   async function renderExperts(){
