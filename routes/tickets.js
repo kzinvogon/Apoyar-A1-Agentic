@@ -16,6 +16,9 @@ const {
 // AI-powered CMDB auto-linking (fire-and-forget)
 const { triggerAutoLink } = require('../scripts/auto-link-cmdb');
 
+// AI-powered KB article auto-generation (fire-and-forget)
+const { autoGenerateKBArticle } = require('../scripts/auto-generate-kb-article');
+
 // ========== PUBLIC ROUTES (NO AUTH) ==========
 // These routes must come BEFORE the verifyToken middleware
 
@@ -1049,6 +1052,19 @@ router.put('/:tenantId/:ticketId', writeOperationsLimiter, validateTicketUpdate,
             tenantCode: tenantCode
           }, 'resolved', { comment });
         }
+
+        // Fire-and-forget: Auto-generate KB article from resolved ticket
+        autoGenerateKBArticle(tenantCode, parseInt(ticketId), { userId: req.user.userId })
+          .then(result => {
+            if (result.success && result.articleId) {
+              console.log(`📚 KB article generated from ticket #${ticketId}: ${result.articleId}`);
+            } else if (result.skipped) {
+              console.log(`📚 KB article skipped for ticket #${ticketId}: ${result.reason}`);
+            }
+          })
+          .catch(err => {
+            console.error(`KB article generation failed for ticket #${ticketId}:`, err.message);
+          });
       } else if (status && status !== oldStatus) {
         await sendTicketNotificationEmail({
           ticket: tickets[0],
@@ -1159,6 +1175,9 @@ router.post('/:tenantId/bulk-action', writeOperationsLimiter, requireRole(['expe
               `UPDATE tickets SET status = ?, resolved_by = ?, resolved_at = NOW(), resolution_comment = ?, updated_at = NOW() WHERE id = ?`,
               [newStatus, req.user.userId, comment, ticketId]
             );
+            // Fire-and-forget: Auto-generate KB article from resolved ticket
+            autoGenerateKBArticle(tenantCode, parseInt(ticketId), { userId: req.user.userId })
+              .catch(err => console.error(`KB article generation failed for ticket #${ticketId}:`, err.message));
           } else {
             await connection.query(
               `UPDATE tickets SET status = ?, updated_at = NOW() WHERE id = ?`,
