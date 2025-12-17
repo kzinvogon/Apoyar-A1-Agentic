@@ -3214,15 +3214,25 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   }
 
   function showForgotPassword() {
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    document.getElementById('scr-forgot-password').classList.add('active');
+    document.querySelectorAll('.screen').forEach(s => {
+      s.classList.remove('active');
+      s.style.display = 'none';
+    });
+    const forgotScreen = document.getElementById('scr-forgot-password');
+    forgotScreen.classList.add('active');
+    forgotScreen.style.display = 'block';
     // Clear previous messages
     document.getElementById('forgot-message').style.display = 'none';
   }
 
   function backToLogin() {
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    document.getElementById('scr-login').classList.add('active');
+    document.querySelectorAll('.screen').forEach(s => {
+      s.classList.remove('active');
+      s.style.display = 'none';
+    });
+    const loginScreen = document.getElementById('scr-login');
+    loginScreen.classList.add('active');
+    loginScreen.style.display = 'block';
   }
 
   async function sendPasswordReset() {
