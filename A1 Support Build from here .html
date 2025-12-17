@@ -1191,15 +1191,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             </div>
           </div>
 
-          <!-- Active Insights / Alerts -->
-          <div class="card p-16 mb-16">
-            <h4 class="mb-12">🚨 Active Insights & Alerts</h4>
-            <div id="ai-insights-list">
-              <div class="subtitle">Loading insights...</div>
-            </div>
-          </div>
-
-          <!-- AI Performance Metrics -->
+          <!-- AI Performance Metrics - shown first -->
           <div class="grid4 mb-16">
             <div class="card p-16">
               <div class="subtitle">Tickets Analyzed</div>
@@ -1220,6 +1212,14 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               <div class="subtitle">AI CMDB Suggestions</div>
               <div id="ai-cmdb-suggestions-count" style="font-size:32px;font-weight:800;color:#9f7aea">0</div>
               <div class="subtitle" style="margin-top:4px">Pending review →</div>
+            </div>
+          </div>
+
+          <!-- Active Insights / Alerts -->
+          <div class="card p-16 mb-16">
+            <h4 class="mb-12">🚨 Active Insights & Alerts</h4>
+            <div id="ai-insights-list" style="max-height:400px;overflow-y:auto">
+              <div class="subtitle">Loading insights...</div>
             </div>
           </div>
 
