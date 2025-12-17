@@ -311,6 +311,7 @@ async function createTenantTables(connection, tenantCode) {
       country VARCHAR(100),
       timezone VARCHAR(50),
       language VARCHAR(50),
+      email_notifications_enabled TINYINT(1) DEFAULT 1,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     );
