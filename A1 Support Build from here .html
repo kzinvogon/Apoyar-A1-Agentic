@@ -1200,7 +1200,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           </div>
 
           <!-- AI Performance Metrics -->
-          <div class="grid3 mb-16">
+          <div class="grid4 mb-16">
             <div class="card p-16">
               <div class="subtitle">Tickets Analyzed</div>
               <div id="ai-tickets-analyzed" style="font-size:32px;font-weight:800;color:#667eea">0</div>
@@ -1215,6 +1215,11 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               <div class="subtitle">Processing Speed</div>
               <div id="ai-avg-time" style="font-size:32px;font-weight:800;color:#ed8936">--</div>
               <div class="subtitle" style="margin-top:4px">Average time per ticket</div>
+            </div>
+            <div class="card p-16" style="cursor:pointer;transition:all 0.2s" onclick="showCMDBSuggestionsModal()" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+              <div class="subtitle">AI CMDB Suggestions</div>
+              <div id="ai-cmdb-suggestions-count" style="font-size:32px;font-weight:800;color:#9f7aea">0</div>
+              <div class="subtitle" style="margin-top:4px">Pending review →</div>
             </div>
           </div>
 
@@ -9015,6 +9020,9 @@ async function displayAIInsights(data) {
     document.getElementById('ai-avg-time').textContent = !isNaN(avgTime) ? avgTime.toFixed(0) + 'ms' : '--';
   }
 
+  // Load AI CMDB suggestions count
+  loadCMDBSuggestionsCount();
+
   // Display sentiment chart
   if (data.sentiment && data.sentiment.distribution) {
     renderSentimentChart(data.sentiment.distribution);
@@ -9399,6 +9407,198 @@ async function dismissInsight(insightId) {
 // ADD TO THE nav() FUNCTION SWITCH STATEMENT:
 // case 'ai-insights': loadAIInsights(); break;
 // case 'ticket-rules': loadTicketRules(); break;
+
+// ============================================
+// AI CMDB SUGGESTIONS FUNCTIONS
+// ============================================
+
+let cmdbSuggestionsData = [];
+
+async function loadCMDBSuggestionsCount() {
+  const tenantCode = window.currentTenant || 'apoyar';
+  const token = localStorage.getItem('token');
+
+  try {
+    const url = window.location.protocol + '//' + window.location.host + `/api/ai/${tenantCode}/cmdb-suggestions`;
+    const response = await fetch(url, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      if (data.success) {
+        const countEl = document.getElementById('ai-cmdb-suggestions-count');
+        if (countEl) {
+          countEl.textContent = data.count || 0;
+          // Add visual indicator if there are pending suggestions
+          if (data.count > 0) {
+            countEl.style.color = '#9f7aea';
+          } else {
+            countEl.style.color = '#a0aec0';
+          }
+        }
+        cmdbSuggestionsData = data.suggestions || [];
+      }
+    }
+  } catch (error) {
+    console.error('Error loading CMDB suggestions count:', error);
+  }
+}
+
+async function showCMDBSuggestionsModal() {
+  const tenantCode = window.currentTenant || 'apoyar';
+  const token = localStorage.getItem('token');
+
+  // Load latest suggestions
+  try {
+    const url = window.location.protocol + '//' + window.location.host + `/api/ai/${tenantCode}/cmdb-suggestions?limit=50`;
+    const response = await fetch(url, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      cmdbSuggestionsData = data.suggestions || [];
+    }
+  } catch (error) {
+    console.error('Error loading CMDB suggestions:', error);
+  }
+
+  // Build modal content
+  let content = `
+    <div style="max-height:70vh;overflow-y:auto">
+      <p class="subtitle mb-16">AI has suggested these CMDB item links based on ticket content analysis. Review and approve or reject each suggestion.</p>
+  `;
+
+  if (cmdbSuggestionsData.length === 0) {
+    content += `
+      <div style="text-align:center;padding:40px;color:#a0aec0">
+        <div style="font-size:48px;margin-bottom:16px">✅</div>
+        <div style="font-size:18px;font-weight:600;margin-bottom:8px">No Pending Suggestions</div>
+        <div class="subtitle">All AI-suggested CMDB links have been reviewed.</div>
+      </div>
+    `;
+  } else {
+    content += `<div class="suggestions-list">`;
+    for (const suggestion of cmdbSuggestionsData) {
+      const confidenceColor = suggestion.confidence_score >= 90 ? '#48bb78' :
+                             suggestion.confidence_score >= 70 ? '#ed8936' : '#e53e3e';
+      content += `
+        <div class="card p-12 mb-12" id="suggestion-${suggestion.id}" style="border-left:4px solid ${confidenceColor}">
+          <div class="row space mb-8">
+            <div>
+              <div style="font-weight:600;color:var(--ink)">${escapeHtml(suggestion.asset_name)}</div>
+              <div class="subtitle" style="font-size:12px">${escapeHtml(suggestion.asset_category || 'N/A')} • ${escapeHtml(suggestion.cmdb_customer || 'No customer')}</div>
+            </div>
+            <div style="text-align:right">
+              <span class="badge" style="background:${confidenceColor};color:white">${suggestion.confidence_score}%</span>
+              <span class="badge" style="background:var(--bg);margin-left:4px">${suggestion.relationship_type}</span>
+            </div>
+          </div>
+          <div class="subtitle mb-8" style="font-size:12px">
+            <strong>Ticket #${suggestion.ticket_id}:</strong> ${escapeHtml((suggestion.ticket_title || '').substring(0, 60))}${suggestion.ticket_title && suggestion.ticket_title.length > 60 ? '...' : ''}
+          </div>
+          <div class="subtitle mb-12" style="font-size:11px;font-style:italic;color:#718096">
+            ${escapeHtml(suggestion.match_reason || 'AI-matched based on content analysis')}
+          </div>
+          <div class="row" style="gap:8px">
+            <button class="btn sm" style="background:#48bb78;color:white;border:none" onclick="approveCMDBSuggestion(${suggestion.id})">✓ Approve</button>
+            <button class="btn sm ghost" style="color:#e53e3e" onclick="rejectCMDBSuggestion(${suggestion.id})">✗ Reject</button>
+            <button class="btn sm ghost" onclick="viewTicket(${suggestion.ticket_id})">View Ticket</button>
+          </div>
+        </div>
+      `;
+    }
+    content += `</div>`;
+  }
+
+  content += `</div>`;
+
+  // Show modal
+  showModal('AI-Suggested CMDB Links', content, [
+    { label: 'Close', class: 'ghost', action: 'closeModal()' }
+  ]);
+}
+
+async function approveCMDBSuggestion(suggestionId) {
+  const tenantCode = window.currentTenant || 'apoyar';
+  const token = localStorage.getItem('token');
+
+  try {
+    const url = window.location.protocol + '//' + window.location.host + `/api/ai/${tenantCode}/cmdb-suggestions/${suggestionId}/approve`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      // Animate removal
+      const el = document.getElementById(`suggestion-${suggestionId}`);
+      if (el) {
+        el.style.transition = 'all 0.3s ease';
+        el.style.opacity = '0';
+        el.style.transform = 'translateX(20px)';
+        setTimeout(() => {
+          el.remove();
+          // Update count
+          loadCMDBSuggestionsCount();
+          // Check if list is now empty
+          const remainingCards = document.querySelectorAll('.suggestions-list .card');
+          if (remainingCards.length === 0) {
+            showCMDBSuggestionsModal(); // Refresh to show empty state
+          }
+        }, 300);
+      }
+    } else {
+      alert('Failed to approve suggestion: ' + (data.error || 'Unknown error'));
+    }
+  } catch (error) {
+    console.error('Error approving suggestion:', error);
+    alert('Error approving suggestion: ' + error.message);
+  }
+}
+
+async function rejectCMDBSuggestion(suggestionId) {
+  const tenantCode = window.currentTenant || 'apoyar';
+  const token = localStorage.getItem('token');
+
+  try {
+    const url = window.location.protocol + '//' + window.location.host + `/api/ai/${tenantCode}/cmdb-suggestions/${suggestionId}`;
+    const response = await fetch(url, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      // Animate removal
+      const el = document.getElementById(`suggestion-${suggestionId}`);
+      if (el) {
+        el.style.transition = 'all 0.3s ease';
+        el.style.opacity = '0';
+        el.style.transform = 'translateX(-20px)';
+        setTimeout(() => {
+          el.remove();
+          // Update count
+          loadCMDBSuggestionsCount();
+          // Check if list is now empty
+          const remainingCards = document.querySelectorAll('.suggestions-list .card');
+          if (remainingCards.length === 0) {
+            showCMDBSuggestionsModal(); // Refresh to show empty state
+          }
+        }, 300);
+      }
+    } else {
+      alert('Failed to reject suggestion: ' + (data.error || 'Unknown error'));
+    }
+  } catch (error) {
+    console.error('Error rejecting suggestion:', error);
+    alert('Error rejecting suggestion: ' + error.message);
+  }
+}
 
 // ============================================
 // TICKET PROCESSING RULES FUNCTIONS

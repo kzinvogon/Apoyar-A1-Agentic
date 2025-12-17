@@ -13,6 +13,9 @@ const {
   readOperationsLimiter
 } = require('../middleware/rateLimiter');
 
+// AI-powered CMDB auto-linking (fire-and-forget)
+const { triggerAutoLink } = require('../scripts/auto-link-cmdb');
+
 // ========== PUBLIC ROUTES (NO AUTH) ==========
 // These routes must come BEFORE the verifyToken middleware
 
@@ -690,7 +693,12 @@ router.post('/:tenantId', writeOperationsLimiter, validateTicketCreate, async (r
         customer_name: tickets[0].requester_name,
         tenantCode: tenantCode
       }, 'created', {});
-      
+
+      // Trigger AI-powered CMDB auto-linking (fire-and-forget)
+      if (description && description.trim().length > 10) {
+        triggerAutoLink(tenantCode, ticketId, req.user.userId);
+      }
+
       res.json({ success: true, ticket: tickets[0] });
     } finally {
       connection.release();
@@ -1063,6 +1071,12 @@ router.put('/:tenantId/:ticketId', writeOperationsLimiter, validateTicketUpdate,
           assignee_role: tickets[0].assignee_role,
           comment
         });
+      }
+
+      // Re-trigger AI CMDB auto-linking if a meaningful comment was added
+      // (fire-and-forget, won't block the response)
+      if (comment && comment.trim().length > 20) {
+        triggerAutoLink(tenantCode, parseInt(ticketId), req.user.userId);
       }
 
       res.json({ success: true, ticket: tickets[0] });
