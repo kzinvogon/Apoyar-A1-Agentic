@@ -237,7 +237,7 @@ vNext-FULL-ActionsSLA:
   </div>
 
   <!-- LOGIN -->
-  <section id="scr-login" class="screen active">
+  <section id="scr-login" class="screen active" style="display:block">
     <div class="card p-24" style="max-width:380px;margin:40px auto">
       <div style="text-align:center;margin-bottom:24px">
         <div style="width:48px;height:48px;margin:0 auto 14px;border-radius:12px;background:var(--logo-bg);display:flex;align-items:center;justify-content:center;transition:background .2s">
@@ -2611,9 +2611,14 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   // Check authentication and restore session on page load
   window.addEventListener('DOMContentLoaded', async function() {
-    // First ensure login screen is shown by default
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    document.getElementById('scr-login').classList.add('active');
+    // First ensure login screen is shown by default (with inline styles for extra security)
+    document.querySelectorAll('.screen').forEach(s => {
+      s.classList.remove('active');
+      s.style.display = 'none';
+    });
+    const loginScreen = document.getElementById('scr-login');
+    loginScreen.classList.add('active');
+    loginScreen.style.display = 'block';
     document.getElementById('topnav-right').style.display = 'none';
 
     // Check for existing valid session
