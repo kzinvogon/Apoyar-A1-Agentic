@@ -731,7 +731,7 @@ Provide JSON suggestions for efficient ticket handling.`
       `, [timeRangeHours]);
 
       categoryTrends.forEach(trend => {
-        const ticketIds = trend.ticket_ids ? trend.ticket_ids.split(',').map(id => parseInt(id)) : [];
+        const ticketIds = trend.ticket_ids ? trend.ticket_ids.split(',').map(id => parseInt(id)).filter(id => !isNaN(id) && id !== null) : [];
         insights.push({
           type: 'trend',
           title: `Recurring Issue: ${trend.ai_category}`,
@@ -754,7 +754,7 @@ Provide JSON suggestions for efficient ticket handling.`
       `);
 
       if (slaRisk[0].at_risk_count > 0) {
-        const ticketIds = slaRisk[0].ticket_ids ? slaRisk[0].ticket_ids.split(',').map(id => parseInt(id)) : [];
+        const ticketIds = slaRisk[0].ticket_ids ? slaRisk[0].ticket_ids.split(',').map(id => parseInt(id)).filter(id => !isNaN(id) && id !== null) : [];
         insights.push({
           type: 'alert',
           title: 'SLA Breach Risk',
@@ -778,7 +778,7 @@ Provide JSON suggestions for efficient ticket handling.`
       `, [timeRangeHours]);
 
       if (negativeSentiment[0].count >= 3) {
-        const ticketIds = negativeSentiment[0].ticket_ids ? negativeSentiment[0].ticket_ids.split(',').map(id => parseInt(id)) : [];
+        const ticketIds = negativeSentiment[0].ticket_ids ? negativeSentiment[0].ticket_ids.split(',').map(id => parseInt(id)).filter(id => !isNaN(id) && id !== null) : [];
         insights.push({
           type: 'recommendation',
           title: 'High Priority Tickets Need Attention',

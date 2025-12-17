@@ -205,7 +205,7 @@ vNext-FULL-ActionsSLA:
       </div>
       <div class="topnav-actions">
         <button class="topnav-btn ghost" onclick="switchRole()">Switch</button>
-        <button class="topnav-btn ghost" onclick="go('login')">Sign out</button>
+        <button class="topnav-btn ghost" onclick="logout()">Sign out</button>
       </div>
     </div>
     </div>
@@ -2599,11 +2599,78 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   // Error banner
   window.addEventListener('error', function(e) { const el=document.getElementById('err'); el.textContent='JavaScript error: ' + (e.message || e.error); el.style.display='block'; });
 
-  // Pre-fill login form from URL parameters
-  window.addEventListener('DOMContentLoaded', function() {
+  // Check authentication and restore session on page load
+  window.addEventListener('DOMContentLoaded', async function() {
+    // First ensure login screen is shown by default
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('scr-login').classList.add('active');
+    document.getElementById('topnav-right').style.display = 'none';
+
+    // Check for existing valid session
+    const token = localStorage.getItem('token');
+    const storedRole = localStorage.getItem('role');
+    const storedTenant = localStorage.getItem('tenantCode');
+
+    if (token && storedRole) {
+      try {
+        // Validate token by making a test API call
+        const tenantCode = storedTenant || 'apoyar';
+        const response = await fetch(`${API_BASE}/api/tickets/${tenantCode}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          // Token is valid - restore session
+          console.log('Valid session found, restoring...');
+          window.role = storedRole;
+          window.tenant = storedTenant;
+          role = storedRole;
+          tenant = storedTenant;
+
+          // Restore user info
+          const storedUser = localStorage.getItem('currentUser');
+          if (storedUser) {
+            try {
+              window.currentUser = JSON.parse(storedUser);
+            } catch (e) {}
+          }
+
+          // Update UI
+          document.getElementById('chip-role').textContent = storedRole === 'super_admin' ? 'Master Admin' : storedRole;
+          document.getElementById('tenant-chip').style.display = (storedRole === 'customer' || storedRole === 'super_admin') ? 'block' : 'none';
+          document.getElementById('chip-tenant').textContent = storedTenant || '—';
+
+          // Configure and show app
+          configureRole();
+          switchView('dash');
+          go('app');
+
+          // Load data
+          await fetchTicketsFromAPI();
+          renderAllDashboards();
+          loadRaiseFormOptions();
+        } else {
+          // Token invalid - clear and show login
+          console.log('Session expired, showing login...');
+          localStorage.removeItem('token');
+          localStorage.removeItem('role');
+          localStorage.removeItem('tenantCode');
+          localStorage.removeItem('currentUser');
+        }
+      } catch (error) {
+        console.error('Session validation failed:', error);
+        // On error, keep login screen visible
+      }
+    }
+
+    // Pre-fill login form from URL parameters
     const urlParams = new URLSearchParams(window.location.search);
     const username = urlParams.get('username');
-    const role = urlParams.get('role');
+    const urlRole = urlParams.get('role');
 
     // Pre-fill username if provided
     if (username) {
@@ -2615,11 +2682,11 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     }
 
     // Pre-fill role if provided
-    if (role) {
+    if (urlRole) {
       const roleField = document.getElementById('role');
       if (roleField) {
-        roleField.value = role;
-        console.log('Pre-filled role from URL parameter:', role);
+        roleField.value = urlRole;
+        console.log('Pre-filled role from URL parameter:', urlRole);
       }
     }
 
@@ -2850,12 +2917,17 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       
       if (data.success) {
         console.log('Login successful');
-        // Store token in localStorage for API calls
+        // Store session data in localStorage for API calls and session restoration
         localStorage.setItem('token', data.token);
+        localStorage.setItem('role', data.user.role);
+        localStorage.setItem('tenantCode', data.user.tenantCode || (role === 'customer' ? 'apoyar' : 'apoyar'));
+        localStorage.setItem('currentUser', JSON.stringify(data.user));
+        localStorage.setItem('username', data.user.username);
+
         // Set global variables
         window.currentUser = data.user;
         window.role = data.user.role;
-        window.tenant = data.user.tenant || (role === 'customer' ? 'apoyar' : null);
+        window.tenant = data.user.tenantCode || (role === 'customer' ? 'apoyar' : null);
         window.isMasterAdmin = data.user.role === 'super_admin';
         
         // Update UI
@@ -2886,7 +2958,32 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       errorDiv.style.display = 'block';
     }
   }
-  
+
+  // Logout function - clear session and return to login
+  function logout() {
+    // Clear all session data from localStorage
+    localStorage.removeItem('token');
+    localStorage.removeItem('role');
+    localStorage.removeItem('tenantCode');
+    localStorage.removeItem('currentUser');
+    localStorage.removeItem('username');
+
+    // Clear global variables
+    window.currentUser = null;
+    window.role = null;
+    window.tenant = null;
+    window.isMasterAdmin = false;
+
+    // Stop SLA interval
+    if (slaInterval) {
+      clearInterval(slaInterval);
+      slaInterval = null;
+    }
+
+    // Return to login screen
+    go('login');
+  }
+
   function showDemoCredentials() {
     const credentials = [
       'Demo Tenant:',
@@ -5323,13 +5420,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const companyFilter = document.getElementById('ticket-filter-company')?.value || '';
     const customerFilter = document.getElementById('ticket-filter-customer')?.value || '';
 
-    // Debug: Log filter state
-    if (window.insightTicketFilter && window.insightTicketFilter.length > 0) {
-      console.log('Filtering tickets by insight. Filter IDs:', window.insightTicketFilter);
-      console.log('Total tickets before filter:', ticketList.length);
-    }
-
-    return ticketList.filter(t => {
+    const result = ticketList.filter(t => {
       // Insight ticket filter (from AI Insights dashboard)
       if (window.insightTicketFilter && window.insightTicketFilter.length > 0) {
         // Convert both to numbers for comparison to handle string/number mismatch
@@ -5384,6 +5475,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
       return true;
     });
+
+    return result;
   }
 
   // Apply sorting to tickets
@@ -9047,8 +9140,6 @@ function escapeHtml(text) {
 
 // Open tickets from insight
 async function openTicketsFromInsight(ticketIds, insightTitle) {
-  console.log('Opening tickets from insight:', ticketIds);
-
   // Store the filter in window object BEFORE switching view
   window.insightTicketFilter = ticketIds;
   window.insightTitle = insightTitle || 'Insight Tickets';
@@ -9067,7 +9158,6 @@ async function openTicketsFromInsight(ticketIds, insightTitle) {
   loadFilterSettings('tickets');
 
   // Now render with the insight filter applied
-  console.log('Calling renderList with insightTicketFilter:', window.insightTicketFilter);
   await renderList();
 }
 
