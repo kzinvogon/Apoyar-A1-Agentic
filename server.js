@@ -38,6 +38,7 @@ const customerCompaniesRoutes = require('./routes/customer-companies');
 const ticketRulesRoutes = require('./routes/ticket-rules');
 const expertPermissionsRoutes = require('./routes/expert-permissions');
 const aiSuggestionsRoutes = require('./routes/ai-suggestions');
+const knowledgeBaseRoutes = require('./routes/knowledge-base');
 
 // Import email processor service
 const { startEmailProcessing } = require('./services/email-processor');
@@ -76,6 +77,7 @@ app.use('/api/customer-companies', customerCompaniesRoutes);
 app.use('/api/ticket-rules', ticketRulesRoutes);
 app.use('/api/expert-permissions', expertPermissionsRoutes);
 app.use('/api/ai', aiSuggestionsRoutes);
+app.use('/api/kb', knowledgeBaseRoutes);
 
 // Public routes (no authentication required) - Must be before authenticated routes
 app.use('/ticket', publicTicketRoutes);
@@ -199,6 +201,15 @@ async function startServer() {
           console.log('✅ Ticket-CMDB relations migration completed');
         } catch (migrationError) {
           console.warn(`⚠️  Warning: Ticket-CMDB migration:`, migrationError.message);
+        }
+
+        // Run Knowledge Base migration
+        try {
+          const { runMigration: runKBMigration } = require('./migrations/add-knowledge-base');
+          await runKBMigration('apoyar');
+          console.log('✅ Knowledge Base migration completed');
+        } catch (migrationError) {
+          console.warn(`⚠️  Warning: Knowledge Base migration:`, migrationError.message);
         }
 
         // Start email processing for apoyar tenant
