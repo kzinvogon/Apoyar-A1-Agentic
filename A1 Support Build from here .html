@@ -481,7 +481,7 @@ vNext-FULL-ActionsSLA:
                   <div class="card p-12" onclick="viewAllTrendTickets()" style="background:rgba(255,255,255,0.1);border:none;text-align:center;cursor:pointer;transition:all 0.2s" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform=''">
                     <div style="font-size:11px;opacity:0.7;text-transform:uppercase">Active Trends</div>
                     <div id="ai-trends-count" style="font-size:28px;font-weight:800">0</div>
-                    <div style="font-size:10px;opacity:0.5;margin-top:4px">Click to view all</div>
+                    <div id="ai-trends-tickets" style="font-size:10px;opacity:0.5;margin-top:4px">0 tickets affected</div>
                   </div>
                   <div class="card p-12" onclick="viewTrendTicketsBySeverity('critical')" style="background:rgba(255,99,71,0.2);border:none;text-align:center;cursor:pointer;transition:all 0.2s" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform=''">
                     <div style="font-size:11px;opacity:0.7;text-transform:uppercase">Critical Tickets</div>
@@ -6921,10 +6921,12 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     document.getElementById('ai-trends-count').textContent = insights.length;
 
     // Count unique tickets affected by severity (not insight count)
+    const allAffectedTickets = new Set();
     const criticalTickets = new Set();
     const warningTickets = new Set();
     insights.forEach(i => {
       if (i.affected_tickets && i.affected_tickets.length > 0) {
+        i.affected_tickets.forEach(t => allAffectedTickets.add(t));
         if (i.severity === 'critical') {
           i.affected_tickets.forEach(t => criticalTickets.add(t));
         } else if (i.severity === 'warning') {
@@ -6932,6 +6934,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         }
       }
     });
+
+    // Update all counts - show tickets affected for Active Trends
+    document.getElementById('ai-trends-tickets').textContent = `${allAffectedTickets.size} tickets affected`;
     document.getElementById('ai-critical-count').textContent = criticalTickets.size;
     document.getElementById('ai-warning-count').textContent = warningTickets.size;
     document.getElementById('ai-analyzed-count').textContent = ticketStats.total || 0;
