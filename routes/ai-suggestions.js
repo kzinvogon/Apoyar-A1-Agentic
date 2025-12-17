@@ -504,4 +504,211 @@ router.delete('/:tenantCode/tickets/:ticketId/cis/:ciId', async (req, res) => {
   }
 });
 
+// ============================================================================
+// AI CMDB AUTO-LINK MANAGEMENT ROUTES
+// ============================================================================
+
+// Get pending AI-suggested CMDB links count and list
+router.get('/:tenantCode/cmdb-suggestions', async (req, res) => {
+  try {
+    const { tenantCode } = req.params;
+    const { limit = 50 } = req.query;
+
+    // Verify user has access
+    if (req.user.tenantCode !== tenantCode && req.user.role !== 'super_admin') {
+      return res.status(403).json({ error: 'Access denied to this tenant' });
+    }
+
+    if (!['admin', 'expert'].includes(req.user.role)) {
+      return res.status(403).json({ error: 'Only experts and admins can view AI suggestions' });
+    }
+
+    const { getTenantConnection } = require('../config/database');
+    const connection = await getTenantConnection(tenantCode);
+
+    try {
+      // Get pending AI suggestions (not yet approved/rejected)
+      const [suggestions] = await connection.query(`
+        SELECT
+          tcm.id,
+          tcm.ticket_id,
+          tcm.cmdb_item_id,
+          tcm.relationship_type,
+          tcm.confidence_score,
+          tcm.match_reason,
+          tcm.created_at,
+          t.title as ticket_title,
+          t.status as ticket_status,
+          t.priority as ticket_priority,
+          ci.asset_name,
+          ci.asset_category,
+          ci.customer_name as cmdb_customer
+        FROM ticket_cmdb_items tcm
+        JOIN tickets t ON tcm.ticket_id = t.id
+        JOIN cmdb_items ci ON tcm.cmdb_item_id = ci.id
+        WHERE tcm.matched_by = 'ai'
+        ORDER BY tcm.created_at DESC
+        LIMIT ?
+      `, [parseInt(limit)]);
+
+      // Get count
+      const [countResult] = await connection.query(`
+        SELECT COUNT(*) as total
+        FROM ticket_cmdb_items
+        WHERE matched_by = 'ai'
+      `);
+
+      res.json({
+        success: true,
+        count: countResult[0].total,
+        suggestions
+      });
+
+    } finally {
+      connection.release();
+    }
+
+  } catch (error) {
+    console.error('Error getting AI suggestions:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get AI suggestions',
+      message: error.message
+    });
+  }
+});
+
+// Approve an AI-suggested CMDB link (convert to manual)
+router.post('/:tenantCode/cmdb-suggestions/:suggestionId/approve', async (req, res) => {
+  try {
+    const { tenantCode, suggestionId } = req.params;
+
+    // Verify user has access
+    if (req.user.tenantCode !== tenantCode && req.user.role !== 'super_admin') {
+      return res.status(403).json({ error: 'Access denied to this tenant' });
+    }
+
+    if (!['admin', 'expert'].includes(req.user.role)) {
+      return res.status(403).json({ error: 'Only experts and admins can approve suggestions' });
+    }
+
+    const { getTenantConnection } = require('../config/database');
+    const connection = await getTenantConnection(tenantCode);
+
+    try {
+      const [result] = await connection.query(`
+        UPDATE ticket_cmdb_items
+        SET matched_by = 'manual', created_by = ?
+        WHERE id = ? AND matched_by = 'ai'
+      `, [req.user.userId, suggestionId]);
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'Suggestion not found or already processed'
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'Suggestion approved and converted to manual link'
+      });
+
+    } finally {
+      connection.release();
+    }
+
+  } catch (error) {
+    console.error('Error approving suggestion:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to approve suggestion',
+      message: error.message
+    });
+  }
+});
+
+// Reject an AI-suggested CMDB link (delete it)
+router.delete('/:tenantCode/cmdb-suggestions/:suggestionId', async (req, res) => {
+  try {
+    const { tenantCode, suggestionId } = req.params;
+
+    // Verify user has access
+    if (req.user.tenantCode !== tenantCode && req.user.role !== 'super_admin') {
+      return res.status(403).json({ error: 'Access denied to this tenant' });
+    }
+
+    if (!['admin', 'expert'].includes(req.user.role)) {
+      return res.status(403).json({ error: 'Only experts and admins can reject suggestions' });
+    }
+
+    const { getTenantConnection } = require('../config/database');
+    const connection = await getTenantConnection(tenantCode);
+
+    try {
+      const [result] = await connection.query(`
+        DELETE FROM ticket_cmdb_items
+        WHERE id = ? AND matched_by = 'ai'
+      `, [suggestionId]);
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'Suggestion not found or already processed'
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'Suggestion rejected and removed'
+      });
+
+    } finally {
+      connection.release();
+    }
+
+  } catch (error) {
+    console.error('Error rejecting suggestion:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to reject suggestion',
+      message: error.message
+    });
+  }
+});
+
+// Trigger manual re-analysis of a ticket for CMDB links
+router.post('/:tenantCode/tickets/:ticketId/auto-link-cmdb', async (req, res) => {
+  try {
+    const { tenantCode, ticketId } = req.params;
+
+    // Verify user has access
+    if (req.user.tenantCode !== tenantCode && req.user.role !== 'super_admin') {
+      return res.status(403).json({ error: 'Access denied to this tenant' });
+    }
+
+    if (!['admin', 'expert'].includes(req.user.role)) {
+      return res.status(403).json({ error: 'Only experts and admins can trigger CMDB auto-linking' });
+    }
+
+    const { autoLinkCMDB } = require('../scripts/auto-link-cmdb');
+
+    // Run the auto-linking (synchronous in this case for immediate feedback)
+    const result = await autoLinkCMDB(tenantCode, parseInt(ticketId), {
+      forceReanalyze: true,
+      userId: req.user.userId
+    });
+
+    res.json(result);
+
+  } catch (error) {
+    console.error('Error triggering CMDB auto-link:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to trigger CMDB auto-linking',
+      message: error.message
+    });
+  }
+});
+
 module.exports = router;
