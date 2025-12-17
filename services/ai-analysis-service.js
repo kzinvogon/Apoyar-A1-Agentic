@@ -878,7 +878,17 @@ Provide JSON suggestions for efficient ticket handling.`
         WHERE t.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
       `, [period]);
 
+      // Get total tickets in period for ticketStats
+      const [ticketCount] = await connection.query(`
+        SELECT COUNT(*) as total FROM tickets
+        WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+      `, [period]);
+
       return {
+        ticketStats: {
+          total: ticketCount[0]?.total || 0,
+          analyzed: performance[0]?.total_analyzed || 0
+        },
         insights: insights.map(i => {
           let affectedTickets = [];
           let metrics = {};
