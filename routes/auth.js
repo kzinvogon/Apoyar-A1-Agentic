@@ -565,14 +565,6 @@ router.post('/tenant/forgot-password', passwordChangeLimiter, async (req, res) =
 
       const user = users[0];
 
-      // Only allow for customer and expert roles
-      if (!['customer', 'expert'].includes(user.role)) {
-        return res.json({
-          success: true,
-          message: 'If this email exists, you will receive password reset instructions shortly.'
-        });
-      }
-
       // Generate reset token
       const resetToken = crypto.randomBytes(32).toString('hex');
       const resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hour from now
@@ -584,7 +576,8 @@ router.post('/tenant/forgot-password', passwordChangeLimiter, async (req, res) =
       );
 
       // Send reset email
-      const resetLink = `http://localhost:3000/reset-password.html?token=${resetToken}&tenant=${tenant_code}`;
+      const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
+      const resetLink = `${baseUrl}/reset-password.html?token=${resetToken}&tenant=${tenant_code}`;
 
       try {
         await sendEmail(tenant_code, {
@@ -702,6 +695,189 @@ router.post('/tenant/reset-password-with-token', passwordChangeLimiter, async (r
     }
   } catch (error) {
     console.error('Error resetting password with token:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// Master user forgot password request
+router.post('/master/forgot-password', passwordChangeLimiter, async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Email is required' });
+    }
+
+    const connection = await getMasterConnection();
+
+    try {
+      // Find master user by email
+      const [users] = await connection.query(
+        'SELECT id, username, email, full_name FROM master_users WHERE email = ? AND is_active = TRUE',
+        [email]
+      );
+
+      // Always return success to prevent email enumeration
+      if (users.length === 0) {
+        return res.json({
+          success: true,
+          message: 'If this email exists, you will receive password reset instructions shortly.'
+        });
+      }
+
+      const user = users[0];
+
+      // Generate reset token
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      const resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hour from now
+
+      // Store reset token in database
+      await connection.query(
+        'UPDATE master_users SET reset_token = ?, reset_token_expiry = ? WHERE id = ?',
+        [resetToken, resetTokenExpiry, user.id]
+      );
+
+      // Send reset email
+      const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
+      const resetLink = `${baseUrl}/reset-password.html?token=${resetToken}&type=master`;
+
+      try {
+        // Use nodemailer directly for master users (no tenant context)
+        const nodemailer = require('nodemailer');
+        const transporter = nodemailer.createTransport({
+          service: 'gmail',
+          auth: {
+            user: process.env.SMTP_EMAIL,
+            pass: process.env.SMTP_PASSWORD
+          }
+        });
+
+        await transporter.sendMail({
+          from: process.env.SMTP_EMAIL,
+          to: email,
+          subject: 'Password Reset Request - ServiFlow Admin',
+          html: `
+            <h2>Password Reset Request</h2>
+            <p>Hello ${user.full_name || user.username},</p>
+            <p>You requested to reset your master admin password. Click the link below to reset it:</p>
+            <p><a href="${resetLink}">Reset Password</a></p>
+            <p>This link will expire in 1 hour.</p>
+            <p>If you didn't request this, please ignore this email.</p>
+            <br>
+            <p>Best regards,<br>ServiFlow Team</p>
+          `
+        });
+
+        console.log(`Master password reset email sent to ${email}`);
+      } catch (emailError) {
+        console.error('Error sending master password reset email:', emailError);
+        // Still return success to prevent email enumeration
+      }
+
+      res.json({
+        success: true,
+        message: 'If this email exists, you will receive password reset instructions shortly.'
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error in master forgot password:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// Master user reset password with token
+router.post('/master/reset-password-with-token', passwordChangeLimiter, async (req, res) => {
+  try {
+    const { token, new_password } = req.body;
+
+    if (!token || !new_password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Token and new password are required'
+      });
+    }
+
+    if (new_password.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password must be at least 8 characters long'
+      });
+    }
+
+    const connection = await getMasterConnection();
+
+    try {
+      // Find user by reset token
+      const [users] = await connection.query(
+        'SELECT id, username, email, reset_token_expiry FROM master_users WHERE reset_token = ? AND is_active = TRUE',
+        [token]
+      );
+
+      if (users.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid or expired reset token'
+        });
+      }
+
+      const user = users[0];
+
+      // Check if token is expired
+      if (new Date() > new Date(user.reset_token_expiry)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Reset token has expired. Please request a new password reset.'
+        });
+      }
+
+      // Hash new password
+      const newPasswordHash = await hashPassword(new_password);
+
+      // Update password and clear reset token
+      await connection.query(
+        'UPDATE master_users SET password_hash = ?, reset_token = NULL, reset_token_expiry = NULL, updated_at = NOW() WHERE id = ?',
+        [newPasswordHash, user.id]
+      );
+
+      // Send confirmation email
+      try {
+        const nodemailer = require('nodemailer');
+        const transporter = nodemailer.createTransport({
+          service: 'gmail',
+          auth: {
+            user: process.env.SMTP_EMAIL,
+            pass: process.env.SMTP_PASSWORD
+          }
+        });
+
+        await transporter.sendMail({
+          from: process.env.SMTP_EMAIL,
+          to: user.email,
+          subject: 'Password Successfully Reset - ServiFlow Admin',
+          html: `
+            <h2>Password Reset Successful</h2>
+            <p>Hello ${user.username},</p>
+            <p>Your master admin password has been successfully reset.</p>
+            <p>If you didn't make this change, please contact support immediately.</p>
+            <br>
+            <p>Best regards,<br>ServiFlow Team</p>
+          `
+        });
+      } catch (emailError) {
+        console.error('Error sending confirmation email:', emailError);
+      }
+
+      res.json({
+        success: true,
+        message: 'Password reset successfully. You can now login with your new password.'
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error resetting master password with token:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
