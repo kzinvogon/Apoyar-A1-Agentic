@@ -1821,7 +1821,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               <div id="customer-count" class="subtitle">Showing 0 customers</div>
             </div>
           </div>
-          <div class="card p-16"><table><thead><tr><th style="cursor:pointer" onclick="sortCustomersBy('name')">Name ⇅</th><th>Email</th><th>Company</th><th>Role</th><th style="width:80px;cursor:pointer" onclick="sortCustomersBy('tickets')"># Tickets ⇅</th><th>SLA</th><th style="width:180px">Actions</th></tr></thead><tbody id="customers-body"></tbody></table></div>
+          <div class="card p-16"><table><thead><tr><th style="cursor:pointer" onclick="sortCustomersBy('name')">Name ⇅</th><th>Email</th><th>Company</th><th>Role</th><th style="width:80px;cursor:pointer" onclick="sortCustomersBy('tickets')"># Tickets ⇅</th><th>SLA</th><th style="width:60px;text-align:center" title="Email Notifications">📧</th><th style="width:180px">Actions</th></tr></thead><tbody id="customers-body"></tbody></table></div>
         </div>
 
         <!-- Customer Form Modal -->
@@ -8031,7 +8031,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   async function renderCustomers(){
     const body=document.getElementById('customers-body');
     if(!body) return;
-    body.innerHTML='<tr><td colspan="6" style="text-align:center;">Loading...</td></tr>';
+    body.innerHTML='<tr><td colspan="8" style="text-align:center;">Loading...</td></tr>';
 
     // Load companies if not loaded
     if (allCustomerCompanies.length === 0) {
@@ -8123,7 +8123,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         // Render customers
         body.innerHTML='';
         if (filteredCustomers.length === 0) {
-          body.innerHTML='<tr><td colspan="7" style="text-align:center;">No customers found</td></tr>';
+          body.innerHTML='<tr><td colspan="8" style="text-align:center;">No customers found</td></tr>';
         } else {
           filteredCustomers.forEach(c=>{
             const tr=document.createElement('tr');
@@ -8133,6 +8133,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             const roleLabel = c.is_company_admin ? '👑 Admin' : (c.job_title || 'Team Member');
             const ticketCount = c.open_ticket_count || 0;
             const ticketStyle = ticketCount > 0 ? 'color:#2563eb;font-weight:600;cursor:pointer' : 'color:#6b7280';
+            const emailEnabled = c.email_notifications_enabled !== 0;
             tr.innerHTML=`
               <td style="${statusStyle}">${c.full_name || c.username}</td>
               <td style="${statusStyle}">${c.email || '-'}</td>
@@ -8140,6 +8141,12 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               <td style="${statusStyle};font-size:13px">${roleLabel}</td>
               <td style="${statusStyle};${ticketStyle}" ${ticketCount > 0 ? `onclick="viewCustomerTickets(${c.id}, '${(c.full_name || c.username).replace(/'/g, "\\'")}')"` : ''}>${ticketCount}</td>
               <td style="${statusStyle};color:${slaColor};font-weight:600;text-transform:capitalize">${c.sla_level || 'basic'}</td>
+              <td style="text-align:center">
+                <input type="checkbox" ${emailEnabled ? 'checked' : ''} ${!isActive ? 'disabled' : ''}
+                  onchange="toggleCustomerEmailNotifications(${c.id}, this.checked)"
+                  title="${emailEnabled ? 'Email notifications enabled' : 'Email notifications disabled'}"
+                  style="width:18px;height:18px;cursor:${isActive ? 'pointer' : 'not-allowed'}">
+              </td>
               <td>
                 <button class="btn ghost" onclick="editCustomer(${c.id})" style="padding:4px 8px;font-size:13px" ${!isActive ? 'disabled' : ''}>Edit</button>
                 ${isActive
@@ -8152,11 +8159,11 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           });
         }
       } else {
-        body.innerHTML='<tr><td colspan="7" style="text-align:center;color:red;">Failed to load customers</td></tr>';
+        body.innerHTML='<tr><td colspan="8" style="text-align:center;color:red;">Failed to load customers</td></tr>';
       }
     } catch (error) {
       console.error('Error loading customers:', error);
-      body.innerHTML='<tr><td colspan="7" style="text-align:center;color:red;">Error loading customers</td></tr>';
+      body.innerHTML='<tr><td colspan="8" style="text-align:center;color:red;">Error loading customers</td></tr>';
     }
   }
 
@@ -8183,6 +8190,41 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         renderList();
       }
     }, 500);
+  }
+
+  // Toggle email notifications for a customer
+  async function toggleCustomerEmailNotifications(customerId, enabled) {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE}/api/customers/${customerId}/email-notifications`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ enabled: enabled })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        showToast(data.message, 'success');
+        // Update local cache
+        const customer = allCustomers.find(c => c.id === customerId);
+        if (customer) {
+          customer.email_notifications_enabled = enabled ? 1 : 0;
+        }
+      } else {
+        showToast(data.message || 'Failed to update email notifications', 'error');
+        // Revert checkbox state on failure
+        renderCustomers();
+      }
+    } catch (error) {
+      console.error('Error toggling email notifications:', error);
+      showToast('Error updating email notifications', 'error');
+      // Revert checkbox state on error
+      renderCustomers();
+    }
   }
 
   function showCreateCustomerForm() {

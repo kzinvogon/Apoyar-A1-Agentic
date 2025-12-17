@@ -28,6 +28,29 @@ async function isEmailSendingEnabled(tenantCode) {
   }
 }
 
+// Helper function to check if email notifications are enabled for a specific user
+async function isUserEmailNotificationsEnabled(tenantCode, userEmail) {
+  try {
+    const connection = await getTenantConnection(tenantCode);
+    try {
+      const [users] = await connection.query(
+        'SELECT email_notifications_enabled FROM users WHERE email = ?',
+        [userEmail]
+      );
+      // Default to enabled if user not found or column is null
+      if (users.length === 0) return true;
+      // If column doesn't exist or is null, default to enabled
+      if (users[0].email_notifications_enabled === undefined || users[0].email_notifications_enabled === null) return true;
+      return users[0].email_notifications_enabled === 1;
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error checking user email notification setting:', error);
+    return true; // Default to enabled if check fails
+  }
+}
+
 if (smtpEmail && smtpPassword && smtpEmail !== 'your-email@gmail.com' && smtpPassword !== 'your-app-password') {
   transporter = nodemailer.createTransport({
     service: 'gmail',
@@ -76,6 +99,16 @@ async function sendTicketNotificationEmail(ticketData, action, details = {}) {
     if (!customer_email) {
       console.log('⚠️  Skipping email - no customer email found for ticket', ticket.id);
       return { success: false, message: 'No customer email' };
+    }
+
+    // Check if user has email notifications enabled
+    if (tenantCode) {
+      const userEmailEnabled = await isUserEmailNotificationsEnabled(tenantCode, customer_email);
+      if (!userEmailEnabled) {
+        console.log('🔕 Email notifications disabled for user:', customer_email);
+        console.log('📧 Would have sent email for:', action, 'to:', customer_email);
+        return { success: false, message: 'User email notifications disabled' };
+      }
     }
 
     // Generate secure access token for ticket
@@ -285,7 +318,17 @@ async function sendEmail(tenantCode, options) {
       }
     }
 
-    const { to, subject, html } = options;
+    const { to, subject, html, skipUserCheck } = options;
+
+    // Check if user has email notifications enabled (unless skipped)
+    if (tenantCode && to && !skipUserCheck) {
+      const userEmailEnabled = await isUserEmailNotificationsEnabled(tenantCode, to);
+      if (!userEmailEnabled) {
+        console.log('🔕 Email notifications disabled for user:', to);
+        console.log('📧 Would have sent email to:', to, 'Subject:', subject);
+        return { success: false, message: 'User email notifications disabled' };
+      }
+    }
 
     if (!to || !subject || !html) {
       throw new Error('Missing required email parameters: to, subject, html');

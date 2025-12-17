@@ -94,6 +94,7 @@ router.get('/', requireRole(['admin', 'expert']), readOperationsLimiter, async (
       let query = `
         SELECT
           u.id, u.username, u.email, u.full_name, u.role, u.is_active,
+          u.email_notifications_enabled,
           c.id as customer_id, c.company_name, c.company_domain,
           c.contact_phone, c.address, c.sla_level,
           c.customer_company_id, c.is_company_admin, c.job_title,
@@ -137,6 +138,7 @@ router.get('/:id', requireRole(['admin', 'expert']), readOperationsLimiter, asyn
       const [customers] = await connection.query(`
         SELECT
           u.id, u.username, u.email, u.full_name, u.role, u.is_active,
+          u.email_notifications_enabled,
           c.id as customer_id, c.company_name, c.company_domain,
           c.contact_phone, c.address, c.sla_level,
           c.customer_company_id, c.is_company_admin, c.job_title,
@@ -304,7 +306,8 @@ router.put('/:id', requireRole(['admin', 'expert']), writeOperationsLimiter, val
       company_domain,
       contact_phone,
       address,
-      sla_level
+      sla_level,
+      email_notifications_enabled
     } = req.body;
 
     const connection = await getTenantConnection(tenantCode);
@@ -334,6 +337,10 @@ router.put('/:id', requireRole(['admin', 'expert']), writeOperationsLimiter, val
       if (full_name !== undefined) {
         userUpdates.push('full_name = ?');
         userValues.push(full_name);
+      }
+      if (email_notifications_enabled !== undefined) {
+        userUpdates.push('email_notifications_enabled = ?');
+        userValues.push(email_notifications_enabled ? 1 : 0);
       }
 
       if (userUpdates.length > 0) {
@@ -431,6 +438,53 @@ router.put('/:id', requireRole(['admin', 'expert']), writeOperationsLimiter, val
     }
   } catch (error) {
     console.error('Error updating customer:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// Toggle email notifications for a customer
+router.patch('/:id/email-notifications', requireRole(['admin', 'expert']), writeOperationsLimiter, async (req, res) => {
+  try {
+    const { tenantCode } = req.user;
+    const { id } = req.params;
+    const { enabled } = req.body;
+
+    if (enabled === undefined) {
+      return res.status(400).json({ success: false, message: 'enabled field is required' });
+    }
+
+    const connection = await getTenantConnection(tenantCode);
+
+    try {
+      // Verify customer exists
+      const [existing] = await connection.query(
+        'SELECT id, email, full_name, email_notifications_enabled FROM users WHERE id = ? AND role = "customer"',
+        [id]
+      );
+
+      if (existing.length === 0) {
+        return res.status(404).json({ success: false, message: 'Customer not found' });
+      }
+
+      // Update the setting
+      await connection.query(
+        'UPDATE users SET email_notifications_enabled = ?, updated_at = NOW() WHERE id = ?',
+        [enabled ? 1 : 0, id]
+      );
+
+      const status = enabled ? 'enabled' : 'disabled';
+      console.log(`Email notifications ${status} for customer ${existing[0].email} (ID: ${id})`);
+
+      res.json({
+        success: true,
+        message: `Email notifications ${status} for ${existing[0].full_name || existing[0].email}`,
+        email_notifications_enabled: enabled
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error toggling email notifications:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });

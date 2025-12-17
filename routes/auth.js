@@ -551,7 +551,7 @@ router.post('/tenant/forgot-password', passwordChangeLimiter, async (req, res) =
     try {
       // Find user by email
       const [users] = await connection.query(
-        'SELECT id, username, email, full_name, role FROM users WHERE email = ? AND is_active = TRUE',
+        'SELECT id, username, email, full_name, role, email_notifications_enabled FROM users WHERE email = ? AND is_active = TRUE',
         [email]
       );
 
@@ -564,6 +564,15 @@ router.post('/tenant/forgot-password', passwordChangeLimiter, async (req, res) =
       }
 
       const user = users[0];
+
+      // Check if email notifications are enabled for this user
+      if (user.email_notifications_enabled === 0) {
+        console.log(`Password reset blocked for ${email} - email notifications disabled`);
+        return res.json({
+          success: true,
+          message: 'If this email exists, you will receive password reset instructions shortly.'
+        });
+      }
 
       // Generate reset token
       const resetToken = crypto.randomBytes(32).toString('hex');
