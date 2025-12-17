@@ -212,6 +212,15 @@ async function startServer() {
           console.warn(`⚠️  Warning: Knowledge Base migration:`, migrationError.message);
         }
 
+        // Run email notifications column migration
+        try {
+          const { runMigration: runEmailNotificationsMigration } = require('./migrations/add-email-notifications-column');
+          await runEmailNotificationsMigration('apoyar');
+          console.log('✅ Email notifications column migration completed');
+        } catch (migrationError) {
+          console.warn(`⚠️  Warning: Email notifications migration:`, migrationError.message);
+        }
+
         // Start email processing for apoyar tenant
         try {
           await startEmailProcessing('apoyar');
