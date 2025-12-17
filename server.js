@@ -93,6 +93,11 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'A1 Support Build from here .html'));
 });
 
+// Login route - redirect to main app (login screen is shown by default in SPA)
+app.get('/login', (req, res) => {
+  res.redirect('/');
+});
+
 // Ticket view route - serves HTML for email links
 app.get('/ticket/:id', (req, res) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -107,7 +112,10 @@ app.get('/health', (req, res) => {
     status: 'OK',
     message: 'ServiFlow Support Platform is running',
     timestamp: new Date().toISOString(),
+    version: '2.1.0-auth-fix',
+    deployedAt: process.env.RAILWAY_DEPLOYMENT_ID || 'local',
     database: dbStatus.initialized ? 'connected' : (dbStatus.error || 'initializing'),
+    authRequired: true,
     features: [
       'Multi-tenant MySQL backend',
       'Master admin system',
