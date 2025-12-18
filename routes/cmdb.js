@@ -42,6 +42,48 @@ router.use(verifyToken);
 // CMDB ITEMS ROUTES
 // ============================================================================
 
+// Diagnostic endpoint for CMDB data
+router.get('/:tenantCode/diagnostic', async (req, res) => {
+  try {
+    const { tenantCode } = req.params;
+    const connection = await getTenantConnection(tenantCode);
+
+    try {
+      const [cmdbCount] = await connection.query('SELECT COUNT(*) as count FROM cmdb_items');
+      const [ciCount] = await connection.query('SELECT COUNT(*) as count FROM configuration_items');
+      const [orphanedCIs] = await connection.query(`
+        SELECT COUNT(*) as count FROM configuration_items ci
+        LEFT JOIN cmdb_items cm ON ci.cmdb_item_id = cm.id
+        WHERE cm.id IS NULL
+      `);
+      const [cmdbSample] = await connection.query('SELECT id, cmdb_id, asset_name, customer_name FROM cmdb_items LIMIT 5');
+      const [ciSample] = await connection.query('SELECT id, ci_id, ci_name, cmdb_item_id FROM configuration_items LIMIT 5');
+      const [ciByParent] = await connection.query(`
+        SELECT cm.id, cm.cmdb_id, cm.asset_name, COUNT(ci.id) as ci_count
+        FROM cmdb_items cm
+        LEFT JOIN configuration_items ci ON ci.cmdb_item_id = cm.id
+        GROUP BY cm.id, cm.cmdb_id, cm.asset_name
+        LIMIT 10
+      `);
+
+      res.json({
+        success: true,
+        cmdb_items_total: cmdbCount[0].count,
+        configuration_items_total: ciCount[0].count,
+        orphaned_cis: orphanedCIs[0].count,
+        cmdb_sample: cmdbSample,
+        ci_sample: ciSample,
+        ci_count_by_parent: ciByParent
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('CMDB diagnostic error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // Get all CMDB items for a tenant
 router.get('/:tenantCode/items', async (req, res) => {
   try {
