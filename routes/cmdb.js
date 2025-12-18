@@ -35,6 +35,30 @@ admin,Example Laptop,Hardware,Username,jsmith,Lenovo,ThinkPad X1,John Smith,Sale
   res.send(template);
 });
 
+// Clear all CMDB data endpoint (public - for fixing import issues)
+router.delete('/:tenantCode/clear-all', async (req, res) => {
+  try {
+    const { tenantCode } = req.params;
+    const connection = await getTenantConnection(tenantCode);
+
+    try {
+      // Delete CIs first (foreign key constraint)
+      const [ciResult] = await connection.query('DELETE FROM configuration_items');
+      const [cmdbResult] = await connection.query('DELETE FROM cmdb_items');
+
+      res.json({
+        success: true,
+        message: `Cleared ${cmdbResult.affectedRows} CMDB items and ${ciResult.affectedRows} configuration items`
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error clearing CMDB:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // Diagnostic endpoint for CMDB data (public - no auth required)
 router.get('/:tenantCode/diagnostic', async (req, res) => {
   try {
@@ -562,16 +586,18 @@ router.post('/:tenantCode/import/items', upload.single('file'), async (req, res)
             // Support both old format (asset_name) and new format (AssetName)
             const assetName = row['AssetName'] || row['AssetName*'] || row.asset_name;
             const assetCategory = row['Asset Category'] || row['Asset Category*'] || row.asset_category;
-            const fieldName = row['Asset Category FieldName'] || row['Asset Category FieldName*'];
+            // Field name can come from 'Asset Category FieldName' OR 'Model Name' column
+            const fieldName = row['Asset Category FieldName'] || row['Asset Category FieldName*'] || row['Model Name'] || row.model_name;
             const fieldValue = row['Field Value'] || row.category_field_value;
             const brandName = row['Brand Name'] || row.brand_name;
-            const modelName = row['Model Name'] || row.model_name;
+            // Only use Model Name as model if Asset Category FieldName exists (otherwise it's the field name)
+            const modelName = (row['Asset Category FieldName'] || row['Asset Category FieldName*']) ? (row['Model Name'] || row.model_name) : null;
             const customerName = row['Customer Name'] || row.customer_name;
             const employeeOf = row['Employee of'] || row.employee_of;
             const assetLocation = row['Asset Location'] || row.asset_location;
             const comment = row['Comment'] || row.comment;
-            const createdDateTime = row['CreatedDateTime'];
-            const softwareInventory = row['Software Inventory'];
+            const createdDateTime = row['CreatedDateTime'] || row['CreatedDate'];
+            const softwareInventory = row['Software Inventory'] || row['Software inventory'];
 
             // Validate required fields
             if (!assetName || !assetCategory) {
