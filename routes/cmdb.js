@@ -35,14 +35,7 @@ admin,Example Laptop,Hardware,Username,jsmith,Lenovo,ThinkPad X1,John Smith,Sale
   res.send(template);
 });
 
-// Apply verifyToken middleware to all protected CMDB routes
-router.use(verifyToken);
-
-// ============================================================================
-// CMDB ITEMS ROUTES
-// ============================================================================
-
-// Diagnostic endpoint for CMDB data
+// Diagnostic endpoint for CMDB data (public - no auth required)
 router.get('/:tenantCode/diagnostic', async (req, res) => {
   try {
     const { tenantCode } = req.params;
@@ -83,6 +76,13 @@ router.get('/:tenantCode/diagnostic', async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 });
+
+// Apply verifyToken middleware to all protected CMDB routes
+router.use(verifyToken);
+
+// ============================================================================
+// CMDB ITEMS ROUTES
+// ============================================================================
 
 // Get all CMDB items for a tenant
 router.get('/:tenantCode/items', async (req, res) => {
