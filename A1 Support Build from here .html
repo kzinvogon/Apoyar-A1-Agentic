@@ -2033,7 +2033,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           <div class="card p-16">
             <div id="cmdb-loading" style="text-align:center;padding:40px;color:var(--muted);">Loading CMDB items...</div>
             <table id="cmdb-table" style="display:none">
-              <thead><tr><th style="width:180px">Customer</th><th>Asset Name</th><th>Category</th><th>Brand/Model</th><th style="width:60px">CIs</th><th style="width:120px"><div style="display:flex;align-items:center;gap:4px;font-size:12px;">Tickets<button class="btn ghost" style="padding:2px 6px;font-size:10px;" id="cmdbTicketToggle" onclick="toggleCMDBTicketMode()">All</button></div></th><th style="width:100px"></th></tr></thead>
+              <thead><tr><th style="width:180px;cursor:pointer" onclick="cmdbSort('customer_name')">Customer <span id="cmdb-sort-customer_name"></span></th><th style="cursor:pointer" onclick="cmdbSort('asset_name')">Asset Name <span id="cmdb-sort-asset_name">▲</span></th><th style="cursor:pointer" onclick="cmdbSort('asset_category')">Category <span id="cmdb-sort-asset_category"></span></th><th style="cursor:pointer" onclick="cmdbSort('brand_name')">Brand/Model <span id="cmdb-sort-brand_name"></span></th><th style="width:60px">CIs</th><th style="width:120px"><div style="display:flex;align-items:center;gap:4px;font-size:12px;">Tickets<button class="btn ghost" style="padding:2px 6px;font-size:10px;" id="cmdbTicketToggle" onclick="toggleCMDBTicketMode()">All</button></div></th><th style="width:100px"></th></tr></thead>
               <tbody id="cmdb-body"></tbody>
             </table>
             <div id="cmdb-empty" style="display:none;text-align:center;padding:40px;color:var(--muted);">
@@ -2137,14 +2137,14 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             <div id="cmdb-mgmt-loading" style="text-align:center;padding:40px;color:var(--muted);">Loading CMDB items...</div>
             <table id="cmdb-mgmt-table" style="display:none">
               <thead><tr>
-                <th>Asset Name</th>
-                <th>Category</th>
-                <th>Brand/Model</th>
-                <th>Customer</th>
-                <th>Location</th>
+                <th style="cursor:pointer" onclick="cmdbMgmtSort('asset_name')">Asset Name <span id="cmdb-mgmt-sort-asset_name"></span></th>
+                <th style="cursor:pointer" onclick="cmdbMgmtSort('asset_category')">Category <span id="cmdb-mgmt-sort-asset_category"></span></th>
+                <th style="cursor:pointer" onclick="cmdbMgmtSort('brand_name')">Brand/Model <span id="cmdb-mgmt-sort-brand_name"></span></th>
+                <th style="cursor:pointer" onclick="cmdbMgmtSort('customer_name')">Customer <span id="cmdb-mgmt-sort-customer_name"></span></th>
+                <th style="cursor:pointer" onclick="cmdbMgmtSort('asset_location')">Location <span id="cmdb-mgmt-sort-asset_location"></span></th>
                 <th style="width:60px">CIs</th>
                 <th style="width:120px"><div style="display:flex;align-items:center;gap:4px;font-size:12px;">Tickets<button class="btn ghost" style="padding:2px 6px;font-size:10px;" id="cmdbMgmtTicketToggle" onclick="cmdbMgmtToggleTicketMode()">All</button></div></th>
-                <th style="width:80px">Status</th>
+                <th style="cursor:pointer;width:80px" onclick="cmdbMgmtSort('status')">Status <span id="cmdb-mgmt-sort-status"></span></th>
                 <th style="width:180px">Actions</th>
               </tr></thead>
               <tbody id="cmdb-mgmt-body"></tbody>
@@ -8641,6 +8641,22 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   // ---- CMDB ----
   window.cmdbTicketMode = window.cmdbTicketMode || 'all';
+  let cmdbSortField = 'asset_name';
+  let cmdbSortDir = 'asc';
+
+  function cmdbSort(field) {
+    if (cmdbSortField === field) {
+      cmdbSortDir = cmdbSortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      cmdbSortField = field;
+      cmdbSortDir = 'asc';
+    }
+    ['customer_name','asset_name','asset_category','brand_name'].forEach(f => {
+      const el = document.getElementById('cmdb-sort-' + f);
+      if (el) el.textContent = f === cmdbSortField ? (cmdbSortDir === 'asc' ? '▲' : '▼') : '';
+    });
+    renderCMDB();
+  }
 
   function toggleCMDBTicketMode() {
     window.cmdbTicketMode = window.cmdbTicketMode === 'all' ? 'open' : 'all';
@@ -8684,6 +8700,21 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       const assetName = i.asset_name || i.name || '';
       return (!custFilter || customerName===custFilter) &&
              (!q || assetName.toLowerCase().includes(q) || customerName.toLowerCase().includes(q));
+    });
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      let aVal = a[cmdbSortField] || a.customer || a.name || '';
+      let bVal = b[cmdbSortField] || b.customer || b.name || '';
+      if (cmdbSortField === 'brand_name') {
+        aVal = [a.brand_name, a.model_name].filter(Boolean).join(' ');
+        bVal = [b.brand_name, b.model_name].filter(Boolean).join(' ');
+      }
+      aVal = String(aVal).toLowerCase();
+      bVal = String(bVal).toLowerCase();
+      if (aVal < bVal) return cmdbSortDir === 'asc' ? -1 : 1;
+      if (aVal > bVal) return cmdbSortDir === 'asc' ? 1 : -1;
+      return 0;
     });
 
     if(loading) loading.style.display='none';
@@ -8771,6 +8802,23 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   let CMDB_MGMT_ITEMS = [];
   let CMDB_MGMT_CURRENT_ID = null;
   window.cmdbMgmtTicketMode = 'all';
+  let cmdbMgmtSortField = 'asset_name';
+  let cmdbMgmtSortDir = 'asc';
+
+  function cmdbMgmtSort(field) {
+    if (cmdbMgmtSortField === field) {
+      cmdbMgmtSortDir = cmdbMgmtSortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      cmdbMgmtSortField = field;
+      cmdbMgmtSortDir = 'asc';
+    }
+    // Update sort indicators
+    ['asset_name','asset_category','brand_name','customer_name','asset_location','status'].forEach(f => {
+      const el = document.getElementById('cmdb-mgmt-sort-' + f);
+      if (el) el.textContent = f === cmdbMgmtSortField ? (cmdbMgmtSortDir === 'asc' ? '▲' : '▼') : '';
+    });
+    cmdbMgmtRender();
+  }
 
   function cmdbMgmtToggleTicketMode() {
     window.cmdbMgmtTicketMode = window.cmdbMgmtTicketMode === 'all' ? 'open' : 'all';
@@ -8827,6 +8875,21 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       const matchCat = !catFilter || i.asset_category === catFilter;
       const matchCust = !custFilter || i.customer_name === custFilter;
       return matchSearch && matchCat && matchCust;
+    });
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      let aVal = a[cmdbMgmtSortField] || '';
+      let bVal = b[cmdbMgmtSortField] || '';
+      if (cmdbMgmtSortField === 'brand_name') {
+        aVal = [a.brand_name, a.model_name].filter(Boolean).join(' ');
+        bVal = [b.brand_name, b.model_name].filter(Boolean).join(' ');
+      }
+      aVal = String(aVal).toLowerCase();
+      bVal = String(bVal).toLowerCase();
+      if (aVal < bVal) return cmdbMgmtSortDir === 'asc' ? -1 : 1;
+      if (aVal > bVal) return cmdbMgmtSortDir === 'asc' ? 1 : -1;
+      return 0;
     });
 
     if(loading) loading.style.display = 'none';
