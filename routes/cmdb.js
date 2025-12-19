@@ -573,13 +573,16 @@ router.post('/:tenantCode/import/items', upload.single('file'), async (req, res)
     // Key: AssetName, Value: { asset info, fields: [{field_name, field_value}] }
     const assetMap = new Map();
 
+    // Debug info to return in response
+    const debugInfo = {};
+
     try {
       // Parse CSV - detect delimiter (tab or comma)
       const fileContent = req.file.buffer.toString();
       const firstLine = fileContent.split('\n')[0];
       const delimiter = firstLine.includes('\t') ? '\t' : ',';
-      console.log(`CMDB Import: Detected delimiter: ${delimiter === '\t' ? 'TAB' : 'COMMA'}`);
-      console.log(`CMDB Import: First line columns: ${firstLine.substring(0, 200)}`);
+      debugInfo.delimiter = delimiter === '\t' ? 'TAB' : 'COMMA';
+      debugInfo.firstLinePreview = firstLine.substring(0, 300);
 
       const stream = Readable.from(fileContent);
 
@@ -595,10 +598,17 @@ router.post('/:tenantCode/import/items', upload.single('file'), async (req, res)
               row[key.trim()] = typeof value === 'string' ? value.trim() : value;
             }
 
-            // Log first row for debugging
+            // Capture first row for debugging
             if (lineNumber === 2) {
-              console.log('CMDB Import: First data row keys:', Object.keys(row));
-              console.log('CMDB Import: First data row sample:', JSON.stringify(row).substring(0, 500));
+              debugInfo.columnNames = Object.keys(row);
+              debugInfo.firstRowSample = {
+                AssetName: row['AssetName'],
+                'Asset Category': row['Asset Category'],
+                'Customer Name': row['Customer Name'],
+                'Asset Location': row['Asset Location'],
+                'Model Name': row['Model Name'],
+                'Field Value': row['Field Value']
+              };
             }
 
             // Support both old format (asset_name) and new format (AssetName)
@@ -785,7 +795,8 @@ router.post('/:tenantCode/import/items', upload.single('file'), async (req, res)
         assets_updated: assetUpdated,
         configuration_items_imported: ciCount,
         total_csv_rows: lineNumber - 1,
-        errors: errors.length > 0 ? errors : undefined
+        errors: errors.length > 0 ? errors : undefined,
+        debug: debugInfo
       });
     } finally {
       connection.release();
