@@ -357,7 +357,7 @@ vNext-FULL-ActionsSLA:
           <div class="navlink" data-target="customers" onclick="nav(this)">🧑‍💼 Manage Customers</div>
           <div class="navlink" data-target="cmdb" onclick="nav(this)">🗃️ CMDB</div>
           <div class="navlink" data-target="manage-cmdb" onclick="nav(this)">⚙️ Manage CMDB Types</div>
-          <div class="navlink" onclick="window.open('/public/cmdb-management.html', '_blank')">📦 CMDB Management</div>
+          <div class="navlink" data-target="cmdb-mgmt" onclick="nav(this)">📦 CMDB Management</div>
           <div class="navlink" data-target="analytics" onclick="nav(this)">📈 Analytics</div>
           <div class="navlink" data-target="ai-insights" onclick="nav(this)">🤖 AI Insights</div>
           <div class="navlink" data-target="ticket-rules" onclick="nav(this)">⚙️ Ticket Rules</div>
@@ -374,7 +374,7 @@ vNext-FULL-ActionsSLA:
           <div class="navlink" data-target="knowledge-base" onclick="nav(this)">📚 Knowledge Base</div>
           <div class="navlink" data-target="cmdb" onclick="nav(this)">🗃️ CMDB</div>
           <div class="navlink" data-target="manage-cmdb" onclick="nav(this)">⚙️ Manage CMDB Types</div>
-          <div class="navlink" onclick="window.open('/public/cmdb-management.html', '_blank')">📦 CMDB Management</div>
+          <div class="navlink" data-target="cmdb-mgmt" onclick="nav(this)">📦 CMDB Management</div>
           <div class="navlink" data-target="analytics" onclick="nav(this)">📈 Analytics</div>
           <div class="navlink" data-target="ai-insights" onclick="nav(this)">🤖 AI Insights</div>
           <div class="navlink" data-target="raise" onclick="nav(this)">📝 Raise Request</div>
@@ -2112,6 +2112,51 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           </div>
         </div>
 
+        <!-- CMDB Management -->
+        <div id="view-cmdb-mgmt" style="display:none">
+          <div class="row space mb-12">
+            <div class="row"><button class="btn ghost" onclick="switchView('dash')">← Back</button><h3 class="title" style="margin:0 0 0 8px">CMDB Management</h3></div>
+            <div class="row" style="gap:8px">
+              <button class="btn danger" onclick="cmdbMgmtDeleteAll()" style="background:#e53e3e;">🗑️ Delete All</button>
+              <button class="btn success" onclick="cmdbMgmtOpenImport()">📥 Import CSV</button>
+              <button class="btn primary" onclick="cmdbMgmtOpenCreate()">➕ Add CMDB Item</button>
+            </div>
+          </div>
+          <div class="card p-16 mb-16">
+            <div class="row space mb-12" style="flex-wrap:wrap;gap:8px">
+              <input id="cmdb-mgmt-search" class="input" style="min-width:250px" placeholder="Search assets..." oninput="cmdbMgmtApplyFilters()"/>
+              <select id="cmdb-mgmt-category" class="input" style="max-width:180px" onchange="cmdbMgmtApplyFilters()">
+                <option value="">All Categories</option>
+              </select>
+              <select id="cmdb-mgmt-customer" class="input" style="max-width:180px" onchange="cmdbMgmtApplyFilters()">
+                <option value="">All Customers</option>
+              </select>
+            </div>
+          </div>
+          <div class="card p-16">
+            <div id="cmdb-mgmt-loading" style="text-align:center;padding:40px;color:var(--muted);">Loading CMDB items...</div>
+            <table id="cmdb-mgmt-table" style="display:none">
+              <thead><tr>
+                <th>Asset Name</th>
+                <th>Category</th>
+                <th>Brand/Model</th>
+                <th>Customer</th>
+                <th>Location</th>
+                <th style="width:60px">CIs</th>
+                <th style="width:120px"><div style="display:flex;align-items:center;gap:4px;font-size:12px;">Tickets<button class="btn ghost" style="padding:2px 6px;font-size:10px;" id="cmdbMgmtTicketToggle" onclick="cmdbMgmtToggleTicketMode()">All</button></div></th>
+                <th style="width:80px">Status</th>
+                <th style="width:180px">Actions</th>
+              </tr></thead>
+              <tbody id="cmdb-mgmt-body"></tbody>
+            </table>
+            <div id="cmdb-mgmt-empty" style="display:none;text-align:center;padding:40px;color:var(--muted);">
+              <div style="font-size:48px;margin-bottom:16px;">📦</div>
+              <div>No CMDB items found</div>
+              <div style="margin-top:8px;font-size:13px;">Use Import CSV or Add CMDB Item to get started</div>
+            </div>
+          </div>
+        </div>
+
         <!-- Usage Dashboard -->
         <div id="view-usage" style="display:none">
           <div class="row space mb-12">
@@ -2787,6 +2832,69 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   </div>
 </div>
 
+<!-- CMDB Management Modals -->
+<div id="cmdb-mgmt-modal" class="modal" role="dialog" aria-modal="true" style="display:none">
+  <div class="sheet" style="max-width:700px;max-height:90vh;overflow-y:auto">
+    <div class="head"><span id="cmdb-mgmt-modal-title">Add CMDB Item</span></div>
+    <div class="body">
+      <input type="hidden" id="cmdb-mgmt-id">
+      <div class="row" style="gap:16px">
+        <div class="mb-12" style="flex:1"><div class="subtitle">Asset Name *</div><input id="cmdb-mgmt-asset-name" class="input" required/></div>
+        <div class="mb-12" style="flex:1"><div class="subtitle">Asset Category *</div><input id="cmdb-mgmt-asset-category" class="input" required/></div>
+      </div>
+      <div class="row" style="gap:16px">
+        <div class="mb-12" style="flex:1"><div class="subtitle">Category Field Value</div><input id="cmdb-mgmt-category-field" class="input"/></div>
+        <div class="mb-12" style="flex:1"><div class="subtitle">Status</div>
+          <select id="cmdb-mgmt-status" class="input"><option value="active">Active</option><option value="inactive">Inactive</option><option value="maintenance">Maintenance</option></select>
+        </div>
+      </div>
+      <div class="row" style="gap:16px">
+        <div class="mb-12" style="flex:1"><div class="subtitle">Brand Name</div><input id="cmdb-mgmt-brand" class="input"/></div>
+        <div class="mb-12" style="flex:1"><div class="subtitle">Model Name</div><input id="cmdb-mgmt-model" class="input"/></div>
+      </div>
+      <div class="row" style="gap:16px">
+        <div class="mb-12" style="flex:1"><div class="subtitle">Customer Name</div><input id="cmdb-mgmt-customer-name" class="input"/></div>
+        <div class="mb-12" style="flex:1"><div class="subtitle">Employee Of</div><input id="cmdb-mgmt-employee-of" class="input"/></div>
+      </div>
+      <div class="mb-12"><div class="subtitle">Asset Location</div><input id="cmdb-mgmt-location" class="input"/></div>
+      <div class="mb-12"><div class="subtitle">Comment</div><textarea id="cmdb-mgmt-comment" class="input" rows="3"></textarea></div>
+    </div>
+    <div class="foot">
+      <button class="btn ghost" onclick="cmdbMgmtCloseModal()">Cancel</button>
+      <button class="btn primary" onclick="cmdbMgmtSave()">Save</button>
+    </div>
+  </div>
+</div>
+
+<div id="cmdb-mgmt-view-modal" class="modal" role="dialog" aria-modal="true" style="display:none">
+  <div class="sheet" style="max-width:900px;max-height:90vh;overflow-y:auto">
+    <div class="head"><span>CMDB Item Details</span></div>
+    <div class="body" id="cmdb-mgmt-view-content"></div>
+    <div class="foot"><button class="btn ghost" onclick="cmdbMgmtCloseViewModal()">Close</button></div>
+  </div>
+</div>
+
+<div id="cmdb-mgmt-import-modal" class="modal" role="dialog" aria-modal="true" style="display:none">
+  <div class="sheet" style="max-width:600px">
+    <div class="head"><span>Import CMDB Items from CSV</span></div>
+    <div class="body">
+      <p class="mb-12" style="color:var(--muted)">Download the <a href="#" onclick="cmdbMgmtDownloadTemplate()" style="color:var(--primary);font-weight:600;">CSV template</a> to see the required format.</p>
+      <div class="mb-12" style="border:2px dashed var(--border);border-radius:8px;padding:40px;text-align:center;cursor:pointer" onclick="document.getElementById('cmdb-mgmt-csv-file').click()">
+        <input type="file" id="cmdb-mgmt-csv-file" accept=".csv" style="display:none" onchange="cmdbMgmtFileSelected(event)">
+        <div style="font-size:48px;margin-bottom:16px;">📄</div>
+        <div id="cmdb-mgmt-file-name" style="font-weight:600;">Click to select CSV file</div>
+      </div>
+      <div id="cmdb-mgmt-import-progress" style="display:none;background:var(--bg);padding:16px;border-radius:8px;margin-top:16px;">
+        <div id="cmdb-mgmt-import-status"></div>
+      </div>
+    </div>
+    <div class="foot">
+      <button class="btn ghost" onclick="cmdbMgmtCloseImportModal()">Cancel</button>
+      <button class="btn success" id="cmdb-mgmt-import-btn" onclick="cmdbMgmtImport()" disabled>Import</button>
+    </div>
+  </div>
+</div>
+
 <script>
   // API Base URL - use current origin for deployed version, localhost for development
   const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
@@ -3410,7 +3518,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   function nav(el){ document.querySelectorAll('.navlink').forEach(n=>n.classList.remove('active')); el.classList.add('active'); switchView(el.getAttribute('data-target')); if(el.getAttribute('data-target')==='dash') renderAllDashboards(); }
   function navTo(view){ switchView(view); }
-  function switchView(view){ currentView=view; ['dash','profile','tickets','ticket-detail','experts','expert-detail','customers','cmdb','cmdb-detail','manage-cmdb','wizard','raise','tenants','subscriptions','billing','plans','system','usage','customer-plans','customer-billing','analytics','ai-insights','ticket-rules','email-processing','system-control','knowledge-base'].forEach(n=>{ const el=document.getElementById('view-'+n); if(el) el.style.display=(n===view)?'block':'none'; }); if(view==='tickets') { loadFilterSettings('tickets'); renderList(); } if(view==='experts') { loadFilterSettings('experts'); renderExperts(); } if(view==='expert-detail') renderExpertDetail(); if(view==='customers') { loadFilterSettings('customers'); renderCustomers(); } if(view==='cmdb') { loadFilterSettings('cmdb'); renderCMDB(); } if(view==='cmdb-detail') renderCMDBDetail(); if(view==='manage-cmdb') loadManageCMDB(); if(view==='raise') loadRaiseFormOptions(); if(view==='ticket-detail') renderTicketDetail(); if(view==='tenants') loadTenants(); if(view==='subscriptions') loadSubscriptions(); if(view==='billing') loadBilling(); if(view==='plans') loadPlans(); if(view==='system') loadSystemOverview(); if(view==='usage') loadUsageDashboard(); if(view==='customer-plans') loadCustomerPlans(); if(view==='customer-billing') loadCustomerBilling(); if(view==='analytics') loadAnalytics(); if(view==='ai-insights') loadAIInsights(); if(view==='ticket-rules') loadTicketRules(); if(view==='email-processing') loadEmailProcessing(); if(view==='system-control') loadSystemControlSettings(); if(view==='knowledge-base') initKnowledgeBase(); if(view==='wizard') { loadCompanyProfile(); loadEmailIngestSettings(); } if(view==='profile') loadProfile(); }
+  function switchView(view){ currentView=view; ['dash','profile','tickets','ticket-detail','experts','expert-detail','customers','cmdb','cmdb-detail','manage-cmdb','cmdb-mgmt','wizard','raise','tenants','subscriptions','billing','plans','system','usage','customer-plans','customer-billing','analytics','ai-insights','ticket-rules','email-processing','system-control','knowledge-base'].forEach(n=>{ const el=document.getElementById('view-'+n); if(el) el.style.display=(n===view)?'block':'none'; }); if(view==='tickets') { loadFilterSettings('tickets'); renderList(); } if(view==='experts') { loadFilterSettings('experts'); renderExperts(); } if(view==='expert-detail') renderExpertDetail(); if(view==='customers') { loadFilterSettings('customers'); renderCustomers(); } if(view==='cmdb') { loadFilterSettings('cmdb'); renderCMDB(); } if(view==='cmdb-detail') renderCMDBDetail(); if(view==='manage-cmdb') loadManageCMDB(); if(view==='cmdb-mgmt') loadCMDBMgmt(); if(view==='raise') loadRaiseFormOptions(); if(view==='ticket-detail') renderTicketDetail(); if(view==='tenants') loadTenants(); if(view==='subscriptions') loadSubscriptions(); if(view==='billing') loadBilling(); if(view==='plans') loadPlans(); if(view==='system') loadSystemOverview(); if(view==='usage') loadUsageDashboard(); if(view==='customer-plans') loadCustomerPlans(); if(view==='customer-billing') loadCustomerBilling(); if(view==='analytics') loadAnalytics(); if(view==='ai-insights') loadAIInsights(); if(view==='ticket-rules') loadTicketRules(); if(view==='email-processing') loadEmailProcessing(); if(view==='system-control') loadSystemControlSettings(); if(view==='knowledge-base') initKnowledgeBase(); if(view==='wizard') { loadCompanyProfile(); loadEmailIngestSettings(); } if(view==='profile') loadProfile(); }
   function configureRole(){
     const currentRole = window.role || role; // Use global role from login, fallback to local
     document.getElementById('nav-admin').style.display = (currentRole==='admin') ? 'block' : 'none';
@@ -8656,13 +8764,304 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       body.appendChild(tr);
     });
   }
-  function showCreateCMDBForm(){
-    window.open('/public/cmdb-management.html', '_blank');
+  function showCreateCMDBForm(){ switchView('cmdb-mgmt'); cmdbMgmtOpenCreate(); }
+  function showImportCMDBDialog(){ switchView('cmdb-mgmt'); cmdbMgmtOpenImport(); }
+
+  // ---- CMDB Management View ----
+  let CMDB_MGMT_ITEMS = [];
+  let CMDB_MGMT_CURRENT_ID = null;
+  window.cmdbMgmtTicketMode = 'all';
+
+  function cmdbMgmtToggleTicketMode() {
+    window.cmdbMgmtTicketMode = window.cmdbMgmtTicketMode === 'all' ? 'open' : 'all';
+    const btn = document.getElementById('cmdbMgmtTicketToggle');
+    if (btn) btn.textContent = window.cmdbMgmtTicketMode === 'all' ? 'All' : 'Open';
+    cmdbMgmtRender();
   }
-  function showImportCMDBDialog(){
-    window.open('/public/cmdb-management.html', '_blank');
+
+  async function loadCMDBMgmt() {
+    const loading = document.getElementById('cmdb-mgmt-loading');
+    const table = document.getElementById('cmdb-mgmt-table');
+    const empty = document.getElementById('cmdb-mgmt-empty');
+    if(loading) loading.style.display='block';
+    if(table) table.style.display='none';
+    if(empty) empty.style.display='none';
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_BASE}/api/cmdb/${tenant}/items`, { headers: { 'Authorization': `Bearer ${token}` } });
+      const data = await res.json();
+      if (data.success) {
+        CMDB_MGMT_ITEMS = data.items;
+        cmdbMgmtPopulateFilters();
+        cmdbMgmtRender();
+      } else {
+        if(loading) loading.innerHTML = `<div style="color:#e53e3e;">Error: ${data.message}</div>`;
+      }
+    } catch (err) {
+      if(loading) loading.innerHTML = `<div style="color:#e53e3e;">Error: ${err.message}</div>`;
+    }
   }
-  
+
+  function cmdbMgmtPopulateFilters() {
+    const cats = [...new Set(CMDB_MGMT_ITEMS.map(i => i.asset_category).filter(Boolean))].sort();
+    const custs = [...new Set(CMDB_MGMT_ITEMS.map(i => i.customer_name).filter(Boolean))].sort();
+    const catSel = document.getElementById('cmdb-mgmt-category');
+    const custSel = document.getElementById('cmdb-mgmt-customer');
+    catSel.innerHTML = '<option value="">All Categories</option>' + cats.map(c => `<option value="${c}">${c}</option>`).join('');
+    custSel.innerHTML = '<option value="">All Customers</option>' + custs.map(c => `<option value="${c}">${c}</option>`).join('');
+  }
+
+  function cmdbMgmtApplyFilters() { cmdbMgmtRender(); }
+
+  function cmdbMgmtRender() {
+    const loading = document.getElementById('cmdb-mgmt-loading');
+    const table = document.getElementById('cmdb-mgmt-table');
+    const empty = document.getElementById('cmdb-mgmt-empty');
+    const body = document.getElementById('cmdb-mgmt-body');
+    const search = (document.getElementById('cmdb-mgmt-search').value || '').toLowerCase();
+    const catFilter = document.getElementById('cmdb-mgmt-category').value;
+    const custFilter = document.getElementById('cmdb-mgmt-customer').value;
+
+    const filtered = CMDB_MGMT_ITEMS.filter(i => {
+      const matchSearch = !search || i.asset_name.toLowerCase().includes(search) || (i.customer_name||'').toLowerCase().includes(search) || (i.asset_location||'').toLowerCase().includes(search);
+      const matchCat = !catFilter || i.asset_category === catFilter;
+      const matchCust = !custFilter || i.customer_name === custFilter;
+      return matchSearch && matchCat && matchCust;
+    });
+
+    if(loading) loading.style.display = 'none';
+    if (filtered.length === 0) {
+      if(table) table.style.display = 'none';
+      if(empty) empty.style.display = 'block';
+      return;
+    }
+    if(table) table.style.display = 'table';
+    if(empty) empty.style.display = 'none';
+    body.innerHTML = filtered.map(i => {
+      const ticketCount = window.cmdbMgmtTicketMode === 'open' ? (i.open_ticket_count || 0) : (i.ticket_count || 0);
+      return `<tr>
+        <td><strong>${i.asset_name}</strong></td>
+        <td>${i.asset_category || '—'}</td>
+        <td>${[i.brand_name, i.model_name].filter(Boolean).join(' / ') || '—'}</td>
+        <td>${i.customer_name || '—'}</td>
+        <td>${i.asset_location || '—'}</td>
+        <td style="text-align:center">${i.ci_count || 0}</td>
+        <td style="text-align:center">${ticketCount}</td>
+        <td><span class="badge ${i.status === 'active' ? 'success' : 'danger'}">${i.status}</span></td>
+        <td>
+          <button class="btn" onclick="cmdbMgmtView('${i.cmdb_id}')">View</button>
+          <button class="btn" onclick="cmdbMgmtEdit('${i.cmdb_id}')">Edit</button>
+          <button class="btn danger" onclick="cmdbMgmtDelete('${i.cmdb_id}')">Delete</button>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  function cmdbMgmtOpenCreate() {
+    document.getElementById('cmdb-mgmt-modal-title').textContent = 'Add CMDB Item';
+    document.getElementById('cmdb-mgmt-id').value = '';
+    ['asset-name','asset-category','category-field','brand','model','customer-name','employee-of','location','comment'].forEach(f => {
+      const el = document.getElementById('cmdb-mgmt-' + f);
+      if (el) el.value = '';
+    });
+    document.getElementById('cmdb-mgmt-status').value = 'active';
+    document.getElementById('cmdb-mgmt-modal').style.display = 'flex';
+  }
+
+  async function cmdbMgmtEdit(cmdbId) {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_BASE}/api/cmdb/${tenant}/items/${cmdbId}`, { headers: { 'Authorization': `Bearer ${token}` } });
+      const data = await res.json();
+      if (data.success) {
+        const i = data.item;
+        document.getElementById('cmdb-mgmt-modal-title').textContent = 'Edit CMDB Item';
+        document.getElementById('cmdb-mgmt-id').value = i.cmdb_id;
+        document.getElementById('cmdb-mgmt-asset-name').value = i.asset_name || '';
+        document.getElementById('cmdb-mgmt-asset-category').value = i.asset_category || '';
+        document.getElementById('cmdb-mgmt-category-field').value = i.category_field_value || '';
+        document.getElementById('cmdb-mgmt-brand').value = i.brand_name || '';
+        document.getElementById('cmdb-mgmt-model').value = i.model_name || '';
+        document.getElementById('cmdb-mgmt-customer-name').value = i.customer_name || '';
+        document.getElementById('cmdb-mgmt-employee-of').value = i.employee_of || '';
+        document.getElementById('cmdb-mgmt-location').value = i.asset_location || '';
+        document.getElementById('cmdb-mgmt-comment').value = i.comment || '';
+        document.getElementById('cmdb-mgmt-status').value = i.status || 'active';
+        document.getElementById('cmdb-mgmt-modal').style.display = 'flex';
+      }
+    } catch (err) { alert('Error loading item: ' + err.message); }
+  }
+
+  async function cmdbMgmtSave() {
+    const cmdbId = document.getElementById('cmdb-mgmt-id').value;
+    const itemData = {
+      asset_name: document.getElementById('cmdb-mgmt-asset-name').value,
+      asset_category: document.getElementById('cmdb-mgmt-asset-category').value,
+      category_field_value: document.getElementById('cmdb-mgmt-category-field').value,
+      brand_name: document.getElementById('cmdb-mgmt-brand').value,
+      model_name: document.getElementById('cmdb-mgmt-model').value,
+      customer_name: document.getElementById('cmdb-mgmt-customer-name').value,
+      employee_of: document.getElementById('cmdb-mgmt-employee-of').value,
+      asset_location: document.getElementById('cmdb-mgmt-location').value,
+      comment: document.getElementById('cmdb-mgmt-comment').value,
+      status: document.getElementById('cmdb-mgmt-status').value
+    };
+    if (!itemData.asset_name || !itemData.asset_category) { alert('Asset Name and Category are required'); return; }
+    try {
+      const token = localStorage.getItem('token');
+      const url = cmdbId ? `${API_BASE}/api/cmdb/${tenant}/items/${cmdbId}` : `${API_BASE}/api/cmdb/${tenant}/items`;
+      const res = await fetch(url, {
+        method: cmdbId ? 'PUT' : 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(itemData)
+      });
+      const data = await res.json();
+      if (data.success) { cmdbMgmtCloseModal(); loadCMDBMgmt(); alert(data.message); }
+      else { alert('Error: ' + data.message); }
+    } catch (err) { alert('Error saving: ' + err.message); }
+  }
+
+  function cmdbMgmtCloseModal() { document.getElementById('cmdb-mgmt-modal').style.display = 'none'; }
+
+  async function cmdbMgmtView(cmdbId) {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_BASE}/api/cmdb/${tenant}/items/${cmdbId}`, { headers: { 'Authorization': `Bearer ${token}` } });
+      const data = await res.json();
+      if (data.success) {
+        const i = data.item;
+        const cis = i.configuration_items || [];
+        document.getElementById('cmdb-mgmt-view-content').innerHTML = `
+          <div style="margin-bottom:24px;">
+            <h3 style="margin-bottom:16px;">${i.asset_name}</h3>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;background:var(--bg);padding:20px;border-radius:8px;">
+              <div><strong>Category:</strong> ${i.asset_category}</div>
+              <div><strong>Brand:</strong> ${i.brand_name || '—'}</div>
+              <div><strong>Model:</strong> ${i.model_name || '—'}</div>
+              <div><strong>Customer:</strong> ${i.customer_name || '—'}</div>
+              <div><strong>Location:</strong> ${i.asset_location || '—'}</div>
+              <div><strong>Status:</strong> <span class="badge ${i.status === 'active' ? 'success' : 'danger'}">${i.status}</span></div>
+            </div>
+          </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+              <h4>Configuration Items (${cis.length})</h4>
+              <button class="btn primary" onclick="cmdbMgmtAddCI('${i.cmdb_id}')">Add CI</button>
+            </div>
+            ${cis.length === 0 ? '<p style="text-align:center;color:var(--muted);padding:20px;">No Configuration Items yet</p>' :
+              cis.map(ci => `<div style="background:var(--bg);padding:12px;border-radius:6px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">
+                <div><strong>${ci.ci_name}</strong>${ci.category_field_value ? ` <span style="color:var(--muted)">— ${ci.category_field_value}</span>` : ''}</div>
+                <button class="btn danger" onclick="cmdbMgmtDeleteCI('${ci.ci_id}','${i.cmdb_id}')">Delete</button>
+              </div>`).join('')}
+          </div>`;
+        CMDB_MGMT_CURRENT_ID = cmdbId;
+        document.getElementById('cmdb-mgmt-view-modal').style.display = 'flex';
+      }
+    } catch (err) { alert('Error loading item: ' + err.message); }
+  }
+
+  function cmdbMgmtCloseViewModal() { document.getElementById('cmdb-mgmt-view-modal').style.display = 'none'; }
+
+  async function cmdbMgmtAddCI(cmdbId) {
+    const ciName = prompt('Enter CI Name:');
+    if (!ciName) return;
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_BASE}/api/cmdb/${tenant}/items/${cmdbId}/cis`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ci_name: ciName, status: 'active' })
+      });
+      const data = await res.json();
+      if (data.success) { cmdbMgmtView(cmdbId); } else { alert('Error: ' + data.message); }
+    } catch (err) { alert('Error: ' + err.message); }
+  }
+
+  async function cmdbMgmtDeleteCI(ciId, cmdbId) {
+    if (!confirm('Delete this Configuration Item?')) return;
+    try {
+      const token = localStorage.getItem('token');
+      await fetch(`${API_BASE}/api/cmdb/${tenant}/cis/${ciId}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+      cmdbMgmtView(cmdbId);
+    } catch (err) { alert('Error: ' + err.message); }
+  }
+
+  async function cmdbMgmtDelete(cmdbId) {
+    if (!confirm('Delete this CMDB item and all its CIs?')) return;
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_BASE}/api/cmdb/${tenant}/items/${cmdbId}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+      const data = await res.json();
+      if (data.success) { loadCMDBMgmt(); alert(data.message); } else { alert('Error: ' + data.message); }
+    } catch (err) { alert('Error: ' + err.message); }
+  }
+
+  async function cmdbMgmtDeleteAll() {
+    const count = CMDB_MGMT_ITEMS.length;
+    if (count === 0) { alert('No CMDB items to delete'); return; }
+    if (!confirm(`Delete ALL ${count} CMDB items and their CIs? This cannot be undone!`)) return;
+    const conf = prompt('Type "DELETE ALL" to confirm:');
+    if (conf !== 'DELETE ALL') { alert('Cancelled'); return; }
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_BASE}/api/cmdb/${tenant}/items/all`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+      const data = await res.json();
+      if (data.success) { loadCMDBMgmt(); alert(`Deleted ${data.deleted_items} items and ${data.deleted_cis} CIs`); }
+      else { alert('Error: ' + data.message); }
+    } catch (err) { alert('Error: ' + err.message); }
+  }
+
+  function cmdbMgmtOpenImport() {
+    document.getElementById('cmdb-mgmt-csv-file').value = '';
+    document.getElementById('cmdb-mgmt-file-name').textContent = 'Click to select CSV file';
+    document.getElementById('cmdb-mgmt-import-btn').disabled = true;
+    document.getElementById('cmdb-mgmt-import-progress').style.display = 'none';
+    document.getElementById('cmdb-mgmt-import-modal').style.display = 'flex';
+  }
+
+  function cmdbMgmtCloseImportModal() { document.getElementById('cmdb-mgmt-import-modal').style.display = 'none'; }
+
+  function cmdbMgmtFileSelected(e) {
+    const file = e.target.files[0];
+    if (file) {
+      document.getElementById('cmdb-mgmt-file-name').textContent = file.name;
+      document.getElementById('cmdb-mgmt-import-btn').disabled = false;
+    }
+  }
+
+  async function cmdbMgmtImport() {
+    const file = document.getElementById('cmdb-mgmt-csv-file').files[0];
+    if (!file) { alert('Select a file'); return; }
+    const formData = new FormData();
+    formData.append('file', file);
+    document.getElementById('cmdb-mgmt-import-progress').style.display = 'block';
+    document.getElementById('cmdb-mgmt-import-status').textContent = 'Importing...';
+    document.getElementById('cmdb-mgmt-import-btn').disabled = true;
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_BASE}/api/cmdb/${tenant}/import/items`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData
+      });
+      const data = await res.json();
+      if (data.success) {
+        document.getElementById('cmdb-mgmt-import-status').innerHTML = `<div style="color:#38a169;font-weight:600;">Success!</div><div>New: ${data.assets_imported || 0}, Updated: ${data.assets_updated || 0}, CIs: ${data.configuration_items_imported || 0}</div>`;
+        setTimeout(() => { cmdbMgmtCloseImportModal(); loadCMDBMgmt(); }, 2000);
+      } else {
+        document.getElementById('cmdb-mgmt-import-status').innerHTML = `<div style="color:#e53e3e;">Error: ${data.message}</div>`;
+        document.getElementById('cmdb-mgmt-import-btn').disabled = false;
+      }
+    } catch (err) {
+      document.getElementById('cmdb-mgmt-import-status').innerHTML = `<div style="color:#e53e3e;">Error: ${err.message}</div>`;
+      document.getElementById('cmdb-mgmt-import-btn').disabled = false;
+    }
+  }
+
+  function cmdbMgmtDownloadTemplate() {
+    window.location.href = `${API_BASE}/api/cmdb/${tenant}/template/items`;
+  }
+
   // ---- Manage CMDB Types ----
   async function loadManageCMDB(){ 
     try{ 
