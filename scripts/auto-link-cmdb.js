@@ -220,9 +220,13 @@ async function fetchRelevantCMDBItems(connection, ticketData) {
   const customerName = ticketData.company_name || '';
   const searchTerms = extractKeyTerms(ticketData.title + ' ' + (ticketData.description || ''));
 
-  // Get top 20 most relevant CMDB items
-  // Priority: customer match > keyword match > recent items
-  const [items] = await connection.query(`
+  // Build keyword search conditions
+  const keywordConditions = searchTerms.slice(0, 10).map(term =>
+    `(ci.asset_name LIKE '%${term}%' OR ci.asset_category LIKE '%${term}%' OR ci.brand_name LIKE '%${term}%' OR ci.comment LIKE '%${term}%')`
+  ).join(' OR ');
+
+  // Get all active CMDB items (up to 100) with priority scoring
+  const query = `
     SELECT
       ci.id,
       ci.cmdb_id,
@@ -237,14 +241,20 @@ async function fetchRelevantCMDBItems(connection, ticketData) {
       ci.status,
       (SELECT COUNT(*) FROM configuration_items WHERE cmdb_item_id = ci.id) as ci_count,
       (SELECT GROUP_CONCAT(CONCAT(cfg.ci_name, ': ', COALESCE(cfg.category_field_value, '')) SEPARATOR '; ')
-       FROM configuration_items cfg WHERE cfg.cmdb_item_id = ci.id LIMIT 5) as sample_cis
+       FROM configuration_items cfg WHERE cfg.cmdb_item_id = ci.id LIMIT 5) as sample_cis,
+      CASE
+        WHEN ci.customer_name LIKE ? THEN 100
+        ${keywordConditions ? `WHEN ${keywordConditions} THEN 50` : ''}
+        ELSE 0
+      END as relevance_score
     FROM cmdb_items ci
     WHERE ci.status = 'active'
-    ORDER BY
-      CASE WHEN ci.customer_name LIKE ? THEN 0 ELSE 1 END,
-      ci.created_at DESC
-    LIMIT 30
-  `, [`%${customerName}%`]);
+    ORDER BY relevance_score DESC, ci.created_at DESC
+    LIMIT 100
+  `;
+
+  const [items] = await connection.query(query, [`%${customerName}%`]);
+  console.log(`   Found ${items.length} CMDB items to analyze`);
 
   return items;
 }
@@ -396,10 +406,32 @@ Respond with JSON array only.`
 }
 
 /**
+ * Extract keywords from text (removes common words)
+ */
+function extractKeywords(text) {
+  const stopWords = new Set(['the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
+    'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might',
+    'must', 'shall', 'can', 'need', 'dare', 'ought', 'used', 'to', 'of', 'in', 'for', 'on', 'with',
+    'at', 'by', 'from', 'as', 'into', 'through', 'during', 'before', 'after', 'above', 'below',
+    'between', 'under', 'again', 'further', 'then', 'once', 'here', 'there', 'when', 'where', 'why',
+    'how', 'all', 'each', 'few', 'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only',
+    'own', 'same', 'so', 'than', 'too', 'very', 'just', 'and', 'but', 'if', 'or', 'because', 'until',
+    'while', 'this', 'that', 'these', 'those', 'am', 'i', 'you', 'he', 'she', 'it', 'we', 'they',
+    'what', 'which', 'who', 'whom', 'its', 'his', 'her', 'their', 'our', 'my', 'your', 'please',
+    'hi', 'hello', 'thanks', 'thank', 'regards', 'dear', 'issue', 'problem', 'help', 'need', 'want']);
+
+  return text.toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter(word => word.length >= 3 && !stopWords.has(word));
+}
+
+/**
  * Fallback pattern-based matching when AI is unavailable
  */
 function analyzeWithPatterns(ticketData, cmdbItems) {
-  const text = `${ticketData.title} ${ticketData.description || ''} ${(ticketData.messages || []).join(' ')}`.toLowerCase();
+  const fullText = `${ticketData.title} ${ticketData.description || ''} ${(ticketData.messages || []).join(' ')}`.toLowerCase();
+  const ticketKeywords = extractKeywords(fullText);
   const customerName = (ticketData.company_name || ticketData.requester_name || '').toLowerCase();
 
   const matches = [];
@@ -408,47 +440,104 @@ function analyzeWithPatterns(ticketData, cmdbItems) {
     let confidence = 0;
     const reasons = [];
 
+    // Build searchable text from CMDB item
+    const cmdbSearchText = [
+      item.asset_name,
+      item.asset_category,
+      item.brand_name,
+      item.model_name,
+      item.comment,
+      item.asset_location,
+      item.sample_cis
+    ].filter(Boolean).join(' ').toLowerCase();
+
+    const cmdbKeywords = extractKeywords(cmdbSearchText);
+
     // Customer name match (strong signal)
     const itemCustomer = (item.customer_name || '').toLowerCase();
     if (itemCustomer && customerName && (
       itemCustomer.includes(customerName) || customerName.includes(itemCustomer)
     )) {
-      confidence += 0.35;
+      confidence += 0.30;
       reasons.push('Customer match');
     }
 
-    // Asset name mentioned
+    // Exact asset name mentioned in ticket
     const assetName = (item.asset_name || '').toLowerCase();
-    if (assetName && assetName.length > 3 && text.includes(assetName)) {
-      confidence += 0.40;
+    if (assetName && assetName.length > 3 && fullText.includes(assetName)) {
+      confidence += 0.45;
       reasons.push('Asset name in ticket');
     }
 
-    // Category keyword matching
+    // Keyword matching - check if ticket keywords appear in CMDB item
+    const matchedKeywords = [];
+    for (const keyword of ticketKeywords) {
+      if (keyword.length >= 4) {  // Only match meaningful keywords
+        // Check if keyword is in CMDB text
+        if (cmdbSearchText.includes(keyword)) {
+          matchedKeywords.push(keyword);
+        }
+        // Also check if CMDB keywords contain ticket keyword (partial match)
+        for (const cmdbKeyword of cmdbKeywords) {
+          if (cmdbKeyword.includes(keyword) || keyword.includes(cmdbKeyword)) {
+            if (!matchedKeywords.includes(keyword) && !matchedKeywords.includes(cmdbKeyword)) {
+              matchedKeywords.push(keyword);
+            }
+          }
+        }
+      }
+    }
+
+    if (matchedKeywords.length > 0) {
+      // More matched keywords = higher confidence
+      const keywordScore = Math.min(matchedKeywords.length * 0.12, 0.45);
+      confidence += keywordScore;
+      reasons.push(`Keywords: ${matchedKeywords.slice(0, 3).join(', ')}`);
+    }
+
+    // Category keyword matching (expanded)
     const category = (item.asset_category || '').toLowerCase();
     if (category) {
-      if (category.includes('server') && /(server|host|vm|instance|machine)/i.test(text)) {
-        confidence += 0.15;
-        reasons.push('Server category');
+      if ((category.includes('server') || category.includes('web')) &&
+          /(server|webserver|web server|host|vm|instance|machine|apache|nginx|iis)/i.test(fullText)) {
+        confidence += 0.18;
+        reasons.push('Server/Web category match');
       }
-      if (category.includes('database') && /(database|mysql|sql|postgres|oracle|db)/i.test(text)) {
+      if (category.includes('database') && /(database|mysql|sql|postgres|oracle|db|mongo|redis)/i.test(fullText)) {
         confidence += 0.20;
-        reasons.push('Database category');
+        reasons.push('Database category match');
       }
-      if (category.includes('network') && /(network|vpn|firewall|router|switch|dns)/i.test(text)) {
-        confidence += 0.15;
-        reasons.push('Network category');
+      if (category.includes('network') && /(network|vpn|firewall|router|switch|dns|load.?balancer|proxy)/i.test(fullText)) {
+        confidence += 0.18;
+        reasons.push('Network category match');
       }
-      if (category.includes('application') && /(application|app|service|api|portal)/i.test(text)) {
+      if ((category.includes('application') || category.includes('app')) &&
+          /(application|app|service|api|portal|software|system)/i.test(fullText)) {
         confidence += 0.15;
-        reasons.push('Application category');
+        reasons.push('Application category match');
+      }
+      if (category.includes('storage') && /(storage|nas|san|disk|backup|archive)/i.test(fullText)) {
+        confidence += 0.18;
+        reasons.push('Storage category match');
+      }
+    }
+
+    // Brand/Model name matching
+    const brandModel = `${item.brand_name || ''} ${item.model_name || ''}`.toLowerCase();
+    if (brandModel.length > 3) {
+      for (const keyword of ticketKeywords) {
+        if (keyword.length >= 3 && brandModel.includes(keyword)) {
+          confidence += 0.15;
+          reasons.push('Brand/Model match');
+          break;
+        }
       }
     }
 
     // Location match
     const location = (item.asset_location || '').toLowerCase();
-    if (location && location.length > 3 && text.includes(location)) {
-      confidence += 0.10;
+    if (location && location.length > 3 && fullText.includes(location)) {
+      confidence += 0.12;
       reasons.push('Location match');
     }
 
@@ -457,13 +546,25 @@ function analyzeWithPatterns(ticketData, cmdbItems) {
       const ciText = item.sample_cis.toLowerCase();
       // Check for IP addresses
       const ipMatch = ciText.match(/(\d+\.\d+\.\d+\.\d+)/);
-      if (ipMatch && text.includes(ipMatch[1])) {
+      if (ipMatch && fullText.includes(ipMatch[1])) {
         confidence += 0.50;
         reasons.push('IP address match');
       }
+      // Check for hostnames
+      const hostnames = ciText.match(/([a-z][a-z0-9-]+\.[a-z]{2,})/g);
+      if (hostnames) {
+        for (const hostname of hostnames) {
+          if (fullText.includes(hostname)) {
+            confidence += 0.40;
+            reasons.push('Hostname match');
+            break;
+          }
+        }
+      }
     }
 
-    if (confidence >= MIN_CONFIDENCE_FOR_SUGGESTION) {
+    // Lower threshold for suggestions - 50% instead of 60%
+    if (confidence >= 0.50) {
       matches.push({
         ci_id: item.id,
         cmdb_item: item,
