@@ -434,18 +434,25 @@ function analyzeWithPatterns(ticketData, cmdbItems) {
   const ticketKeywords = extractKeywords(fullText);
   const customerName = (ticketData.company_name || ticketData.requester_name || '').toLowerCase();
 
+  console.log(`   Pattern matching: ${cmdbItems.length} CMDB items, ${ticketKeywords.length} keywords`);
+  console.log(`   Keywords: ${ticketKeywords.slice(0, 10).join(', ')}`);
+  console.log(`   Customer: ${customerName || '(none)'}`);
+  console.log(`   Full text preview: ${fullText.substring(0, 150)}...`);
+
   const matches = [];
 
   for (const item of cmdbItems) {
     let confidence = 0;
     const reasons = [];
 
-    // Build searchable text from CMDB item
+    // Build searchable text from CMDB item (include customer_name!)
     const cmdbSearchText = [
       item.asset_name,
       item.asset_category,
       item.brand_name,
       item.model_name,
+      item.customer_name,
+      item.employee_of,
       item.comment,
       item.asset_location,
       item.sample_cis
@@ -500,7 +507,7 @@ function analyzeWithPatterns(ticketData, cmdbItems) {
     if (category) {
       if ((category.includes('server') || category.includes('web')) &&
           /(server|webserver|web server|host|vm|instance|machine|apache|nginx|iis)/i.test(fullText)) {
-        confidence += 0.18;
+        confidence += 0.25;
         reasons.push('Server/Web category match');
       }
       if (category.includes('database') && /(database|mysql|sql|postgres|oracle|db|mongo|redis)/i.test(fullText)) {
@@ -563,8 +570,13 @@ function analyzeWithPatterns(ticketData, cmdbItems) {
       }
     }
 
-    // Lower threshold for suggestions - 50% instead of 60%
-    if (confidence >= 0.50) {
+    // Debug logging for pattern matching
+    if (confidence > 0) {
+      console.log(`   Pattern match: ${item.asset_name} (${item.asset_category}) - confidence: ${confidence.toFixed(2)}, reasons: ${reasons.join(', ')}`);
+    }
+
+    // Lower threshold for suggestions - 35% to catch more potential matches
+    if (confidence >= 0.35) {
       matches.push({
         ci_id: item.id,
         cmdb_item: item,
