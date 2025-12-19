@@ -623,7 +623,7 @@ router.post('/:tenantCode/cmdb-suggestions/:suggestionId/approve', async (req, r
     try {
       // First, get the suggestion details before updating
       const [suggestions] = await connection.query(`
-        SELECT tci.id, tci.ticket_id, tci.cmdb_item_id, tci.relationship_type, tci.ai_confidence,
+        SELECT tci.id, tci.ticket_id, tci.cmdb_item_id, tci.relationship_type, tci.confidence_score,
                ci.asset_name, ci.customer_name as cmdb_customer_name,
                t.requester_id, t.cmdb_item_id as current_cmdb_item_id,
                u.full_name as requester_name, u.email as requester_email
@@ -678,7 +678,7 @@ router.post('/:tenantCode/cmdb-suggestions/:suggestionId/approve', async (req, r
       }
 
       // Add activity log entry
-      let activityDescription = `CMDB item "${suggestion.asset_name}" linked to ticket (approved AI suggestion with ${Math.round(suggestion.ai_confidence * 100)}% confidence)`;
+      let activityDescription = `CMDB item "${suggestion.asset_name}" linked to ticket (approved AI suggestion with ${Math.round(suggestion.confidence_score)}% confidence)`;
 
       if (customerAssociated) {
         activityDescription += `. Customer identified as "${customerAssociated.company_name}" based on CMDB ownership.`;
