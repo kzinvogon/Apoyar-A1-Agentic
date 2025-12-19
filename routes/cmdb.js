@@ -164,7 +164,11 @@ router.get('/:tenantCode/items', async (req, res) => {
         SELECT
           ci.*,
           u.full_name as created_by_name,
-          (SELECT COUNT(*) FROM configuration_items WHERE cmdb_item_id = ci.id) as ci_count
+          (SELECT COUNT(*) FROM configuration_items WHERE cmdb_item_id = ci.id) as ci_count,
+          (SELECT COUNT(*) FROM ticket_cmdb_items tci WHERE tci.cmdb_item_id = ci.id) as ticket_count,
+          (SELECT COUNT(*) FROM ticket_cmdb_items tci
+           JOIN tickets t ON tci.ticket_id = t.id
+           WHERE tci.cmdb_item_id = ci.id AND t.status NOT IN ('closed', 'resolved')) as open_ticket_count
         FROM cmdb_items ci
         LEFT JOIN users u ON ci.created_by = u.id
       `;

@@ -175,6 +175,44 @@
     .badge-active { background: #c6f6d5; color: #22543d; }
     .badge-inactive { background: #fed7d7; color: #742a2a; }
 
+    .toggle-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+    }
+
+    .toggle-btn {
+      padding: 4px 10px;
+      border: 1px solid #e2e8f0;
+      background: white;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    .toggle-btn.active {
+      background: #667eea;
+      color: white;
+      border-color: #667eea;
+    }
+
+    .toggle-btn:hover:not(.active) {
+      background: #f7fafc;
+    }
+
+    .ticket-count-link {
+      color: #667eea;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    .ticket-count-link:hover {
+      color: #764ba2;
+    }
+
     .modal {
       display: none;
       position: fixed;
@@ -382,6 +420,13 @@
               <th>Customer</th>
               <th>Location</th>
               <th>CIs</th>
+              <th>
+                <div class="toggle-container">
+                  <span>Tickets</span>
+                  <button class="toggle-btn active" id="toggleAllTickets" onclick="setTicketMode('all')">All</button>
+                  <button class="toggle-btn" id="toggleOpenTickets" onclick="setTicketMode('open')">Open</button>
+                </div>
+              </th>
               <th>Status</th>
               <th>Actions</th>
             </tr>
@@ -530,6 +575,7 @@
     let tenantCode = storedUser.tenantCode || localStorage.getItem('tenant') || 'apoyar';
     let currentItems = [];
     let currentCMDBId = null;
+    let ticketMode = 'all'; // 'all' or 'open'
 
     // Initialize
     document.addEventListener('DOMContentLoaded', () => {
@@ -591,7 +637,9 @@
       emptyState.style.display = 'none';
       tableContainer.style.display = 'block';
 
-      tbody.innerHTML = items.map(item => `
+      tbody.innerHTML = items.map(item => {
+        const ticketCount = ticketMode === 'open' ? (item.open_ticket_count || 0) : (item.ticket_count || 0);
+        return `
         <tr>
           <td><strong>${item.asset_name}</strong></td>
           <td>${item.asset_category || '-'}</td>
@@ -599,6 +647,7 @@
           <td>${item.customer_name || '-'}</td>
           <td>${item.asset_location || '-'}</td>
           <td><span class="badge badge-active">${item.ci_count || 0} CIs</span></td>
+          <td>${ticketCount > 0 ? `<span class="ticket-count-link" onclick="viewTicketsForCMDB('${item.cmdb_id}')">${ticketCount}</span>` : '0'}</td>
           <td><span class="badge badge-${item.status}">${item.status}</span></td>
           <td>
             <button class="btn btn-sm btn-primary" onclick="viewItem('${item.cmdb_id}')">View</button>
@@ -606,7 +655,7 @@
             <button class="btn btn-sm btn-danger" onclick="deleteItem('${item.cmdb_id}')">Delete</button>
           </td>
         </tr>
-      `).join('');
+      `}).join('');
     }
 
     // Populate filters
@@ -987,6 +1036,21 @@
 
     function downloadTemplate() {
       window.location.href = `${API_BASE}/cmdb/${tenantCode}/template/items`;
+    }
+
+    // Ticket mode toggle
+    function setTicketMode(mode) {
+      ticketMode = mode;
+      document.getElementById('toggleAllTickets').classList.toggle('active', mode === 'all');
+      document.getElementById('toggleOpenTickets').classList.toggle('active', mode === 'open');
+      applyFilters();
+    }
+
+    // View tickets for a CMDB item (opens main app with filter)
+    function viewTicketsForCMDB(cmdbId) {
+      // Navigate to main app tickets view filtered by this CMDB item
+      window.opener ? window.opener.postMessage({ action: 'filterTicketsByCMDB', cmdbId }, '*') : null;
+      alert(`To view tickets for this CMDB item, use the main application's ticket view with CMDB filter.`);
     }
 
     // Modal helpers

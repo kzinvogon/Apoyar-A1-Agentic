@@ -2033,7 +2033,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           <div class="card p-16">
             <div id="cmdb-loading" style="text-align:center;padding:40px;color:var(--muted);">Loading CMDB items...</div>
             <table id="cmdb-table" style="display:none">
-              <thead><tr><th style="width:180px">Customer</th><th>Asset Name</th><th>Category</th><th>Brand/Model</th><th style="width:60px">CIs</th><th style="width:100px"></th></tr></thead>
+              <thead><tr><th style="width:180px">Customer</th><th>Asset Name</th><th>Category</th><th>Brand/Model</th><th style="width:60px">CIs</th><th style="width:120px"><div style="display:flex;align-items:center;gap:4px;font-size:12px;">Tickets<button class="btn ghost" style="padding:2px 6px;font-size:10px;" id="cmdbTicketToggle" onclick="toggleCMDBTicketMode()">All</button></div></th><th style="width:100px"></th></tr></thead>
               <tbody id="cmdb-body"></tbody>
             </table>
             <div id="cmdb-empty" style="display:none;text-align:center;padding:40px;color:var(--muted);">
@@ -8532,6 +8532,15 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   }
 
   // ---- CMDB ----
+  window.cmdbTicketMode = window.cmdbTicketMode || 'all';
+
+  function toggleCMDBTicketMode() {
+    window.cmdbTicketMode = window.cmdbTicketMode === 'all' ? 'open' : 'all';
+    const btn = document.getElementById('cmdbTicketToggle');
+    if (btn) btn.textContent = window.cmdbTicketMode === 'all' ? 'All' : 'Open';
+    renderCMDB();
+  }
+
   function renderCMDB(){
     const loading = document.getElementById('cmdb-loading');
     const table = document.getElementById('cmdb-table');
@@ -8587,7 +8596,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       const category = i.asset_category || i.type || '—';
       const brandModel = [i.brand_name, i.model_name].filter(Boolean).join(' / ') || '—';
       const ciCount = i.ci_count || '—';
-      tr.innerHTML = `<td>${customerName}</td><td>${assetName}</td><td>${category}</td><td>${brandModel}</td><td style="text-align:center">${ciCount}</td><td><button class='btn primary' onclick='openItem("${i.cmdb_id}")'>Open</button></td>`;
+      const ticketCount = window.cmdbTicketMode === 'open' ? (i.open_ticket_count || 0) : (i.ticket_count || 0);
+      tr.innerHTML = `<td>${customerName}</td><td>${assetName}</td><td>${category}</td><td>${brandModel}</td><td style="text-align:center">${ciCount}</td><td style="text-align:center">${ticketCount}</td><td><button class='btn primary' onclick='openItem("${i.cmdb_id}")'>Open</button></td>`;
       body.appendChild(tr);
     });
   }
