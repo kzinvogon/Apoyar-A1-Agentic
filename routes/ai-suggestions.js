@@ -512,7 +512,7 @@ router.delete('/:tenantCode/tickets/:ticketId/cis/:ciId', async (req, res) => {
 router.get('/:tenantCode/cmdb-suggestions', async (req, res) => {
   try {
     const { tenantCode } = req.params;
-    const { limit = 50 } = req.query;
+    const { limit = 50, ticket_id } = req.query;
 
     // Verify user has access
     if (req.user.tenantCode !== tenantCode && req.user.role !== 'super_admin') {
@@ -527,6 +527,16 @@ router.get('/:tenantCode/cmdb-suggestions', async (req, res) => {
     const connection = await getTenantConnection(tenantCode);
 
     try {
+      // Build query with optional ticket_id filter
+      let whereClause = 'tcm.matched_by = \'ai\'';
+      const params = [];
+
+      if (ticket_id) {
+        whereClause += ' AND tcm.ticket_id = ?';
+        params.push(parseInt(ticket_id));
+      }
+      params.push(parseInt(limit));
+
       // Get pending AI suggestions (not yet approved/rejected)
       const [suggestions] = await connection.query(`
         SELECT
@@ -546,17 +556,18 @@ router.get('/:tenantCode/cmdb-suggestions', async (req, res) => {
         FROM ticket_cmdb_items tcm
         JOIN tickets t ON tcm.ticket_id = t.id
         JOIN cmdb_items ci ON tcm.cmdb_item_id = ci.id
-        WHERE tcm.matched_by = 'ai'
+        WHERE ${whereClause}
         ORDER BY tcm.created_at DESC
         LIMIT ?
-      `, [parseInt(limit)]);
+      `, params);
 
-      // Get count
+      // Get count (with optional ticket_id filter)
+      const countParams = ticket_id ? [parseInt(ticket_id)] : [];
       const [countResult] = await connection.query(`
         SELECT COUNT(*) as total
         FROM ticket_cmdb_items
-        WHERE matched_by = 'ai'
-      `);
+        WHERE matched_by = 'ai'${ticket_id ? ' AND ticket_id = ?' : ''}
+      `, countParams);
 
       res.json({
         success: true,
