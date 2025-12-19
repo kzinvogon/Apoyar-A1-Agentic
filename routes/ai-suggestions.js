@@ -589,6 +589,20 @@ router.get('/:tenantCode/cmdb-suggestions', async (req, res) => {
   }
 });
 
+// Known monitoring system patterns (emails, usernames, or full names)
+const MONITORING_SYSTEMS = [
+  'nagios', 'zabbix', 'datadog', 'prometheus', 'pagerduty', 'newrelic',
+  'icinga', 'grafana', 'splunk', 'dynatrace', 'appdynamics', 'solarwinds',
+  'opsgenie', 'victorops', 'pingdom', 'uptime', 'monitor', 'alert',
+  'cloudwatch', 'stackdriver', 'sensu', 'checkmk'
+];
+
+function isMonitoringSystem(requesterName, requesterEmail) {
+  const nameLC = (requesterName || '').toLowerCase();
+  const emailLC = (requesterEmail || '').toLowerCase();
+  return MONITORING_SYSTEMS.some(m => nameLC.includes(m) || emailLC.includes(m));
+}
+
 // Approve an AI-suggested CMDB link (convert to manual)
 router.post('/:tenantCode/cmdb-suggestions/:suggestionId/approve', async (req, res) => {
   try {
@@ -607,22 +621,80 @@ router.post('/:tenantCode/cmdb-suggestions/:suggestionId/approve', async (req, r
     const connection = await getTenantConnection(tenantCode);
 
     try {
-      const [result] = await connection.query(`
-        UPDATE ticket_cmdb_items
-        SET matched_by = 'manual', created_by = ?
-        WHERE id = ? AND matched_by = 'ai'
-      `, [req.user.userId, suggestionId]);
+      // First, get the suggestion details before updating
+      const [suggestions] = await connection.query(`
+        SELECT tci.id, tci.ticket_id, tci.cmdb_item_id, tci.relationship_type, tci.ai_confidence,
+               ci.asset_name, ci.customer_name as cmdb_customer_name,
+               t.requester_id, t.cmdb_item_id as current_cmdb_item_id,
+               u.full_name as requester_name, u.email as requester_email
+        FROM ticket_cmdb_items tci
+        JOIN cmdb_items ci ON tci.cmdb_item_id = ci.id
+        JOIN tickets t ON tci.ticket_id = t.id
+        LEFT JOIN users u ON t.requester_id = u.id
+        WHERE tci.id = ? AND tci.matched_by = 'ai'
+      `, [suggestionId]);
 
-      if (result.affectedRows === 0) {
+      if (suggestions.length === 0) {
         return res.status(404).json({
           success: false,
           error: 'Suggestion not found or already processed'
         });
       }
 
+      const suggestion = suggestions[0];
+      let customerAssociated = null;
+
+      // Check if requester is a monitoring system
+      const isMonitoring = isMonitoringSystem(suggestion.requester_name, suggestion.requester_email);
+
+      if (isMonitoring && suggestion.cmdb_customer_name) {
+        console.log(`   Monitoring system detected (${suggestion.requester_name}), attempting to associate with customer: ${suggestion.cmdb_customer_name}`);
+
+        // Try to find a matching customer company
+        const [companies] = await connection.query(`
+          SELECT id, company_name FROM customer_companies
+          WHERE company_name LIKE ? OR company_name LIKE ?
+          LIMIT 1
+        `, [`%${suggestion.cmdb_customer_name}%`, suggestion.cmdb_customer_name]);
+
+        if (companies.length > 0) {
+          customerAssociated = companies[0];
+          console.log(`   Found matching customer company: ${customerAssociated.company_name} (ID: ${customerAssociated.id})`);
+        }
+      }
+
+      // Update the suggestion to manual
+      await connection.query(`
+        UPDATE ticket_cmdb_items
+        SET matched_by = 'manual', created_by = ?
+        WHERE id = ?
+      `, [req.user.userId, suggestionId]);
+
+      // Also update the ticket's cmdb_item_id if not already set
+      if (!suggestion.current_cmdb_item_id) {
+        await connection.query(`
+          UPDATE tickets SET cmdb_item_id = ? WHERE id = ?
+        `, [suggestion.cmdb_item_id, suggestion.ticket_id]);
+      }
+
+      // Add activity log entry
+      let activityDescription = `CMDB item "${suggestion.asset_name}" linked to ticket (approved AI suggestion with ${Math.round(suggestion.ai_confidence * 100)}% confidence)`;
+
+      if (customerAssociated) {
+        activityDescription += `. Customer identified as "${customerAssociated.company_name}" based on CMDB ownership.`;
+      }
+
+      await connection.query(`
+        INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
+        VALUES (?, ?, 'cmdb_linked', ?)
+      `, [suggestion.ticket_id, req.user.userId, activityDescription]);
+
       res.json({
         success: true,
-        message: 'Suggestion approved and converted to manual link'
+        message: 'Suggestion approved and converted to manual link',
+        cmdbItem: suggestion.asset_name,
+        customerAssociated: customerAssociated ? customerAssociated.company_name : null,
+        isMonitoringSystem: isMonitoring
       });
 
     } finally {
