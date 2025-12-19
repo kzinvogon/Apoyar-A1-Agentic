@@ -35,6 +35,50 @@ admin,Example Laptop,Hardware,Username,jsmith,Lenovo,ThinkPad X1,John Smith,Sale
   res.send(template);
 });
 
+// Test CSV parsing endpoint (public - for debugging)
+router.post('/:tenantCode/test-parse', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No file uploaded' });
+    }
+
+    const fileContent = req.file.buffer.toString();
+    const firstLine = fileContent.split('\n')[0];
+    const secondLine = fileContent.split('\n')[1] || '';
+    const delimiter = firstLine.includes('\t') ? '\t' : ',';
+
+    const results = [];
+    const stream = Readable.from(fileContent);
+
+    await new Promise((resolve, reject) => {
+      stream
+        .pipe(csv({ separator: delimiter }))
+        .on('data', (rawRow) => {
+          if (results.length < 3) {
+            const row = {};
+            for (const [key, value] of Object.entries(rawRow)) {
+              row[key.trim()] = typeof value === 'string' ? value.trim() : value;
+            }
+            results.push(row);
+          }
+        })
+        .on('end', resolve)
+        .on('error', reject);
+    });
+
+    res.json({
+      success: true,
+      delimiter: delimiter === '\t' ? 'TAB' : 'COMMA',
+      headerLine: firstLine.substring(0, 500),
+      secondLine: secondLine.substring(0, 500),
+      columnNames: results.length > 0 ? Object.keys(results[0]) : [],
+      parsedRows: results
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // Clear all CMDB data endpoint (public - for fixing import issues)
 router.delete('/:tenantCode/clear-all', async (req, res) => {
   try {
