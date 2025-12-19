@@ -686,7 +686,7 @@ router.post('/:tenantCode/cmdb-suggestions/:suggestionId/approve', async (req, r
 
       await connection.query(`
         INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
-        VALUES (?, ?, 'cmdb_linked', ?)
+        VALUES (?, ?, 'updated', ?)
       `, [suggestion.ticket_id, req.user.userId, activityDescription]);
 
       res.json({
