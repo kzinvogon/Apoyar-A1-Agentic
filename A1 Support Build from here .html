@@ -1636,26 +1636,36 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             </div>
 
             <!-- AI CMDB Suggestions Section -->
-            <div id="ai-cmdb-suggestions-section" style="display:none;margin-top:16px;border-top:1px solid var(--border);padding-top:16px;">
+            <div id="ai-cmdb-suggestions-section" style="margin-top:16px;border-top:1px solid var(--border);padding-top:16px;">
               <div class="row space mb-12">
                 <div class="row" style="gap:8px">
-                  <strong style="color:#9f7aea">🤖 AI Suggested Matches</strong>
+                  <strong style="color:#9f7aea">🤖 AI Suggested CMDB Matches</strong>
                   <span id="ai-cmdb-suggestions-badge" class="badge" style="background:#9f7aea;color:white;display:none">0</span>
                 </div>
-                <div class="row" style="gap:8px">
+                <div class="row" style="gap:8px" id="ai-cmdb-bulk-actions" style="display:none">
                   <button class="btn" onclick="acceptAllCMDBSuggestions()" style="font-size:12px;padding:4px 8px;">✓ Accept All</button>
                   <button class="btn ghost" onclick="dismissAllCMDBSuggestions()" style="font-size:12px;padding:4px 8px;">✕ Dismiss All</button>
                 </div>
+                <button class="btn ghost" onclick="triggerCMDBAnalysis()" id="ai-cmdb-reanalyze-btn" style="font-size:12px;padding:4px 8px;display:none">🔄 Re-analyze</button>
               </div>
-              <div id="ai-cmdb-suggestions-list"></div>
-            </div>
 
-            <!-- AI Analysis Status -->
-            <div id="ai-cmdb-analyzing" style="display:none;margin-top:16px;padding:12px;background:linear-gradient(135deg,#667eea20,#764ba220);border-radius:8px;text-align:center;">
-              <div style="display:flex;align-items:center;justify-content:center;gap:8px;">
-                <span class="spinner" style="width:16px;height:16px;border:2px solid #764ba2;border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite;"></span>
-                <span style="color:#764ba2;font-weight:500;">Analyzing ticket for CMDB matches...</span>
+              <!-- Analyzing Status -->
+              <div id="ai-cmdb-analyzing" style="display:none;padding:16px;background:linear-gradient(135deg,#667eea10,#764ba210);border-radius:8px;text-align:center;">
+                <div style="display:flex;align-items:center;justify-content:center;gap:8px;">
+                  <span style="width:16px;height:16px;border:2px solid #764ba2;border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite;display:inline-block;"></span>
+                  <span style="color:#764ba2;font-weight:500;">Analyzing ticket for CMDB matches...</span>
+                </div>
               </div>
+
+              <!-- No Suggestions Message -->
+              <div id="ai-cmdb-no-suggestions" style="display:none;padding:16px;text-align:center;color:var(--muted);">
+                <div style="font-size:24px;margin-bottom:8px;">✨</div>
+                <div>No AI suggestions for this ticket</div>
+                <div style="font-size:12px;margin-top:4px;">Click "Re-analyze" to search for CMDB matches</div>
+              </div>
+
+              <!-- Suggestions List -->
+              <div id="ai-cmdb-suggestions-list"></div>
             </div>
           </div>
 
@@ -6803,16 +6813,21 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   async function autoAnalyzeCMDB() {
     if (!currentTicketId) return;
 
-    const suggestionsSection = document.getElementById('ai-cmdb-suggestions-section');
     const analyzingDiv = document.getElementById('ai-cmdb-analyzing');
+    const noSuggestionsDiv = document.getElementById('ai-cmdb-no-suggestions');
     const suggestionsList = document.getElementById('ai-cmdb-suggestions-list');
     const badge = document.getElementById('ai-cmdb-suggestions-badge');
+    const bulkActions = document.getElementById('ai-cmdb-bulk-actions');
+    const reanalyzeBtn = document.getElementById('ai-cmdb-reanalyze-btn');
 
-    // Hide sections initially
-    suggestionsSection.style.display = 'none';
-    analyzingDiv.style.display = 'none';
+    // Show analyzing, hide others
+    analyzingDiv.style.display = 'block';
+    noSuggestionsDiv.style.display = 'none';
+    suggestionsList.innerHTML = '';
+    badge.style.display = 'none';
+    if (bulkActions) bulkActions.style.display = 'none';
+    if (reanalyzeBtn) reanalyzeBtn.style.display = 'none';
 
-    // Check if we already have pending suggestions for this ticket
     try {
       const token = localStorage.getItem('token');
       const tenantCode = window.tenant || 'apoyar';
@@ -6826,6 +6841,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         const suggestionsData = await suggestionsRes.json();
         if (suggestionsData.success && suggestionsData.suggestions && suggestionsData.suggestions.length > 0) {
           currentTicketSuggestions = suggestionsData.suggestions;
+          analyzingDiv.style.display = 'none';
           renderTicketCMDBSuggestions();
           return;
         }
@@ -6835,12 +6851,12 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       const cacheKey = `${tenantCode}-${currentTicketId}`;
       const lastAnalyzed = ticketAnalysisCache[cacheKey];
       if (lastAnalyzed && (Date.now() - lastAnalyzed) < 5 * 60 * 1000) {
-        // Analyzed within last 5 minutes, skip
+        // Analyzed within last 5 minutes, show no suggestions
+        analyzingDiv.style.display = 'none';
+        noSuggestionsDiv.style.display = 'block';
+        if (reanalyzeBtn) reanalyzeBtn.style.display = 'inline-block';
         return;
       }
-
-      // Show analyzing status
-      analyzingDiv.style.display = 'block';
 
       // Trigger CMDB auto-link analysis
       const analyzeRes = await fetch(`${API_BASE}/api/ai/${tenantCode}/tickets/${currentTicketId}/auto-link-cmdb`, {
@@ -6848,7 +6864,6 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
       });
 
-      analyzingDiv.style.display = 'none';
       ticketAnalysisCache[cacheKey] = Date.now();
 
       if (analyzeRes.ok) {
@@ -6860,31 +6875,59 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           const suggestionsData2 = await suggestionsRes2.json();
           if (suggestionsData2.success && suggestionsData2.suggestions && suggestionsData2.suggestions.length > 0) {
             currentTicketSuggestions = suggestionsData2.suggestions;
+            analyzingDiv.style.display = 'none';
             renderTicketCMDBSuggestions();
+            // Also reload linked items in case some were auto-approved
+            loadLinkedCMDBItems();
+            return;
           }
         }
-        // Also reload linked items in case some were auto-approved
-        loadLinkedCMDBItems();
       }
+
+      // No suggestions found
+      analyzingDiv.style.display = 'none';
+      noSuggestionsDiv.style.display = 'block';
+      if (reanalyzeBtn) reanalyzeBtn.style.display = 'inline-block';
+      // Still reload linked items in case some were auto-approved
+      loadLinkedCMDBItems();
+
     } catch (error) {
       console.error('Error in auto CMDB analysis:', error);
       analyzingDiv.style.display = 'none';
+      noSuggestionsDiv.style.display = 'block';
+      if (reanalyzeBtn) reanalyzeBtn.style.display = 'inline-block';
     }
   }
 
+  function triggerCMDBAnalysis() {
+    // Clear cache for this ticket to force re-analysis
+    const tenantCode = window.tenant || 'apoyar';
+    const cacheKey = `${tenantCode}-${currentTicketId}`;
+    delete ticketAnalysisCache[cacheKey];
+    autoAnalyzeCMDB();
+  }
+
   function renderTicketCMDBSuggestions() {
-    const suggestionsSection = document.getElementById('ai-cmdb-suggestions-section');
+    const noSuggestionsDiv = document.getElementById('ai-cmdb-no-suggestions');
     const suggestionsList = document.getElementById('ai-cmdb-suggestions-list');
     const badge = document.getElementById('ai-cmdb-suggestions-badge');
+    const bulkActions = document.getElementById('ai-cmdb-bulk-actions');
+    const reanalyzeBtn = document.getElementById('ai-cmdb-reanalyze-btn');
 
     if (!currentTicketSuggestions || currentTicketSuggestions.length === 0) {
-      suggestionsSection.style.display = 'none';
+      noSuggestionsDiv.style.display = 'block';
+      suggestionsList.innerHTML = '';
+      badge.style.display = 'none';
+      if (bulkActions) bulkActions.style.display = 'none';
+      if (reanalyzeBtn) reanalyzeBtn.style.display = 'inline-block';
       return;
     }
 
-    suggestionsSection.style.display = 'block';
+    noSuggestionsDiv.style.display = 'none';
     badge.textContent = currentTicketSuggestions.length;
     badge.style.display = 'inline-flex';
+    if (bulkActions) bulkActions.style.display = 'flex';
+    if (reanalyzeBtn) reanalyzeBtn.style.display = 'none';
 
     suggestionsList.innerHTML = currentTicketSuggestions.map((s, idx) => `
       <div class="card p-12 mb-8" style="border-left:3px solid #9f7aea;" id="suggestion-${s.id || idx}">
