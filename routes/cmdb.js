@@ -574,14 +574,32 @@ router.post('/:tenantCode/import/items', upload.single('file'), async (req, res)
     const assetMap = new Map();
 
     try {
-      // Parse CSV
-      const stream = Readable.from(req.file.buffer.toString());
+      // Parse CSV - detect delimiter (tab or comma)
+      const fileContent = req.file.buffer.toString();
+      const firstLine = fileContent.split('\n')[0];
+      const delimiter = firstLine.includes('\t') ? '\t' : ',';
+      console.log(`CMDB Import: Detected delimiter: ${delimiter === '\t' ? 'TAB' : 'COMMA'}`);
+      console.log(`CMDB Import: First line columns: ${firstLine.substring(0, 200)}`);
+
+      const stream = Readable.from(fileContent);
 
       await new Promise((resolve, reject) => {
         stream
-          .pipe(csv())
-          .on('data', (row) => {
+          .pipe(csv({ separator: delimiter }))
+          .on('data', (rawRow) => {
             lineNumber++;
+
+            // Trim column names and values (handles extra spaces in headers)
+            const row = {};
+            for (const [key, value] of Object.entries(rawRow)) {
+              row[key.trim()] = typeof value === 'string' ? value.trim() : value;
+            }
+
+            // Log first row for debugging
+            if (lineNumber === 2) {
+              console.log('CMDB Import: First data row keys:', Object.keys(row));
+              console.log('CMDB Import: First data row sample:', JSON.stringify(row).substring(0, 500));
+            }
 
             // Support both old format (asset_name) and new format (AssetName)
             const assetName = row['AssetName'] || row['AssetName*'] || row.asset_name;
