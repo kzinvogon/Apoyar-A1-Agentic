@@ -1634,6 +1634,29 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
                 <tbody id="linked-cis-body"></tbody>
               </table>
             </div>
+
+            <!-- AI CMDB Suggestions Section -->
+            <div id="ai-cmdb-suggestions-section" style="display:none;margin-top:16px;border-top:1px solid var(--border);padding-top:16px;">
+              <div class="row space mb-12">
+                <div class="row" style="gap:8px">
+                  <strong style="color:#9f7aea">🤖 AI Suggested Matches</strong>
+                  <span id="ai-cmdb-suggestions-badge" class="badge" style="background:#9f7aea;color:white;display:none">0</span>
+                </div>
+                <div class="row" style="gap:8px">
+                  <button class="btn" onclick="acceptAllCMDBSuggestions()" style="font-size:12px;padding:4px 8px;">✓ Accept All</button>
+                  <button class="btn ghost" onclick="dismissAllCMDBSuggestions()" style="font-size:12px;padding:4px 8px;">✕ Dismiss All</button>
+                </div>
+              </div>
+              <div id="ai-cmdb-suggestions-list"></div>
+            </div>
+
+            <!-- AI Analysis Status -->
+            <div id="ai-cmdb-analyzing" style="display:none;margin-top:16px;padding:12px;background:linear-gradient(135deg,#667eea20,#764ba220);border-radius:8px;text-align:center;">
+              <div style="display:flex;align-items:center;justify-content:center;gap:8px;">
+                <span class="spinner" style="width:16px;height:16px;border:2px solid #764ba2;border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite;"></span>
+                <span style="color:#764ba2;font-weight:500;">Analyzing ticket for CMDB matches...</span>
+              </div>
+            </div>
           </div>
 
           <!-- Knowledge Base Suggestions Section -->
@@ -6218,6 +6241,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
     // Load linked CMDB items
     loadLinkedCMDBItems();
+
+    // Auto-trigger AI CMDB analysis
+    autoAnalyzeCMDB();
   }
 
   // ---- Assignment functions ----
@@ -6767,6 +6793,178 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       console.error('Error loading linked CMDB items:', error);
       loading.style.display = 'none';
       empty.style.display = 'block';
+    }
+  }
+
+  // ---- Auto CMDB Analysis ----
+  let ticketAnalysisCache = {}; // Cache to avoid re-analyzing recently analyzed tickets
+  let currentTicketSuggestions = [];
+
+  async function autoAnalyzeCMDB() {
+    if (!currentTicketId) return;
+
+    const suggestionsSection = document.getElementById('ai-cmdb-suggestions-section');
+    const analyzingDiv = document.getElementById('ai-cmdb-analyzing');
+    const suggestionsList = document.getElementById('ai-cmdb-suggestions-list');
+    const badge = document.getElementById('ai-cmdb-suggestions-badge');
+
+    // Hide sections initially
+    suggestionsSection.style.display = 'none';
+    analyzingDiv.style.display = 'none';
+
+    // Check if we already have pending suggestions for this ticket
+    try {
+      const token = localStorage.getItem('token');
+      const tenantCode = window.tenant || 'apoyar';
+
+      // First, check for existing CMDB suggestions for this ticket
+      const suggestionsRes = await fetch(`${API_BASE}/api/ai/${tenantCode}/cmdb-suggestions?ticket_id=${currentTicketId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (suggestionsRes.ok) {
+        const suggestionsData = await suggestionsRes.json();
+        if (suggestionsData.success && suggestionsData.suggestions && suggestionsData.suggestions.length > 0) {
+          currentTicketSuggestions = suggestionsData.suggestions;
+          renderTicketCMDBSuggestions();
+          return;
+        }
+      }
+
+      // Check if already analyzed recently (in memory cache)
+      const cacheKey = `${tenantCode}-${currentTicketId}`;
+      const lastAnalyzed = ticketAnalysisCache[cacheKey];
+      if (lastAnalyzed && (Date.now() - lastAnalyzed) < 5 * 60 * 1000) {
+        // Analyzed within last 5 minutes, skip
+        return;
+      }
+
+      // Show analyzing status
+      analyzingDiv.style.display = 'block';
+
+      // Trigger CMDB auto-link analysis
+      const analyzeRes = await fetch(`${API_BASE}/api/ai/${tenantCode}/tickets/${currentTicketId}/auto-link-cmdb`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+      });
+
+      analyzingDiv.style.display = 'none';
+      ticketAnalysisCache[cacheKey] = Date.now();
+
+      if (analyzeRes.ok) {
+        // After analysis, reload CMDB suggestions for this ticket
+        const suggestionsRes2 = await fetch(`${API_BASE}/api/ai/${tenantCode}/cmdb-suggestions?ticket_id=${currentTicketId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (suggestionsRes2.ok) {
+          const suggestionsData2 = await suggestionsRes2.json();
+          if (suggestionsData2.success && suggestionsData2.suggestions && suggestionsData2.suggestions.length > 0) {
+            currentTicketSuggestions = suggestionsData2.suggestions;
+            renderTicketCMDBSuggestions();
+          }
+        }
+        // Also reload linked items in case some were auto-approved
+        loadLinkedCMDBItems();
+      }
+    } catch (error) {
+      console.error('Error in auto CMDB analysis:', error);
+      analyzingDiv.style.display = 'none';
+    }
+  }
+
+  function renderTicketCMDBSuggestions() {
+    const suggestionsSection = document.getElementById('ai-cmdb-suggestions-section');
+    const suggestionsList = document.getElementById('ai-cmdb-suggestions-list');
+    const badge = document.getElementById('ai-cmdb-suggestions-badge');
+
+    if (!currentTicketSuggestions || currentTicketSuggestions.length === 0) {
+      suggestionsSection.style.display = 'none';
+      return;
+    }
+
+    suggestionsSection.style.display = 'block';
+    badge.textContent = currentTicketSuggestions.length;
+    badge.style.display = 'inline-flex';
+
+    suggestionsList.innerHTML = currentTicketSuggestions.map((s, idx) => `
+      <div class="card p-12 mb-8" style="border-left:3px solid #9f7aea;" id="suggestion-${s.id || idx}">
+        <div class="row space">
+          <div>
+            <strong>${s.asset_name || 'Unknown Asset'}</strong>
+            <div style="font-size:12px;color:var(--muted);">
+              ${s.asset_category || ''} ${s.cmdb_customer ? '• ' + s.cmdb_customer : ''}
+            </div>
+            ${s.match_reason ? `<div style="font-size:11px;color:#9f7aea;margin-top:4px;">💡 ${s.match_reason}</div>` : ''}
+            ${s.confidence_score ? `<div style="font-size:11px;color:var(--muted);margin-top:2px;">Confidence: ${s.confidence_score}%</div>` : ''}
+          </div>
+          <div class="row" style="gap:4px">
+            <button class="btn success" onclick="acceptCMDBSuggestion(${s.id}, ${idx})" style="padding:4px 8px;font-size:12px;">✓ Accept</button>
+            <button class="btn ghost" onclick="dismissCMDBSuggestion(${s.id}, ${idx})" style="padding:4px 8px;font-size:12px;">✕</button>
+          </div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  async function acceptCMDBSuggestion(suggestionId, idx) {
+    try {
+      const token = localStorage.getItem('token');
+      const tenantCode = window.tenant || 'apoyar';
+
+      const res = await fetch(`${API_BASE}/api/ai/${tenantCode}/cmdb-suggestions/${suggestionId}/approve`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+      });
+
+      if (res.ok) {
+        // Remove from local list
+        currentTicketSuggestions.splice(idx, 1);
+        renderTicketCMDBSuggestions();
+        // Reload linked items to show the newly accepted one
+        loadLinkedCMDBItems();
+        // Update dashboard count
+        if (typeof loadCMDBSuggestionsCount === 'function') loadCMDBSuggestionsCount();
+      } else {
+        alert('Failed to accept suggestion');
+      }
+    } catch (error) {
+      console.error('Error accepting suggestion:', error);
+      alert('Error accepting suggestion');
+    }
+  }
+
+  async function dismissCMDBSuggestion(suggestionId, idx) {
+    try {
+      const token = localStorage.getItem('token');
+      const tenantCode = window.tenant || 'apoyar';
+
+      const res = await fetch(`${API_BASE}/api/ai/${tenantCode}/cmdb-suggestions/${suggestionId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (res.ok) {
+        // Remove from local list
+        currentTicketSuggestions.splice(idx, 1);
+        renderTicketCMDBSuggestions();
+        if (typeof loadCMDBSuggestionsCount === 'function') loadCMDBSuggestionsCount();
+      }
+    } catch (error) {
+      console.error('Error dismissing suggestion:', error);
+    }
+  }
+
+  async function acceptAllCMDBSuggestions() {
+    for (let i = currentTicketSuggestions.length - 1; i >= 0; i--) {
+      const s = currentTicketSuggestions[i];
+      await acceptCMDBSuggestion(s.id || s.cmdb_item_id, i);
+    }
+  }
+
+  async function dismissAllCMDBSuggestions() {
+    for (let i = currentTicketSuggestions.length - 1; i >= 0; i--) {
+      const s = currentTicketSuggestions[i];
+      await dismissCMDBSuggestion(s.id || s.cmdb_item_id, i);
     }
   }
 
