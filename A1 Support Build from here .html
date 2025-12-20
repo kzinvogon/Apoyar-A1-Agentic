@@ -10821,8 +10821,10 @@ function updateActionParams() {
 // Save rule (create or update)
 async function saveRule(event) {
   event.preventDefault();
+  console.log('saveRule called');
 
-  const tenantCode = window.currentTenant || 'apoyar';
+  const tenantCode = window.currentTenant || window.tenant || 'apoyar';
+  console.log('Tenant code:', tenantCode);
   const token = localStorage.getItem('token');
   const ruleId = document.getElementById('rule-id').value;
 
@@ -10848,6 +10850,9 @@ async function saveRule(event) {
       method = 'POST';
     }
 
+    console.log('Saving rule to:', url, 'method:', method);
+    console.log('Rule data:', ruleData);
+
     const response = await fetch(url, {
       method: method,
       headers: {
@@ -10857,7 +10862,9 @@ async function saveRule(event) {
       body: JSON.stringify(ruleData)
     });
 
+    console.log('Response status:', response.status);
     const data = await response.json();
+    console.log('Response data:', data);
 
     if (data.success) {
       closeRuleModal();
