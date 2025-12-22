@@ -8,7 +8,18 @@
     "start-simple": "node server-simple.js",
     "dev": "node server.js",
     "setup-db": "node scripts/setup-database.js",
-    "setup-email": "node setup-email.js"
+    "setup-email": "node setup-email.js",
+    "cap:init": "npx cap init ServiFlow com.serviflow.app --web-dir .",
+    "cap:add:ios": "npx cap add ios",
+    "cap:add:android": "npx cap add android",
+    "cap:sync": "npx cap sync",
+    "cap:open:ios": "npx cap open ios",
+    "cap:open:android": "npx cap open android",
+    "cap:run:ios": "npx cap run ios",
+    "cap:run:android": "npx cap run android",
+    "mobile:setup": "npm run cap:add:ios && npm run cap:add:android && npm run cap:sync",
+    "mobile:ios": "npm run cap:sync && npm run cap:open:ios",
+    "mobile:android": "npm run cap:sync && npm run cap:open:android"
   },
   "keywords": [
     "support",
@@ -23,6 +34,12 @@
   "license": "MIT",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",
+    "@capacitor/android": "^8.0.0",
+    "@capacitor/cli": "^7.4.4",
+    "@capacitor/core": "^8.0.0",
+    "@capacitor/ios": "^8.0.0",
+    "@capacitor/splash-screen": "^8.0.0",
+    "@capacitor/status-bar": "^8.0.0",
     "bcrypt": "^5.1.1",
     "cors": "^2.8.5",
     "csv-parser": "^3.2.0",
@@ -42,6 +59,7 @@
     "node": ">=14.0.0"
   },
   "devDependencies": {
-    "sharp": "^0.34.5"
+    "sharp": "^0.34.5",
+    "typescript": "^5.9.3"
   }
 }
