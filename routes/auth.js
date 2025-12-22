@@ -51,6 +51,17 @@ router.post('/tenant/login', loginLimiter, validateTenantLogin, async (req, res)
       return res.status(401).json({ success: false, message: result.message });
     }
 
+    // Check if user must reset password on first login
+    if (result.mustResetPassword) {
+      return res.json({
+        success: true,
+        mustResetPassword: true,
+        message: result.message,
+        user: result.user,
+        resetToken: result.resetToken
+      });
+    }
+
     res.json({
       success: true,
       message: 'Login successful',
@@ -59,6 +70,94 @@ router.post('/tenant/login', loginLimiter, validateTenantLogin, async (req, res)
     });
   } catch (error) {
     console.error('Error in tenant login:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// First-time password reset (for accounts requiring password change on first login)
+router.post('/tenant/first-login-password-reset', passwordChangeLimiter, async (req, res) => {
+  try {
+    const { reset_token, new_password } = req.body;
+
+    if (!reset_token || !new_password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Reset token and new password are required'
+      });
+    }
+
+    if (new_password.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password must be at least 8 characters long'
+      });
+    }
+
+    // Verify the reset token
+    const jwt = require('jsonwebtoken');
+    let decoded;
+    try {
+      decoded = jwt.verify(reset_token, JWT_SECRET);
+    } catch (tokenError) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid or expired reset token. Please login again.'
+      });
+    }
+
+    // Ensure this is a password reset token
+    if (decoded.purpose !== 'password_reset') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token type'
+      });
+    }
+
+    const connection = await getTenantConnection(decoded.tenantCode);
+
+    try {
+      // Verify user still needs password reset
+      const [users] = await connection.query(
+        'SELECT id, must_reset_password FROM users WHERE id = ? AND is_active = TRUE',
+        [decoded.userId]
+      );
+
+      if (users.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+
+      if (!users[0].must_reset_password) {
+        return res.status(400).json({
+          success: false,
+          message: 'Password reset not required. Please login normally.'
+        });
+      }
+
+      // Hash and update password, clear must_reset_password flag
+      const newPasswordHash = await hashPassword(new_password);
+      await connection.query(
+        'UPDATE users SET password_hash = ?, must_reset_password = FALSE, updated_at = NOW() WHERE id = ?',
+        [newPasswordHash, decoded.userId]
+      );
+
+      // Log the password change
+      await connection.query(
+        'INSERT INTO tenant_audit_log (user_id, action, details) VALUES (?, ?, ?)',
+        [decoded.userId, 'first_login_password_reset', JSON.stringify({ message: 'User completed first-time password reset' })]
+      );
+
+      res.json({
+        success: true,
+        message: 'Password reset successfully. You can now login with your new password.'
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error in first-login password reset:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });

@@ -3,6 +3,8 @@ const { sendNotificationEmail } = require('../config/email');
 const { createTicketAccessToken } = require('../utils/tokenGenerator');
 const Imap = require('imap');
 const { simpleParser } = require('mailparser');
+const bcrypt = require('bcrypt');
+const crypto = require('crypto');
 
 /**
  * Email Processor Service
@@ -210,6 +212,181 @@ class EmailProcessor {
   }
 
   /**
+   * Get the tenant's domain from settings
+   */
+  async getTenantDomain(connection) {
+    try {
+      const [settings] = await connection.query(
+        'SELECT setting_value FROM tenant_settings WHERE setting_key = ?',
+        ['tenant_domain']
+      );
+      return settings.length > 0 ? settings[0].setting_value : null;
+    } catch (error) {
+      console.error('Error getting tenant domain:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Check if email subject matches "Please Add Me" pattern
+   */
+  isExpertRequestEmail(subject) {
+    if (!subject) return false;
+    const normalizedSubject = subject.toLowerCase().trim();
+    return normalizedSubject === 'please add me' ||
+           normalizedSubject.startsWith('please add me');
+  }
+
+  /**
+   * Process expert registration request email
+   * Creates a new expert account and sends credentials
+   */
+  async processExpertRequest(connection, email, fromEmail, domain) {
+    console.log(`🆕 Processing expert registration request from: ${fromEmail}`);
+
+    try {
+      // Check if user already exists
+      const [existingUsers] = await connection.query(
+        'SELECT id, role FROM users WHERE email = ?',
+        [fromEmail]
+      );
+
+      if (existingUsers.length > 0) {
+        console.log(`User ${fromEmail} already exists with role: ${existingUsers[0].role}`);
+
+        // Send email informing them they already have an account
+        await sendNotificationEmail(
+          fromEmail,
+          'Account Already Exists - A1 Support',
+          `
+            <h2>Account Already Exists</h2>
+            <p>Hello,</p>
+            <p>You already have an account in our system with the email address <strong>${fromEmail}</strong>.</p>
+            <p>Please use the login page to access your account. If you've forgotten your password, use the "Forgot Password" feature.</p>
+            <p>If you believe this is an error, please contact your administrator.</p>
+            <hr>
+            <p style="color:#666;font-size:12px">This is an automated message from A1 Support.</p>
+          `
+        );
+
+        return { success: false, reason: 'user_already_exists' };
+      }
+
+      // Extract name from email body or email prefix
+      let fullName = this.extractNameFromEmail(email, fromEmail);
+
+      // Generate username from email (before @)
+      const emailPrefix = fromEmail.split('@')[0];
+      let username = emailPrefix.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+
+      // Check if username exists and make it unique if needed
+      const [existingUsername] = await connection.query(
+        'SELECT id FROM users WHERE username = ?',
+        [username]
+      );
+
+      if (existingUsername.length > 0) {
+        username = `${username}_${Date.now().toString(36)}`;
+      }
+
+      // Generate temporary password
+      const tempPassword = crypto.randomBytes(8).toString('hex');
+      const passwordHash = await bcrypt.hash(tempPassword, 10);
+
+      // Create the expert user with must_reset_password flag
+      const [result] = await connection.query(
+        `INSERT INTO users (username, email, password_hash, full_name, role, is_active, must_reset_password)
+         VALUES (?, ?, ?, ?, 'expert', TRUE, TRUE)`,
+        [username, fromEmail, passwordHash, fullName]
+      );
+
+      const userId = result.insertId;
+      console.log(`✅ Created expert account for ${fromEmail} (userId=${userId})`);
+
+      // Log the activity
+      await connection.query(
+        `INSERT INTO tenant_audit_log (user_id, action, details) VALUES (?, ?, ?)`,
+        [userId, 'expert_created_via_email', JSON.stringify({ message: `Expert account created via "Please Add Me" email`, email: fromEmail })]
+      );
+
+      // Send welcome email with credentials
+      const loginUrl = process.env.BASE_URL || 'http://localhost:3000';
+
+      await sendNotificationEmail(
+        fromEmail,
+        'Welcome to A1 Support - Your Expert Account is Ready',
+        `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #2563eb;">Welcome to A1 Support!</h2>
+            <p>Hello ${fullName},</p>
+            <p>Your expert account has been created successfully. You can now log in to the support dashboard.</p>
+
+            <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <h3 style="margin-top: 0; color: #374151;">Your Login Credentials</h3>
+              <p><strong>Username:</strong> ${username}</p>
+              <p><strong>Temporary Password:</strong> <code style="background:#e5e7eb;padding:4px 8px;border-radius:4px;">${tempPassword}</code></p>
+              <p><strong>Login URL:</strong> <a href="${loginUrl}">${loginUrl}</a></p>
+            </div>
+
+            <div style="background-color: #fef3c7; padding: 15px; border-radius: 8px; border-left: 4px solid #f59e0b; margin: 20px 0;">
+              <p style="margin: 0; color: #92400e;"><strong>⚠️ Important:</strong> You will be required to change your password on first login.</p>
+            </div>
+
+            <p>As an expert, you will be able to:</p>
+            <ul>
+              <li>View and manage support tickets</li>
+              <li>Respond to customer inquiries</li>
+              <li>Track SLA deadlines</li>
+              <li>Access the CMDB and knowledge base</li>
+            </ul>
+
+            <p>If you have any questions, please contact your administrator.</p>
+
+            <hr style="border: 1px solid #e5e7eb; margin: 20px 0;">
+            <p style="color:#666;font-size:12px">This is an automated message from A1 Support. Please do not reply to this email.</p>
+          </div>
+        `
+      );
+
+      console.log(`📧 Sent welcome email with credentials to: ${fromEmail}`);
+
+      return {
+        success: true,
+        type: 'expert_created',
+        userId,
+        username,
+        email: fromEmail
+      };
+
+    } catch (error) {
+      console.error('Error processing expert request:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Extract full name from email content or email address
+   */
+  extractNameFromEmail(email, fromEmail) {
+    // Try to extract from email "From" header (Name <email@domain.com>)
+    const fromMatch = email.from.match(/^([^<]+)</);
+    if (fromMatch && fromMatch[1].trim()) {
+      return fromMatch[1].trim();
+    }
+
+    // Try to extract from email body if it contains name
+    const body = email.body || '';
+    const nameMatch = body.match(/(?:my name is|i am|i'm)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i);
+    if (nameMatch) {
+      return nameMatch[1];
+    }
+
+    // Fall back to generating name from email prefix
+    const emailPrefix = fromEmail.split('@')[0];
+    return emailPrefix.replace(/[._-]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+  }
+
+  /**
    * Process a single email message
    */
   async processEmail(connection, email) {
@@ -229,6 +406,20 @@ class EmailProcessor {
       }
 
       console.log(`Processing email from: ${fromEmail}, domain: ${domain}`);
+
+      // Check if this is a "Please Add Me" expert registration request
+      if (this.isExpertRequestEmail(email.subject)) {
+        // Get tenant domain
+        const tenantDomain = await this.getTenantDomain(connection);
+
+        if (tenantDomain && domain.toLowerCase() === tenantDomain.toLowerCase()) {
+          console.log(`📝 "Please Add Me" request detected from tenant domain: ${domain}`);
+          return await this.processExpertRequest(connection, email, fromEmail, domain);
+        } else {
+          console.log(`⚠️ "Please Add Me" email from non-tenant domain: ${domain} (expected: ${tenantDomain || 'not configured'})`);
+          // Continue with normal ticket processing if domain doesn't match
+        }
+      }
 
       // Step 1: Check if domain exists in customer profiles
       const [domainCustomers] = await connection.query(
