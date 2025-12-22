@@ -93,6 +93,35 @@ async function authenticateTenantUser(tenantCode, username, password) {
         return { success: false, message: 'Invalid credentials' };
       }
 
+      // Check if user must reset password on first login
+      if (user.must_reset_password) {
+        // Generate a temporary token for password reset only
+        const resetToken = jwt.sign(
+          {
+            userId: user.id,
+            username: user.username,
+            tenantCode: tenantCode,
+            purpose: 'password_reset'
+          },
+          JWT_SECRET,
+          { expiresIn: '15m' } // Short expiry for password reset
+        );
+
+        return {
+          success: true,
+          mustResetPassword: true,
+          message: 'Password reset required on first login',
+          user: {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            fullName: user.full_name,
+            tenantCode: tenantCode
+          },
+          resetToken
+        };
+      }
+
       // Note: last_login column doesn't exist in users table
       // Update timestamp to track last activity
       await connection.query(

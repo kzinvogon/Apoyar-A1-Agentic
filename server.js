@@ -221,6 +221,15 @@ async function startServer() {
           console.warn(`⚠️  Warning: Email notifications migration:`, migrationError.message);
         }
 
+        // Run must_reset_password column migration
+        try {
+          const { runMigration: runMustResetPasswordMigration } = require('./migrations/add-must-reset-password');
+          await runMustResetPasswordMigration('apoyar');
+          console.log('✅ Must reset password column migration completed');
+        } catch (migrationError) {
+          console.warn(`⚠️  Warning: Must reset password migration:`, migrationError.message);
+        }
+
         // Start email processing for apoyar tenant
         try {
           await startEmailProcessing('apoyar');
