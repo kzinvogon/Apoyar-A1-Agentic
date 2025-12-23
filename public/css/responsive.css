@@ -1,0 +1,561 @@
+/**
+ * ServiFlow Mobile Responsive Styles
+ * Optimized for Capacitor iOS/Android native apps
+ *
+ * Include this CSS in all HTML files for consistent mobile experience
+ */
+
+/* ========================================
+   BASE MOBILE-FIRST DEFAULTS
+   ======================================== */
+
+/* Ensure proper scaling on all devices */
+html {
+  -webkit-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+  font-size: 16px;
+}
+
+/* Base touch-friendly sizing */
+body {
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Minimum readable text */
+p, span, div, td, th, li, label {
+  font-size: max(14px, 1em);
+}
+
+/* ========================================
+   SAFE AREA INSETS (Notched Devices)
+   ======================================== */
+
+@supports (padding-top: env(safe-area-inset-top)) {
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .safe-area-left {
+    padding-left: env(safe-area-inset-left);
+  }
+
+  .safe-area-right {
+    padding-right: env(safe-area-inset-right);
+  }
+}
+
+/* ========================================
+   TOUCH-FRIENDLY ELEMENTS
+   ======================================== */
+
+/* Minimum 44px touch targets (Apple HIG recommendation) */
+button,
+.btn,
+a.btn,
+input[type="button"],
+input[type="submit"],
+.navlink,
+.clickable,
+[onclick] {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Remove tap highlight on iOS */
+a, button, input, select, textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Prevent text selection on interactive elements */
+button, .btn, .navlink, .card[onclick] {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* ========================================
+   FORM INPUTS - Prevent iOS Zoom
+   ======================================== */
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="tel"],
+input[type="url"],
+input[type="search"],
+input[type="date"],
+input[type="time"],
+select,
+textarea {
+  font-size: 16px !important; /* Prevents iOS zoom on focus */
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  width: 100%;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: #007aff;
+  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15);
+}
+
+/* ========================================
+   BUTTONS - Mobile Optimized
+   ======================================== */
+
+.btn,
+button:not(.mobile-menu-toggle) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 20px;
+  font-size: 15px;
+  font-weight: 600;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.1s ease, opacity 0.1s ease, background 0.15s ease;
+  text-decoration: none;
+}
+
+/* Active press state for native feel */
+.btn:active,
+button:active {
+  transform: scale(0.97);
+  opacity: 0.85;
+}
+
+/* ========================================
+   TABLET BREAKPOINT (max-width: 1024px)
+   ======================================== */
+
+@media (max-width: 1024px) {
+  .container {
+    padding: 16px;
+    max-width: 100%;
+  }
+
+  /* 2-column grids on tablet */
+  .grid4 {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px;
+  }
+
+  .grid3 {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px;
+  }
+}
+
+/* ========================================
+   MOBILE BREAKPOINT (max-width: 768px)
+   ======================================== */
+
+@media (max-width: 768px) {
+  /* Container */
+  body {
+    padding-top: calc(56px + env(safe-area-inset-top, 0px));
+  }
+
+  .container {
+    padding: 12px;
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
+  }
+
+  /* ---- GRIDS: Stack to single column ---- */
+  .grid2,
+  .grid3,
+  .grid4 {
+    grid-template-columns: 1fr !important;
+    gap: 12px;
+  }
+
+  /* ---- METRIC CARDS ---- */
+  .card {
+    border-radius: 12px;
+    padding: 16px;
+  }
+
+  /* Metric card text sizing */
+  .card .subtitle {
+    font-size: 13px;
+  }
+
+  .card [style*="font-size:32px"],
+  .card [style*="font-size: 32px"] {
+    font-size: 28px !important;
+  }
+
+  .card [style*="font-size:28px"],
+  .card [style*="font-size: 28px"] {
+    font-size: 24px !important;
+  }
+
+  /* ---- QUICK ADMIN BUTTONS ---- */
+  .quick-admin-buttons,
+  .card .row.wrap,
+  .toolbar-buttons {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+  }
+
+  .quick-admin-buttons .btn,
+  .card .row.wrap .btn,
+  .toolbar-buttons .btn {
+    width: 100% !important;
+    min-height: 52px !important;
+    font-size: 15px !important;
+    justify-content: center;
+  }
+
+  /* ---- ROW LAYOUTS ---- */
+  .row.space {
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: 12px;
+  }
+
+  .row.wrap {
+    flex-direction: column;
+  }
+
+  /* ---- HEADER / NAVIGATION ---- */
+  .topnav,
+  .header,
+  nav {
+    padding: 12px;
+    padding-top: max(12px, env(safe-area-inset-top));
+  }
+
+  .topnav-brand span,
+  .brand-text {
+    display: none;
+  }
+
+  .topnav-actions {
+    display: none;
+  }
+
+  /* ---- SIDEBAR ---- */
+  .leftnav,
+  .sidebar {
+    position: fixed !important;
+    top: calc(56px + env(safe-area-inset-top, 0px));
+    left: 0;
+    bottom: 0;
+    width: 280px;
+    background: var(--card, #fff);
+    border-right: 1px solid var(--border, #e5e5e5);
+    padding: 16px;
+    padding-bottom: env(safe-area-inset-bottom, 16px);
+    z-index: 90;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .leftnav.open,
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .navlink {
+    padding: 14px 16px;
+    font-size: 16px;
+    min-height: 52px;
+    border-radius: 10px;
+  }
+
+  /* ---- TABLES ---- */
+  table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    font-size: 14px;
+  }
+
+  th, td {
+    padding: 12px 10px;
+    white-space: nowrap;
+  }
+
+  /* Larger touch target for table rows */
+  tr {
+    min-height: 52px;
+  }
+
+  tr:active {
+    background: var(--card-hover, #f5f5f5);
+  }
+
+  /* ---- MODALS ---- */
+  .modal .sheet,
+  .modal-content {
+    width: calc(100vw - 24px) !important;
+    max-width: none !important;
+    max-height: 90vh;
+    border-radius: 16px 16px 0 0;
+    position: fixed;
+    bottom: 0;
+    left: 12px;
+    right: 12px;
+    animation: slideUp 0.3s ease;
+  }
+
+  @keyframes slideUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+
+  .modal .foot,
+  .modal-footer {
+    padding: 12px 16px;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .modal .foot .btn,
+  .modal-footer .btn {
+    flex: 1;
+    min-width: calc(50% - 4px);
+  }
+
+  /* ---- CHAT ASSISTANT BUBBLE ---- */
+  #chat-toggle,
+  .chat-toggle,
+  .chat-fab {
+    position: fixed !important;
+    right: 16px !important;
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px)) !important;
+    width: 60px !important;
+    height: 60px !important;
+    border-radius: 50% !important;
+    font-size: 24px !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25) !important;
+    z-index: 100;
+  }
+
+  #chat,
+  .chat-panel {
+    position: fixed;
+    right: 12px;
+    left: 12px;
+    bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+    width: auto !important;
+    max-height: 60vh;
+  }
+
+  /* ---- TOOLBAR ---- */
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .toolbar-left,
+  .toolbar-right {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .search-box,
+  .select-box {
+    width: 100%;
+    min-width: auto;
+  }
+
+  /* ---- TYPOGRAPHY ---- */
+  h1, .title {
+    font-size: 22px;
+  }
+
+  h2 {
+    font-size: 20px;
+  }
+
+  h3 {
+    font-size: 18px;
+  }
+
+  h4 {
+    font-size: 16px;
+  }
+
+  .subtitle {
+    font-size: 13px;
+  }
+
+  /* ---- BADGES ---- */
+  .badge {
+    font-size: 11px;
+    padding: 4px 8px;
+  }
+
+  /* ---- SCROLLING ---- */
+  html, body {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: none;
+  }
+}
+
+/* ========================================
+   SMALL MOBILE (max-width: 480px)
+   ======================================== */
+
+@media (max-width: 480px) {
+  .container {
+    padding: 8px;
+  }
+
+  h1, .title {
+    font-size: 20px;
+  }
+
+  .card {
+    padding: 14px;
+    border-radius: 10px;
+  }
+
+  /* Full-width modal buttons on small screens */
+  .modal .foot .btn,
+  .modal-footer .btn {
+    width: 100%;
+    min-width: 100%;
+  }
+
+  /* Even larger chat bubble on small phones */
+  #chat-toggle,
+  .chat-toggle {
+    width: 64px !important;
+    height: 64px !important;
+    font-size: 28px !important;
+  }
+
+  .btn {
+    padding: 14px 16px;
+    font-size: 15px;
+    min-height: 50px;
+  }
+}
+
+/* ========================================
+   CAPACITOR/NATIVE APP SPECIFIC
+   ======================================== */
+
+/* Class added by Capacitor detection */
+.capacitor-app {
+  /* Disable pull-to-refresh in native app */
+  overscroll-behavior-y: contain;
+}
+
+.capacitor-ios {
+  /* iOS-specific adjustments */
+}
+
+.capacitor-ios .topnav {
+  /* Ensure solid background under status bar */
+  background: var(--topnav-bg, #fff);
+}
+
+.capacitor-android {
+  /* Android-specific adjustments */
+}
+
+/* ========================================
+   UTILITY CLASSES
+   ======================================== */
+
+/* Hide on mobile */
+@media (max-width: 768px) {
+  .hide-mobile {
+    display: none !important;
+  }
+}
+
+/* Hide on desktop */
+@media (min-width: 769px) {
+  .hide-desktop {
+    display: none !important;
+  }
+}
+
+/* Show only on mobile */
+.show-mobile {
+  display: none !important;
+}
+
+@media (max-width: 768px) {
+  .show-mobile {
+    display: block !important;
+  }
+}
+
+/* Full width on mobile */
+@media (max-width: 768px) {
+  .mobile-full-width {
+    width: 100% !important;
+    max-width: none !important;
+  }
+}
+
+/* Stack on mobile */
+@media (max-width: 768px) {
+  .mobile-stack {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  .mobile-stack > * {
+    width: 100% !important;
+  }
+}
+
+/* ========================================
+   DARK MODE SUPPORT
+   ======================================== */
+
+@media (prefers-color-scheme: dark) {
+  .auto-dark-mode {
+    --bg: #0a0a0a;
+    --card: #141414;
+    --ink: #f5f5f5;
+    --muted: #a3a3a3;
+    --border: #262626;
+  }
+}
+
+/* ========================================
+   PRINT STYLES (Hide mobile elements)
+   ======================================== */
+
+@media print {
+  .mobile-menu-toggle,
+  .sidebar-overlay,
+  #chat-toggle,
+  #chat {
+    display: none !important;
+  }
+}
