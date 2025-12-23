@@ -316,10 +316,72 @@ vNext-FULL-ActionsSLA:
   @supports (padding-top: env(safe-area-inset-top)){
     .topnav{padding-top:env(safe-area-inset-top);height:calc(56px + env(safe-area-inset-top))}
     body{padding-top:calc(56px + env(safe-area-inset-top))}
-    .leftnav{top:calc(56px + env(safe-area-inset-top))}
+    .leftnav{top:calc(56px + env(safe-area-inset-top));padding-bottom:env(safe-area-inset-bottom)}
     #chat-toggle{bottom:calc(12px + env(safe-area-inset-bottom))}
     #chat{bottom:calc(68px + env(safe-area-inset-bottom))}
+    .modal .foot{padding-bottom:calc(12px + env(safe-area-inset-bottom))}
+    .container{padding-left:max(12px, env(safe-area-inset-left));padding-right:max(12px, env(safe-area-inset-right))}
   }
+
+  /* Capacitor iOS Native Enhancements */
+  @media (max-width:768px){
+    /* Native-like scrolling */
+    html,body{-webkit-overflow-scrolling:touch;overscroll-behavior:none}
+    .leftnav,.modal .sheet,#chat .body{-webkit-overflow-scrolling:touch}
+
+    /* Prevent text selection on interactive elements */
+    .btn,.navlink,.topnav-user,.topnav-btn,.theme-toggle,.card[onclick]{-webkit-user-select:none;user-select:none}
+
+    /* Native-like active states */
+    .btn:active,.navlink:active,.topnav-btn:active{transform:scale(0.97);opacity:0.8}
+    .card[onclick]:active{transform:scale(0.99);opacity:0.9}
+    tr:active{background:var(--card-hover)}
+
+    /* Smoother transitions */
+    .btn,.navlink,.card,.topnav-btn{transition:transform 0.1s ease,opacity 0.1s ease,background 0.15s ease}
+
+    /* iOS-style form focus */
+    .input:focus,select:focus,textarea:focus{border-color:#007aff;box-shadow:0 0 0 3px rgba(0,122,255,0.15)}
+
+    /* Prevent iOS bounce on fixed elements */
+    .topnav,.modal{overscroll-behavior:contain}
+
+    /* Better bottom sheet modals on mobile */
+    .modal .sheet{border-radius:16px 16px 0 0;position:fixed;bottom:0;max-height:85vh;animation:slideUp 0.3s ease}
+    @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+
+    /* iOS-style list separators */
+    td{border-bottom:0.5px solid var(--border)}
+
+    /* Larger touch targets for table rows */
+    tr{min-height:52px}
+    td{padding:14px 10px}
+
+    /* Floating action button style */
+    #chat-toggle{
+      width:56px;height:56px;padding:0;
+      border-radius:50%;
+      box-shadow:0 4px 12px rgba(0,0,0,0.2);
+      display:flex;align-items:center;justify-content:center
+    }
+
+    /* Pull-to-refresh indicator space */
+    .container{min-height:calc(100vh - 56px - env(safe-area-inset-top, 0px))}
+  }
+
+  /* iOS Dark Mode detection */
+  @media (prefers-color-scheme:dark){
+    :root{--ios-keyboard-bg:#1c1c1e}
+  }
+
+  /* Prevent iOS zoom on input focus */
+  @media screen and (max-width:768px){
+    input[type="text"],input[type="email"],input[type="password"],input[type="number"],input[type="tel"],select,textarea{font-size:16px!important}
+  }
+
+  /* Capacitor status bar area */
+  .capacitor-ios .topnav{background:var(--topnav-bg)}
+  .capacitor-ios.dark-mode .topnav{background:var(--topnav-bg)}
 </style>
 </head>
 <body>
@@ -3104,6 +3166,20 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   // Check authentication and restore session on page load
   window.addEventListener('DOMContentLoaded', async function() {
+    // Capacitor platform detection
+    if (window.Capacitor) {
+      document.body.classList.add('capacitor-app');
+      if (window.Capacitor.getPlatform() === 'ios') {
+        document.body.classList.add('capacitor-ios');
+      } else if (window.Capacitor.getPlatform() === 'android') {
+        document.body.classList.add('capacitor-android');
+      }
+      // Hide Capacitor splash screen after app loads
+      if (window.Capacitor.Plugins && window.Capacitor.Plugins.SplashScreen) {
+        window.Capacitor.Plugins.SplashScreen.hide();
+      }
+    }
+
     // First ensure login screen is shown by default (with inline styles for extra security)
     document.querySelectorAll('.screen').forEach(s => {
       s.classList.remove('active');
