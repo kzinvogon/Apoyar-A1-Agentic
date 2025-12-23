@@ -817,6 +817,21 @@
 
         /* Mobile styles */
         @media (max-width: 768px) {
+            /* Reorder sections - AI first on mobile */
+            body {
+                display: flex;
+                flex-direction: column;
+            }
+            nav { order: 1; }
+            .hero { order: 2; }
+            .ai-section { order: 3; }  /* AI moved up */
+            .features { order: 4; }
+            .pricing { order: 5; }
+            .comparison { order: 6; }
+            .cta-section { order: 7; }
+            footer { order: 8; }
+            script { order: 99; }
+
             /* Navigation */
             nav {
                 padding: 0.75rem 1rem;
