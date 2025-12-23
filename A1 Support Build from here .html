@@ -643,11 +643,11 @@ vNext-FULL-ActionsSLA:
   </ion-header>
   <ion-content>
     <ion-list id="ionic-menu-list">
-      <ion-item button onclick="ionicNav('dash-admin'); closeIonicMenu();">
+      <ion-item button onclick="ionicNav('dash'); closeIonicMenu();">
         <ion-icon name="home-outline" slot="start"></ion-icon>
         <ion-label>Dashboard</ion-label>
       </ion-item>
-      <ion-item button onclick="ionicNav('view-tickets'); closeIonicMenu();">
+      <ion-item button onclick="ionicNav('tickets'); closeIonicMenu();">
         <ion-icon name="ticket-outline" slot="start"></ion-icon>
         <ion-label>Tickets</ion-label>
       </ion-item>
@@ -667,9 +667,13 @@ vNext-FULL-ActionsSLA:
         <ion-icon name="book-outline" slot="start"></ion-icon>
         <ion-label>Knowledge Base</ion-label>
       </ion-item>
-      <ion-item button onclick="ionicNav('settings'); closeIonicMenu();">
+      <ion-item button onclick="ionicNav('wizard'); closeIonicMenu();">
         <ion-icon name="settings-outline" slot="start"></ion-icon>
         <ion-label>Settings</ion-label>
+      </ion-item>
+      <ion-item button onclick="ionicNav('raise'); closeIonicMenu();">
+        <ion-icon name="add-circle-outline" slot="start"></ion-icon>
+        <ion-label>Raise Request</ion-label>
       </ion-item>
     </ion-list>
     <ion-list>
@@ -4183,6 +4187,11 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const emailIngestSection = document.getElementById('admin-section-email-ingest');
     if (profileSection) profileSection.style.display = isAdmin ? 'block' : 'none';
     if (emailIngestSection) emailIngestSection.style.display = isAdmin ? 'block' : 'none';
+
+    // Update Ionic menu visibility based on role
+    if (typeof updateIonicMenu === 'function') {
+      updateIonicMenu();
+    }
   }
 
   // ---- SLA Utilities ----
@@ -12312,13 +12321,20 @@ function closeIonicMenu() {
   if (menu) menu.close();
 }
 
-function ionicNav(screen) {
-  go(screen);
+function ionicNav(view) {
+  // Use the existing switchView function for navigation
+  if (typeof switchView === 'function') {
+    switchView(view);
+    // Render dashboards when navigating to dash
+    if (view === 'dash' && typeof renderAllDashboards === 'function') {
+      renderAllDashboards();
+    }
+  }
 }
 
 // Update Ionic menu based on user role
 function updateIonicMenu() {
-  const role = window.currentRole;
+  const role = window.role || window.currentRole;
   const menuItems = document.querySelectorAll('#ionic-menu-list ion-item');
 
   menuItems.forEach(item => {
