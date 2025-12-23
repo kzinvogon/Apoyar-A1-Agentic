@@ -185,6 +185,87 @@ button:active {
     gap: 12px;
   }
 
+  /* ---- TICKETS FILTER PANEL: Collapsible on mobile ---- */
+  #ticket-filters-card .row.wrap {
+    display: none !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+
+  #ticket-filters-card.filters-expanded .row.wrap {
+    display: flex !important;
+  }
+
+  #ticket-filters-card .row.wrap > div {
+    min-width: 100% !important;
+    width: 100% !important;
+  }
+
+  #ticket-filters-card .row.wrap > div[style*="min-width"] {
+    min-width: 100% !important;
+  }
+
+  /* Show filter toggle button on mobile */
+  .mobile-filter-toggle {
+    display: inline-flex !important;
+  }
+
+  /* Compact filter card header */
+  #ticket-filters-card > .row.space.mb-12 {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  #ticket-filters-card h4 {
+    font-size: 16px;
+  }
+
+  /* ---- TICKET HEADER ROW ---- */
+  #view-tickets > .row.space.mb-12 {
+    flex-direction: row !important;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  #view-tickets > .row.space.mb-12 > .row {
+    flex: 1;
+    min-width: 0;
+  }
+
+  #view-tickets > .row.space.mb-12 .title {
+    font-size: 18px;
+  }
+
+  #view-tickets > .row.space.mb-12 > button {
+    flex-shrink: 0;
+    font-size: 13px;
+    padding: 10px 12px;
+  }
+
+  /* ---- TICKET TABLE: Horizontal scroll ---- */
+  #tickets-table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    font-size: 13px;
+  }
+
+  #tickets-table th,
+  #tickets-table td {
+    padding: 10px 8px;
+    font-size: 12px;
+  }
+
+  /* Hide less important columns on mobile */
+  #tickets-table th:nth-child(1),
+  #tickets-table td:nth-child(1),
+  #tickets-table th:nth-child(4),
+  #tickets-table td:nth-child(4),
+  #tickets-table th:nth-child(8),
+  #tickets-table td:nth-child(8) {
+    display: none;
+  }
+
   /* ---- METRIC CARDS ---- */
   .card {
     border-radius: 12px;

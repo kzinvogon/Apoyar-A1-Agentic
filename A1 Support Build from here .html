@@ -39,7 +39,7 @@
 <link rel="apple-touch-startup-image" href="/icons/splash-1536x2048.png" media="(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2)"/>
 <link rel="apple-touch-startup-image" href="/icons/splash-1620x2160.png" media="(device-width: 810px) and (device-height: 1080px) and (-webkit-device-pixel-ratio: 2)"/>
 <!-- Mobile Responsive CSS -->
-<link rel="stylesheet" href="/public/css/responsive.css"/>
+<link rel="stylesheet" href="/public/css/responsive.css?v=20231223"/>
 <!-- Changelog:
 vNext-FULL-ActionsSLA: 
 - ADDED mandatory completion text modal for Admin/Expert when resolving or reassigning.
@@ -224,10 +224,14 @@ vNext-FULL-ActionsSLA:
     }
     .leftnav.open{transform:translateX(0)}
 
-    /* Grids */
-    .grid4,.grid3,.grid2{grid-template-columns:1fr}
+    /* Grids - force single column on mobile */
+    .grid4,.grid3,.grid2{grid-template-columns:1fr !important}
     .grid4{gap:10px}
     .grid3{gap:10px}
+
+    /* Override inline grid styles */
+    [style*="grid-template-columns"]{grid-template-columns:1fr !important}
+    [style*="display:grid"]{grid-template-columns:1fr !important}
 
     /* Cards */
     .card{border-radius:10px}
@@ -239,9 +243,10 @@ vNext-FULL-ActionsSLA:
     .title{font-size:18px}
     .subtitle{font-size:12px}
 
-    /* Header row */
-    .row.space.mb-20{flex-direction:column;align-items:flex-start;gap:12px;padding-bottom:12px}
-    .row.space.mb-20 .row.wrap{width:100%;justify-content:flex-start}
+    /* Header rows - stack on mobile */
+    .row.space{flex-wrap:wrap;gap:10px}
+    .row.space.mb-20,.row.space.mb-16,.row.space.mb-12{flex-direction:column;align-items:stretch !important;gap:12px}
+    .row.space .row{flex-wrap:wrap}
 
     /* Tables */
     table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}
@@ -270,9 +275,14 @@ vNext-FULL-ActionsSLA:
     .stat-card{text-align:center}
     #ai-trends-panel .grid4{grid-template-columns:repeat(2,1fr)}
 
-    /* Quick Admin buttons */
-    .card .row.wrap{justify-content:stretch}
-    .card .row.wrap .btn{flex:1;min-width:calc(50% - 4px);text-align:center;justify-content:center}
+    /* All row layouts - stack on mobile */
+    .row{flex-direction:column !important;align-items:stretch !important;gap:10px !important}
+    .row .btn, .row a.btn{width:100% !important;min-width:100% !important;text-align:center;justify-content:center;min-height:48px;display:flex !important}
+    .row .input, .row select{width:100% !important;min-width:100% !important}
+
+    /* Exceptions - keep some rows horizontal */
+    .topnav-inner, .topnav-inner .row{flex-direction:row !important;align-items:center !important}
+    .row.space > .row:first-child{flex-direction:row !important;align-items:center !important;gap:8px !important}
 
     /* Ticket list items */
     tr td:first-child{max-width:120px;overflow:hidden;text-overflow:ellipsis}
@@ -285,6 +295,37 @@ vNext-FULL-ActionsSLA:
 
     /* Navigation links */
     .navlink{padding:12px;font-size:15px;min-height:44px}
+
+    /* Filter panel - collapsible */
+    #ticket-filters-card .row.wrap{display:none !important}
+    #ticket-filters-card.filters-expanded .row.wrap{display:flex !important;flex-direction:column !important}
+    .mobile-filter-toggle{display:inline-flex !important}
+
+    /* Chat bubble - larger */
+    #chat-toggle{width:56px;height:56px;border-radius:50%;padding:0;font-size:20px;display:flex;align-items:center;justify-content:center}
+
+    /* Tables - hide less important columns */
+    table th:nth-child(3), table td:nth-child(3), /* Location */
+    table th:nth-child(4), table td:nth-child(4), /* Email */
+    table th:nth-child(6), table td:nth-child(6)  /* Last Login */
+    {display:none}
+
+    /* Table cells - better mobile styling */
+    table{width:100%;font-size:14px}
+    th,td{padding:12px 8px;text-align:left}
+    th{font-size:11px;text-transform:uppercase;letter-spacing:0.5px}
+
+    /* Action buttons in tables */
+    td .btn{padding:8px 12px;font-size:12px;min-height:36px}
+
+    /* Mobile card alternative for lists */
+    .mobile-card{display:none}
+    .mobile-cards{display:flex;flex-direction:column;gap:12px}
+    .mobile-cards .mobile-card{display:block;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px}
+    .mobile-cards .mobile-card-header{font-weight:600;font-size:16px;margin-bottom:8px}
+    .mobile-cards .mobile-card-meta{font-size:13px;color:var(--muted);margin-bottom:12px}
+    .mobile-cards .mobile-card-actions{display:flex;gap:8px;flex-wrap:wrap}
+    .mobile-cards .mobile-card-actions .btn{flex:1;min-width:80px}
   }
 
   /* Small Mobile */
@@ -1610,10 +1651,13 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           </div>
 
           <!-- Filters -->
-          <div class="card p-16 mb-16">
+          <div class="card p-16 mb-16" id="ticket-filters-card">
             <div class="row space mb-12">
               <h4 style="margin:0">Filters & Search</h4>
-              <button class="btn ghost" onclick="clearTicketFilters()">Clear Filters</button>
+              <div class="row" style="gap:8px">
+                <button class="btn ghost mobile-filter-toggle" onclick="toggleMobileFilters()" style="display:none">Show Filters ▼</button>
+                <button class="btn ghost" onclick="clearTicketFilters()">Clear Filters</button>
+              </div>
             </div>
             <div class="row wrap" style="gap:12px">
               <div style="min-width:200px">
@@ -1949,7 +1993,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               <input id="expert-search" class="input" style="min-width:260px" placeholder="Search experts by name, username, location..." oninput="renderExperts(); saveFilterSettings('experts')"/>
             </div>
           </div>
-          <div class="card p-16">
+          <!-- Desktop table view -->
+          <div class="card p-16 hide-mobile">
             <table>
               <thead>
                 <tr>
@@ -1965,6 +2010,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               <tbody id="experts-body"></tbody>
             </table>
           </div>
+          <!-- Mobile card view -->
+          <div id="experts-cards" class="mobile-cards show-mobile"></div>
         </div>
 
         <!-- Expert Detail View -->
@@ -3472,6 +3519,18 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     leftnav.classList.remove('open');
     overlay.classList.remove('active');
     document.body.style.overflow = '';
+  }
+
+  // Mobile filters toggle
+  function toggleMobileFilters() {
+    const card = document.getElementById('ticket-filters-card');
+    const btn = card.querySelector('.mobile-filter-toggle');
+    card.classList.toggle('filters-expanded');
+    if (card.classList.contains('filters-expanded')) {
+      btn.textContent = 'Hide Filters ▲';
+    } else {
+      btn.textContent = 'Show Filters ▼';
+    }
   }
 
   // Close mobile menu when nav item clicked
@@ -7884,16 +7943,22 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
         // Render experts
         body.innerHTML='';
+        const cardsContainer = document.getElementById('experts-cards');
+        if (cardsContainer) cardsContainer.innerHTML = '';
+
         if (filteredExperts.length === 0) {
           body.innerHTML='<tr><td colspan="7" style="text-align:center;">No experts found</td></tr>';
+          if (cardsContainer) cardsContainer.innerHTML = '<div class="mobile-card"><div style="text-align:center;color:var(--muted)">No experts found</div></div>';
         } else {
           filteredExperts.forEach(e=>{
-            const tr=document.createElement('tr');
             const lastLogin = e.last_login ? new Date(e.last_login).toLocaleString() : 'Never';
             const openTickets = e.open_tickets || 0;
             const ticketBadge = openTickets > 0
               ? `<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:12px;font-weight:600">${openTickets}</span>`
               : '<span style="color:#6b7280">0</span>';
+
+            // Desktop table row
+            const tr=document.createElement('tr');
             tr.innerHTML=`
               <td>${e.full_name || e.username}</td>
               <td>${e.username}</td>
@@ -7908,10 +7973,32 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               </td>
             `;
             body.appendChild(tr);
+
+            // Mobile card
+            if (cardsContainer) {
+              const card = document.createElement('div');
+              card.className = 'mobile-card';
+              card.onclick = () => viewExpertDetail(e.id);
+              card.innerHTML = `
+                <div class="mobile-card-header">${e.full_name || e.username}</div>
+                <div class="mobile-card-meta">
+                  @${e.username} ${e.location ? '• ' + e.location : ''}<br>
+                  ${e.email || ''}<br>
+                  Open tickets: ${ticketBadge}
+                </div>
+                <div class="mobile-card-actions" onclick="event.stopPropagation()">
+                  <button class="btn primary" onclick="viewExpertDetail(${e.id})">View</button>
+                  <button class="btn" onclick="showEditExpertForm(${e.id})">Edit</button>
+                </div>
+              `;
+              cardsContainer.appendChild(card);
+            }
           });
         }
       } else {
         body.innerHTML='<tr><td colspan="7" style="text-align:center;color:red;">Failed to load experts</td></tr>';
+        const cardsContainer = document.getElementById('experts-cards');
+        if (cardsContainer) cardsContainer.innerHTML = '<div class="mobile-card"><div style="text-align:center;color:var(--danger)">Failed to load experts</div></div>';
       }
     } catch (error) {
       console.error('Error loading experts:', error);
