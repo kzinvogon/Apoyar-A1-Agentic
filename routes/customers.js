@@ -95,11 +95,12 @@ router.get('/', requireRole(['admin', 'expert']), readOperationsLimiter, async (
         SELECT
           u.id, u.username, u.email, u.full_name, u.role, u.is_active,
           u.email_notifications_enabled,
-          c.id as customer_id, c.company_name, c.company_domain,
+          c.id as customer_id, c.company_name,
           c.contact_phone, c.address, c.sla_level,
           c.customer_company_id, c.is_company_admin, c.job_title,
           c.created_at, c.updated_at,
           cc.company_name as master_company_name,
+          cc.company_domain as company_domain,
           (SELECT COUNT(*) FROM tickets t WHERE t.requester_id = u.id AND LOWER(t.status) != 'closed') as open_ticket_count
         FROM users u
         LEFT JOIN customers c ON u.id = c.user_id
@@ -139,11 +140,12 @@ router.get('/:id', requireRole(['admin', 'expert']), readOperationsLimiter, asyn
         SELECT
           u.id, u.username, u.email, u.full_name, u.role, u.is_active,
           u.email_notifications_enabled,
-          c.id as customer_id, c.company_name, c.company_domain,
+          c.id as customer_id, c.company_name,
           c.contact_phone, c.address, c.sla_level,
           c.customer_company_id, c.is_company_admin, c.job_title,
           c.created_at, c.updated_at,
           cc.company_name as master_company_name,
+          cc.company_domain as company_domain,
           cc.admin_email as company_admin_email
         FROM users u
         LEFT JOIN customers c ON u.id = c.user_id

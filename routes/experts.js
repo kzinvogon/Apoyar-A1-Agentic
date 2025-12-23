@@ -17,16 +17,12 @@ router.get('/:tenantId', async (req, res) => {
       const [experts] = await connection.query(
         `SELECT
           u.id, u.username, u.email, u.full_name, u.role, u.is_active,
-          u.phone, u.department, u.location, u.street_address, u.city,
-          u.state, u.postcode, u.country, u.timezone, u.language,
           u.created_at, u.updated_at,
           COUNT(CASE WHEN t.status IN ('open', 'in_progress', 'paused') THEN 1 END) as open_tickets
          FROM users u
          LEFT JOIN tickets t ON u.id = t.assignee_id
          WHERE u.role IN ('admin', 'expert')
          GROUP BY u.id, u.username, u.email, u.full_name, u.role, u.is_active,
-                  u.phone, u.department, u.location, u.street_address, u.city,
-                  u.state, u.postcode, u.country, u.timezone, u.language,
                   u.created_at, u.updated_at
          ORDER BY u.full_name ASC, u.username ASC`
       );
@@ -52,16 +48,12 @@ router.get('/:tenantId/:expertId', async (req, res) => {
       const [experts] = await connection.query(
         `SELECT
           u.id, u.username, u.email, u.full_name, u.role, u.is_active,
-          u.phone, u.department, u.location, u.street_address, u.city,
-          u.state, u.postcode, u.country, u.timezone, u.language,
           u.created_at, u.updated_at,
           COUNT(CASE WHEN t.status IN ('open', 'in_progress', 'paused') THEN 1 END) as open_tickets
          FROM users u
          LEFT JOIN tickets t ON u.id = t.assignee_id
          WHERE u.id = ? AND u.role IN ('admin', 'expert')
          GROUP BY u.id, u.username, u.email, u.full_name, u.role, u.is_active,
-                  u.phone, u.department, u.location, u.street_address, u.city,
-                  u.state, u.postcode, u.country, u.timezone, u.language,
                   u.created_at, u.updated_at`,
         [expertId]
       );

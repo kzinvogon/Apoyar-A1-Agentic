@@ -7,11 +7,11 @@ const config: CapacitorConfig = {
 
   // Server configuration for development
   server: {
-    // Use your production URL for the app
-    url: 'https://www.serviflow.app',
+    // For local development testing:
+    url: 'http://localhost:3000',
     cleartext: true,
-    // For local development, uncomment and use:
-    // url: 'http://localhost:3000',
+    // Production URL (switch back when done testing):
+    // url: 'https://www.serviflow.app',
   },
 
   // iOS specific configuration
