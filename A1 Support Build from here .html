@@ -2132,7 +2132,10 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               <div id="customer-count" class="subtitle">Showing 0 customers</div>
             </div>
           </div>
-          <div class="card p-16"><table><thead><tr><th style="cursor:pointer" onclick="sortCustomersBy('name')">Name ⇅</th><th>Email</th><th>Company</th><th>Role</th><th style="width:80px;cursor:pointer" onclick="sortCustomersBy('tickets')"># Tickets ⇅</th><th>SLA</th><th style="width:60px;text-align:center" title="Email Notifications">📧</th><th style="width:180px">Actions</th></tr></thead><tbody id="customers-body"></tbody></table></div>
+          <!-- Desktop table view -->
+          <div class="card p-16 hide-mobile"><table><thead><tr><th style="cursor:pointer" onclick="sortCustomersBy('name')">Name ⇅</th><th>Email</th><th>Company</th><th>Role</th><th style="width:80px;cursor:pointer" onclick="sortCustomersBy('tickets')"># Tickets ⇅</th><th>SLA</th><th style="width:60px;text-align:center" title="Email Notifications">📧</th><th style="width:180px">Actions</th></tr></thead><tbody id="customers-body"></tbody></table></div>
+          <!-- Mobile card view -->
+          <div id="customers-cards" class="mobile-cards show-mobile"></div>
         </div>
 
         <!-- Customer Form Modal -->
@@ -8839,11 +8842,14 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
         // Render customers
         body.innerHTML='';
+        const cardsContainer = document.getElementById('customers-cards');
+        if (cardsContainer) cardsContainer.innerHTML = '';
+
         if (filteredCustomers.length === 0) {
           body.innerHTML='<tr><td colspan="8" style="text-align:center;">No customers found</td></tr>';
+          if (cardsContainer) cardsContainer.innerHTML = '<div class="mobile-card"><div style="text-align:center;color:var(--muted)">No customers found</div></div>';
         } else {
           filteredCustomers.forEach(c=>{
-            const tr=document.createElement('tr');
             const slaColor = c.sla_level === 'enterprise' ? '#16a34a' : c.sla_level === 'premium' ? '#2563eb' : '#6b7280';
             const isActive = c.is_active !== false;
             const statusStyle = isActive ? '' : 'opacity:0.5;text-decoration:line-through';
@@ -8851,6 +8857,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             const ticketCount = c.open_ticket_count || 0;
             const ticketStyle = ticketCount > 0 ? 'color:#2563eb;font-weight:600;cursor:pointer' : 'color:#6b7280';
             const emailEnabled = c.email_notifications_enabled !== 0;
+
+            // Desktop table row
+            const tr=document.createElement('tr');
             tr.innerHTML=`
               <td style="${statusStyle}">${c.full_name || c.username}</td>
               <td style="${statusStyle}">${c.email || '-'}</td>
@@ -8873,10 +8882,37 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               </td>
             `;
             body.appendChild(tr);
+
+            // Mobile card
+            if (cardsContainer) {
+              const card = document.createElement('div');
+              card.className = 'mobile-card';
+              card.style.cssText = isActive ? '' : 'opacity:0.6';
+              card.onclick = () => editCustomer(c.id);
+              card.innerHTML = `
+                <div class="mobile-card-header">${c.full_name || c.username}</div>
+                <div class="mobile-card-meta">
+                  ${c.email || ''}<br>
+                  🏢 ${c.company_name || 'No company'} • ${roleLabel}<br>
+                  <span style="color:${slaColor};font-weight:600;text-transform:capitalize">${c.sla_level || 'basic'} SLA</span>
+                  ${ticketCount > 0 ? ` • <span style="color:#2563eb">${ticketCount} open tickets</span>` : ''}
+                </div>
+                <div class="mobile-card-actions" onclick="event.stopPropagation()">
+                  <button class="btn primary" onclick="editCustomer(${c.id})" ${!isActive ? 'disabled' : ''}>Edit</button>
+                  ${isActive
+                    ? `<button class="btn danger" onclick="deleteCustomer(${c.id})">Delete</button>`
+                    : `<button class="btn" onclick="reactivateCustomer(${c.id})" style="color:#16a34a">Reactivate</button>`
+                  }
+                </div>
+              `;
+              cardsContainer.appendChild(card);
+            }
           });
         }
       } else {
         body.innerHTML='<tr><td colspan="8" style="text-align:center;color:red;">Failed to load customers</td></tr>';
+        const cardsContainer = document.getElementById('customers-cards');
+        if (cardsContainer) cardsContainer.innerHTML = '<div class="mobile-card"><div style="text-align:center;color:var(--danger)">Failed to load customers</div></div>';
       }
     } catch (error) {
       console.error('Error loading customers:', error);
