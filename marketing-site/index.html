@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ServiFlow - AI-Powered IT Service Management</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>ServiFlow - The AI-Powered Helpdesk Built for MSPs</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -93,6 +96,10 @@
             color: var(--primary);
         }
 
+        .mobile-nav-cta {
+            display: none;
+        }
+
         .nav-cta {
             display: flex;
             gap: 1rem;
@@ -180,11 +187,32 @@
             background-clip: text;
         }
 
-        .hero-content p {
-            font-size: 1.25rem;
+        .hero-content .hero-subheadline {
+            font-size: 1.5rem;
+            color: var(--dark);
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
+
+        .hero-content .hero-secondary {
+            font-size: 1rem;
             color: var(--gray);
             margin-bottom: 2rem;
-            max-width: 500px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .hero-content .hero-secondary span {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .hero-content .hero-secondary .separator {
+            color: var(--primary);
+            font-weight: bold;
         }
 
         .hero-stats {
@@ -359,68 +387,58 @@
             font-size: 0.95rem;
         }
 
+        /* Migration Section */
+        .migration-section {
+            padding: 4rem 2rem;
+            background: linear-gradient(135deg, var(--dark) 0%, var(--dark-light) 100%);
+            color: white;
+            text-align: center;
+        }
+
+        .migration-content {
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        .migration-content h2 {
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: 1rem;
+        }
+
+        .migration-content p {
+            font-size: 1.125rem;
+            color: var(--gray-light);
+            margin-bottom: 2rem;
+        }
+
+        .migration-logos {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-top: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .migration-logo {
+            background: rgba(255,255,255,0.1);
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            color: var(--gray-light);
+        }
+
         /* Pricing Section */
         .pricing {
             padding: 6rem 2rem;
             background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
         }
 
-        .pricing-toggle {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 1rem;
-            margin-bottom: 3rem;
-        }
-
-        .toggle-label {
-            font-weight: 500;
-            color: var(--gray);
-        }
-
-        .toggle-label.active {
-            color: var(--dark);
-        }
-
-        .toggle-switch {
-            width: 60px;
-            height: 30px;
-            background: var(--primary);
-            border-radius: 15px;
-            position: relative;
-            cursor: pointer;
-        }
-
-        .toggle-switch::after {
-            content: '';
-            position: absolute;
-            width: 24px;
-            height: 24px;
-            background: white;
-            border-radius: 50%;
-            top: 3px;
-            left: 3px;
-            transition: 0.3s;
-        }
-
-        .toggle-switch.annual::after {
-            left: 33px;
-        }
-
-        .save-badge {
-            background: var(--secondary);
-            color: white;
-            padding: 0.25rem 0.75rem;
-            border-radius: 20px;
-            font-size: 0.75rem;
-            font-weight: 600;
-        }
-
         .pricing-grid {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 1.5rem;
-            max-width: 1200px;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+            max-width: 1100px;
             margin: 0 auto;
         }
 
@@ -431,6 +449,8 @@
             border: 2px solid var(--light);
             transition: all 0.3s;
             position: relative;
+            display: flex;
+            flex-direction: column;
         }
 
         .pricing-card:hover {
@@ -442,23 +462,30 @@
         .pricing-card.popular {
             border-color: var(--primary);
             transform: scale(1.05);
+            box-shadow: 0 25px 50px rgba(37, 99, 235, 0.15);
+            z-index: 10;
+        }
+
+        .pricing-card.popular:hover {
+            transform: scale(1.07);
         }
 
         .popular-badge {
             position: absolute;
-            top: -12px;
+            top: -14px;
             left: 50%;
             transform: translateX(-50%);
             background: var(--gradient);
             color: white;
-            padding: 0.25rem 1rem;
+            padding: 0.5rem 1.25rem;
             border-radius: 20px;
-            font-size: 0.75rem;
-            font-weight: 600;
+            font-size: 0.8rem;
+            font-weight: 700;
+            white-space: nowrap;
         }
 
         .plan-name {
-            font-size: 1.25rem;
+            font-size: 1.5rem;
             font-weight: 700;
             margin-bottom: 0.5rem;
         }
@@ -466,7 +493,18 @@
         .plan-description {
             color: var(--gray);
             font-size: 0.875rem;
+            margin-bottom: 1rem;
+        }
+
+        .unlimited-badge {
+            background: linear-gradient(135deg, var(--secondary) 0%, #059669 100%);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: 600;
             margin-bottom: 1.5rem;
+            text-align: center;
         }
 
         .plan-price {
@@ -489,37 +527,23 @@
             font-size: 0.875rem;
         }
 
-        .plan-limits {
-            background: var(--light);
-            padding: 1rem;
-            border-radius: 8px;
-            margin-bottom: 1.5rem;
-        }
-
-        .limit-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 0.5rem 0;
-            font-size: 0.875rem;
-        }
-
-        .limit-label {
-            color: var(--gray);
-        }
-
-        .limit-value {
+        .price-note {
+            color: var(--secondary);
+            font-size: 0.8rem;
             font-weight: 600;
+            margin-top: 0.25rem;
         }
 
         .plan-features {
             list-style: none;
             margin-bottom: 2rem;
+            flex-grow: 1;
         }
 
         .plan-features li {
             padding: 0.5rem 0;
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             gap: 0.75rem;
             font-size: 0.875rem;
         }
@@ -527,14 +551,40 @@
         .check-icon {
             color: var(--secondary);
             font-weight: bold;
-        }
-
-        .cross-icon {
-            color: var(--gray-light);
+            flex-shrink: 0;
         }
 
         .plan-cta {
             width: 100%;
+            text-align: center;
+        }
+
+        .pricing-footer {
+            text-align: center;
+            margin-top: 3rem;
+            padding: 2rem;
+            background: var(--light);
+            border-radius: 12px;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .pricing-footer h4 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: var(--dark);
+        }
+
+        .pricing-footer p {
+            color: var(--gray);
+            font-size: 0.95rem;
+        }
+
+        .pricing-footer .highlight {
+            color: var(--primary);
+            font-weight: 600;
         }
 
         /* AI Section */
@@ -652,6 +702,11 @@
             background: var(--light);
         }
 
+        .comparison-table th.popular-col {
+            background: var(--primary);
+            color: white;
+        }
+
         /* CTA Section */
         .cta-section {
             padding: 6rem 2rem;
@@ -752,49 +807,416 @@
         }
 
         /* Responsive */
-        @media (max-width: 1024px) {
-            .pricing-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
 
-            .features-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
+        /* Mobile menu toggle */
+        .mobile-menu-toggle {
+            display: none;
+            flex-direction: column;
+            gap: 5px;
+            cursor: pointer;
+            padding: 10px;
+            z-index: 1001;
         }
 
-        @media (max-width: 768px) {
-            .hero-container,
-            .ai-container {
-                grid-template-columns: 1fr;
-                text-align: center;
-            }
+        .mobile-menu-toggle span {
+            width: 25px;
+            height: 3px;
+            background: var(--dark);
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
 
-            .hero-content h1 {
-                font-size: 2.5rem;
-            }
+        .mobile-menu-toggle.active span:nth-child(1) {
+            transform: rotate(45deg) translate(5px, 5px);
+        }
 
-            .hero-stats {
-                justify-content: center;
-            }
+        .mobile-menu-toggle.active span:nth-child(2) {
+            opacity: 0;
+        }
 
-            .nav-links {
-                display: none;
-            }
+        .mobile-menu-toggle.active span:nth-child(3) {
+            transform: rotate(-45deg) translate(7px, -6px);
+        }
 
+        /* Tablet styles */
+        @media (max-width: 1024px) {
             .pricing-grid {
                 grid-template-columns: 1fr;
-            }
-
-            .features-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .footer-container {
-                grid-template-columns: 1fr;
+                max-width: 450px;
             }
 
             .pricing-card.popular {
                 transform: none;
+                order: -1;
+            }
+
+            .features-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .hero-content h1 {
+                font-size: 2.75rem;
+            }
+
+            .ai-container {
+                gap: 2rem;
+            }
+
+            .comparison-table {
+                font-size: 0.875rem;
+            }
+
+            .comparison-table th,
+            .comparison-table td {
+                padding: 0.75rem 0.5rem;
+            }
+        }
+
+        /* Mobile styles */
+        @media (max-width: 768px) {
+            /* Reorder sections - AI first on mobile */
+            body {
+                display: flex;
+                flex-direction: column;
+            }
+            nav { order: 1; }
+            .hero { order: 2; }
+            .ai-section { order: 3; }
+            .features { order: 4; }
+            .migration-section { order: 5; }
+            .pricing { order: 6; }
+            .comparison { order: 7; }
+            .cta-section { order: 8; }
+            footer { order: 9; }
+            script { order: 99; }
+
+            /* Navigation */
+            nav {
+                padding: 0.75rem 1rem;
+            }
+
+            .mobile-menu-toggle {
+                display: flex;
+            }
+
+            .nav-links {
+                display: none;
+                position: absolute;
+                top: 100%;
+                left: 0;
+                right: 0;
+                background: white;
+                flex-direction: column;
+                padding: 1rem;
+                gap: 0;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            }
+
+            .nav-links.active {
+                display: flex;
+            }
+
+            .nav-links li {
+                border-bottom: 1px solid var(--light);
+            }
+
+            .nav-links a {
+                display: block;
+                padding: 1rem;
+            }
+
+            .nav-cta {
+                display: none;
+            }
+
+            .mobile-nav-cta {
+                display: block;
+                border-bottom: none !important;
+                padding: 0.5rem 1rem;
+            }
+
+            .mobile-nav-cta .btn {
+                width: 100%;
+                text-align: center;
+            }
+
+            /* Hero */
+            .hero {
+                padding: 6rem 1rem 3rem;
+                min-height: auto;
+            }
+
+            .hero-container,
+            .ai-container {
+                grid-template-columns: 1fr;
+                text-align: center;
+                gap: 2rem;
+            }
+
+            .hero-content h1 {
+                font-size: 2rem;
+                line-height: 1.2;
+            }
+
+            .hero-content .hero-subheadline {
+                font-size: 1.25rem;
+            }
+
+            .hero-content .hero-secondary {
+                justify-content: center;
+            }
+
+            .hero-content > div {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .btn-large {
+                width: 100%;
+                max-width: 300px;
+                padding: 1rem 1.5rem;
+                font-size: 1rem;
+            }
+
+            .hero-stats {
+                flex-direction: column;
+                gap: 1.5rem;
+                align-items: center;
+            }
+
+            .stat {
+                text-align: center;
+            }
+
+            .stat-number {
+                font-size: 2rem;
+            }
+
+            .hero-visual {
+                order: -1;
+            }
+
+            .hero-image {
+                padding: 0.75rem;
+            }
+
+            .dashboard-preview {
+                padding: 1rem;
+            }
+
+            .ticket-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
+
+            /* Sections */
+            .features,
+            .pricing,
+            .ai-section,
+            .comparison,
+            .cta-section,
+            .migration-section {
+                padding: 3rem 1rem;
+            }
+
+            .section-title {
+                font-size: 1.75rem;
+            }
+
+            .section-subtitle {
+                font-size: 1rem;
+            }
+
+            /* Features */
+            .features-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+
+            .feature-card {
+                padding: 1.5rem;
+            }
+
+            .feature-icon {
+                width: 48px;
+                height: 48px;
+                font-size: 1.25rem;
+            }
+
+            /* Migration */
+            .migration-content h2 {
+                font-size: 1.5rem;
+            }
+
+            .migration-logos {
+                gap: 1rem;
+            }
+
+            /* Pricing */
+            .pricing-grid {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+
+            .pricing-card {
+                padding: 1.5rem;
+            }
+
+            .pricing-card.popular {
+                transform: none;
+                order: -1;
+            }
+
+            .price {
+                font-size: 2.5rem;
+            }
+
+            /* AI Section */
+            .ai-content h2 {
+                font-size: 1.75rem;
+            }
+
+            .ai-content p {
+                font-size: 1rem;
+            }
+
+            .ai-feature {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .ai-visual {
+                padding: 1rem;
+            }
+
+            .ai-message {
+                max-width: 95%;
+                font-size: 0.875rem;
+            }
+
+            /* Comparison Table */
+            .comparison-table-wrapper {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                margin: 0 -1rem;
+                padding: 0 1rem;
+            }
+
+            .comparison-table {
+                min-width: 500px;
+                font-size: 0.75rem;
+            }
+
+            .comparison-table th,
+            .comparison-table td {
+                padding: 0.5rem 0.25rem;
+                white-space: nowrap;
+            }
+
+            /* CTA */
+            .cta-section h2 {
+                font-size: 1.75rem;
+            }
+
+            .cta-section p {
+                font-size: 1rem;
+            }
+
+            .cta-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .cta-buttons .btn {
+                width: 100%;
+                max-width: 300px;
+            }
+
+            /* Footer */
+            footer {
+                padding: 2rem 1rem 1rem;
+            }
+
+            .footer-container {
+                grid-template-columns: 1fr;
+                gap: 2rem;
+                text-align: center;
+            }
+
+            .footer-brand {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .footer-brand p {
+                margin: 1rem auto 0;
+            }
+
+            .footer-links ul {
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 0.5rem 1.5rem;
+            }
+
+            .footer-links a {
+                line-height: 1.5;
+            }
+        }
+
+        /* Small mobile */
+        @media (max-width: 480px) {
+            .hero-content h1 {
+                font-size: 1.75rem;
+            }
+
+            .logo {
+                font-size: 1.25rem;
+            }
+
+            .logo-icon {
+                width: 32px;
+                height: 32px;
+            }
+
+            .section-title {
+                font-size: 1.5rem;
+            }
+
+            .feature-title {
+                font-size: 1.1rem;
+            }
+
+            .plan-name {
+                font-size: 1.25rem;
+            }
+
+            .price {
+                font-size: 2rem;
+            }
+
+            .ai-content h2,
+            .cta-section h2 {
+                font-size: 1.5rem;
+            }
+        }
+
+        /* Ensure touch targets are at least 44px */
+        @media (max-width: 768px) {
+            .btn {
+                min-height: 44px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .nav-links a,
+            .footer-links a {
+                min-height: 44px;
+                display: flex;
+                align-items: center;
             }
         }
     </style>
@@ -814,15 +1236,22 @@
                 </div>
                 ServiFlow
             </a>
-            <ul class="nav-links">
-                <li><a href="#features">Features</a></li>
-                <li><a href="#pricing">Pricing</a></li>
-                <li><a href="#ai">AI Insights</a></li>
-                <li><a href="#comparison">Compare</a></li>
+            <div class="mobile-menu-toggle" onclick="toggleMobileMenu()">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+            <ul class="nav-links" id="navLinks">
+                <li><a href="#features" onclick="closeMobileMenu()">Features</a></li>
+                <li><a href="#pricing" onclick="closeMobileMenu()">Pricing</a></li>
+                <li><a href="#ai" onclick="closeMobileMenu()">AI Insights</a></li>
+                <li><a href="#comparison" onclick="closeMobileMenu()">Compare</a></li>
+                <li class="mobile-nav-cta"><a href="/" class="btn btn-outline" style="margin-top:0.5rem">Login</a></li>
+                <li class="mobile-nav-cta"><a href="/signup?plan=growth" class="btn btn-primary" onclick="closeMobileMenu()">Start Free Trial</a></li>
             </ul>
             <div class="nav-cta">
                 <a href="/" class="btn btn-outline">Login</a>
-                <a href="#pricing" class="btn btn-primary">Start Free Trial</a>
+                <a href="/signup?plan=growth" class="btn btn-primary">Start Free Trial</a>
             </div>
         </div>
     </nav>
@@ -831,10 +1260,17 @@
     <section class="hero">
         <div class="hero-container">
             <div class="hero-content">
-                <h1>AI-Powered IT Service Management</h1>
-                <p>Transform your support operations with intelligent ticket routing, automated insights, and real-time SLA tracking. Built for teams that demand excellence.</p>
+                <h1>The AI-Powered Helpdesk Built for MSPs</h1>
+                <p class="hero-subheadline">More billable hours. Happier clients. Less admin time.</p>
+                <p class="hero-secondary">
+                    <span>Unlimited clients</span>
+                    <span class="separator">•</span>
+                    <span>30-day free trial</span>
+                    <span class="separator">•</span>
+                    <span>No credit card required</span>
+                </p>
                 <div style="display: flex; gap: 1rem;">
-                    <a href="#pricing" class="btn btn-primary btn-large">Start 14-Day Free Trial</a>
+                    <a href="/signup?plan=growth" class="btn btn-primary btn-large">Start Free Trial</a>
                     <a href="#features" class="btn btn-outline btn-large">See How It Works</a>
                 </div>
                 <div class="hero-stats">
@@ -843,8 +1279,8 @@
                         <div class="stat-label">Faster Resolution</div>
                     </div>
                     <div class="stat">
-                        <div class="stat-number">99.9%</div>
-                        <div class="stat-label">Uptime SLA</div>
+                        <div class="stat-number">2x</div>
+                        <div class="stat-label">More Billable Time</div>
                     </div>
                     <div class="stat">
                         <div class="stat-number">24/7</div>
@@ -856,30 +1292,30 @@
                 <div class="hero-image">
                     <div class="dashboard-preview">
                         <div class="dashboard-header">
-                            <span class="dashboard-title">Support Dashboard</span>
+                            <span class="dashboard-title">MSP Dashboard</span>
                             <span class="status-badge">Live</span>
                         </div>
                         <div class="ticket-list">
                             <div class="ticket-item">
                                 <div class="ticket-info">
-                                    <span class="ticket-number">#1842</span>
+                                    <span class="ticket-number">Acme Corp</span>
                                     <span>Server connectivity issue</span>
                                 </div>
                                 <span class="priority-high">Critical</span>
                             </div>
                             <div class="ticket-item">
                                 <div class="ticket-info">
-                                    <span class="ticket-number">#1841</span>
+                                    <span class="ticket-number">TechStart</span>
                                     <span>Password reset request</span>
                                 </div>
-                                <span class="priority-low">Low</span>
+                                <span class="priority-low">Auto-Resolved</span>
                             </div>
                             <div class="ticket-item">
                                 <div class="ticket-info">
-                                    <span class="ticket-number">#1840</span>
-                                    <span>Database backup failed</span>
+                                    <span class="ticket-number">DataFlow</span>
+                                    <span>Backup verification</span>
                                 </div>
-                                <span class="priority-medium">Medium</span>
+                                <span class="priority-medium">Scheduled</span>
                             </div>
                         </div>
                     </div>
@@ -892,41 +1328,56 @@
     <section class="features" id="features">
         <div class="section-container">
             <div class="section-header">
-                <div class="section-label">Features</div>
-                <h2 class="section-title">Everything You Need to Deliver Exceptional Support</h2>
-                <p class="section-subtitle">Powerful tools designed for modern IT teams, from startups to enterprises.</p>
+                <div class="section-label">Built for MSPs</div>
+                <h2 class="section-title">Everything You Need to Scale Your MSP</h2>
+                <p class="section-subtitle">Powerful tools designed specifically for Managed Service Providers.</p>
             </div>
             <div class="features-grid">
                 <div class="feature-card">
                     <div class="feature-icon">&#x1F916;</div>
-                    <h3 class="feature-title">AI-Powered Insights</h3>
-                    <p class="feature-description">Automatic ticket classification, priority suggestions, and resolution recommendations powered by advanced AI.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">&#x1F4E7;</div>
-                    <h3 class="feature-title">Email-to-Ticket</h3>
-                    <p class="feature-description">Automatically convert incoming emails into tickets with intelligent customer matching and routing.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">&#x23F1;</div>
-                    <h3 class="feature-title">SLA Management</h3>
-                    <p class="feature-description">Real-time SLA tracking with automated alerts, escalations, and comprehensive reporting.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">&#x1F5C4;</div>
-                    <h3 class="feature-title">CMDB Integration</h3>
-                    <p class="feature-description">Full Configuration Management Database to track assets, relationships, and impact analysis.</p>
+                    <h3 class="feature-title">AI Auto-Resolve Engine</h3>
+                    <p class="feature-description">Automatically resolve password resets, common issues, and routine tickets. Free up your techs for billable work.</p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">&#x1F465;</div>
-                    <h3 class="feature-title">Multi-Tenant</h3>
-                    <p class="feature-description">Serve multiple customers with complete data isolation, custom branding, and dedicated instances.</p>
+                    <h3 class="feature-title">Unlimited Client Workspaces</h3>
+                    <p class="feature-description">Complete data isolation per client with branded portals, custom email pipelines, and dedicated CMDB.</p>
                 </div>
                 <div class="feature-card">
-                    <div class="feature-icon">&#x1F512;</div>
-                    <h3 class="feature-title">Role-Based Access</h3>
-                    <p class="feature-description">Granular permissions for admins, experts, and customers with audit logging.</p>
+                    <div class="feature-icon">&#x26A1;</div>
+                    <h3 class="feature-title">3-Click Client Onboarding</h3>
+                    <p class="feature-description">Clone from master templates. New clients go live in minutes, not hours.</p>
                 </div>
+                <div class="feature-card">
+                    <div class="feature-icon">&#x1F4CA;</div>
+                    <h3 class="feature-title">Technician Productivity</h3>
+                    <p class="feature-description">Track time, measure efficiency, and export to your PSA. Know who's crushing it.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">&#x1F5C4;</div>
+                    <h3 class="feature-title">Lightweight CMDB</h3>
+                    <p class="feature-description">Auto-discover assets, track warranties, and link everything to tickets. No more spreadsheet chaos.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">&#x1F4B0;</div>
+                    <h3 class="feature-title">Profit-Per-Client Reports</h3>
+                    <p class="feature-description">See which clients are profitable and which are bleeding you dry. Data-driven pricing decisions.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Migration Teaser Section -->
+    <section class="migration-section">
+        <div class="migration-content">
+            <h2>Switching from ConnectWise, Autotask, or HaloPSA?</h2>
+            <p>We'll migrate your clients and tickets in minutes. Start your free trial and see how easy it is.</p>
+            <a href="/signup?plan=growth&migration=true" class="btn btn-white btn-large">Start Migration</a>
+            <div class="migration-logos">
+                <span class="migration-logo">ConnectWise</span>
+                <span class="migration-logo">Autotask</span>
+                <span class="migration-logo">HaloPSA</span>
+                <span class="migration-logo">Freshdesk</span>
             </div>
         </div>
     </section>
@@ -935,150 +1386,98 @@
     <section class="pricing" id="pricing">
         <div class="section-container">
             <div class="section-header">
-                <div class="section-label">Pricing</div>
-                <h2 class="section-title">Simple, Transparent Pricing</h2>
-                <p class="section-subtitle">Choose the plan that fits your team. All plans include a 14-day free trial.</p>
-            </div>
-
-            <div class="pricing-toggle">
-                <span class="toggle-label active">Monthly</span>
-                <div class="toggle-switch" onclick="this.classList.toggle('annual')"></div>
-                <span class="toggle-label">Annual</span>
-                <span class="save-badge">Save 20%</span>
+                <div class="section-label">MSP Pricing</div>
+                <h2 class="section-title">Simple Per-Tech Pricing</h2>
+                <p class="section-subtitle">No per-ticket fees. No end-user limits. Just predictable monthly costs.</p>
             </div>
 
             <div class="pricing-grid">
                 <!-- Starter Plan -->
                 <div class="pricing-card">
                     <div class="plan-name">Starter</div>
-                    <div class="plan-description">For small teams getting started</div>
+                    <div class="plan-description">For MSPs getting started</div>
+                    <div class="unlimited-badge">Unlimited clients & end-users</div>
                     <div class="plan-price">
                         <span class="price"><span class="price-currency">$</span>29</span>
-                        <span class="price-period">/month</span>
-                    </div>
-                    <div class="plan-limits">
-                        <div class="limit-item">
-                            <span class="limit-label">Support Agents</span>
-                            <span class="limit-value">3</span>
-                        </div>
-                        <div class="limit-item">
-                            <span class="limit-label">Tickets/month</span>
-                            <span class="limit-value">500</span>
-                        </div>
-                        <div class="limit-item">
-                            <span class="limit-label">Customer Companies</span>
-                            <span class="limit-value">10</span>
-                        </div>
+                        <span class="price-period">/tech/month</span>
+                        <div class="price-note">Billed annually (2 months free)</div>
                     </div>
                     <ul class="plan-features">
-                        <li><span class="check-icon">&#x2713;</span> Email-to-Ticket</li>
-                        <li><span class="check-icon">&#x2713;</span> Basic SLA Tracking</li>
-                        <li><span class="check-icon">&#x2713;</span> Knowledge Base</li>
-                        <li><span class="cross-icon">&#x2717;</span> AI Insights</li>
-                        <li><span class="cross-icon">&#x2717;</span> CMDB</li>
-                        <li><span class="cross-icon">&#x2717;</span> API Access</li>
+                        <li><span class="check-icon">&#x2713;</span> Unlimited Client Workspaces</li>
+                        <li><span class="check-icon">&#x2713;</span> AI Auto-Resolve Engine</li>
+                        <li><span class="check-icon">&#x2713;</span> One-Click Password Reset</li>
+                        <li><span class="check-icon">&#x2713;</span> Smart Ticket Routing</li>
+                        <li><span class="check-icon">&#x2713;</span> AI Client-Friendly Replies</li>
+                        <li><span class="check-icon">&#x2713;</span> Instant Ticket Summarization</li>
+                        <li><span class="check-icon">&#x2713;</span> Client-Specific Email Pipelines</li>
+                        <li><span class="check-icon">&#x2713;</span> Per-Client Branded Portal</li>
+                        <li><span class="check-icon">&#x2713;</span> Slack & Teams Alerts</li>
+                        <li><span class="check-icon">&#x2713;</span> Basic Asset Auto-Discovery</li>
+                        <li><span class="check-icon">&#x2713;</span> Email & Chat Support</li>
                     </ul>
-                    <a href="#" class="btn btn-outline plan-cta">Start Free Trial</a>
+                    <a href="/signup?plan=starter" class="btn btn-outline plan-cta">Start Free Trial</a>
                 </div>
 
-                <!-- Professional Plan -->
+                <!-- Growth Plan - Most Popular -->
                 <div class="pricing-card popular">
                     <div class="popular-badge">Most Popular</div>
-                    <div class="plan-name">Professional</div>
-                    <div class="plan-description">For growing support teams</div>
+                    <div class="plan-name">Growth</div>
+                    <div class="plan-description">For scaling MSPs</div>
+                    <div class="unlimited-badge">Unlimited clients & end-users</div>
+                    <div class="plan-price">
+                        <span class="price"><span class="price-currency">$</span>49</span>
+                        <span class="price-period">/tech/month</span>
+                        <div class="price-note">Billed annually (2 months free)</div>
+                    </div>
+                    <ul class="plan-features">
+                        <li><span class="check-icon">&#x2713;</span> <strong>Everything in Starter, plus:</strong></li>
+                        <li><span class="check-icon">&#x2713;</span> Full Client Data Isolation</li>
+                        <li><span class="check-icon">&#x2713;</span> 3-Click Client Onboarding</li>
+                        <li><span class="check-icon">&#x2713;</span> Master Customer Templates</li>
+                        <li><span class="check-icon">&#x2713;</span> Granular Technician Roles</li>
+                        <li><span class="check-icon">&#x2713;</span> Role-Based Escalation Paths</li>
+                        <li><span class="check-icon">&#x2713;</span> Technician Client Restrictions</li>
+                        <li><span class="check-icon">&#x2713;</span> Lightweight CMDB</li>
+                        <li><span class="check-icon">&#x2713;</span> Auto-Populated Asset Inventory</li>
+                        <li><span class="check-icon">&#x2713;</span> Warranty Expiration Alerts</li>
+                        <li><span class="check-icon">&#x2713;</span> Time Tracking & PSA Export</li>
+                        <li><span class="check-icon">&#x2713;</span> Technician Productivity Scorecard</li>
+                        <li><span class="check-icon">&#x2713;</span> Monthly Client Reports (PDF)</li>
+                    </ul>
+                    <a href="/signup?plan=growth" class="btn btn-primary plan-cta">Start Free Trial</a>
+                </div>
+
+                <!-- Pro Plan -->
+                <div class="pricing-card">
+                    <div class="plan-name">Pro</div>
+                    <div class="plan-description">For established MSPs</div>
+                    <div class="unlimited-badge">Unlimited clients & end-users</div>
                     <div class="plan-price">
                         <span class="price"><span class="price-currency">$</span>79</span>
-                        <span class="price-period">/month</span>
-                    </div>
-                    <div class="plan-limits">
-                        <div class="limit-item">
-                            <span class="limit-label">Support Agents</span>
-                            <span class="limit-value">10</span>
-                        </div>
-                        <div class="limit-item">
-                            <span class="limit-label">Tickets/month</span>
-                            <span class="limit-value">2,000</span>
-                        </div>
-                        <div class="limit-item">
-                            <span class="limit-label">Customer Companies</span>
-                            <span class="limit-value">50</span>
-                        </div>
+                        <span class="price-period">/tech/month</span>
+                        <div class="price-note">Billed annually (2 months free)</div>
                     </div>
                     <ul class="plan-features">
-                        <li><span class="check-icon">&#x2713;</span> Everything in Starter</li>
-                        <li><span class="check-icon">&#x2713;</span> AI Insights & Classification</li>
-                        <li><span class="check-icon">&#x2713;</span> Advanced SLA Rules</li>
-                        <li><span class="check-icon">&#x2713;</span> Basic CMDB</li>
-                        <li><span class="check-icon">&#x2713;</span> API Access</li>
-                        <li><span class="cross-icon">&#x2717;</span> Custom Integrations</li>
-                    </ul>
-                    <a href="#" class="btn btn-primary plan-cta">Start Free Trial</a>
-                </div>
-
-                <!-- Business Plan -->
-                <div class="pricing-card">
-                    <div class="plan-name">Business</div>
-                    <div class="plan-description">For larger organizations</div>
-                    <div class="plan-price">
-                        <span class="price"><span class="price-currency">$</span>199</span>
-                        <span class="price-period">/month</span>
-                    </div>
-                    <div class="plan-limits">
-                        <div class="limit-item">
-                            <span class="limit-label">Support Agents</span>
-                            <span class="limit-value">25</span>
-                        </div>
-                        <div class="limit-item">
-                            <span class="limit-label">Tickets/month</span>
-                            <span class="limit-value">10,000</span>
-                        </div>
-                        <div class="limit-item">
-                            <span class="limit-label">Customer Companies</span>
-                            <span class="limit-value">Unlimited</span>
-                        </div>
-                    </div>
-                    <ul class="plan-features">
-                        <li><span class="check-icon">&#x2713;</span> Everything in Professional</li>
-                        <li><span class="check-icon">&#x2713;</span> Full CMDB with Relationships</li>
-                        <li><span class="check-icon">&#x2713;</span> Custom Integrations</li>
-                        <li><span class="check-icon">&#x2713;</span> Priority Support</li>
-                        <li><span class="check-icon">&#x2713;</span> Custom Reports</li>
-                        <li><span class="cross-icon">&#x2717;</span> Dedicated Instance</li>
-                    </ul>
-                    <a href="#" class="btn btn-outline plan-cta">Start Free Trial</a>
-                </div>
-
-                <!-- Enterprise Plan -->
-                <div class="pricing-card">
-                    <div class="plan-name">Enterprise</div>
-                    <div class="plan-description">For large-scale operations</div>
-                    <div class="plan-price">
-                        <span class="price">Custom</span>
-                    </div>
-                    <div class="plan-limits">
-                        <div class="limit-item">
-                            <span class="limit-label">Support Agents</span>
-                            <span class="limit-value">Unlimited</span>
-                        </div>
-                        <div class="limit-item">
-                            <span class="limit-label">Tickets/month</span>
-                            <span class="limit-value">Unlimited</span>
-                        </div>
-                        <div class="limit-item">
-                            <span class="limit-label">Customer Companies</span>
-                            <span class="limit-value">Unlimited</span>
-                        </div>
-                    </div>
-                    <ul class="plan-features">
-                        <li><span class="check-icon">&#x2713;</span> Everything in Business</li>
-                        <li><span class="check-icon">&#x2713;</span> Dedicated Instance</li>
-                        <li><span class="check-icon">&#x2713;</span> Custom SLA (99.99%)</li>
-                        <li><span class="check-icon">&#x2713;</span> On-premise Option</li>
+                        <li><span class="check-icon">&#x2713;</span> <strong>Everything in Growth, plus:</strong></li>
+                        <li><span class="check-icon">&#x2713;</span> Full CMDB CRUD + Audit Trail</li>
+                        <li><span class="check-icon">&#x2713;</span> Custom Fields per Client</li>
+                        <li><span class="check-icon">&#x2713;</span> API & Webhooks</li>
+                        <li><span class="check-icon">&#x2713;</span> Fully White-Labeled Emails</li>
+                        <li><span class="check-icon">&#x2713;</span> Custom Domain Portal</li>
+                        <li><span class="check-icon">&#x2713;</span> Branded Mobile App</li>
+                        <li><span class="check-icon">&#x2713;</span> Profit-Per-Client Calculator</li>
+                        <li><span class="check-icon">&#x2713;</span> ConnectWise / Autotask Migration</li>
+                        <li><span class="check-icon">&#x2713;</span> Priority Success Manager</li>
                         <li><span class="check-icon">&#x2713;</span> 24/7 Phone Support</li>
-                        <li><span class="check-icon">&#x2713;</span> Dedicated CSM</li>
                     </ul>
-                    <a href="#" class="btn btn-outline plan-cta">Contact Sales</a>
+                    <a href="/signup?plan=pro" class="btn btn-outline plan-cta">Start Free Trial</a>
                 </div>
+            </div>
+
+            <div class="pricing-footer">
+                <h4>Alternative for Smaller MSPs</h4>
+                <p><span class="highlight">$89/month</span> for your first 10 clients + <span class="highlight">$5 per additional client</span> (unlimited technicians)</p>
+                <a href="/signup?plan=small-msp" class="btn btn-outline" style="margin-top: 1rem;">Learn More</a>
             </div>
         </div>
     </section>
@@ -1087,28 +1486,28 @@
     <section class="ai-section" id="ai">
         <div class="ai-container">
             <div class="ai-content">
-                <h2>AI That Actually Helps</h2>
-                <p>Our AI doesn't just classify tickets - it provides actionable insights, suggests solutions, and helps your team resolve issues faster than ever.</p>
+                <h2>AI That Actually Saves You Time</h2>
+                <p>Our AI doesn't just classify tickets - it resolves them, writes client-friendly responses, and summarizes long threads so your techs can focus on billable work.</p>
                 <div class="ai-features">
                     <div class="ai-feature">
                         <div class="ai-feature-icon">&#x1F4CA;</div>
                         <div>
-                            <strong>Smart Classification</strong>
-                            <p style="font-size: 0.875rem; color: var(--gray-light); margin-top: 0.25rem;">Automatically categorize and prioritize incoming tickets</p>
+                            <strong>Auto-Resolve Common Issues</strong>
+                            <p style="font-size: 0.875rem; color: var(--gray-light); margin-top: 0.25rem;">Password resets, account unlocks, and routine requests - handled automatically</p>
                         </div>
                     </div>
                     <div class="ai-feature">
                         <div class="ai-feature-icon">&#x1F4A1;</div>
                         <div>
-                            <strong>Resolution Suggestions</strong>
-                            <p style="font-size: 0.875rem; color: var(--gray-light); margin-top: 0.25rem;">Get AI-powered suggestions based on similar past tickets</p>
+                            <strong>Client-Friendly Responses</strong>
+                            <p style="font-size: 0.875rem; color: var(--gray-light); margin-top: 0.25rem;">AI rewrites technical jargon into language your clients understand</p>
                         </div>
                     </div>
                     <div class="ai-feature">
                         <div class="ai-feature-icon">&#x26A0;</div>
                         <div>
-                            <strong>Risk Analysis</strong>
-                            <p style="font-size: 0.875rem; color: var(--gray-light); margin-top: 0.25rem;">Identify high-risk tickets before they escalate</p>
+                            <strong>Instant Thread Summaries</strong>
+                            <p style="font-size: 0.875rem; color: var(--gray-light); margin-top: 0.25rem;">Get up to speed on any ticket in seconds, not minutes</p>
                         </div>
                     </div>
                 </div>
@@ -1116,18 +1515,15 @@
             <div class="ai-visual">
                 <div class="ai-chat">
                     <div class="ai-message user">
-                        Analyze ticket #1842 - Server connectivity issue
+                        User can't access email - password expired
                     </div>
                     <div class="ai-message assistant">
-                        <strong>AI Analysis:</strong><br><br>
-                        <strong>Priority:</strong> Critical (P1)<br>
-                        <strong>Category:</strong> Infrastructure > Network<br>
-                        <strong>Estimated Impact:</strong> 150+ users affected<br><br>
-                        <strong>Suggested Actions:</strong><br>
-                        1. Check network switch logs<br>
-                        2. Verify DNS resolution<br>
-                        3. Review recent firewall changes<br><br>
-                        <strong>Similar Resolved:</strong> Ticket #1756 (DNS misconfiguration)
+                        <strong>AI Auto-Resolution:</strong><br><br>
+                        <span style="color: var(--secondary);">&#x2713; Password reset link sent</span><br>
+                        <span style="color: var(--secondary);">&#x2713; Client notified via email</span><br>
+                        <span style="color: var(--secondary);">&#x2713; Ticket closed automatically</span><br><br>
+                        <strong>Time saved:</strong> 8 minutes<br>
+                        <strong>Billable recovery:</strong> $12
                     </div>
                 </div>
             </div>
@@ -1142,113 +1538,144 @@
                 <h2 class="section-title">Detailed Feature Comparison</h2>
                 <p class="section-subtitle">See exactly what's included in each plan.</p>
             </div>
+            <div class="comparison-table-wrapper">
             <table class="comparison-table">
                 <thead>
                     <tr>
                         <th>Feature</th>
                         <th>Starter</th>
-                        <th>Professional</th>
-                        <th>Business</th>
-                        <th>Enterprise</th>
+                        <th class="popular-col">Growth</th>
+                        <th>Pro</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr>
-                        <td>Support Agents</td>
-                        <td>3</td>
-                        <td>10</td>
-                        <td>25</td>
-                        <td>Unlimited</td>
+                        <td>Price per tech/month</td>
+                        <td>$29</td>
+                        <td>$49</td>
+                        <td>$79</td>
                     </tr>
                     <tr>
-                        <td>Tickets per Month</td>
-                        <td>500</td>
-                        <td>2,000</td>
-                        <td>10,000</td>
+                        <td>Client Workspaces</td>
                         <td>Unlimited</td>
-                    </tr>
-                    <tr>
-                        <td>Customer Companies</td>
-                        <td>10</td>
-                        <td>50</td>
                         <td>Unlimited</td>
                         <td>Unlimited</td>
                     </tr>
                     <tr>
-                        <td>Email-to-Ticket</td>
-                        <td>&#x2713;</td>
+                        <td>End Users</td>
+                        <td>Unlimited</td>
+                        <td>Unlimited</td>
+                        <td>Unlimited</td>
+                    </tr>
+                    <tr>
+                        <td>AI Auto-Resolve Engine</td>
                         <td>&#x2713;</td>
                         <td>&#x2713;</td>
                         <td>&#x2713;</td>
                     </tr>
                     <tr>
-                        <td>SLA Tracking</td>
-                        <td>Basic</td>
-                        <td>Advanced</td>
-                        <td>Advanced</td>
-                        <td>Custom</td>
+                        <td>Smart Ticket Routing</td>
+                        <td>&#x2713;</td>
+                        <td>&#x2713;</td>
+                        <td>&#x2713;</td>
                     </tr>
                     <tr>
-                        <td>AI Insights</td>
+                        <td>Client-Specific Email Pipelines</td>
+                        <td>&#x2713;</td>
+                        <td>&#x2713;</td>
+                        <td>&#x2713;</td>
+                    </tr>
+                    <tr>
+                        <td>Per-Client Branded Portal</td>
+                        <td>&#x2713;</td>
+                        <td>&#x2713;</td>
+                        <td>&#x2713;</td>
+                    </tr>
+                    <tr>
+                        <td>Full Client Data Isolation</td>
                         <td>&#x2717;</td>
                         <td>&#x2713;</td>
+                        <td>&#x2713;</td>
+                    </tr>
+                    <tr>
+                        <td>3-Click Client Onboarding</td>
+                        <td>&#x2717;</td>
+                        <td>&#x2713;</td>
+                        <td>&#x2713;</td>
+                    </tr>
+                    <tr>
+                        <td>Master Customer Templates</td>
+                        <td>&#x2717;</td>
                         <td>&#x2713;</td>
                         <td>&#x2713;</td>
                     </tr>
                     <tr>
                         <td>CMDB</td>
-                        <td>&#x2717;</td>
                         <td>Basic</td>
-                        <td>Full</td>
-                        <td>Full + Custom</td>
+                        <td>Lightweight</td>
+                        <td>Full + Audit Trail</td>
                     </tr>
                     <tr>
-                        <td>API Access</td>
-                        <td>&#x2717;</td>
-                        <td>&#x2713;</td>
-                        <td>&#x2713;</td>
-                        <td>&#x2713;</td>
-                    </tr>
-                    <tr>
-                        <td>Custom Integrations</td>
-                        <td>&#x2717;</td>
+                        <td>Time Tracking & PSA Export</td>
                         <td>&#x2717;</td>
                         <td>&#x2713;</td>
                         <td>&#x2713;</td>
                     </tr>
                     <tr>
-                        <td>Dedicated Instance</td>
+                        <td>Technician Productivity Scorecard</td>
                         <td>&#x2717;</td>
+                        <td>&#x2713;</td>
+                        <td>&#x2713;</td>
+                    </tr>
+                    <tr>
+                        <td>API & Webhooks</td>
+                        <td>&#x2717;</td>
+                        <td>&#x2717;</td>
+                        <td>&#x2713;</td>
+                    </tr>
+                    <tr>
+                        <td>White-Label Emails</td>
+                        <td>&#x2717;</td>
+                        <td>&#x2717;</td>
+                        <td>&#x2713;</td>
+                    </tr>
+                    <tr>
+                        <td>Custom Domain Portal</td>
+                        <td>&#x2717;</td>
+                        <td>&#x2717;</td>
+                        <td>&#x2713;</td>
+                    </tr>
+                    <tr>
+                        <td>Branded Mobile App</td>
+                        <td>&#x2717;</td>
+                        <td>&#x2717;</td>
+                        <td>&#x2713;</td>
+                    </tr>
+                    <tr>
+                        <td>Profit-Per-Client Calculator</td>
                         <td>&#x2717;</td>
                         <td>&#x2717;</td>
                         <td>&#x2713;</td>
                     </tr>
                     <tr>
                         <td>Support</td>
-                        <td>Email</td>
-                        <td>Email + Chat</td>
-                        <td>Priority</td>
-                        <td>24/7 + CSM</td>
-                    </tr>
-                    <tr>
-                        <td>Data Retention</td>
-                        <td>1 year</td>
-                        <td>2 years</td>
-                        <td>5 years</td>
-                        <td>Unlimited</td>
+                        <td>Email & Chat</td>
+                        <td>Priority Email & Chat</td>
+                        <td>24/7 Phone + Success Manager</td>
                     </tr>
                 </tbody>
             </table>
+            </div>
         </div>
     </section>
 
     <!-- CTA Section -->
     <section class="cta-section">
         <div class="section-container">
-            <h2>Ready to Transform Your Support?</h2>
-            <p>Join thousands of teams delivering exceptional customer support with ServiFlow. Start your free 14-day trial today.</p>
+            <h2>Ready to Scale Your MSP?</h2>
+            <p>Join hundreds of MSPs delivering exceptional support with ServiFlow. Start your 30-day free trial today - no credit card required.</p>
             <div class="cta-buttons">
-                <a href="#pricing" class="btn btn-white btn-large">Start Free Trial</a>
+                <a href="/signup?plan=growth" class="btn btn-white btn-large">Start Free Trial</a>
                 <a href="#" class="btn btn-outline-white btn-large">Schedule a Demo</a>
             </div>
         </div>
@@ -1269,7 +1696,7 @@
                     </div>
                     ServiFlow
                 </a>
-                <p>AI-powered IT service management for teams that demand excellence. Transform your support operations today.</p>
+                <p>The AI-powered helpdesk built for Managed Service Providers. More billable hours, happier clients, less admin time.</p>
             </div>
             <div class="footer-links">
                 <h4>Product</h4>
@@ -1303,5 +1730,50 @@
             <p>&copy; 2024 ServiFlow. All rights reserved.</p>
         </div>
     </footer>
+
+    <script>
+        // Mobile menu toggle
+        function toggleMobileMenu() {
+            const toggle = document.querySelector('.mobile-menu-toggle');
+            const navLinks = document.getElementById('navLinks');
+            toggle.classList.toggle('active');
+            navLinks.classList.toggle('active');
+        }
+
+        function closeMobileMenu() {
+            const toggle = document.querySelector('.mobile-menu-toggle');
+            const navLinks = document.getElementById('navLinks');
+            toggle.classList.remove('active');
+            navLinks.classList.remove('active');
+        }
+
+        // Close menu when clicking outside
+        document.addEventListener('click', function(e) {
+            const nav = document.querySelector('nav');
+            const toggle = document.querySelector('.mobile-menu-toggle');
+            if (!nav.contains(e.target)) {
+                closeMobileMenu();
+            }
+        });
+
+        // Smooth scroll for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                const href = this.getAttribute('href');
+                if (href !== '#') {
+                    e.preventDefault();
+                    const target = document.querySelector(href);
+                    if (target) {
+                        const navHeight = document.querySelector('nav').offsetHeight;
+                        const targetPosition = target.offsetTop - navHeight - 20;
+                        window.scrollTo({
+                            top: targetPosition,
+                            behavior: 'smooth'
+                        });
+                    }
+                }
+            });
+        });
+    </script>
 </body>
 </html>
