@@ -12379,5 +12379,17 @@ function updateIonicMenu() {
 <script nomodule src="https://cdn.jsdelivr.net/npm/ionicons@7/dist/ionicons/ionicons.js"></script>
 </div><!-- End main-content -->
 </ion-app>
+<script>
+// Fix Ionic's body styles that break scrolling
+function fixBodyScroll() {
+  document.body.style.cssText += 'position:static !important;overflow-y:auto !important;height:auto !important;max-height:none !important;';
+}
+fixBodyScroll();
+// Also fix after Ionic fully initializes
+document.addEventListener('ionViewDidEnter', fixBodyScroll);
+window.addEventListener('load', fixBodyScroll);
+setTimeout(fixBodyScroll, 100);
+setTimeout(fixBodyScroll, 500);
+</script>
 </body>
 </html>
