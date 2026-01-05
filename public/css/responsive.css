@@ -495,32 +495,18 @@ button:active {
     padding: 4px 8px;
   }
 
-  /* ---- SCROLLING FIX FOR SAFARI ---- */
-  html {
-    height: 100%;
-    overflow: hidden;
-  }
-
-  body {
-    height: 100%;
-    overflow-y: scroll !important;
-    -webkit-overflow-scrolling: touch;
-    position: relative;
-  }
-
-  .container {
-    min-height: 100%;
-    padding-bottom: 100px;
-  }
-
   /* ---- TWO-COL LAYOUT: Stack on mobile ---- */
   .two-col {
     display: block !important;
-    grid-template-columns: none !important;
   }
 
   .two-col > main {
     width: 100%;
+  }
+
+  /* Ensure content can scroll */
+  .container {
+    padding-bottom: 80px;
   }
 }
 
