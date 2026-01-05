@@ -498,7 +498,16 @@ button:active {
   /* ---- SCROLLING ---- */
   html, body {
     -webkit-overflow-scrolling: touch;
-    overscroll-behavior: none;
+  }
+
+  /* ---- TWO-COL LAYOUT: Stack on mobile ---- */
+  .two-col {
+    display: block !important;
+    grid-template-columns: none !important;
+  }
+
+  .two-col > main {
+    width: 100%;
   }
 }
 
