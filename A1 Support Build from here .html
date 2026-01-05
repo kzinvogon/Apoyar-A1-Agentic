@@ -60,7 +60,9 @@ vNext-FULL-ActionsSLA:
   /* Dark Mode */
   body.dark-mode{--bg:#0a0a0a;--card:#141414;--ink:#f5f5f5;--muted:#a3a3a3;--primary:#ffffff;--primary-dark:#e5e5e5;--accent:#ffffff;--border:#262626;--card-hover:#1f1f1f;--table-header:#141414;--input-bg:#1a1a1a;--topnav-bg:#0a0a0a;--logo-bg:#ffffff;--logo-text:#0a0a0a;--avatar-bg:#ffffff;--badge-bg:#1a1a1a}
 
-  *{box-sizing:border-box} body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);padding-top:56px;transition:background .2s,color .2s}
+  *{box-sizing:border-box}
+  /* Override Ionic's body styles that break scrolling */
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);padding-top:56px;transition:background .2s,color .2s;position:static !important;overflow-y:auto !important;height:auto !important;max-height:none !important}
 
   /* Clean Top Navigation */
   .topnav{position:fixed;top:0;left:0;right:0;height:56px;background:var(--topnav-bg);border-bottom:1px solid var(--border);z-index:100;display:flex;align-items:center;padding:0 24px;transition:background .2s,border-color .2s}
