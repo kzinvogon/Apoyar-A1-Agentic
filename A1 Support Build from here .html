@@ -12385,26 +12385,35 @@ function fixBodyScroll() {
   const b = document.body;
   const h = document.documentElement;
   const ionApp = document.querySelector('ion-app');
+  const mainContent = document.getElementById('main-content');
 
-  // Force body styles
-  b.style.setProperty('position', 'static', 'important');
-  b.style.setProperty('overflow-y', 'auto', 'important');
-  b.style.setProperty('overflow-x', 'hidden', 'important');
+  // Force html to be scrollable container
+  h.style.setProperty('height', '100%', 'important');
+  h.style.setProperty('overflow-y', 'scroll', 'important');
+
+  // Force body to fill and allow content to determine height
+  b.style.setProperty('position', 'relative', 'important');
+  b.style.setProperty('min-height', '100%', 'important');
   b.style.setProperty('height', 'auto', 'important');
   b.style.setProperty('max-height', 'none', 'important');
+  b.style.setProperty('overflow', 'visible', 'important');
   b.style.setProperty('width', 'auto', 'important');
   b.style.setProperty('max-width', 'none', 'important');
 
-  // Force html styles
-  h.style.setProperty('overflow-y', 'auto', 'important');
-  h.style.setProperty('height', 'auto', 'important');
-
-  // Force ion-app to not block scroll
+  // Force ion-app to be in flow and sized by content
   if (ionApp) {
     ionApp.style.setProperty('position', 'relative', 'important');
+    ionApp.style.setProperty('display', 'block', 'important');
     ionApp.style.setProperty('overflow', 'visible', 'important');
     ionApp.style.setProperty('height', 'auto', 'important');
+    ionApp.style.setProperty('min-height', '100vh', 'important');
     ionApp.style.setProperty('contain', 'none', 'important');
+  }
+
+  // Force main-content to show content
+  if (mainContent) {
+    mainContent.style.setProperty('overflow', 'visible', 'important');
+    mainContent.style.setProperty('height', 'auto', 'important');
   }
 }
 fixBodyScroll();
@@ -12412,9 +12421,12 @@ window.addEventListener('load', fixBodyScroll);
 setTimeout(fixBodyScroll, 100);
 setTimeout(fixBodyScroll, 500);
 setTimeout(fixBodyScroll, 1000);
-// Watch for Ionic style changes
+// Watch for style changes
 const observer = new MutationObserver(fixBodyScroll);
 observer.observe(document.body, { attributes: true, attributeFilter: ['style'] });
+if (document.querySelector('ion-app')) {
+  observer.observe(document.querySelector('ion-app'), { attributes: true, attributeFilter: ['style'] });
+}
 </script>
 </body>
 </html>
