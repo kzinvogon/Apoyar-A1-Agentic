@@ -12382,14 +12382,39 @@ function updateIonicMenu() {
 <script>
 // Fix Ionic's body styles that break scrolling
 function fixBodyScroll() {
-  document.body.style.cssText += 'position:static !important;overflow-y:auto !important;height:auto !important;max-height:none !important;';
+  const b = document.body;
+  const h = document.documentElement;
+  const ionApp = document.querySelector('ion-app');
+
+  // Force body styles
+  b.style.setProperty('position', 'static', 'important');
+  b.style.setProperty('overflow-y', 'auto', 'important');
+  b.style.setProperty('overflow-x', 'hidden', 'important');
+  b.style.setProperty('height', 'auto', 'important');
+  b.style.setProperty('max-height', 'none', 'important');
+  b.style.setProperty('width', 'auto', 'important');
+  b.style.setProperty('max-width', 'none', 'important');
+
+  // Force html styles
+  h.style.setProperty('overflow-y', 'auto', 'important');
+  h.style.setProperty('height', 'auto', 'important');
+
+  // Force ion-app to not block scroll
+  if (ionApp) {
+    ionApp.style.setProperty('position', 'relative', 'important');
+    ionApp.style.setProperty('overflow', 'visible', 'important');
+    ionApp.style.setProperty('height', 'auto', 'important');
+    ionApp.style.setProperty('contain', 'none', 'important');
+  }
 }
 fixBodyScroll();
-// Also fix after Ionic fully initializes
-document.addEventListener('ionViewDidEnter', fixBodyScroll);
 window.addEventListener('load', fixBodyScroll);
 setTimeout(fixBodyScroll, 100);
 setTimeout(fixBodyScroll, 500);
+setTimeout(fixBodyScroll, 1000);
+// Watch for Ionic style changes
+const observer = new MutationObserver(fixBodyScroll);
+observer.observe(document.body, { attributes: true, attributeFilter: ['style'] });
 </script>
 </body>
 </html>
