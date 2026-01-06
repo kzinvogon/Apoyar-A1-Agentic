@@ -258,7 +258,8 @@ class EmailProcessor {
         // If user is already an expert or admin, just inform them
         if (existingUser.role === 'expert' || existingUser.role === 'admin') {
           console.log(`User ${fromEmail} is already an expert/admin, no upgrade needed`);
-          await sendNotificationEmail(
+          // Non-blocking email
+          sendNotificationEmail(
             fromEmail,
             'You Already Have Expert Access - A1 Support',
             `
@@ -269,7 +270,7 @@ class EmailProcessor {
               <hr>
               <p style="color:#666;font-size:12px">This is an automated message from A1 Support.</p>
             `
-          );
+          ).catch(err => console.log('📧 Could not send already-expert email (non-critical):', err.message));
           return { success: false, reason: 'already_expert' };
         }
 
@@ -290,10 +291,11 @@ class EmailProcessor {
           })]
         );
 
-        const loginUrl = process.env.BASE_URL || 'https://serviflow.app';
+        console.log(`✅ Upgraded ${fromEmail} to expert role`);
 
-        // Send upgrade confirmation email
-        await sendNotificationEmail(
+        // Send upgrade confirmation email (non-blocking)
+        const loginUrl = process.env.BASE_URL || 'https://serviflow.app';
+        sendNotificationEmail(
           fromEmail,
           'Your Account Has Been Upgraded to Expert - A1 Support',
           `
@@ -313,9 +315,7 @@ class EmailProcessor {
               <p style="color:#666;font-size:12px">This is an automated message from A1 Support.</p>
             </div>
           `
-        );
-
-        console.log(`✅ Upgraded ${fromEmail} to expert role`);
+        ).catch(err => console.log('📧 Could not send upgrade email (non-critical):', err.message));
         return { success: true, upgraded: true, userId: existingUser.id };
       }
 
@@ -337,7 +337,6 @@ class EmailProcessor {
       );
 
       const userId = result.insertId;
-      console.log(`✅ Created expert account for ${fromEmail} (userId=${userId})`);
 
       // Log the activity
       await connection.query(
@@ -345,10 +344,11 @@ class EmailProcessor {
         [userId, 'expert_created_via_email', JSON.stringify({ message: `Expert account created via "Register_Expert" email`, email: fromEmail })]
       );
 
-      // Send welcome email with credentials
-      const loginUrl = process.env.BASE_URL || 'https://serviflow.app';
+      console.log(`✅ Created expert account for ${fromEmail} (userId=${userId})`);
 
-      await sendNotificationEmail(
+      // Send welcome email with credentials (non-blocking)
+      const loginUrl = process.env.BASE_URL || 'https://serviflow.app';
+      sendNotificationEmail(
         fromEmail,
         'Welcome to A1 Support - Your Expert Account is Ready',
         `
@@ -382,9 +382,8 @@ class EmailProcessor {
             <p style="color:#666;font-size:12px">This is an automated message from A1 Support. Please do not reply to this email.</p>
           </div>
         `
-      );
-
-      console.log(`📧 Sent welcome email with credentials to: ${fromEmail}`);
+      ).then(() => console.log(`📧 Sent welcome email to: ${fromEmail}`))
+       .catch(err => console.log('📧 Could not send welcome email (non-critical):', err.message));
 
       return {
         success: true,
