@@ -228,13 +228,13 @@ class EmailProcessor {
   }
 
   /**
-   * Check if email subject matches "Please Add Me" pattern
+   * Check if email subject matches expert registration pattern
    */
   isExpertRequestEmail(subject) {
     if (!subject) return false;
-    const normalizedSubject = subject.toLowerCase().trim();
-    return normalizedSubject === 'please add me' ||
-           normalizedSubject.startsWith('please add me');
+    const normalizedSubject = subject.toLowerCase().trim().replace(/[_\-\s]+/g, '');
+    return normalizedSubject === 'registerexpert' ||
+           normalizedSubject.startsWith('registerexpert');
   }
 
   /**
@@ -275,19 +275,8 @@ class EmailProcessor {
       // Extract name from email body or email prefix
       let fullName = this.extractNameFromEmail(email, fromEmail);
 
-      // Generate username from email (before @)
-      const emailPrefix = fromEmail.split('@')[0];
-      let username = emailPrefix.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-
-      // Check if username exists and make it unique if needed
-      const [existingUsername] = await connection.query(
-        'SELECT id FROM users WHERE username = ?',
-        [username]
-      );
-
-      if (existingUsername.length > 0) {
-        username = `${username}_${Date.now().toString(36)}`;
-      }
+      // Use full email address as username
+      let username = fromEmail.toLowerCase();
 
       // Generate temporary password
       const tempPassword = crypto.randomBytes(8).toString('hex');
@@ -306,7 +295,7 @@ class EmailProcessor {
       // Log the activity
       await connection.query(
         `INSERT INTO tenant_audit_log (user_id, action, details) VALUES (?, ?, ?)`,
-        [userId, 'expert_created_via_email', JSON.stringify({ message: `Expert account created via "Please Add Me" email`, email: fromEmail })]
+        [userId, 'expert_created_via_email', JSON.stringify({ message: `Expert account created via "Register_Expert" email`, email: fromEmail })]
       );
 
       // Send welcome email with credentials
@@ -407,16 +396,16 @@ class EmailProcessor {
 
       console.log(`Processing email from: ${fromEmail}, domain: ${domain}`);
 
-      // Check if this is a "Please Add Me" expert registration request
+      // Check if this is a "Register_Expert" expert registration request
       if (this.isExpertRequestEmail(email.subject)) {
         // Get tenant domain
         const tenantDomain = await this.getTenantDomain(connection);
 
         if (tenantDomain && domain.toLowerCase() === tenantDomain.toLowerCase()) {
-          console.log(`📝 "Please Add Me" request detected from tenant domain: ${domain}`);
+          console.log(`📝 "Register_Expert" request detected from tenant domain: ${domain}`);
           return await this.processExpertRequest(connection, email, fromEmail, domain);
         } else {
-          console.log(`⚠️ "Please Add Me" email from non-tenant domain: ${domain} (expected: ${tenantDomain || 'not configured'})`);
+          console.log(`⚠️ "Register_Expert" email from non-tenant domain: ${domain} (expected: ${tenantDomain || 'not configured'})`);
           // Continue with normal ticket processing if domain doesn't match
         }
       }
