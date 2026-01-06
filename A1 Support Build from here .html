@@ -4198,7 +4198,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   function nav(el){ document.querySelectorAll('.navlink').forEach(n=>n.classList.remove('active')); el.classList.add('active'); switchView(el.getAttribute('data-target')); if(el.getAttribute('data-target')==='dash') renderAllDashboards(); }
   function navTo(view){ switchView(view); }
-  function switchView(view){ currentView=view; ['dash','profile','tickets','ticket-detail','experts','expert-detail','customers','cmdb','cmdb-detail','manage-cmdb','cmdb-mgmt','wizard','raise','tenants','subscriptions','billing','plans','system','usage','customer-plans','customer-billing','analytics','ai-insights','ticket-rules','email-processing','system-control','knowledge-base'].forEach(n=>{ const el=document.getElementById('view-'+n); if(el) el.style.display=(n===view)?'block':'none'; }); if(view==='tickets') { loadFilterSettings('tickets'); renderList(); } if(view==='experts') { loadFilterSettings('experts'); renderExperts(); } if(view==='expert-detail') renderExpertDetail(); if(view==='customers') { loadFilterSettings('customers'); renderCustomers(); } if(view==='cmdb') { loadFilterSettings('cmdb'); renderCMDB(); } if(view==='cmdb-detail') renderCMDBDetail(); if(view==='manage-cmdb') loadManageCMDB(); if(view==='cmdb-mgmt') loadCMDBMgmt(); if(view==='raise') loadRaiseFormOptions(); if(view==='ticket-detail') renderTicketDetail(); if(view==='tenants') loadTenants(); if(view==='subscriptions') loadSubscriptions(); if(view==='billing') loadBilling(); if(view==='plans') loadPlans(); if(view==='system') loadSystemOverview(); if(view==='usage') loadUsageDashboard(); if(view==='customer-plans') loadCustomerPlans(); if(view==='customer-billing') loadCustomerBilling(); if(view==='analytics') loadAnalytics(); if(view==='ai-insights') loadAIInsights(); if(view==='ticket-rules') loadTicketRules(); if(view==='email-processing') loadEmailProcessing(); if(view==='system-control') loadSystemControlSettings(); if(view==='knowledge-base') initKnowledgeBase(); if(view==='wizard') { loadCompanyProfile(); loadEmailIngestSettings(); loadExpertRegSettings(); } if(view==='profile') loadProfile(); }
+  function switchView(view){ currentView=view; ['dash','profile','tickets','ticket-detail','experts','expert-detail','customers','cmdb','cmdb-detail','manage-cmdb','cmdb-mgmt','wizard','raise','tenants','subscriptions','billing','plans','system','usage','customer-plans','customer-billing','analytics','ai-insights','ticket-rules','email-processing','system-control','knowledge-base'].forEach(n=>{ const el=document.getElementById('view-'+n); if(el) el.style.display=(n===view)?'block':'none'; }); if(view==='tickets') { loadFilterSettings('tickets'); renderList(); } if(view==='experts') { loadFilterSettings('experts'); renderExperts(); } if(view==='expert-detail') renderExpertDetail(); if(view==='customers') { loadFilterSettings('customers'); renderCustomers(); } if(view==='cmdb') { loadFilterSettings('cmdb'); renderCMDB(); } if(view==='cmdb-detail') renderCMDBDetail(); if(view==='manage-cmdb') loadManageCMDB(); if(view==='cmdb-mgmt') loadCMDBMgmt(); if(view==='raise') loadRaiseFormOptions(); if(view==='ticket-detail') renderTicketDetail(); if(view==='tenants') loadTenants(); if(view==='subscriptions') loadSubscriptions(); if(view==='billing') loadBilling(); if(view==='plans') loadPlans(); if(view==='system') loadSystemOverview(); if(view==='usage') loadUsageDashboard(); if(view==='customer-plans') loadCustomerPlans(); if(view==='customer-billing') loadCustomerBilling(); if(view==='analytics') loadAnalytics(); if(view==='ai-insights') loadAIInsights(); if(view==='ticket-rules') loadTicketRules(); if(view==='email-processing') loadEmailProcessing(); if(view==='system-control') loadSystemControlSettings(); if(view==='knowledge-base') initKnowledgeBase(); if(view==='wizard') { loadCompanyProfile(); loadEmailIngestSettings(); loadExpertRegSettings(); loadSupportSettings(); } if(view==='profile') loadProfile(); }
   function configureRole(){
     const currentRole = window.role || role; // Use global role from login, fallback to local
     document.getElementById('nav-admin').style.display = (currentRole==='admin') ? 'block' : 'none';
@@ -4777,6 +4777,81 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   function hideExpertRegMessages() {
     document.getElementById('expert-reg-message').style.display = 'none';
     document.getElementById('expert-reg-error').style.display = 'none';
+  }
+
+  // Support Settings Functions
+  async function loadSupportSettings() {
+    try {
+      const tenantCode = currentUser.tenantCode || 'apoyar';
+      const response = await fetch(`/api/tickets/settings/${tenantCode}`, {
+        headers: {
+          'Authorization': 'Bearer ' + localStorage.getItem('token')
+        }
+      });
+      const data = await response.json();
+      if (data.success && data.settings) {
+        const checkbox = document.getElementById('resolution-requires-acceptance');
+        if (checkbox) {
+          // Default to true if not set
+          checkbox.checked = data.settings.resolution_requires_acceptance !== 'false';
+        }
+      }
+    } catch (error) {
+      console.error('Error loading support settings:', error);
+    }
+  }
+
+  async function saveSupportSettings() {
+    const checkbox = document.getElementById('resolution-requires-acceptance');
+    const requiresAcceptance = checkbox ? checkbox.checked : true;
+
+    try {
+      const tenantCode = currentUser.tenantCode || 'apoyar';
+      const response = await fetch(`/api/tickets/settings/${tenantCode}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + localStorage.getItem('token')
+        },
+        body: JSON.stringify({ key: 'resolution_requires_acceptance', value: String(requiresAcceptance) })
+      });
+
+      const data = await response.json();
+
+      if (response.status === 403) {
+        showSupportSettingsError('Admin access required.');
+        return;
+      }
+
+      if (data.success) {
+        showSupportSettingsMessage('Settings saved successfully.');
+        setTimeout(hideSupportSettingsMessages, 5000);
+      } else {
+        showSupportSettingsError(data.message || 'Error saving settings');
+      }
+    } catch (error) {
+      console.error('Error saving support settings:', error);
+      showSupportSettingsError('Error saving settings');
+    }
+  }
+
+  function showSupportSettingsMessage(message) {
+    document.getElementById('support-settings-error').style.display = 'none';
+    const el = document.getElementById('support-settings-message');
+    el.textContent = message;
+    el.style.display = 'block';
+  }
+
+  function showSupportSettingsError(message) {
+    document.getElementById('support-settings-message').style.display = 'none';
+    const el = document.getElementById('support-settings-error');
+    el.textContent = message;
+    el.style.display = 'block';
+  }
+
+  function hideSupportSettingsMessages() {
+    document.getElementById('support-settings-message').style.display = 'none';
+    document.getElementById('support-settings-error').style.display = 'none';
   }
 
   // Email Ingest Functions
