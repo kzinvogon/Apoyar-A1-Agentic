@@ -2931,6 +2931,17 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
             <div id="expert-reg-message" class="subtitle" style="color:#16a34a;display:none;margin-top:8px"></div>
             <div id="expert-reg-error" class="subtitle" style="color:#b91c1c;display:none;margin-top:8px"></div>
+
+            <div style="margin-top:16px;padding-top:16px;border-top:1px solid #e5e7eb">
+              <div class="row space">
+                <div>
+                  <div class="subtitle" style="font-weight:600">Test Email Processing</div>
+                  <div class="subtitle" style="color:#666;font-size:12px">Manually trigger email processing to check for new emails immediately (normally runs every 5 minutes)</div>
+                </div>
+                <button class="btn" onclick="triggerEmailProcessing()">Process Emails Now</button>
+              </div>
+              <div id="email-process-message" class="subtitle" style="color:#16a34a;display:none;margin-top:8px"></div>
+            </div>
           </div>
 
           <!-- Support Settings -->
@@ -4777,6 +4788,38 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   function hideExpertRegMessages() {
     document.getElementById('expert-reg-message').style.display = 'none';
     document.getElementById('expert-reg-error').style.display = 'none';
+  }
+
+  async function triggerEmailProcessing() {
+    const msgEl = document.getElementById('email-process-message');
+    msgEl.style.display = 'none';
+
+    try {
+      const tenantCode = currentUser.tenantCode || 'apoyar';
+      const response = await fetch(`/api/email-ingest/${tenantCode}/process-now`, {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + localStorage.getItem('token')
+        }
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        msgEl.textContent = 'Email processing triggered. Check server logs for results.';
+        msgEl.style.color = '#16a34a';
+      } else {
+        msgEl.textContent = data.message || 'Error triggering email processing';
+        msgEl.style.color = '#b91c1c';
+      }
+      msgEl.style.display = 'block';
+      setTimeout(() => { msgEl.style.display = 'none'; }, 5000);
+    } catch (error) {
+      console.error('Error triggering email processing:', error);
+      msgEl.textContent = 'Error triggering email processing';
+      msgEl.style.color = '#b91c1c';
+      msgEl.style.display = 'block';
+    }
   }
 
   // Support Settings Functions
