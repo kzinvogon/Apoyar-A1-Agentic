@@ -140,6 +140,35 @@ router.put('/:tenantId/settings', requireRole(['admin']), writeOperationsLimiter
   }
 });
 
+// Manually trigger email processing
+router.post('/:tenantId/process-now', requireRole(['admin']), writeOperationsLimiter, async (req, res) => {
+  try {
+    const { tenantId } = req.params;
+    const tenantCode = tenantId.toLowerCase().replace(/[^a-z0-9]/g, '_');
+
+    // Import EmailProcessor
+    const { EmailProcessor } = require('../services/email-processor');
+    const processor = new EmailProcessor(tenantCode);
+
+    console.log(`🔄 Manual email processing triggered for tenant: ${tenantCode}`);
+
+    // Process emails immediately (don't await to avoid timeout)
+    processor.processEmails().then(result => {
+      console.log(`✅ Manual email processing completed for tenant: ${tenantCode}`);
+    }).catch(error => {
+      console.error(`❌ Manual email processing failed for tenant: ${tenantCode}`, error);
+    });
+
+    res.json({
+      success: true,
+      message: 'Email processing triggered. Check server logs for details.'
+    });
+  } catch (error) {
+    console.error('Error triggering email processing:', error);
+    res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
+  }
+});
+
 // Test email connection
 router.post('/:tenantId/test-connection', requireRole(['admin']), writeOperationsLimiter, async (req, res) => {
   try {
