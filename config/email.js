@@ -54,21 +54,23 @@ async function isUserEmailNotificationsEnabled(tenantCode, userEmail) {
 if (smtpEmail && smtpPassword && smtpEmail !== 'your-email@gmail.com' && smtpPassword !== 'your-app-password') {
   transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
-    port: 465,
-    secure: true, // Use SSL
+    port: 587,
+    secure: false, // Use STARTTLS
+    requireTLS: true,
     auth: {
       user: smtpEmail,
       pass: smtpPassword // Use App Password for Gmail
     },
-    connectionTimeout: 10000, // 10 seconds
-    greetingTimeout: 10000,
-    socketTimeout: 15000,
-    pool: true, // Use connection pooling
-    maxConnections: 5,
-    maxMessages: 100
+    connectionTimeout: 30000, // 30 seconds
+    greetingTimeout: 30000,
+    socketTimeout: 30000,
+    tls: {
+      rejectUnauthorized: false,
+      minVersion: 'TLSv1.2'
+    }
   });
 
-  console.log(`📧 SMTP configured: ${smtpEmail} via smtp.gmail.com:465`);
+  console.log(`📧 SMTP configured: ${smtpEmail} via smtp.gmail.com:587 (STARTTLS)`);
 
   // Verify transporter configuration
   transporter.verify((error, success) => {
