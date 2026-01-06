@@ -2907,6 +2907,32 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             <div id="email-ingest-error" class="subtitle" style="color:#b91c1c;display:none;margin-top:8px"></div>
           </div>
 
+          <!-- Expert Registration Settings -->
+          <div id="admin-section-expert-reg" class="card p-16 mb-12">
+            <div class="row space mb-12">
+              <h4 class="subtitle" style="margin:0;font-weight:600">Expert Registration via Email</h4>
+              <button class="btn primary" onclick="saveExpertRegSettings()">Save Settings</button>
+            </div>
+
+            <div class="subtitle mb-12" style="background:#f0fdf4;padding:12px;border-radius:4px;border-left:4px solid #16a34a">
+              <strong>How it works:</strong> Staff members can self-register as experts by sending an email with subject
+              <code style="background:#dcfce7;padding:2px 6px;border-radius:4px">Register_Expert</code> to your support inbox.
+              Their email domain must match the Tenant Domain below. A welcome email with login credentials will be sent automatically.
+            </div>
+
+            <div class="mb-12">
+              <label class="subtitle">Tenant Domain (your company's email domain)</label>
+              <input id="expert-reg-domain" class="input" placeholder="e.g., apoyar.eu or apoyar.com.au"/>
+              <div class="subtitle" style="margin-top:4px;color:#666;font-size:12px">
+                Only emails from this domain can register as experts. Example: if set to <code>apoyar.eu</code>,
+                then <code>john@apoyar.eu</code> can register but <code>john@gmail.com</code> cannot.
+              </div>
+            </div>
+
+            <div id="expert-reg-message" class="subtitle" style="color:#16a34a;display:none;margin-top:8px"></div>
+            <div id="expert-reg-error" class="subtitle" style="color:#b91c1c;display:none;margin-top:8px"></div>
+          </div>
+
           <!-- Support Settings -->
           <div class="card p-16 mb-12">
             <div class="row space mb-12">
@@ -4172,7 +4198,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   function nav(el){ document.querySelectorAll('.navlink').forEach(n=>n.classList.remove('active')); el.classList.add('active'); switchView(el.getAttribute('data-target')); if(el.getAttribute('data-target')==='dash') renderAllDashboards(); }
   function navTo(view){ switchView(view); }
-  function switchView(view){ currentView=view; ['dash','profile','tickets','ticket-detail','experts','expert-detail','customers','cmdb','cmdb-detail','manage-cmdb','cmdb-mgmt','wizard','raise','tenants','subscriptions','billing','plans','system','usage','customer-plans','customer-billing','analytics','ai-insights','ticket-rules','email-processing','system-control','knowledge-base'].forEach(n=>{ const el=document.getElementById('view-'+n); if(el) el.style.display=(n===view)?'block':'none'; }); if(view==='tickets') { loadFilterSettings('tickets'); renderList(); } if(view==='experts') { loadFilterSettings('experts'); renderExperts(); } if(view==='expert-detail') renderExpertDetail(); if(view==='customers') { loadFilterSettings('customers'); renderCustomers(); } if(view==='cmdb') { loadFilterSettings('cmdb'); renderCMDB(); } if(view==='cmdb-detail') renderCMDBDetail(); if(view==='manage-cmdb') loadManageCMDB(); if(view==='cmdb-mgmt') loadCMDBMgmt(); if(view==='raise') loadRaiseFormOptions(); if(view==='ticket-detail') renderTicketDetail(); if(view==='tenants') loadTenants(); if(view==='subscriptions') loadSubscriptions(); if(view==='billing') loadBilling(); if(view==='plans') loadPlans(); if(view==='system') loadSystemOverview(); if(view==='usage') loadUsageDashboard(); if(view==='customer-plans') loadCustomerPlans(); if(view==='customer-billing') loadCustomerBilling(); if(view==='analytics') loadAnalytics(); if(view==='ai-insights') loadAIInsights(); if(view==='ticket-rules') loadTicketRules(); if(view==='email-processing') loadEmailProcessing(); if(view==='system-control') loadSystemControlSettings(); if(view==='knowledge-base') initKnowledgeBase(); if(view==='wizard') { loadCompanyProfile(); loadEmailIngestSettings(); } if(view==='profile') loadProfile(); }
+  function switchView(view){ currentView=view; ['dash','profile','tickets','ticket-detail','experts','expert-detail','customers','cmdb','cmdb-detail','manage-cmdb','cmdb-mgmt','wizard','raise','tenants','subscriptions','billing','plans','system','usage','customer-plans','customer-billing','analytics','ai-insights','ticket-rules','email-processing','system-control','knowledge-base'].forEach(n=>{ const el=document.getElementById('view-'+n); if(el) el.style.display=(n===view)?'block':'none'; }); if(view==='tickets') { loadFilterSettings('tickets'); renderList(); } if(view==='experts') { loadFilterSettings('experts'); renderExperts(); } if(view==='expert-detail') renderExpertDetail(); if(view==='customers') { loadFilterSettings('customers'); renderCustomers(); } if(view==='cmdb') { loadFilterSettings('cmdb'); renderCMDB(); } if(view==='cmdb-detail') renderCMDBDetail(); if(view==='manage-cmdb') loadManageCMDB(); if(view==='cmdb-mgmt') loadCMDBMgmt(); if(view==='raise') loadRaiseFormOptions(); if(view==='ticket-detail') renderTicketDetail(); if(view==='tenants') loadTenants(); if(view==='subscriptions') loadSubscriptions(); if(view==='billing') loadBilling(); if(view==='plans') loadPlans(); if(view==='system') loadSystemOverview(); if(view==='usage') loadUsageDashboard(); if(view==='customer-plans') loadCustomerPlans(); if(view==='customer-billing') loadCustomerBilling(); if(view==='analytics') loadAnalytics(); if(view==='ai-insights') loadAIInsights(); if(view==='ticket-rules') loadTicketRules(); if(view==='email-processing') loadEmailProcessing(); if(view==='system-control') loadSystemControlSettings(); if(view==='knowledge-base') initKnowledgeBase(); if(view==='wizard') { loadCompanyProfile(); loadEmailIngestSettings(); loadExpertRegSettings(); } if(view==='profile') loadProfile(); }
   function configureRole(){
     const currentRole = window.role || role; // Use global role from login, fallback to local
     document.getElementById('nav-admin').style.display = (currentRole==='admin') ? 'block' : 'none';
@@ -4197,8 +4223,10 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const isAdmin = (currentRole === 'admin');
     const profileSection = document.getElementById('admin-section-profile');
     const emailIngestSection = document.getElementById('admin-section-email-ingest');
+    const expertRegSection = document.getElementById('admin-section-expert-reg');
     if (profileSection) profileSection.style.display = isAdmin ? 'block' : 'none';
     if (emailIngestSection) emailIngestSection.style.display = isAdmin ? 'block' : 'none';
+    if (expertRegSection) expertRegSection.style.display = isAdmin ? 'block' : 'none';
 
     // Update Ionic menu visibility based on role
     if (typeof updateIonicMenu === 'function') {
@@ -4668,6 +4696,87 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   function hideProfileMessages() {
     document.getElementById('profile-message').style.display = 'none';
     document.getElementById('profile-error').style.display = 'none';
+  }
+
+  // Expert Registration Settings Functions
+  async function loadExpertRegSettings() {
+    try {
+      const tenantCode = currentUser.tenantCode || 'apoyar';
+      const response = await fetch(`/api/tickets/settings/${tenantCode}`, {
+        headers: {
+          'Authorization': 'Bearer ' + localStorage.getItem('token')
+        }
+      });
+      const data = await response.json();
+      if (data.success && data.settings) {
+        document.getElementById('expert-reg-domain').value = data.settings.tenant_domain || '';
+      }
+    } catch (error) {
+      console.error('Error loading expert registration settings:', error);
+    }
+  }
+
+  async function saveExpertRegSettings() {
+    const domain = document.getElementById('expert-reg-domain').value.trim().toLowerCase();
+
+    if (!domain) {
+      showExpertRegError('Please enter your company email domain');
+      return;
+    }
+
+    // Basic domain validation
+    if (!/^[a-z0-9]+([\-\.][a-z0-9]+)*\.[a-z]{2,}$/.test(domain)) {
+      showExpertRegError('Please enter a valid domain (e.g., apoyar.eu)');
+      return;
+    }
+
+    try {
+      const tenantCode = currentUser.tenantCode || 'apoyar';
+      const response = await fetch(`/api/tickets/settings/${tenantCode}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + localStorage.getItem('token')
+        },
+        body: JSON.stringify({ key: 'tenant_domain', value: domain })
+      });
+
+      const data = await response.json();
+
+      if (response.status === 403) {
+        showExpertRegError('⚠️ Admin access required.');
+        return;
+      }
+
+      if (data.success) {
+        showExpertRegMessage(`✅ Tenant domain set to "${domain}". Experts can now register via email.`);
+        setTimeout(hideExpertRegMessages, 5000);
+      } else {
+        showExpertRegError(data.message || 'Error saving settings');
+      }
+    } catch (error) {
+      console.error('Error saving expert registration settings:', error);
+      showExpertRegError('Error saving settings');
+    }
+  }
+
+  function showExpertRegMessage(message) {
+    document.getElementById('expert-reg-error').style.display = 'none';
+    const el = document.getElementById('expert-reg-message');
+    el.textContent = message;
+    el.style.display = 'block';
+  }
+
+  function showExpertRegError(message) {
+    document.getElementById('expert-reg-message').style.display = 'none';
+    const el = document.getElementById('expert-reg-error');
+    el.textContent = message;
+    el.style.display = 'block';
+  }
+
+  function hideExpertRegMessages() {
+    document.getElementById('expert-reg-message').style.display = 'none';
+    document.getElementById('expert-reg-error').style.display = 'none';
   }
 
   // Email Ingest Functions
