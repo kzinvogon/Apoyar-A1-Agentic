@@ -53,25 +53,39 @@ async function isUserEmailNotificationsEnabled(tenantCode, userEmail) {
 
 if (smtpEmail && smtpPassword && smtpEmail !== 'your-email@gmail.com' && smtpPassword !== 'your-app-password') {
   transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true, // Use SSL
     auth: {
       user: smtpEmail,
       pass: smtpPassword // Use App Password for Gmail
-    }
+    },
+    connectionTimeout: 10000, // 10 seconds
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
+    pool: true, // Use connection pooling
+    maxConnections: 5,
+    maxMessages: 100
   });
+
+  console.log(`📧 SMTP configured: ${smtpEmail} via smtp.gmail.com:465`);
 
   // Verify transporter configuration
   transporter.verify((error, success) => {
     if (error) {
       console.log('❌ Email server configuration error:', error.message);
-      console.log('⚠️  Email sending will be disabled. Please configure SMTP_EMAIL and SMTP_PASSWORD in .env');
+      console.log('⚠️  Email sending may fail. Check SMTP_EMAIL and SMTP_PASSWORD in environment variables.');
+      console.log('💡 For Gmail, ensure you are using an App Password (not your regular password)');
+      // Don't nullify transporter - let it try anyway, some errors are transient
     } else {
       console.log('✅ Email server is ready to send messages');
     }
   });
 } else {
   console.log('⚠️  SMTP credentials not configured. Email sending disabled.');
-  console.log('📧 To enable email notifications, add SMTP_EMAIL and SMTP_PASSWORD to your .env file');
+  console.log('📧 To enable email notifications, set SMTP_EMAIL and SMTP_PASSWORD environment variables');
+  if (smtpEmail) console.log('   SMTP_EMAIL is set to:', smtpEmail);
+  if (!smtpPassword) console.log('   SMTP_PASSWORD is NOT set');
 }
 
 // Function to send ticket notification email
@@ -283,16 +297,23 @@ async function sendTicketNotificationEmail(ticketData, action, details = {}) {
 // Function to send generic notification email
 async function sendNotificationEmail(to, subject, htmlContent) {
   try {
+    // Check if transporter is configured
+    if (!transporter) {
+      console.log('⚠️  Skipping notification email - SMTP not configured');
+      console.log('📧 Would have sent to:', to, 'Subject:', subject);
+      return { success: false, message: 'SMTP not configured' };
+    }
+
     const info = await transporter.sendMail({
       from: `"A1 Support" <${process.env.SMTP_EMAIL || 'support@a1support.com'}>`,
       to: to,
       subject: subject,
       html: htmlContent
     });
-    
+
     console.log(`📧 Notification email sent successfully to ${to}`);
     return { success: true, messageId: info.messageId };
-    
+
   } catch (error) {
     console.error('❌ Error sending notification email:', error);
     return { success: false, error: error.message };
