@@ -37,6 +37,32 @@ router.get('/:tenantId', async (req, res) => {
   }
 });
 
+// Get deleted (inactive) experts for a tenant - MUST come before /:tenantId/:expertId
+router.get('/:tenantId/deleted', async (req, res) => {
+  try {
+    const { tenantId } = req.params;
+    const connection = await getTenantConnection(tenantId);
+
+    try {
+      const [experts] = await connection.query(
+        `SELECT
+          u.id, u.username, u.email, u.full_name, u.role, u.is_active,
+          u.created_at, u.updated_at
+         FROM users u
+         WHERE u.role IN ('admin', 'expert') AND u.is_active = FALSE
+         ORDER BY u.full_name ASC, u.username ASC`
+      );
+
+      res.json({ success: true, experts });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error fetching deleted experts:', error);
+    res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
+  }
+});
+
 // Get single expert by ID
 router.get('/:tenantId/:expertId', async (req, res) => {
   try {
@@ -222,32 +248,6 @@ router.put('/:tenantId/:expertId', async (req, res) => {
     }
   } catch (error) {
     console.error('Error updating expert:', error);
-    res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
-  }
-});
-
-// Get deleted (inactive) experts for a tenant
-router.get('/:tenantId/deleted', async (req, res) => {
-  try {
-    const { tenantId } = req.params;
-    const connection = await getTenantConnection(tenantId);
-
-    try {
-      const [experts] = await connection.query(
-        `SELECT
-          u.id, u.username, u.email, u.full_name, u.role, u.is_active,
-          u.created_at, u.updated_at
-         FROM users u
-         WHERE u.role IN ('admin', 'expert') AND u.is_active = FALSE
-         ORDER BY u.full_name ASC, u.username ASC`
-      );
-
-      res.json({ success: true, experts });
-    } finally {
-      connection.release();
-    }
-  } catch (error) {
-    console.error('Error fetching deleted experts:', error);
     res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
   }
 });
