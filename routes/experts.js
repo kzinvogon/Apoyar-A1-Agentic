@@ -13,7 +13,7 @@ router.get('/:tenantId', async (req, res) => {
     const connection = await getTenantConnection(tenantId);
 
     try {
-      // Get experts with open ticket count
+      // Get active experts with open ticket count
       const [experts] = await connection.query(
         `SELECT
           u.id, u.username, u.email, u.full_name, u.role, u.is_active,
@@ -21,7 +21,7 @@ router.get('/:tenantId', async (req, res) => {
           COUNT(CASE WHEN t.status IN ('open', 'in_progress', 'paused') THEN 1 END) as open_tickets
          FROM users u
          LEFT JOIN tickets t ON u.id = t.assignee_id
-         WHERE u.role IN ('admin', 'expert')
+         WHERE u.role IN ('admin', 'expert') AND u.is_active = TRUE
          GROUP BY u.id, u.username, u.email, u.full_name, u.role, u.is_active,
                   u.created_at, u.updated_at
          ORDER BY u.full_name ASC, u.username ASC`
