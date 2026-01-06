@@ -299,7 +299,7 @@ class EmailProcessor {
       );
 
       // Send welcome email with credentials
-      const loginUrl = process.env.BASE_URL || 'http://localhost:3000';
+      const loginUrl = process.env.BASE_URL || 'https://serviflow.app';
 
       await sendNotificationEmail(
         fromEmail,
@@ -587,7 +587,7 @@ class EmailProcessor {
   async sendTicketConfirmation(toEmail, ticketId, subject) {
     // Generate secure access token for the ticket
     const token = await createTicketAccessToken(this.tenantCode, ticketId, 30);
-    const ticketUrl = `${process.env.BASE_URL || 'http://localhost:3000'}/ticket/view/${token}`;
+    const ticketUrl = `${process.env.BASE_URL || 'https://serviflow.app'}/ticket/view/${token}`;
     console.log(`🔐 Generated access token for ticket #${ticketId}`);
 
     const htmlContent = `
