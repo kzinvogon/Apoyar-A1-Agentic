@@ -1003,7 +1003,7 @@ router.put('/:tenantId/:ticketId', writeOperationsLimiter, validateTicketUpdate,
 
           // Generate token for public access
           const token = Buffer.from(`${tenantCode}:${ticketId}:${Date.now()}`).toString('base64');
-          const acceptRejectUrl = `${process.env.BASE_URL || 'http://localhost:3000'}/ticket-resolution.html?token=${token}`;
+          const acceptRejectUrl = `${process.env.BASE_URL || 'https://serviflow.app'}/ticket-resolution.html?token=${token}`;
 
           // Send email with Accept/Reject links
           const { sendEmail } = require('../config/email');

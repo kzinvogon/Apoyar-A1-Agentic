@@ -415,7 +415,7 @@ async function sendAccountCreationNotification(tenantId, user) {
       <p>Your account has been created successfully.</p>
       <p><strong>Email:</strong> ${user.email}</p>
       <p><strong>Temporary Password:</strong> temp123</p>
-      <p><strong>Login URL:</strong> <a href="http://localhost:3000">http://localhost:3000</a></p>
+      <p><strong>Login URL:</strong> <a href="${process.env.BASE_URL || 'https://serviflow.app'}">${process.env.BASE_URL || 'https://serviflow.app'}</a></p>
       <p><strong>Important:</strong> Please log in and update your profile with your name and phone number.</p>
       <p>You can now create and track support tickets through our system.</p>
     `;
@@ -442,7 +442,7 @@ async function sendTicketCreatedNotification(tenantId, user, ticket) {
       <div style="background:#f8f9fa;padding:12px;border-radius:4px;margin:8px 0;">
         ${ticket.description.replace(/\n/g, '<br>')}
       </div>
-      <p><strong>View Ticket:</strong> <a href="http://localhost:3000">http://localhost:3000</a></p>
+      <p><strong>View Ticket:</strong> <a href="${process.env.BASE_URL || 'https://serviflow.app'}">${process.env.BASE_URL || 'https://serviflow.app'}</a></p>
       <p>You will receive updates on this ticket via email.</p>
     `;
     
