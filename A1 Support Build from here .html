@@ -2710,7 +2710,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           <div class="row space mb-12">
             <div class="row"><button class="btn ghost" onclick="switchView('dash')">← Back</button><h3 class="title" style="margin:0 0 0 8px">CMDB Management</h3></div>
             <div class="row" style="gap:8px">
-              <button class="btn danger" onclick="cmdbMgmtDeleteAll()" style="background:#e53e3e;">🗑️ Delete All</button>
+              <button id="cmdb-mgmt-delete-all-btn" class="btn danger" onclick="cmdbMgmtDeleteAll()" style="background:#e53e3e;">🗑️ Delete All</button>
               <button class="btn success" onclick="cmdbMgmtOpenImport()">📥 Import CSV</button>
               <button class="btn primary" onclick="cmdbMgmtOpenCreate()">➕ Add CMDB Item</button>
             </div>
@@ -4239,6 +4239,10 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     if (profileSection) profileSection.style.display = isAdmin ? 'block' : 'none';
     if (emailIngestSection) emailIngestSection.style.display = isAdmin ? 'block' : 'none';
     if (expertRegSection) expertRegSection.style.display = isAdmin ? 'block' : 'none';
+
+    // Hide CMDB Delete All button for experts (admin only)
+    const cmdbDeleteAllBtn = document.getElementById('cmdb-mgmt-delete-all-btn');
+    if (cmdbDeleteAllBtn) cmdbDeleteAllBtn.style.display = isAdmin ? 'inline-flex' : 'none';
 
     // Update Ionic menu visibility based on role
     if (typeof updateIonicMenu === 'function') {
