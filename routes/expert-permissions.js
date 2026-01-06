@@ -6,44 +6,40 @@ const { verifyToken, requireRole } = require('../middleware/auth');
 // Apply authentication to all routes
 router.use(verifyToken);
 
-// Get all permissions for an expert
-router.get('/:tenantId/:expertId', requireRole(['admin', 'expert']), async (req, res) => {
+// Get available customers for assignment - MUST come before /:tenantId/:expertId
+router.get('/:tenantId/customers/available', requireRole(['admin']), async (req, res) => {
   try {
-    const { tenantId, expertId } = req.params;
+    const { tenantId } = req.params;
     const connection = await getTenantConnection(tenantId);
 
     try {
-      const [permissions] = await connection.query(
-        `SELECT ep.*,
-                u.username as customer_username,
-                u.full_name as customer_name,
-                c.company_name
-         FROM expert_ticket_permissions ep
-         LEFT JOIN users u ON ep.customer_id = u.id
+      const [customers] = await connection.query(
+        `SELECT u.id, u.username, u.email, u.full_name,
+                c.company_name, c.company_domain
+         FROM users u
          LEFT JOIN customers c ON u.id = c.user_id
-         WHERE ep.expert_id = ? AND ep.is_active = TRUE
-         ORDER BY ep.created_at DESC`,
-        [expertId]
+         WHERE u.role = 'customer' AND u.is_active = TRUE
+         ORDER BY u.full_name ASC, u.username ASC`
       );
 
       res.json({
         success: true,
-        permissions: permissions
+        customers: customers
       });
     } finally {
       connection.release();
     }
   } catch (error) {
-    console.error('Error fetching expert permissions:', error);
+    console.error('Error fetching customers:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to fetch permissions',
+      error: 'Failed to fetch customers',
       message: error.message
     });
   }
 });
 
-// Get all experts with their permission summary
+// Get all experts with their permission summary - MUST come before /:tenantId/:expertId
 router.get('/:tenantId/summary/all', requireRole(['admin']), async (req, res) => {
   try {
     const { tenantId } = req.params;
@@ -93,6 +89,43 @@ router.get('/:tenantId/summary/all', requireRole(['admin']), async (req, res) =>
     res.status(500).json({
       success: false,
       error: 'Failed to fetch expert summary',
+      message: error.message
+    });
+  }
+});
+
+// Get all permissions for an expert
+router.get('/:tenantId/:expertId', requireRole(['admin', 'expert']), async (req, res) => {
+  try {
+    const { tenantId, expertId } = req.params;
+    const connection = await getTenantConnection(tenantId);
+
+    try {
+      const [permissions] = await connection.query(
+        `SELECT ep.*,
+                u.username as customer_username,
+                u.full_name as customer_name,
+                c.company_name
+         FROM expert_ticket_permissions ep
+         LEFT JOIN users u ON ep.customer_id = u.id
+         LEFT JOIN customers c ON u.id = c.user_id
+         WHERE ep.expert_id = ? AND ep.is_active = TRUE
+         ORDER BY ep.created_at DESC`,
+        [expertId]
+      );
+
+      res.json({
+        success: true,
+        permissions: permissions
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error fetching expert permissions:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch permissions',
       message: error.message
     });
   }
@@ -297,39 +330,6 @@ router.delete('/:tenantId/:permissionId', requireRole(['admin']), async (req, re
     res.status(500).json({
       success: false,
       error: 'Failed to delete permission',
-      message: error.message
-    });
-  }
-});
-
-// Get available customers for assignment
-router.get('/:tenantId/customers/available', requireRole(['admin']), async (req, res) => {
-  try {
-    const { tenantId } = req.params;
-    const connection = await getTenantConnection(tenantId);
-
-    try {
-      const [customers] = await connection.query(
-        `SELECT u.id, u.username, u.email, u.full_name,
-                c.company_name, c.company_domain
-         FROM users u
-         LEFT JOIN customers c ON u.id = c.user_id
-         WHERE u.role = 'customer' AND u.is_active = TRUE
-         ORDER BY u.full_name ASC, u.username ASC`
-      );
-
-      res.json({
-        success: true,
-        customers: customers
-      });
-    } finally {
-      connection.release();
-    }
-  } catch (error) {
-    console.error('Error fetching customers:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch customers',
       message: error.message
     });
   }
