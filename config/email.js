@@ -71,18 +71,7 @@ if (smtpEmail && smtpPassword && smtpEmail !== 'your-email@gmail.com' && smtpPas
   });
 
   console.log(`📧 SMTP configured: ${smtpEmail} via smtp.gmail.com:587 (STARTTLS)`);
-
-  // Verify transporter configuration
-  transporter.verify((error, success) => {
-    if (error) {
-      console.log('❌ Email server configuration error:', error.message);
-      console.log('⚠️  Email sending may fail. Check SMTP_EMAIL and SMTP_PASSWORD in environment variables.');
-      console.log('💡 For Gmail, ensure you are using an App Password (not your regular password)');
-      // Don't nullify transporter - let it try anyway, some errors are transient
-    } else {
-      console.log('✅ Email server is ready to send messages');
-    }
-  });
+  console.log('📧 Note: SMTP verification skipped - emails will be attempted on demand');
 } else {
   console.log('⚠️  SMTP credentials not configured. Email sending disabled.');
   console.log('📧 To enable email notifications, set SMTP_EMAIL and SMTP_PASSWORD environment variables');
