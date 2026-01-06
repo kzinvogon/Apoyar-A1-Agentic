@@ -247,18 +247,56 @@ class EmailProcessor {
     try {
       // Check if user already exists
       const [existingUsers] = await connection.query(
-        'SELECT id, role FROM users WHERE email = ?',
+        'SELECT id, role, is_active FROM users WHERE email = ?',
         [fromEmail]
       );
 
       if (existingUsers.length > 0) {
         const existingUser = existingUsers[0];
-        console.log(`User ${fromEmail} already exists with role: ${existingUser.role}`);
+        console.log(`User ${fromEmail} already exists with role: ${existingUser.role}, is_active: ${existingUser.is_active}`);
 
-        // If user is already an expert or admin, just inform them
+        // If user is already an expert or admin
         if (existingUser.role === 'expert' || existingUser.role === 'admin') {
-          console.log(`User ${fromEmail} is already an expert/admin, no upgrade needed`);
-          // Non-blocking email
+          // If inactive, reactivate them
+          if (!existingUser.is_active) {
+            console.log(`🔄 Reactivating inactive expert ${fromEmail}`);
+            await connection.query(
+              'UPDATE users SET is_active = TRUE WHERE id = ?',
+              [existingUser.id]
+            );
+
+            // Log the activity
+            await connection.query(
+              `INSERT INTO tenant_audit_log (user_id, action, details) VALUES (?, ?, ?)`,
+              [existingUser.id, 'expert_reactivated_via_email', JSON.stringify({
+                message: `Expert account reactivated via "Register_Expert" email`,
+                email: fromEmail
+              })]
+            );
+
+            const loginUrl = process.env.BASE_URL || 'https://serviflow.app';
+            sendNotificationEmail(
+              fromEmail,
+              'Your Expert Account Has Been Reactivated - A1 Support',
+              `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                  <h2 style="color: #2563eb;">Account Reactivated!</h2>
+                  <p>Hello,</p>
+                  <p>Your expert account has been reactivated. You can now log in to the support dashboard.</p>
+                  <p><a href="${loginUrl}" style="background-color:#2563eb;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;display:inline-block">Login to Dashboard</a></p>
+                  <p>Use your existing login credentials to access your account.</p>
+                  <hr>
+                  <p style="color:#666;font-size:12px">This is an automated message from A1 Support.</p>
+                </div>
+              `
+            ).catch(err => console.log('📧 Could not send reactivation email (non-critical):', err.message));
+
+            console.log(`✅ Reactivated expert ${fromEmail}`);
+            return { success: true, reactivated: true, userId: existingUser.id };
+          }
+
+          // Already active expert/admin
+          console.log(`User ${fromEmail} is already an active expert/admin`);
           sendNotificationEmail(
             fromEmail,
             'You Already Have Expert Access - A1 Support',
@@ -274,10 +312,10 @@ class EmailProcessor {
           return { success: false, reason: 'already_expert' };
         }
 
-        // Upgrade customer to expert
+        // Upgrade customer to expert (also reactivate if inactive)
         console.log(`🔄 Upgrading user ${fromEmail} from ${existingUser.role} to expert`);
         await connection.query(
-          'UPDATE users SET role = ? WHERE id = ?',
+          'UPDATE users SET role = ?, is_active = TRUE WHERE id = ?',
           ['expert', existingUser.id]
         );
 
