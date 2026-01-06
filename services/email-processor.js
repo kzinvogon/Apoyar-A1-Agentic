@@ -252,24 +252,71 @@ class EmailProcessor {
       );
 
       if (existingUsers.length > 0) {
-        console.log(`User ${fromEmail} already exists with role: ${existingUsers[0].role}`);
+        const existingUser = existingUsers[0];
+        console.log(`User ${fromEmail} already exists with role: ${existingUser.role}`);
 
-        // Send email informing them they already have an account
+        // If user is already an expert or admin, just inform them
+        if (existingUser.role === 'expert' || existingUser.role === 'admin') {
+          console.log(`User ${fromEmail} is already an expert/admin, no upgrade needed`);
+          await sendNotificationEmail(
+            fromEmail,
+            'You Already Have Expert Access - A1 Support',
+            `
+              <h2>Expert Access Confirmed</h2>
+              <p>Hello,</p>
+              <p>You already have <strong>${existingUser.role}</strong> access in our system.</p>
+              <p>Please use the login page to access your account. If you've forgotten your password, use the "Forgot Password" feature.</p>
+              <hr>
+              <p style="color:#666;font-size:12px">This is an automated message from A1 Support.</p>
+            `
+          );
+          return { success: false, reason: 'already_expert' };
+        }
+
+        // Upgrade customer to expert
+        console.log(`🔄 Upgrading user ${fromEmail} from ${existingUser.role} to expert`);
+        await connection.query(
+          'UPDATE users SET role = ? WHERE id = ?',
+          ['expert', existingUser.id]
+        );
+
+        // Log the activity
+        await connection.query(
+          `INSERT INTO tenant_audit_log (user_id, action, details) VALUES (?, ?, ?)`,
+          [existingUser.id, 'expert_upgrade_via_email', JSON.stringify({
+            message: `User upgraded from ${existingUser.role} to expert via "Register_Expert" email`,
+            email: fromEmail,
+            previousRole: existingUser.role
+          })]
+        );
+
+        const loginUrl = process.env.BASE_URL || 'https://serviflow.app';
+
+        // Send upgrade confirmation email
         await sendNotificationEmail(
           fromEmail,
-          'Account Already Exists - A1 Support',
+          'Your Account Has Been Upgraded to Expert - A1 Support',
           `
-            <h2>Account Already Exists</h2>
-            <p>Hello,</p>
-            <p>You already have an account in our system with the email address <strong>${fromEmail}</strong>.</p>
-            <p>Please use the login page to access your account. If you've forgotten your password, use the "Forgot Password" feature.</p>
-            <p>If you believe this is an error, please contact your administrator.</p>
-            <hr>
-            <p style="color:#666;font-size:12px">This is an automated message from A1 Support.</p>
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2 style="color: #2563eb;">Account Upgraded!</h2>
+              <p>Hello,</p>
+              <p>Your account has been upgraded from <strong>${existingUser.role}</strong> to <strong>expert</strong>.</p>
+              <p>You now have access to the expert dashboard where you can:</p>
+              <ul>
+                <li>View and manage support tickets</li>
+                <li>Respond to customer requests</li>
+                <li>Access expert-only features</li>
+              </ul>
+              <p><a href="${loginUrl}" style="background-color:#2563eb;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;display:inline-block">Login to Dashboard</a></p>
+              <p>Use your existing login credentials to access your upgraded account.</p>
+              <hr>
+              <p style="color:#666;font-size:12px">This is an automated message from A1 Support.</p>
+            </div>
           `
         );
 
-        return { success: false, reason: 'user_already_exists' };
+        console.log(`✅ Upgraded ${fromEmail} to expert role`);
+        return { success: true, upgraded: true, userId: existingUser.id };
       }
 
       // Extract name from email body or email prefix
