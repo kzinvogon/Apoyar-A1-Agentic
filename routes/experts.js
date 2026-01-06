@@ -226,6 +226,66 @@ router.put('/:tenantId/:expertId', async (req, res) => {
   }
 });
 
+// Get deleted (inactive) experts for a tenant
+router.get('/:tenantId/deleted', async (req, res) => {
+  try {
+    const { tenantId } = req.params;
+    const connection = await getTenantConnection(tenantId);
+
+    try {
+      const [experts] = await connection.query(
+        `SELECT
+          u.id, u.username, u.email, u.full_name, u.role, u.is_active,
+          u.created_at, u.updated_at
+         FROM users u
+         WHERE u.role IN ('admin', 'expert') AND u.is_active = FALSE
+         ORDER BY u.full_name ASC, u.username ASC`
+      );
+
+      res.json({ success: true, experts });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error fetching deleted experts:', error);
+    res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
+  }
+});
+
+// Restore expert (reactivate)
+router.post('/:tenantId/:expertId/restore', async (req, res) => {
+  try {
+    const { tenantId, expertId } = req.params;
+    const connection = await getTenantConnection(tenantId);
+
+    try {
+      // Check if expert exists and is inactive
+      const [existing] = await connection.query(
+        'SELECT id, email, full_name FROM users WHERE id = ? AND role IN ("admin", "expert") AND is_active = FALSE',
+        [expertId]
+      );
+
+      if (existing.length === 0) {
+        return res.status(404).json({ success: false, message: 'Deleted expert not found' });
+      }
+
+      // Reactivate expert
+      await connection.query(
+        'UPDATE users SET is_active = TRUE WHERE id = ?',
+        [expertId]
+      );
+
+      console.log(`✅ Restored expert: ${existing[0].email}`);
+      res.json({ success: true, message: 'Expert restored successfully', expert: existing[0] });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error restoring expert:', error);
+    res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
+  }
+});
+
 // Delete expert (deactivate)
 router.delete('/:tenantId/:expertId', async (req, res) => {
   try {

@@ -2270,6 +2270,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             <div class="row"><button class="btn ghost" onclick="switchView('dash')">← Back</button><h3 class="title" style="margin:0 0 0 8px">Manage Experts</h3></div>
             <div class="row" style="gap:8px">
               <button class="btn primary" onclick="showCreateExpertForm()">+ Add Expert</button>
+              <button id="show-deleted-btn" class="btn" onclick="toggleDeletedExperts()">Show Deleted</button>
               <input id="expert-search" class="input" style="min-width:260px" placeholder="Search experts by name, username, location..." oninput="renderExperts(); saveFilterSettings('experts')"/>
             </div>
           </div>
@@ -8518,6 +8519,119 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     } catch (error) {
       console.error('Error loading experts:', error);
       body.innerHTML='<tr><td colspan="7" style="text-align:center;color:red;">Error loading experts</td></tr>';
+    }
+  }
+
+  let showingDeletedExperts = false;
+
+  async function toggleDeletedExperts() {
+    showingDeletedExperts = !showingDeletedExperts;
+    const btn = document.getElementById('show-deleted-btn');
+    if (showingDeletedExperts) {
+      btn.textContent = 'Show Active';
+      btn.classList.add('danger');
+      await renderDeletedExperts();
+    } else {
+      btn.textContent = 'Show Deleted';
+      btn.classList.remove('danger');
+      await renderExperts();
+    }
+  }
+
+  async function renderDeletedExperts() {
+    const body = document.getElementById('experts-body');
+    if (!body) return;
+    body.innerHTML = '<tr><td colspan="7" style="text-align:center;">Loading deleted experts...</td></tr>';
+
+    try {
+      const token = localStorage.getItem('token');
+      const tenantCode = localStorage.getItem('tenantCode') || 'apoyar';
+      const response = await fetch(`${API_BASE}/api/experts/${tenantCode}/deleted`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.experts) {
+        const cardsContainer = document.getElementById('experts-cards');
+        body.innerHTML = '';
+        if (cardsContainer) cardsContainer.innerHTML = '';
+
+        if (data.experts.length === 0) {
+          body.innerHTML = '<tr><td colspan="7" style="text-align:center;">No deleted experts found</td></tr>';
+          if (cardsContainer) cardsContainer.innerHTML = '<div class="mobile-card"><div style="text-align:center;color:var(--muted)">No deleted experts</div></div>';
+        } else {
+          data.experts.forEach(e => {
+            const tr = document.createElement('tr');
+            tr.style.opacity = '0.7';
+            tr.innerHTML = `
+              <td>${e.full_name || e.username}</td>
+              <td>${e.username}</td>
+              <td>${e.location || '-'}</td>
+              <td>${e.email || '-'}</td>
+              <td>-</td>
+              <td>-</td>
+              <td>
+                <button class="btn primary" style="padding:4px 8px;font-size:12px" onclick="restoreExpert(${e.id})">Restore</button>
+              </td>
+            `;
+            body.appendChild(tr);
+
+            if (cardsContainer) {
+              const card = document.createElement('div');
+              card.className = 'mobile-card';
+              card.style.opacity = '0.7';
+              card.innerHTML = `
+                <div class="mobile-card-header">${e.full_name || e.username} <span style="color:#b91c1c;font-size:12px">(Deleted)</span></div>
+                <div class="mobile-card-meta">
+                  @${e.username}<br>
+                  ${e.email || ''}
+                </div>
+                <div class="mobile-card-actions">
+                  <button class="btn primary" onclick="restoreExpert(${e.id})">Restore</button>
+                </div>
+              `;
+              cardsContainer.appendChild(card);
+            }
+          });
+        }
+      } else {
+        body.innerHTML = '<tr><td colspan="7" style="text-align:center;color:red;">Failed to load deleted experts</td></tr>';
+      }
+    } catch (error) {
+      console.error('Error loading deleted experts:', error);
+      body.innerHTML = '<tr><td colspan="7" style="text-align:center;color:red;">Error loading deleted experts</td></tr>';
+    }
+  }
+
+  async function restoreExpert(expertId) {
+    if (!confirm('Restore this expert? They will be able to log in again.')) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const tenantCode = localStorage.getItem('tenantCode') || 'apoyar';
+      const response = await fetch(`${API_BASE}/api/experts/${tenantCode}/${expertId}/restore`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        alert('Expert restored successfully!');
+        await renderDeletedExperts();
+      } else {
+        alert('Failed to restore expert: ' + (data.message || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error restoring expert:', error);
+      alert('Error restoring expert');
     }
   }
 
