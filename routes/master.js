@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getMasterConnection } = require('../config/database');
+const { getMasterConnection, getTenantConnection } = require('../config/database');
 const { verifyToken, requireMasterAuth, requireRole, hashPassword } = require('../middleware/auth');
 const {
   validateTenantCreate,
@@ -407,39 +407,27 @@ router.get('/audit-logs', requireMasterAuth, validatePagination, async (req, res
 // Get subscriptions
 router.get('/subscriptions', requireMasterAuth, async (req, res) => {
   try {
-    // Return mock subscription data for now
-    const subscriptions = [
-      {
-        id: 1,
-        tenant_id: 1,
-        plan_id: 1,
-        status: 'active',
-        plan: 'professional',
-        previousPlan: 'trial',
-        monthlyPrice: 99.00,
-        created_at: '2025-10-22T18:57:55.000Z',
-        updated_at: '2025-10-22T18:57:55.000Z',
-        company_name: 'Apoyar',
-        tenant_code: 'apoyar',
-        plan_name: 'Professional'
-      },
-      {
-        id: 2,
-        tenant_id: 2,
-        plan_id: 1,
-        status: 'active',
-        plan: 'trial',
-        previousPlan: null,
-        monthlyPrice: 0.00,
-        created_at: '2025-10-23T10:00:00.000Z',
-        updated_at: '2025-10-23T10:00:00.000Z',
-        company_name: 'Test Company',
-        tenant_code: 'testcompany',
-        plan_name: 'Trial'
-      }
-    ];
-    
-    res.json({ success: true, subscriptions });
+    const connection = await getMasterConnection();
+
+    try {
+      const [subscriptions] = await connection.query(`
+        SELECT
+          s.id, s.tenant_id, s.plan_id, s.status, s.trial_ends_at,
+          s.billing_cycle, s.next_billing_date, s.created_at, s.updated_at,
+          t.company_name, t.tenant_code,
+          p.name as plan_name, p.monthly_price,
+          pp.name as previous_plan_name
+        FROM subscriptions s
+        JOIN tenants t ON s.tenant_id = t.id
+        JOIN plans p ON s.plan_id = p.id
+        LEFT JOIN plans pp ON s.previous_plan_id = pp.id
+        ORDER BY s.created_at DESC
+      `);
+
+      res.json({ success: true, subscriptions });
+    } finally {
+      connection.release();
+    }
   } catch (error) {
     console.error('Error fetching subscriptions:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
@@ -449,41 +437,58 @@ router.get('/subscriptions', requireMasterAuth, async (req, res) => {
 // Get billing information
 router.get('/billing', requireMasterAuth, async (req, res) => {
   try {
-    // Return mock billing data for now
-    const billing = {
-      mrr: 198.00,
-      pendingPayments: 99.00,
-      churnRate: 5.2,
-      arpu: 99.00,
-      transactions: [
-        {
-          id: 1,
-          tenant: 'Apoyar',
-          amount: 99.00,
-          status: 'paid',
-          date: '2025-10-22T18:57:55.000Z',
-          plan: 'Professional'
-        },
-        {
-          id: 2,
-          tenant: 'Test Company',
-          amount: 0.00,
-          status: 'trial',
-          date: '2025-10-23T10:00:00.000Z',
-          plan: 'Trial'
-        },
-        {
-          id: 3,
-          tenant: 'Apoyar',
-          amount: 99.00,
-          status: 'pending',
-          date: '2025-10-23T12:00:00.000Z',
-          plan: 'Professional'
-        }
-      ]
-    };
-    
-    res.json({ success: true, billing });
+    const connection = await getMasterConnection();
+
+    try {
+      // Calculate MRR from active subscriptions
+      const [mrrResult] = await connection.query(`
+        SELECT COALESCE(SUM(p.monthly_price), 0) as mrr
+        FROM subscriptions s
+        JOIN plans p ON s.plan_id = p.id
+        WHERE s.status = 'active'
+      `);
+
+      // Get pending payments
+      const [pendingResult] = await connection.query(`
+        SELECT COALESCE(SUM(amount), 0) as pending
+        FROM billing_transactions
+        WHERE status = 'pending'
+      `);
+
+      // Get active subscription count for ARPU calculation
+      const [subCountResult] = await connection.query(`
+        SELECT COUNT(*) as count FROM subscriptions WHERE status = 'active'
+      `);
+
+      // Get recent transactions
+      const [transactions] = await connection.query(`
+        SELECT
+          bt.id, bt.amount, bt.status, bt.transaction_date as date, bt.description,
+          t.company_name as tenant,
+          p.name as plan
+        FROM billing_transactions bt
+        JOIN tenants t ON bt.tenant_id = t.id
+        JOIN subscriptions s ON bt.subscription_id = s.id
+        JOIN plans p ON s.plan_id = p.id
+        ORDER BY bt.transaction_date DESC
+        LIMIT 50
+      `);
+
+      const mrr = parseFloat(mrrResult[0].mrr) || 0;
+      const activeCount = subCountResult[0].count || 1;
+
+      const billing = {
+        mrr: mrr,
+        pendingPayments: parseFloat(pendingResult[0].pending) || 0,
+        churnRate: 0, // Would need historical data to calculate
+        arpu: mrr / activeCount,
+        transactions: transactions
+      };
+
+      res.json({ success: true, billing });
+    } finally {
+      connection.release();
+    }
   } catch (error) {
     console.error('Error fetching billing:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
@@ -493,47 +498,30 @@ router.get('/billing', requireMasterAuth, async (req, res) => {
 // Get subscription plans
 router.get('/plans', requireMasterAuth, async (req, res) => {
   try {
-    // Return mock subscription plans for now
-    const plans = [
-      {
-        id: 1,
-        name: 'Trial',
-        description: 'Free trial for 30 days',
-        monthly_price: 0.00,
-        max_users: 5,
-        max_tickets: 100,
-        max_storage: 1,
-        features: ['Basic support', 'Email notifications', 'Basic reporting'],
-        status: 'active',
-        tenant_count: 0
-      },
-      {
-        id: 2,
-        name: 'Professional',
-        description: 'Full-featured plan for growing businesses',
-        monthly_price: 99.00,
-        max_users: 25,
-        max_tickets: 1000,
-        max_storage: 10,
-        features: ['Priority support', 'Advanced reporting', 'API access', 'Custom branding'],
-        status: 'active',
-        tenant_count: 1
-      },
-      {
-        id: 3,
-        name: 'Enterprise',
-        description: 'Enterprise-grade solution with unlimited resources',
-        monthly_price: 299.00,
-        max_users: -1,
-        max_tickets: -1,
-        max_storage: 100,
-        features: ['24/7 support', 'Custom integrations', 'Dedicated account manager', 'SLA guarantees'],
-        status: 'active',
-        tenant_count: 0
-      }
-    ];
-    
-    res.json({ success: true, plans });
+    const connection = await getMasterConnection();
+
+    try {
+      const [plans] = await connection.query(`
+        SELECT
+          p.id, p.name, p.description, p.monthly_price, p.max_users,
+          p.max_tickets, p.max_storage, p.features, p.status,
+          COUNT(s.id) as tenant_count
+        FROM plans p
+        LEFT JOIN subscriptions s ON p.id = s.plan_id AND s.status IN ('active', 'trial')
+        GROUP BY p.id
+        ORDER BY p.monthly_price ASC
+      `);
+
+      // Parse JSON features
+      const parsedPlans = plans.map(plan => ({
+        ...plan,
+        features: typeof plan.features === 'string' ? JSON.parse(plan.features) : (plan.features || [])
+      }));
+
+      res.json({ success: true, plans: parsedPlans });
+    } finally {
+      connection.release();
+    }
   } catch (error) {
     console.error('Error fetching plans:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
@@ -543,37 +531,44 @@ router.get('/plans', requireMasterAuth, async (req, res) => {
 // Create new subscription plan
 router.post('/plans', requireMasterAuth, async (req, res) => {
   try {
-    const { name, id, monthlyPrice, maxUsers, maxTickets, maxStorage, status, features } = req.body;
+    const { name, description, monthlyPrice, maxUsers, maxTickets, maxStorage, status, features } = req.body;
 
     // Validate required fields
-    if (!name || !id) {
-      return res.status(400).json({ success: false, message: 'Plan name and ID are required' });
+    if (!name) {
+      return res.status(400).json({ success: false, message: 'Plan name is required' });
     }
 
-    // In a real implementation, this would save to a plans table in the database
-    // For now, we'll return success with the plan data
-    const newPlan = {
-      id,
-      name,
-      description: `${name} plan`,
-      monthly_price: parseFloat(monthlyPrice) || 0,
-      max_users: parseInt(maxUsers) || -1,
-      max_tickets: parseInt(maxTickets) || -1,
-      max_storage: parseInt(maxStorage) || 10,
-      features: Array.isArray(features) ? features : [],
-      status: status || 'active',
-      created_at: new Date().toISOString()
-    };
+    const connection = await getMasterConnection();
 
-    // TODO: Save to database when plans table is created
-    // const connection = await getMasterConnection();
-    // await connection.query('INSERT INTO plans ...');
+    try {
+      // Check if plan name already exists
+      const [existing] = await connection.query('SELECT id FROM plans WHERE name = ?', [name]);
+      if (existing.length > 0) {
+        return res.status(400).json({ success: false, message: 'Plan with this name already exists' });
+      }
 
-    res.json({
-      success: true,
-      message: 'Plan created successfully',
-      plan: newPlan
-    });
+      const [result] = await connection.query(`
+        INSERT INTO plans (name, description, monthly_price, max_users, max_tickets, max_storage, features, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `, [
+        name,
+        description || `${name} plan`,
+        parseFloat(monthlyPrice) || 0,
+        parseInt(maxUsers) || -1,
+        parseInt(maxTickets) || -1,
+        parseInt(maxStorage) || 10,
+        JSON.stringify(Array.isArray(features) ? features : []),
+        status || 'active'
+      ]);
+
+      res.json({
+        success: true,
+        message: 'Plan created successfully',
+        planId: result.insertId
+      });
+    } finally {
+      connection.release();
+    }
   } catch (error) {
     console.error('Error creating plan:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
@@ -583,27 +578,50 @@ router.post('/plans', requireMasterAuth, async (req, res) => {
 // Get email settings
 router.get('/email-settings', requireMasterAuth, async (req, res) => {
   try {
-    // Return mock email settings for now
-    const emailSettings = {
-      imap: {
-        host: 'imap.gmail.com',
-        port: 993,
-        user: 'support@apoyar.com',
-        secure: true
-      },
-      checkInterval: 30000,
-      status: 'Active',
-      tenants: [
-        {
-          tenantId: 'apoyar',
-          companyName: 'Apoyar',
-          domain: 'apoyar.com',
-          emailProcessingEnabled: true
+    const connection = await getMasterConnection();
+
+    try {
+      // Get all tenants
+      const [tenants] = await connection.query(`
+        SELECT id, tenant_code, company_name FROM tenants WHERE status = 'active'
+      `);
+
+      // For each tenant, get their email settings
+      const tenantSettings = [];
+      for (const tenant of tenants) {
+        try {
+          const tenantConn = await getTenantConnection(tenant.tenant_code);
+          try {
+            const [settings] = await tenantConn.query('SELECT * FROM email_ingest_settings LIMIT 1');
+            const [domainSetting] = await tenantConn.query(
+              "SELECT setting_value FROM tenant_settings WHERE setting_key = 'tenant_domain'"
+            );
+
+            tenantSettings.push({
+              tenantId: tenant.tenant_code,
+              companyName: tenant.company_name,
+              domain: domainSetting[0]?.setting_value || null,
+              emailProcessingEnabled: settings[0]?.enabled || false,
+              serverHost: settings[0]?.server_host || null,
+              checkInterval: settings[0]?.check_interval_minutes || 5
+            });
+          } finally {
+            tenantConn.release();
+          }
+        } catch (e) {
+          // Skip tenants with database issues
+          console.log(`Could not fetch settings for tenant ${tenant.tenant_code}:`, e.message);
         }
-      ]
-    };
-    
-    res.json({ success: true, settings: emailSettings });
+      }
+
+      const emailSettings = {
+        tenants: tenantSettings
+      };
+
+      res.json({ success: true, settings: emailSettings });
+    } finally {
+      connection.release();
+    }
   } catch (error) {
     console.error('Error fetching email settings:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
@@ -660,14 +678,52 @@ router.put('/tenants/:tenantId/email-settings', requireMasterAuth, async (req, r
   try {
     const { tenantId } = req.params;
     const { domain, enabled } = req.body;
-    
-    // Mock update - just log the details
-    console.log('Updating tenant email settings:', { tenantId, domain, enabled });
-    
-    res.json({ 
-      success: true, 
-      message: 'Tenant email settings updated successfully' 
-    });
+
+    // Get tenant connection
+    const connection = await getMasterConnection();
+
+    try {
+      // Verify tenant exists
+      const [tenant] = await connection.query(
+        'SELECT tenant_code FROM tenants WHERE id = ?',
+        [tenantId]
+      );
+
+      if (tenant.length === 0) {
+        return res.status(404).json({ success: false, message: 'Tenant not found' });
+      }
+
+      const tenantCode = tenant[0].tenant_code;
+      const tenantConn = await getTenantConnection(tenantCode);
+
+      try {
+        // Update domain setting
+        if (domain !== undefined) {
+          await tenantConn.query(`
+            INSERT INTO tenant_settings (setting_key, setting_value)
+            VALUES ('tenant_domain', ?)
+            ON DUPLICATE KEY UPDATE setting_value = ?, updated_at = NOW()
+          `, [domain, domain]);
+        }
+
+        // Update email enabled setting
+        if (enabled !== undefined) {
+          await tenantConn.query(
+            'UPDATE email_ingest_settings SET enabled = ? WHERE id = 1',
+            [enabled]
+          );
+        }
+
+        res.json({
+          success: true,
+          message: 'Tenant email settings updated successfully'
+        });
+      } finally {
+        tenantConn.release();
+      }
+    } finally {
+      connection.release();
+    }
   } catch (error) {
     console.error('Error updating tenant email settings:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });

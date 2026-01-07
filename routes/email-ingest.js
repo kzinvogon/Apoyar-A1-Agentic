@@ -179,19 +179,75 @@ router.post('/:tenantId/test-connection', requireRole(['admin']), writeOperation
     try {
       const [settings] = await connection.query('SELECT * FROM email_ingest_settings LIMIT 1');
 
-      if (settings.length === 0 || !settings[0].enabled) {
-        return res.json({ success: false, message: 'Email ingest is not enabled' });
+      if (settings.length === 0) {
+        return res.json({ success: false, message: 'Email ingest settings not configured' });
       }
 
-      // TODO: Implement actual email connection test using IMAP/POP3
-      // For now, return success if settings exist
+      const config = settings[0];
+
+      if (!config.server_host || !config.username || !config.password) {
+        return res.json({ success: false, message: 'Email settings incomplete - server, username, and password required' });
+      }
+
+      // Test actual IMAP connection
+      const Imap = require('imap');
+
+      const testConnection = () => {
+        return new Promise((resolve, reject) => {
+          const imap = new Imap({
+            user: config.username,
+            password: config.password,
+            host: config.server_host,
+            port: config.server_port || 993,
+            tls: config.use_ssl !== false,
+            tlsOptions: { rejectUnauthorized: false },
+            connTimeout: 10000,
+            authTimeout: 10000
+          });
+
+          const timeout = setTimeout(() => {
+            imap.destroy();
+            reject(new Error('Connection timeout'));
+          }, 15000);
+
+          imap.once('ready', () => {
+            clearTimeout(timeout);
+            // Get mailbox info
+            imap.openBox('INBOX', true, (err, box) => {
+              if (err) {
+                imap.end();
+                reject(err);
+              } else {
+                const result = {
+                  totalMessages: box.messages.total,
+                  unseenMessages: box.messages.unseen
+                };
+                imap.end();
+                resolve(result);
+              }
+            });
+          });
+
+          imap.once('error', (err) => {
+            clearTimeout(timeout);
+            reject(err);
+          });
+
+          imap.connect();
+        });
+      };
+
+      const result = await testConnection();
+
       res.json({
         success: true,
-        message: 'Email connection test successful (demo mode)',
+        message: 'Email connection test successful',
         details: {
-          server: settings[0].server_host,
-          port: settings[0].server_port,
-          type: settings[0].server_type
+          server: config.server_host,
+          port: config.server_port,
+          type: config.server_type,
+          totalMessages: result.totalMessages,
+          unseenMessages: result.unseenMessages
         }
       });
     } finally {
@@ -199,7 +255,13 @@ router.post('/:tenantId/test-connection', requireRole(['admin']), writeOperation
     }
   } catch (error) {
     console.error('Error testing email connection:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
+    res.status(500).json({
+      success: false,
+      message: `Connection failed: ${error.message}`,
+      details: {
+        error: error.message
+      }
+    });
   }
 });
 
