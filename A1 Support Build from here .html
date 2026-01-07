@@ -918,6 +918,7 @@ vNext-FULL-ActionsSLA:
           <div class="navlink" data-target="raise" onclick="nav(this)">📝 Raise Request</div>
           <div class="navlink" data-target="wizard" onclick="nav(this)">🪄 Admin Settings Wizard</div>
           <div class="navlink" data-target="system-control" onclick="nav(this)">🔧 System Control</div>
+          <div class="navlink" data-target="raw-variables" onclick="nav(this)">⚙️ Raw Variables</div>
         </div>
         <div id="nav-expert" style="display:none">
           <div class="subtitle">Expert Navigation</div>
@@ -2977,6 +2978,171 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           </div>
         </div>
 
+        <!-- Raw Variables Editor -->
+        <div id="view-raw-variables" style="display:none">
+          <div class="row space mb-12">
+            <div class="row"><button class="btn ghost" onclick="switchView('wizard')">← Back to Settings</button><h3 class="title" style="margin:0 0 0 8px">Raw Variables</h3></div>
+            <div class="row" style="gap:8px">
+              <button class="btn" onclick="addVariable()">+ Add Variable</button>
+              <button class="btn" onclick="exportVariablesJSON()">Export JSON</button>
+              <button class="btn" onclick="showImportModal()">Import JSON</button>
+            </div>
+          </div>
+
+          <div class="card p-16 mb-12" style="background:#eff6ff;border-left:4px solid #2563eb">
+            <div class="subtitle" style="margin:0">
+              <strong>Developer Mode:</strong> View and edit all system configuration variables. Changes take effect immediately.
+              <span style="color:#b91c1c">Use caution when modifying system variables.</span>
+            </div>
+          </div>
+
+          <div class="card p-16 mb-12">
+            <div class="mb-12">
+              <input id="raw-vars-search" class="input" placeholder="Search variables..." oninput="filterRawVariables()"/>
+            </div>
+
+            <div id="raw-vars-container">
+              <!-- Tenant Settings Section -->
+              <div class="mb-16">
+                <div class="row space mb-8" style="border-bottom:1px solid var(--border);padding-bottom:8px">
+                  <h4 class="subtitle" style="margin:0;font-weight:600">Tenant Settings</h4>
+                  <span class="subtitle" style="color:#666;font-size:12px">Custom variables (editable, deletable)</span>
+                </div>
+                <table style="width:100%;border-collapse:collapse">
+                  <thead>
+                    <tr style="border-bottom:1px solid var(--border)">
+                      <th style="text-align:left;padding:8px;width:35%">Key</th>
+                      <th style="text-align:left;padding:8px;width:45%">Value</th>
+                      <th style="text-align:right;padding:8px;width:20%">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="raw-vars-tenant-settings"></tbody>
+                </table>
+              </div>
+
+              <!-- Email Ingest Section -->
+              <div class="mb-16">
+                <div class="row space mb-8" style="border-bottom:1px solid var(--border);padding-bottom:8px">
+                  <h4 class="subtitle" style="margin:0;font-weight:600">Email Ingest</h4>
+                  <span class="subtitle" style="color:#666;font-size:12px">System settings (editable)</span>
+                </div>
+                <table style="width:100%;border-collapse:collapse">
+                  <thead>
+                    <tr style="border-bottom:1px solid var(--border)">
+                      <th style="text-align:left;padding:8px;width:35%">Key</th>
+                      <th style="text-align:left;padding:8px;width:45%">Value</th>
+                      <th style="text-align:right;padding:8px;width:20%">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="raw-vars-email-ingest"></tbody>
+                </table>
+              </div>
+
+              <!-- Company Profile Section -->
+              <div class="mb-16">
+                <div class="row space mb-8" style="border-bottom:1px solid var(--border);padding-bottom:8px">
+                  <h4 class="subtitle" style="margin:0;font-weight:600">Company Profile</h4>
+                  <span class="subtitle" style="color:#666;font-size:12px">System settings (editable)</span>
+                </div>
+                <table style="width:100%;border-collapse:collapse">
+                  <thead>
+                    <tr style="border-bottom:1px solid var(--border)">
+                      <th style="text-align:left;padding:8px;width:35%">Key</th>
+                      <th style="text-align:left;padding:8px;width:45%">Value</th>
+                      <th style="text-align:right;padding:8px;width:20%">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="raw-vars-company-profile"></tbody>
+                </table>
+              </div>
+
+              <!-- Environment Section -->
+              <div class="mb-16">
+                <div class="row space mb-8" style="border-bottom:1px solid var(--border);padding-bottom:8px">
+                  <h4 class="subtitle" style="margin:0;font-weight:600">Environment</h4>
+                  <span class="subtitle" style="color:#666;font-size:12px">Read-only (server configuration)</span>
+                </div>
+                <table style="width:100%;border-collapse:collapse">
+                  <thead>
+                    <tr style="border-bottom:1px solid var(--border)">
+                      <th style="text-align:left;padding:8px;width:35%">Key</th>
+                      <th style="text-align:left;padding:8px;width:45%">Value</th>
+                      <th style="text-align:right;padding:8px;width:20%">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="raw-vars-environment"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Variable Edit Modal -->
+        <div id="variable-edit-modal" class="modal" style="display:none">
+          <div class="sheet" style="width:min(500px,calc(100vw - 32px))">
+            <div class="head">Edit Variable</div>
+            <div class="body">
+              <div class="mb-12">
+                <label class="subtitle">Key</label>
+                <input id="var-edit-key" class="input" readonly style="background:#f3f4f6"/>
+              </div>
+              <div class="mb-12">
+                <label class="subtitle">Value</label>
+                <textarea id="var-edit-value" class="input" rows="4"></textarea>
+              </div>
+              <div id="var-edit-warning" class="subtitle" style="color:#b91c1c;display:none;margin-top:8px"></div>
+            </div>
+            <div class="foot">
+              <button class="btn ghost" onclick="closeVariableModal()">Cancel</button>
+              <button class="btn primary" onclick="saveVariableEdit()">Save</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Variable Add Modal -->
+        <div id="variable-add-modal" class="modal" style="display:none">
+          <div class="sheet" style="width:min(500px,calc(100vw - 32px))">
+            <div class="head">Add Variable</div>
+            <div class="body">
+              <div class="mb-12">
+                <label class="subtitle">Key</label>
+                <input id="var-add-key" class="input" placeholder="e.g., my_custom_setting"/>
+                <div class="subtitle" style="color:#666;font-size:12px;margin-top:4px">Must start with letter, only letters, numbers, underscores, dots allowed</div>
+              </div>
+              <div class="mb-12">
+                <label class="subtitle">Value</label>
+                <textarea id="var-add-value" class="input" rows="4" placeholder="Enter value..."></textarea>
+              </div>
+              <div id="var-add-error" class="subtitle" style="color:#b91c1c;display:none;margin-top:8px"></div>
+            </div>
+            <div class="foot">
+              <button class="btn ghost" onclick="closeAddVariableModal()">Cancel</button>
+              <button class="btn primary" onclick="saveNewVariable()">Add Variable</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- JSON Import Modal -->
+        <div id="json-import-modal" class="modal" style="display:none">
+          <div class="sheet" style="width:min(600px,calc(100vw - 32px))">
+            <div class="head">Import Variables from JSON</div>
+            <div class="body">
+              <div class="mb-12">
+                <label class="subtitle">Paste JSON</label>
+                <textarea id="json-import-content" class="input" rows="10" placeholder='{"key1": "value1", "key2": "value2"}'></textarea>
+              </div>
+              <div class="subtitle" style="background:#fef3c7;padding:12px;border-radius:4px;border-left:4px solid #f59e0b">
+                <strong>Warning:</strong> This will update existing variables and create new ones. Environment variables cannot be modified.
+              </div>
+              <div id="json-import-error" class="subtitle" style="color:#b91c1c;display:none;margin-top:8px"></div>
+            </div>
+            <div class="foot">
+              <button class="btn ghost" onclick="closeImportModal()">Cancel</button>
+              <button class="btn primary" onclick="importVariablesFromJSON()">Import</button>
+            </div>
+          </div>
+        </div>
+
         <!-- Raise Request -->
         <div id="view-raise" style="display:none">
           <div class="row space mb-12">
@@ -4213,7 +4379,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   function nav(el){ document.querySelectorAll('.navlink').forEach(n=>n.classList.remove('active')); el.classList.add('active'); switchView(el.getAttribute('data-target')); if(el.getAttribute('data-target')==='dash') renderAllDashboards(); }
   function navTo(view){ switchView(view); }
-  function switchView(view){ currentView=view; ['dash','profile','tickets','ticket-detail','experts','expert-detail','customers','cmdb','cmdb-detail','manage-cmdb','cmdb-mgmt','wizard','raise','tenants','subscriptions','billing','plans','system','usage','customer-plans','customer-billing','analytics','ai-insights','ticket-rules','email-processing','system-control','knowledge-base'].forEach(n=>{ const el=document.getElementById('view-'+n); if(el) el.style.display=(n===view)?'block':'none'; }); if(view==='tickets') { loadFilterSettings('tickets'); renderList(); } if(view==='experts') { loadFilterSettings('experts'); renderExperts(); } if(view==='expert-detail') renderExpertDetail(); if(view==='customers') { loadFilterSettings('customers'); renderCustomers(); } if(view==='cmdb') { loadFilterSettings('cmdb'); renderCMDB(); } if(view==='cmdb-detail') renderCMDBDetail(); if(view==='manage-cmdb') loadManageCMDB(); if(view==='cmdb-mgmt') loadCMDBMgmt(); if(view==='raise') loadRaiseFormOptions(); if(view==='ticket-detail') renderTicketDetail(); if(view==='tenants') loadTenants(); if(view==='subscriptions') loadSubscriptions(); if(view==='billing') loadBilling(); if(view==='plans') loadPlans(); if(view==='system') loadSystemOverview(); if(view==='usage') loadUsageDashboard(); if(view==='customer-plans') loadCustomerPlans(); if(view==='customer-billing') loadCustomerBilling(); if(view==='analytics') loadAnalytics(); if(view==='ai-insights') loadAIInsights(); if(view==='ticket-rules') loadTicketRules(); if(view==='email-processing') loadEmailProcessing(); if(view==='system-control') loadSystemControlSettings(); if(view==='knowledge-base') initKnowledgeBase(); if(view==='wizard') { loadCompanyProfile(); loadEmailIngestSettings(); loadExpertRegSettings(); loadSupportSettings(); } if(view==='profile') loadProfile(); }
+  function switchView(view){ currentView=view; ['dash','profile','tickets','ticket-detail','experts','expert-detail','customers','cmdb','cmdb-detail','manage-cmdb','cmdb-mgmt','wizard','raise','tenants','subscriptions','billing','plans','system','usage','customer-plans','customer-billing','analytics','ai-insights','ticket-rules','email-processing','system-control','knowledge-base','raw-variables'].forEach(n=>{ const el=document.getElementById('view-'+n); if(el) el.style.display=(n===view)?'block':'none'; }); if(view==='tickets') { loadFilterSettings('tickets'); renderList(); } if(view==='experts') { loadFilterSettings('experts'); renderExperts(); } if(view==='expert-detail') renderExpertDetail(); if(view==='customers') { loadFilterSettings('customers'); renderCustomers(); } if(view==='cmdb') { loadFilterSettings('cmdb'); renderCMDB(); } if(view==='cmdb-detail') renderCMDBDetail(); if(view==='manage-cmdb') loadManageCMDB(); if(view==='cmdb-mgmt') loadCMDBMgmt(); if(view==='raise') loadRaiseFormOptions(); if(view==='ticket-detail') renderTicketDetail(); if(view==='tenants') loadTenants(); if(view==='subscriptions') loadSubscriptions(); if(view==='billing') loadBilling(); if(view==='plans') loadPlans(); if(view==='system') loadSystemOverview(); if(view==='usage') loadUsageDashboard(); if(view==='customer-plans') loadCustomerPlans(); if(view==='customer-billing') loadCustomerBilling(); if(view==='analytics') loadAnalytics(); if(view==='ai-insights') loadAIInsights(); if(view==='ticket-rules') loadTicketRules(); if(view==='email-processing') loadEmailProcessing(); if(view==='system-control') loadSystemControlSettings(); if(view==='knowledge-base') initKnowledgeBase(); if(view==='raw-variables') loadRawVariables(); if(view==='wizard') { loadCompanyProfile(); loadEmailIngestSettings(); loadExpertRegSettings(); loadSupportSettings(); } if(view==='profile') loadProfile(); }
   function configureRole(){
     const currentRole = window.role || role; // Use global role from login, fallback to local
     document.getElementById('nav-admin').style.display = (currentRole==='admin') ? 'block' : 'none';
@@ -4591,6 +4757,349 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     console.log('Loading system overview...');
   }
   
+
+  // =============================================
+  // Raw Variables Functions
+  // =============================================
+  let rawVariablesData = null;
+  let currentEditingVariable = null;
+
+  async function loadRawVariables() {
+    try {
+      const token = localStorage.getItem('token');
+      const tenantCode = localStorage.getItem('tenantCode') || 'apoyar';
+
+      const response = await fetch(`${API_BASE}/api/raw-variables/${tenantCode}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        rawVariablesData = data.variables;
+        renderRawVariables();
+      } else {
+        console.error('Failed to load raw variables:', data.message);
+      }
+    } catch (error) {
+      console.error('Error loading raw variables:', error);
+    }
+  }
+
+  function renderRawVariables() {
+    if (!rawVariablesData) return;
+
+    const searchTerm = (document.getElementById('raw-vars-search')?.value || '').toLowerCase();
+
+    // Render each section
+    renderVariableSection('raw-vars-tenant-settings', rawVariablesData.tenant_settings, searchTerm);
+    renderVariableSection('raw-vars-email-ingest', rawVariablesData.email_ingest, searchTerm);
+    renderVariableSection('raw-vars-company-profile', rawVariablesData.company_profile, searchTerm);
+    renderVariableSection('raw-vars-environment', rawVariablesData.environment, searchTerm);
+  }
+
+  function renderVariableSection(containerId, variables, searchTerm) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    const filtered = variables.filter(v =>
+      !searchTerm ||
+      v.key.toLowerCase().includes(searchTerm) ||
+      (v.value && v.value.toLowerCase().includes(searchTerm))
+    );
+
+    if (filtered.length === 0) {
+      container.innerHTML = '<tr><td colspan="3" class="subtitle" style="text-align:center;padding:16px;color:#666">No variables found</td></tr>';
+      return;
+    }
+
+    container.innerHTML = filtered.map(v => {
+      const displayValue = v.sensitive ? '••••••••' : (v.value || '<em style="color:#999">empty</em>');
+      const valueStyle = v.value ? '' : 'color:#999';
+
+      let actions = '';
+      if (v.editable) {
+        actions += `<button class="btn ghost" style="padding:4px 8px;font-size:12px" onclick="editVariable('${v.key}', '${v.category}')">Edit</button>`;
+      }
+      if (v.deletable) {
+        actions += `<button class="btn ghost" style="padding:4px 8px;font-size:12px;color:#b91c1c;margin-left:4px" onclick="deleteVariable('${v.key}')">Delete</button>`;
+      }
+      if (!v.editable && !v.deletable) {
+        actions = '<span class="subtitle" style="color:#666;font-size:12px">Read-only</span>';
+      }
+
+      return `
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:8px;font-family:monospace;font-size:13px">${v.key}</td>
+          <td style="padding:8px;font-family:monospace;font-size:13px;${valueStyle}">${displayValue}</td>
+          <td style="padding:8px;text-align:right">${actions}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  function filterRawVariables() {
+    renderRawVariables();
+  }
+
+  function editVariable(key, category) {
+    // Find the variable
+    let variable = null;
+    if (rawVariablesData) {
+      const allVars = [
+        ...rawVariablesData.tenant_settings,
+        ...rawVariablesData.email_ingest,
+        ...rawVariablesData.company_profile,
+        ...rawVariablesData.environment
+      ];
+      variable = allVars.find(v => v.key === key);
+    }
+
+    if (!variable) {
+      alert('Variable not found');
+      return;
+    }
+
+    currentEditingVariable = variable;
+    document.getElementById('var-edit-key').value = key;
+    document.getElementById('var-edit-value').value = variable.sensitive ? '' : (variable.value || '');
+
+    // Show warning for system variables
+    const warningEl = document.getElementById('var-edit-warning');
+    if (key.startsWith('email_ingest.') || key.startsWith('company.')) {
+      warningEl.textContent = 'This is a system variable. Changes may affect application behavior.';
+      warningEl.style.display = 'block';
+    } else {
+      warningEl.style.display = 'none';
+    }
+
+    document.getElementById('variable-edit-modal').style.display = 'flex';
+  }
+
+  function closeVariableModal() {
+    document.getElementById('variable-edit-modal').style.display = 'none';
+    currentEditingVariable = null;
+  }
+
+  async function saveVariableEdit() {
+    if (!currentEditingVariable) return;
+
+    const key = document.getElementById('var-edit-key').value;
+    const value = document.getElementById('var-edit-value').value;
+    const token = localStorage.getItem('token');
+    const tenantCode = localStorage.getItem('tenantCode') || 'apoyar';
+
+    try {
+      const response = await fetch(`${API_BASE}/api/raw-variables/${tenantCode}/${encodeURIComponent(key)}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ value })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        closeVariableModal();
+        await loadRawVariables();
+        alert('Variable updated successfully');
+      } else {
+        alert('Failed to update variable: ' + (data.message || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error saving variable:', error);
+      alert('Error saving variable');
+    }
+  }
+
+  function addVariable() {
+    document.getElementById('var-add-key').value = '';
+    document.getElementById('var-add-value').value = '';
+    document.getElementById('var-add-error').style.display = 'none';
+    document.getElementById('variable-add-modal').style.display = 'flex';
+  }
+
+  function closeAddVariableModal() {
+    document.getElementById('variable-add-modal').style.display = 'none';
+  }
+
+  async function saveNewVariable() {
+    const key = document.getElementById('var-add-key').value.trim();
+    const value = document.getElementById('var-add-value').value;
+    const errorEl = document.getElementById('var-add-error');
+
+    // Validate key
+    if (!key) {
+      errorEl.textContent = 'Key is required';
+      errorEl.style.display = 'block';
+      return;
+    }
+
+    if (!/^[a-zA-Z][a-zA-Z0-9_\.]*$/.test(key)) {
+      errorEl.textContent = 'Key must start with a letter and contain only letters, numbers, underscores, and dots';
+      errorEl.style.display = 'block';
+      return;
+    }
+
+    if (key.startsWith('email_ingest.') || key.startsWith('company.')) {
+      errorEl.textContent = 'Cannot create variables in reserved categories (email_ingest, company)';
+      errorEl.style.display = 'block';
+      return;
+    }
+
+    const token = localStorage.getItem('token');
+    const tenantCode = localStorage.getItem('tenantCode') || 'apoyar';
+
+    try {
+      const response = await fetch(`${API_BASE}/api/raw-variables/${tenantCode}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ key, value })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        closeAddVariableModal();
+        await loadRawVariables();
+        alert('Variable created successfully');
+      } else {
+        errorEl.textContent = data.message || 'Failed to create variable';
+        errorEl.style.display = 'block';
+      }
+    } catch (error) {
+      console.error('Error creating variable:', error);
+      errorEl.textContent = 'Error creating variable';
+      errorEl.style.display = 'block';
+    }
+  }
+
+  async function deleteVariable(key) {
+    if (!confirm(`Delete variable "${key}"? This cannot be undone.`)) return;
+
+    const token = localStorage.getItem('token');
+    const tenantCode = localStorage.getItem('tenantCode') || 'apoyar';
+
+    try {
+      const response = await fetch(`${API_BASE}/api/raw-variables/${tenantCode}/${encodeURIComponent(key)}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        await loadRawVariables();
+        alert('Variable deleted');
+      } else {
+        alert('Failed to delete variable: ' + (data.message || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error deleting variable:', error);
+      alert('Error deleting variable');
+    }
+  }
+
+  function exportVariablesJSON() {
+    if (!rawVariablesData) {
+      alert('No variables loaded');
+      return;
+    }
+
+    // Flatten all variables into a single object
+    const exportData = {};
+
+    rawVariablesData.tenant_settings.forEach(v => {
+      exportData[v.key] = v.value;
+    });
+    rawVariablesData.email_ingest.forEach(v => {
+      if (!v.sensitive) exportData[v.key] = v.value;
+    });
+    rawVariablesData.company_profile.forEach(v => {
+      exportData[v.key] = v.value;
+    });
+    // Environment variables are read-only, exclude from export
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `variables-${localStorage.getItem('tenantCode') || 'apoyar'}-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function showImportModal() {
+    document.getElementById('json-import-content').value = '';
+    document.getElementById('json-import-error').style.display = 'none';
+    document.getElementById('json-import-modal').style.display = 'flex';
+  }
+
+  function closeImportModal() {
+    document.getElementById('json-import-modal').style.display = 'none';
+  }
+
+  async function importVariablesFromJSON() {
+    const content = document.getElementById('json-import-content').value.trim();
+    const errorEl = document.getElementById('json-import-error');
+
+    if (!content) {
+      errorEl.textContent = 'Please paste JSON content';
+      errorEl.style.display = 'block';
+      return;
+    }
+
+    let variables;
+    try {
+      variables = JSON.parse(content);
+    } catch (e) {
+      errorEl.textContent = 'Invalid JSON format: ' + e.message;
+      errorEl.style.display = 'block';
+      return;
+    }
+
+    if (typeof variables !== 'object' || Array.isArray(variables)) {
+      errorEl.textContent = 'JSON must be an object with key-value pairs';
+      errorEl.style.display = 'block';
+      return;
+    }
+
+    const token = localStorage.getItem('token');
+    const tenantCode = localStorage.getItem('tenantCode') || 'apoyar';
+
+    try {
+      const response = await fetch(`${API_BASE}/api/raw-variables/${tenantCode}/bulk`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ variables })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        closeImportModal();
+        await loadRawVariables();
+        alert(`Import complete: ${data.results.updated} updated, ${data.results.created} created`);
+      } else {
+        errorEl.textContent = data.message || 'Import failed';
+        errorEl.style.display = 'block';
+      }
+    } catch (error) {
+      console.error('Error importing variables:', error);
+      errorEl.textContent = 'Error importing variables';
+      errorEl.style.display = 'block';
+    }
+  }
 
   // Company Profile Functions
   async function loadCompanyProfile() {

@@ -39,6 +39,7 @@ const ticketRulesRoutes = require('./routes/ticket-rules');
 const expertPermissionsRoutes = require('./routes/expert-permissions');
 const aiSuggestionsRoutes = require('./routes/ai-suggestions');
 const knowledgeBaseRoutes = require('./routes/knowledge-base');
+const rawVariablesRoutes = require('./routes/raw-variables');
 
 // Import email processor service
 const { startEmailProcessing } = require('./services/email-processor');
@@ -78,6 +79,7 @@ app.use('/api/ticket-rules', ticketRulesRoutes);
 app.use('/api/expert-permissions', expertPermissionsRoutes);
 app.use('/api/ai', aiSuggestionsRoutes);
 app.use('/api/kb', knowledgeBaseRoutes);
+app.use('/api/raw-variables', rawVariablesRoutes);
 
 // Public routes (no authentication required) - Must be before authenticated routes
 app.use('/ticket', publicTicketRoutes);
