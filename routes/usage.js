@@ -43,11 +43,35 @@ router.get('/:tenantId', async (req, res) => {
         'SELECT COUNT(*) as total FROM cmdb_items'
       );
 
-      // Get average response time (mock for now - would need actual SLA tracking)
-      const avgResponseTime = '2.5 hours';
+      // Calculate average first response time from ticket_activity
+      const [avgResponseData] = await connection.query(
+        `SELECT AVG(TIMESTAMPDIFF(MINUTE, t.created_at, ta.created_at)) as avg_minutes
+         FROM tickets t
+         INNER JOIN ticket_activity ta ON t.id = ta.ticket_id
+         WHERE ta.activity_type IN ('assigned', 'updated', 'comment')
+         AND ta.id = (
+           SELECT MIN(ta2.id) FROM ticket_activity ta2
+           WHERE ta2.ticket_id = t.id
+           AND ta2.activity_type IN ('assigned', 'updated', 'comment')
+         )
+         AND t.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)`
+      );
 
-      // Get storage usage (mock for now - would need actual file tracking)
-      const storageUsed = 2.3; // GB
+      // Format response time
+      let avgResponseTime = 'No data';
+      if (avgResponseData[0].avg_minutes !== null) {
+        const minutes = Math.round(avgResponseData[0].avg_minutes);
+        if (minutes < 60) {
+          avgResponseTime = `${minutes} minutes`;
+        } else if (minutes < 1440) {
+          avgResponseTime = `${(minutes / 60).toFixed(1)} hours`;
+        } else {
+          avgResponseTime = `${(minutes / 1440).toFixed(1)} days`;
+        }
+      }
+
+      // Storage: currently no file attachment feature, so show 0
+      const storageUsed = 0;
 
       const usage = {
         users: {
@@ -104,11 +128,15 @@ router.get('/:tenantId/history', async (req, res) => {
         [parseInt(days)]
       );
 
-      // Get user activity per day (mock data for now)
-      const userActivity = ticketHistory.map(row => ({
-        date: row.date,
-        activeUsers: Math.floor(Math.random() * 10) + 5
-      }));
+      // Get actual user activity per day from ticket_activity
+      const [userActivity] = await connection.query(
+        `SELECT DATE(created_at) as date, COUNT(DISTINCT user_id) as activeUsers
+         FROM ticket_activity
+         WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+         GROUP BY DATE(created_at)
+         ORDER BY date ASC`,
+        [parseInt(days)]
+      );
 
       res.json({
         success: true,
