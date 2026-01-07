@@ -1,7 +1,9 @@
 const express = require('express');
 const router = express.Router();
+const crypto = require('crypto');
 const { verifyToken, hashPassword } = require('../middleware/auth');
-const { getTenantConnection } = require('../config/database');
+const { getTenantConnection, getMasterConnection } = require('../config/database');
+const { sendEmail } = require('../config/email');
 
 // Apply verifyToken middleware to all expert routes
 router.use(verifyToken);
@@ -315,6 +317,267 @@ router.delete('/:tenantId/:expertId', async (req, res) => {
     }
   } catch (error) {
     console.error('Error deleting expert:', error);
+    res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
+  }
+});
+
+// Invite expert - send invitation email
+router.post('/:tenantId/invite', async (req, res) => {
+  try {
+    const { tenantId } = req.params;
+    const { salutation, first_name, last_name, email } = req.body;
+
+    // Validate required fields
+    if (!email || !first_name || !last_name) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email, first name, and last name are required'
+      });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid email address format'
+      });
+    }
+
+    const connection = await getTenantConnection(tenantId);
+
+    try {
+      // Check if email already exists
+      const [existing] = await connection.query(
+        'SELECT id FROM users WHERE email = ?',
+        [email]
+      );
+
+      if (existing.length > 0) {
+        return res.status(409).json({
+          success: false,
+          message: 'An account with this email already exists'
+        });
+      }
+
+      // Generate invitation token
+      const invitationToken = crypto.randomBytes(32).toString('hex');
+      const tokenExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+      // Create full name
+      const fullName = salutation
+        ? `${salutation} ${first_name} ${last_name}`
+        : `${first_name} ${last_name}`;
+
+      // Insert new expert with pending status (no password yet)
+      const [result] = await connection.query(
+        `INSERT INTO users (
+          username, email, password_hash, full_name, role, is_active,
+          invitation_token, invitation_expires, invitation_sent_at
+        ) VALUES (?, ?, '', ?, 'expert', FALSE, ?, ?, NOW())`,
+        [email, email, fullName, invitationToken, tokenExpiry]
+      );
+
+      const expertId = result.insertId;
+
+      // Get tenant company name
+      let tenantName = tenantId;
+      try {
+        const masterConn = await getMasterConnection();
+        const [tenantInfo] = await masterConn.query(
+          'SELECT company_name FROM tenants WHERE tenant_code = ?',
+          [tenantId]
+        );
+        masterConn.release();
+        if (tenantInfo.length > 0 && tenantInfo[0].company_name) {
+          tenantName = tenantInfo[0].company_name;
+        }
+      } catch (e) {
+        console.log('Could not fetch tenant name:', e.message);
+      }
+
+      // Build invitation URL
+      const baseUrl = process.env.BASE_URL || 'https://serviflow.app';
+      const invitationUrl = `${baseUrl}/accept-invite?token=${invitationToken}&tenant=${tenantId}`;
+
+      // Send invitation email
+      const emailHtml = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+          <div style="background: #003366; color: white; padding: 20px; border-radius: 8px 8px 0 0; text-align: center;">
+            <h1 style="margin: 0; font-size: 24px;">You're Invited!</h1>
+          </div>
+          <div style="background: white; padding: 30px; border-radius: 0 0 8px 8px;">
+            <p style="font-size: 16px; color: #333;">Dear ${salutation ? salutation + ' ' : ''}${first_name} ${last_name},</p>
+
+            <p style="font-size: 16px; color: #333; line-height: 1.6;">
+              You have been invited to join the expert pool of <strong>${tenantName}'s</strong> ServiFlow Support Platform.
+            </p>
+
+            <p style="font-size: 16px; color: #333; line-height: 1.6;">
+              As an expert, you'll be able to manage support tickets, help customers, and collaborate with the team.
+            </p>
+
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${invitationUrl}"
+                 style="display: inline-block; background: #003366; color: white; padding: 14px 32px;
+                        text-decoration: none; border-radius: 6px; font-size: 16px; font-weight: bold;">
+                Accept Invitation & Set Password
+              </a>
+            </div>
+
+            <p style="font-size: 14px; color: #666; line-height: 1.6;">
+              This invitation link will expire in 7 days. If the button above doesn't work,
+              copy and paste this link into your browser:
+            </p>
+            <p style="font-size: 12px; color: #888; word-break: break-all; background: #f5f5f5; padding: 10px; border-radius: 4px;">
+              ${invitationUrl}
+            </p>
+
+            <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+
+            <p style="font-size: 12px; color: #999; text-align: center;">
+              If you did not expect this invitation, please ignore this email.
+            </p>
+          </div>
+        </div>
+      `;
+
+      const emailResult = await sendEmail(tenantId, {
+        to: email,
+        subject: `You're invited to join ${tenantName}'s ServiFlow Support Team`,
+        html: emailHtml
+      });
+
+      if (!emailResult.success) {
+        // Still created the user, but email failed
+        console.log('⚠️ Expert created but invitation email failed:', emailResult.message);
+        return res.status(201).json({
+          success: true,
+          message: 'Expert created but invitation email could not be sent. Please try resending.',
+          expertId,
+          emailSent: false,
+          emailError: emailResult.message
+        });
+      }
+
+      console.log(`✉️ Invitation sent to ${email} for tenant ${tenantId}`);
+
+      res.status(201).json({
+        success: true,
+        message: 'Invitation sent successfully',
+        expertId,
+        emailSent: true
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error inviting expert:', error);
+    res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
+  }
+});
+
+// Resend invitation email
+router.post('/:tenantId/:expertId/resend-invite', async (req, res) => {
+  try {
+    const { tenantId, expertId } = req.params;
+    const connection = await getTenantConnection(tenantId);
+
+    try {
+      // Get expert with pending invitation
+      const [experts] = await connection.query(
+        `SELECT id, email, full_name, invitation_token, invitation_expires
+         FROM users WHERE id = ? AND role IN ('admin', 'expert') AND is_active = FALSE`,
+        [expertId]
+      );
+
+      if (experts.length === 0) {
+        return res.status(404).json({ success: false, message: 'Pending expert not found' });
+      }
+
+      const expert = experts[0];
+
+      // Generate new token if expired
+      let invitationToken = expert.invitation_token;
+      const now = new Date();
+      if (!invitationToken || new Date(expert.invitation_expires) < now) {
+        invitationToken = crypto.randomBytes(32).toString('hex');
+        const tokenExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+        await connection.query(
+          'UPDATE users SET invitation_token = ?, invitation_expires = ?, invitation_sent_at = NOW() WHERE id = ?',
+          [invitationToken, tokenExpiry, expertId]
+        );
+      }
+
+      // Get tenant name
+      let tenantName = tenantId;
+      try {
+        const masterConn = await getMasterConnection();
+        const [tenantInfo] = await masterConn.query(
+          'SELECT company_name FROM tenants WHERE tenant_code = ?',
+          [tenantId]
+        );
+        masterConn.release();
+        if (tenantInfo.length > 0) tenantName = tenantInfo[0].company_name;
+      } catch (e) {}
+
+      // Build invitation URL
+      const baseUrl = process.env.BASE_URL || 'https://serviflow.app';
+      const invitationUrl = `${baseUrl}/accept-invite?token=${invitationToken}&tenant=${tenantId}`;
+
+      // Parse name for salutation
+      const nameParts = (expert.full_name || '').split(' ');
+      const firstName = nameParts[0] || 'Expert';
+
+      // Send email
+      const emailHtml = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+          <div style="background: #003366; color: white; padding: 20px; border-radius: 8px 8px 0 0; text-align: center;">
+            <h1 style="margin: 0; font-size: 24px;">Invitation Reminder</h1>
+          </div>
+          <div style="background: white; padding: 30px; border-radius: 0 0 8px 8px;">
+            <p style="font-size: 16px; color: #333;">Dear ${firstName},</p>
+
+            <p style="font-size: 16px; color: #333; line-height: 1.6;">
+              This is a reminder that you have been invited to join <strong>${tenantName}'s</strong> ServiFlow Support Team.
+            </p>
+
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${invitationUrl}"
+                 style="display: inline-block; background: #003366; color: white; padding: 14px 32px;
+                        text-decoration: none; border-radius: 6px; font-size: 16px; font-weight: bold;">
+                Accept Invitation & Set Password
+              </a>
+            </div>
+
+            <p style="font-size: 14px; color: #666;">
+              This link will expire in 7 days.
+            </p>
+          </div>
+        </div>
+      `;
+
+      const emailResult = await sendEmail(tenantId, {
+        to: expert.email,
+        subject: `Reminder: You're invited to join ${tenantName}'s ServiFlow Team`,
+        html: emailHtml
+      });
+
+      if (!emailResult.success) {
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to send invitation email',
+          error: emailResult.message
+        });
+      }
+
+      res.json({ success: true, message: 'Invitation resent successfully' });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error resending invitation:', error);
     res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
   }
 });

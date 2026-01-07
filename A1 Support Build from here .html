@@ -2274,6 +2274,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             <div class="row"><button class="btn ghost" onclick="switchView('dash')">← Back</button><h3 class="title" style="margin:0 0 0 8px">Manage Experts</h3></div>
             <div class="row" style="gap:8px">
               <button class="btn primary" onclick="showCreateExpertForm()">+ Add Expert</button>
+              <button class="btn" onclick="showInviteExpertModal()">✉️ Invite Expert</button>
               <button id="show-deleted-btn" class="btn" onclick="toggleDeletedExperts()">Show Deleted</button>
               <input id="expert-search" class="input" style="min-width:260px" placeholder="Search experts by name, username, location..." oninput="renderExperts(); saveFilterSettings('experts')"/>
             </div>
@@ -3139,6 +3140,53 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             <div class="foot">
               <button class="btn ghost" onclick="closeImportModal()">Cancel</button>
               <button class="btn primary" onclick="importVariablesFromJSON()">Import</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Invite Expert Modal -->
+        <div id="invite-expert-modal" class="modal" style="display:none">
+          <div class="sheet" style="width:min(500px,calc(100vw - 32px))">
+            <div class="head">Invite Expert</div>
+            <div class="body">
+              <div class="subtitle mb-12" style="background:#eff6ff;padding:12px;border-radius:4px;border-left:4px solid #2563eb">
+                Send an invitation email to a new expert. They will receive a link to set their password and join the team.
+              </div>
+
+              <div class="mb-12">
+                <label class="subtitle">Salutation (optional)</label>
+                <select id="invite-salutation" class="input">
+                  <option value="">-- None --</option>
+                  <option value="Mr.">Mr.</option>
+                  <option value="Mrs.">Mrs.</option>
+                  <option value="Ms.">Ms.</option>
+                  <option value="Dr.">Dr.</option>
+                  <option value="Prof.">Prof.</option>
+                </select>
+              </div>
+
+              <div class="grid2 mb-12">
+                <div>
+                  <label class="subtitle">First Name *</label>
+                  <input id="invite-first-name" class="input" placeholder="John"/>
+                </div>
+                <div>
+                  <label class="subtitle">Last Name *</label>
+                  <input id="invite-last-name" class="input" placeholder="Smith"/>
+                </div>
+              </div>
+
+              <div class="mb-12">
+                <label class="subtitle">Email Address *</label>
+                <input id="invite-email" class="input" type="email" placeholder="john.smith@company.com"/>
+              </div>
+
+              <div id="invite-error" class="subtitle" style="color:#b91c1c;display:none;margin-top:8px"></div>
+              <div id="invite-success" class="subtitle" style="color:#16a34a;display:none;margin-top:8px"></div>
+            </div>
+            <div class="foot">
+              <button class="btn ghost" onclick="closeInviteExpertModal()">Cancel</button>
+              <button id="invite-submit-btn" class="btn primary" onclick="sendExpertInvitation()">Send Invitation</button>
             </div>
           </div>
         </div>
@@ -9182,6 +9230,120 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     } catch (error) {
       console.error('Error erasing expert:', error);
       alert('Error erasing expert');
+    }
+  }
+
+  // =============================================
+  // Invite Expert Functions
+  // =============================================
+
+  function showInviteExpertModal() {
+    // Clear form
+    document.getElementById('invite-salutation').value = '';
+    document.getElementById('invite-first-name').value = '';
+    document.getElementById('invite-last-name').value = '';
+    document.getElementById('invite-email').value = '';
+    document.getElementById('invite-error').style.display = 'none';
+    document.getElementById('invite-success').style.display = 'none';
+    document.getElementById('invite-submit-btn').disabled = false;
+    document.getElementById('invite-submit-btn').textContent = 'Send Invitation';
+
+    // Show modal
+    document.getElementById('invite-expert-modal').style.display = 'flex';
+  }
+
+  function closeInviteExpertModal() {
+    document.getElementById('invite-expert-modal').style.display = 'none';
+  }
+
+  async function sendExpertInvitation() {
+    const salutation = document.getElementById('invite-salutation').value;
+    const firstName = document.getElementById('invite-first-name').value.trim();
+    const lastName = document.getElementById('invite-last-name').value.trim();
+    const email = document.getElementById('invite-email').value.trim();
+    const errorEl = document.getElementById('invite-error');
+    const successEl = document.getElementById('invite-success');
+    const submitBtn = document.getElementById('invite-submit-btn');
+
+    // Hide messages
+    errorEl.style.display = 'none';
+    successEl.style.display = 'none';
+
+    // Validate
+    if (!firstName) {
+      errorEl.textContent = 'First name is required';
+      errorEl.style.display = 'block';
+      return;
+    }
+
+    if (!lastName) {
+      errorEl.textContent = 'Last name is required';
+      errorEl.style.display = 'block';
+      return;
+    }
+
+    if (!email) {
+      errorEl.textContent = 'Email address is required';
+      errorEl.style.display = 'block';
+      return;
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      errorEl.textContent = 'Please enter a valid email address';
+      errorEl.style.display = 'block';
+      return;
+    }
+
+    // Disable button and show loading state
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Sending...';
+
+    try {
+      const token = localStorage.getItem('token');
+      const tenantCode = localStorage.getItem('tenantCode') || 'apoyar';
+
+      const response = await fetch(`${API_BASE}/api/experts/${tenantCode}/invite`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          salutation,
+          first_name: firstName,
+          last_name: lastName,
+          email
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        successEl.innerHTML = data.emailSent
+          ? `Invitation sent to <strong>${email}</strong>! They will receive an email with instructions to set their password.`
+          : `Expert created but email could not be sent. Please try resending the invitation.`;
+        successEl.style.display = 'block';
+        submitBtn.textContent = 'Invitation Sent!';
+
+        // Refresh experts list after a delay, then close modal
+        setTimeout(() => {
+          closeInviteExpertModal();
+          renderExperts();
+        }, 2000);
+      } else {
+        errorEl.textContent = data.message || 'Failed to send invitation';
+        errorEl.style.display = 'block';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Send Invitation';
+      }
+    } catch (error) {
+      console.error('Error sending invitation:', error);
+      errorEl.textContent = 'Error sending invitation. Please try again.';
+      errorEl.style.display = 'block';
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Send Invitation';
     }
   }
 
