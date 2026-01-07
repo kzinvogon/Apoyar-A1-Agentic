@@ -8,13 +8,22 @@ const smtpEmail = process.env.SMTP_EMAIL;
 const smtpPassword = process.env.SMTP_PASSWORD;
 
 // Helper function to check if email sending is enabled for a tenant
-async function isEmailSendingEnabled(tenantCode) {
+// emailType can be 'experts', 'customers', or null (legacy - checks send_emails)
+async function isEmailSendingEnabled(tenantCode, emailType = null) {
   try {
     const connection = await getTenantConnection(tenantCode);
     try {
+      // Determine which setting to check
+      let settingKey = 'send_emails';
+      if (emailType === 'experts') {
+        settingKey = 'send_emails_experts';
+      } else if (emailType === 'customers') {
+        settingKey = 'send_emails_customers';
+      }
+
       const [settings] = await connection.query(
         'SELECT setting_value FROM tenant_settings WHERE setting_key = ?',
-        ['send_emails']
+        [settingKey]
       );
       // Default to enabled if setting not found
       if (settings.length === 0) return true;
@@ -320,6 +329,7 @@ async function sendNotificationEmail(to, subject, htmlContent) {
 }
 
 // Function to send generic email (used by password reset, etc.)
+// options.emailType can be 'experts' or 'customers' to check granular kill switches
 async function sendEmail(tenantCode, options) {
   try {
     // Check if transporter is configured
@@ -329,10 +339,13 @@ async function sendEmail(tenantCode, options) {
     }
 
     // Check if email sending is enabled (kill switch)
+    // Use emailType to check granular settings (send_emails_experts, send_emails_customers)
     if (tenantCode) {
-      const emailEnabled = await isEmailSendingEnabled(tenantCode);
+      const emailType = options.emailType || null;
+      const emailEnabled = await isEmailSendingEnabled(tenantCode, emailType);
       if (!emailEnabled) {
-        console.log('🔴 KILL SWITCH: Email sending is disabled for tenant:', tenantCode);
+        const settingName = emailType ? `send_emails_${emailType}` : 'send_emails';
+        console.log(`🔴 KILL SWITCH: Email sending is disabled (${settingName}) for tenant:`, tenantCode);
         console.log('📧 Would have sent email to:', options.to);
         return { success: false, message: 'Email sending disabled by kill switch' };
       }
