@@ -87,7 +87,7 @@ const validateCustomerUpdate = [
 router.get('/', requireRole(['admin', 'expert']), readOperationsLimiter, async (req, res) => {
   try {
     const { tenantCode } = req.user;
-    const { company_id } = req.query; // Optional filter by company
+    const { company_id, include_inactive } = req.query; // Optional filters
     const connection = await getTenantConnection(tenantCode);
 
     try {
@@ -109,6 +109,12 @@ router.get('/', requireRole(['admin', 'expert']), readOperationsLimiter, async (
       `;
 
       const params = [];
+
+      // By default, only show active customers unless include_inactive=true
+      if (include_inactive !== 'true') {
+        query += ' AND u.is_active = TRUE';
+      }
+
       if (company_id) {
         query += ' AND c.customer_company_id = ?';
         params.push(company_id);
