@@ -87,7 +87,9 @@ router.get('/', requireRole(['admin', 'expert']), readOperationsLimiter, async (
           cc.updated_at,
           u.full_name as admin_name,
           u.username as admin_username,
-          (SELECT COUNT(*) FROM customers c WHERE c.customer_company_id = cc.id) as team_member_count
+          (SELECT COUNT(*) FROM customers c
+           JOIN users cu ON c.user_id = cu.id
+           WHERE c.customer_company_id = cc.id AND cu.is_active = TRUE) as team_member_count
         FROM customer_companies cc
         LEFT JOIN users u ON cc.admin_user_id = u.id
         ORDER BY cc.company_name ASC
@@ -137,7 +139,7 @@ router.get('/:id', requireRole(['admin', 'expert']), readOperationsLimiter, asyn
         return res.status(404).json({ success: false, message: 'Customer company not found' });
       }
 
-      // Get team members
+      // Get team members (only active by default)
       const [teamMembers] = await connection.query(`
         SELECT
           u.id,
@@ -150,7 +152,7 @@ router.get('/:id', requireRole(['admin', 'expert']), readOperationsLimiter, asyn
           c.created_at
         FROM users u
         JOIN customers c ON u.id = c.user_id
-        WHERE c.customer_company_id = ?
+        WHERE c.customer_company_id = ? AND u.is_active = TRUE
         ORDER BY c.is_company_admin DESC, u.full_name ASC
       `, [id]);
 
