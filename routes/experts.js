@@ -445,7 +445,9 @@ router.post('/:tenantId/invite', async (req, res) => {
       const emailResult = await sendEmail(tenantId, {
         to: email,
         subject: `You're invited to join ${tenantName}'s ServiFlow Support Team`,
-        html: emailHtml
+        html: emailHtml,
+        emailType: 'experts',
+        skipUserCheck: true // New user doesn't have account yet
       });
 
       if (!emailResult.success) {
@@ -561,7 +563,9 @@ router.post('/:tenantId/:expertId/resend-invite', async (req, res) => {
       const emailResult = await sendEmail(tenantId, {
         to: expert.email,
         subject: `Reminder: You're invited to join ${tenantName}'s ServiFlow Team`,
-        html: emailHtml
+        html: emailHtml,
+        emailType: 'experts',
+        skipUserCheck: true // Pending user doesn't have full account yet
       });
 
       if (!emailResult.success) {
