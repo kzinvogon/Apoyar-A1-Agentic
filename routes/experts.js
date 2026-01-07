@@ -319,4 +319,70 @@ router.delete('/:tenantId/:expertId', async (req, res) => {
   }
 });
 
+// Permanently erase expert (hard delete) - only for inactive experts
+router.delete('/:tenantId/:expertId/erase', async (req, res) => {
+  try {
+    const { tenantId, expertId } = req.params;
+    const connection = await getTenantConnection(tenantId);
+
+    try {
+      // Check if expert exists and is inactive
+      const [existing] = await connection.query(
+        'SELECT id, email, full_name, is_active FROM users WHERE id = ? AND role IN ("admin", "expert")',
+        [expertId]
+      );
+
+      if (existing.length === 0) {
+        return res.status(404).json({ success: false, message: 'Expert not found' });
+      }
+
+      if (existing[0].is_active) {
+        return res.status(400).json({
+          success: false,
+          message: 'Cannot permanently delete an active expert. Deactivate first.'
+        });
+      }
+
+      // Check for assigned tickets
+      const [assignedTickets] = await connection.query(
+        'SELECT COUNT(*) as count FROM tickets WHERE assignee_id = ?',
+        [expertId]
+      );
+
+      if (assignedTickets[0].count > 0) {
+        // Unassign tickets before deletion
+        await connection.query(
+          'UPDATE tickets SET assignee_id = NULL WHERE assignee_id = ?',
+          [expertId]
+        );
+        console.log(`Unassigned ${assignedTickets[0].count} tickets from expert ${expertId}`);
+      }
+
+      // Delete related records first (due to foreign keys)
+      await connection.query('DELETE FROM expert_ticket_permissions WHERE expert_id = ?', [expertId]);
+      await connection.query('DELETE FROM ticket_activity WHERE user_id = ?', [expertId]);
+
+      // Permanently delete the expert
+      await connection.query('DELETE FROM users WHERE id = ?', [expertId]);
+
+      console.log(`🗑️ Permanently erased expert: ${existing[0].email} (ID: ${expertId})`);
+
+      res.json({
+        success: true,
+        message: 'Expert permanently erased',
+        erased: {
+          id: expertId,
+          email: existing[0].email,
+          fullName: existing[0].full_name
+        }
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error permanently erasing expert:', error);
+    res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
+  }
+});
+
 module.exports = router;
