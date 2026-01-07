@@ -271,9 +271,9 @@ router.post('/:tenantId/:expertId/restore', async (req, res) => {
         return res.status(404).json({ success: false, message: 'Deleted expert not found' });
       }
 
-      // Reactivate expert
+      // Reactivate expert - clear deleted_at and deleted_by
       await connection.query(
-        'UPDATE users SET is_active = TRUE WHERE id = ?',
+        'UPDATE users SET is_active = TRUE, deleted_at = NULL, deleted_by = NULL WHERE id = ?',
         [expertId]
       );
 
@@ -292,6 +292,7 @@ router.post('/:tenantId/:expertId/restore', async (req, res) => {
 router.delete('/:tenantId/:expertId', async (req, res) => {
   try {
     const { tenantId, expertId } = req.params;
+    const deletedBy = req.user?.userId || null;
     const connection = await getTenantConnection(tenantId);
 
     try {
@@ -305,10 +306,10 @@ router.delete('/:tenantId/:expertId', async (req, res) => {
         return res.status(404).json({ success: false, message: 'Expert not found' });
       }
 
-      // Deactivate expert
+      // Soft delete expert - set is_active = FALSE and deleted_at timestamp
       await connection.query(
-        'UPDATE users SET is_active = FALSE WHERE id = ?',
-        [expertId]
+        'UPDATE users SET is_active = FALSE, deleted_at = NOW(), deleted_by = ? WHERE id = ?',
+        [deletedBy, expertId]
       );
 
       res.json({ success: true, message: 'Expert deleted successfully' });
