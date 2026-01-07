@@ -349,14 +349,29 @@ router.post('/:tenantId/invite', async (req, res) => {
     try {
       // Check if email already exists
       const [existing] = await connection.query(
-        'SELECT id FROM users WHERE email = ?',
+        'SELECT id, is_active, deleted_at, full_name FROM users WHERE email = ?',
         [email]
       );
 
       if (existing.length > 0) {
+        const existingUser = existing[0];
+
+        // If user is active (not deleted), reject
+        if (!existingUser.deleted_at) {
+          return res.status(409).json({
+            success: false,
+            message: 'An account with this email already exists'
+          });
+        }
+
+        // User was soft-deleted - offer to reactivate
         return res.status(409).json({
           success: false,
-          message: 'An account with this email already exists'
+          message: `This email belongs to a deleted expert (${existingUser.full_name}). Please restore them from the deleted experts list or permanently erase them first.`,
+          deletedExpert: {
+            id: existingUser.id,
+            name: existingUser.full_name
+          }
         });
       }
 
