@@ -8583,6 +8583,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               <td>-</td>
               <td>
                 <button class="btn primary" style="padding:4px 8px;font-size:12px" onclick="restoreExpert(${e.id})">Restore</button>
+                <button class="btn danger" style="padding:4px 8px;font-size:12px;margin-left:4px" onclick="eraseExpert(${e.id}, '${(e.full_name || e.username).replace(/'/g, "\\'")}')">Erase</button>
               </td>
             `;
             body.appendChild(tr);
@@ -8597,8 +8598,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
                   @${e.username}<br>
                   ${e.email || ''}
                 </div>
-                <div class="mobile-card-actions">
+                <div class="mobile-card-actions" style="gap:8px">
                   <button class="btn primary" onclick="restoreExpert(${e.id})">Restore</button>
+                  <button class="btn danger" onclick="eraseExpert(${e.id}, '${(e.full_name || e.username).replace(/'/g, "\\'")}')">Erase</button>
                 </div>
               `;
               cardsContainer.appendChild(card);
@@ -8639,6 +8641,38 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     } catch (error) {
       console.error('Error restoring expert:', error);
       alert('Error restoring expert');
+    }
+  }
+
+  // Permanently erase expert (hard delete)
+  async function eraseExpert(expertId, expertName) {
+    if (!confirm(`PERMANENTLY DELETE "${expertName}"?\n\nThis action cannot be undone. All data for this expert will be permanently erased.`)) return;
+
+    // Double confirmation for safety
+    if (!confirm(`Are you absolutely sure? Type OK to confirm permanent deletion of "${expertName}".`)) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const tenantCode = localStorage.getItem('tenantCode') || 'apoyar';
+      const response = await fetch(`${API_BASE}/api/experts/${tenantCode}/${expertId}/erase`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        alert(`Expert "${expertName}" has been permanently erased.`);
+        await renderDeletedExperts();
+      } else {
+        alert('Failed to erase expert: ' + (data.message || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error erasing expert:', error);
+      alert('Error erasing expert');
     }
   }
 
