@@ -600,8 +600,37 @@ class EmailProcessor {
 
     console.log(`Created new customer: ${username} (${email}) for domain: ${domain}`);
 
-    // TODO: Send welcome email with temporary password
-    // await this.sendWelcomeEmail(email, username, tempPassword);
+    // Send welcome email with credentials (non-blocking)
+    const loginUrl = process.env.BASE_URL || 'https://serviflow.app';
+    sendNotificationEmail(
+      email,
+      'Welcome to A1 Support - Your Account is Ready',
+      `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #2563eb;">Welcome to A1 Support!</h2>
+          <p>Hello ${username},</p>
+          <p>Your customer account has been created. You can now submit and track support requests.</p>
+
+          <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <p style="margin: 0 0 10px 0;"><strong>Login Details:</strong></p>
+            <p style="margin: 0 0 5px 0;">Username: <code style="background: #e5e7eb; padding: 2px 6px; border-radius: 4px;">${username}</code></p>
+            <p style="margin: 0 0 5px 0;">Temporary Password: <code style="background: #e5e7eb; padding: 2px 6px; border-radius: 4px;">${tempPassword}</code></p>
+            <p style="margin: 10px 0 0 0; color: #dc2626; font-size: 14px;">Please change your password after first login.</p>
+          </div>
+
+          <p>
+            <a href="${loginUrl}" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 500;">
+              Login to Portal
+            </a>
+          </p>
+
+          <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
+            If you did not request this account, please ignore this email.
+          </p>
+        </div>
+      `
+    ).then(() => console.log(`📧 Sent customer welcome email to: ${email}`))
+     .catch(err => console.log('📧 Could not send customer welcome email (non-critical):', err.message));
 
     return {
       userId,
