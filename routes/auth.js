@@ -990,5 +990,167 @@ router.post('/master/reset-password-with-token', passwordChangeLimiter, async (r
   }
 });
 
+// =============================================
+// Expert Invitation Acceptance (Public Routes)
+// =============================================
+
+// Validate invitation token (public - no auth required)
+router.get('/invitation/validate', async (req, res) => {
+  try {
+    const { token, tenant } = req.query;
+
+    if (!token || !tenant) {
+      return res.status(400).json({
+        success: false,
+        message: 'Token and tenant are required'
+      });
+    }
+
+    const connection = await getTenantConnection(tenant);
+
+    try {
+      const [users] = await connection.query(
+        `SELECT id, email, full_name, invitation_expires
+         FROM users
+         WHERE invitation_token = ? AND role IN ('admin', 'expert')`,
+        [token]
+      );
+
+      if (users.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Invalid or expired invitation token'
+        });
+      }
+
+      const user = users[0];
+
+      // Check if token is expired
+      if (new Date(user.invitation_expires) < new Date()) {
+        return res.status(410).json({
+          success: false,
+          message: 'This invitation has expired. Please request a new invitation.'
+        });
+      }
+
+      // Get tenant name
+      let tenantName = tenant;
+      try {
+        const masterConn = await getMasterConnection();
+        const [tenantInfo] = await masterConn.query(
+          'SELECT company_name FROM tenants WHERE tenant_code = ?',
+          [tenant]
+        );
+        masterConn.release();
+        if (tenantInfo.length > 0) tenantName = tenantInfo[0].company_name;
+      } catch (e) {}
+
+      res.json({
+        success: true,
+        invitation: {
+          email: user.email,
+          fullName: user.full_name,
+          tenantCode: tenant,
+          tenantName: tenantName
+        }
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error validating invitation:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// Accept invitation and set password (public - no auth required)
+router.post('/invitation/accept', async (req, res) => {
+  try {
+    const { token, tenant, password } = req.body;
+
+    if (!token || !tenant || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Token, tenant, and password are required'
+      });
+    }
+
+    // Validate password strength
+    if (password.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 8 characters long'
+      });
+    }
+
+    const connection = await getTenantConnection(tenant);
+
+    try {
+      const [users] = await connection.query(
+        `SELECT id, email, full_name, invitation_expires, is_active
+         FROM users
+         WHERE invitation_token = ? AND role IN ('admin', 'expert')`,
+        [token]
+      );
+
+      if (users.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Invalid invitation token'
+        });
+      }
+
+      const user = users[0];
+
+      // Check if already accepted
+      if (user.is_active) {
+        return res.status(400).json({
+          success: false,
+          message: 'This invitation has already been accepted. Please log in.'
+        });
+      }
+
+      // Check if token is expired
+      if (new Date(user.invitation_expires) < new Date()) {
+        return res.status(410).json({
+          success: false,
+          message: 'This invitation has expired. Please request a new invitation.'
+        });
+      }
+
+      // Hash the new password
+      const passwordHash = await hashPassword(password);
+
+      // Update user: set password, activate, clear invitation token
+      await connection.query(
+        `UPDATE users
+         SET password_hash = ?,
+             is_active = TRUE,
+             invitation_token = NULL,
+             invitation_expires = NULL,
+             invitation_accepted_at = NOW()
+         WHERE id = ?`,
+        [passwordHash, user.id]
+      );
+
+      console.log(`✅ Expert ${user.email} accepted invitation for tenant ${tenant}`);
+
+      res.json({
+        success: true,
+        message: 'Account activated successfully! You can now log in.',
+        user: {
+          email: user.email,
+          fullName: user.full_name
+        }
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error accepting invitation:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
 module.exports = router;
 

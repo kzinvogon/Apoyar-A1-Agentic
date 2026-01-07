@@ -102,6 +102,14 @@ app.get('/login', (req, res) => {
   res.redirect('/');
 });
 
+// Accept invitation route - for invited experts to set their password
+app.get('/accept-invite', (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.sendFile(path.join(__dirname, 'accept-invite.html'));
+});
+
 // Ticket view route - serves HTML for email links
 app.get('/ticket/:id', (req, res) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -230,6 +238,15 @@ async function startServer() {
           console.log('✅ Must reset password column migration completed');
         } catch (migrationError) {
           console.warn(`⚠️  Warning: Must reset password migration:`, migrationError.message);
+        }
+
+        // Run invitation columns migration
+        try {
+          const { runMigration: runInvitationMigration } = require('./migrations/add-invitation-columns');
+          await runInvitationMigration('apoyar');
+          console.log('✅ Invitation columns migration completed');
+        } catch (migrationError) {
+          console.warn(`⚠️  Warning: Invitation columns migration:`, migrationError.message);
         }
 
         // Start email processing for apoyar tenant
