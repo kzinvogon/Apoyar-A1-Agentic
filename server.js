@@ -249,6 +249,15 @@ async function startServer() {
           console.warn(`⚠️  Warning: Invitation columns migration:`, migrationError.message);
         }
 
+        // Run soft delete columns migration
+        try {
+          const { runMigration: runSoftDeleteMigration } = require('./migrations/add-soft-delete-columns');
+          await runSoftDeleteMigration('apoyar');
+          console.log('✅ Soft delete columns migration completed');
+        } catch (migrationError) {
+          console.warn(`⚠️  Warning: Soft delete columns migration:`, migrationError.message);
+        }
+
         // Start email processing for apoyar tenant
         try {
           await startEmailProcessing('apoyar');
