@@ -406,6 +406,92 @@ router.put('/:id', requireRole(['admin', 'expert']), writeOperationsLimiter, val
   }
 });
 
+// Delete customer company
+// Requires all team members to be deactivated first
+router.delete('/:id', requireRole(['admin']), writeOperationsLimiter, async (req, res) => {
+  try {
+    const { tenantCode } = req.user;
+    const { id } = req.params;
+    const { permanent } = req.query; // ?permanent=true for hard delete
+    const connection = await getTenantConnection(tenantCode);
+
+    try {
+      // Check if company exists
+      const [companies] = await connection.query(
+        'SELECT id, company_name, is_active FROM customer_companies WHERE id = ?',
+        [id]
+      );
+
+      if (companies.length === 0) {
+        return res.status(404).json({ success: false, message: 'Customer company not found' });
+      }
+
+      const company = companies[0];
+
+      // Check for active team members
+      const [activeMembers] = await connection.query(`
+        SELECT COUNT(*) as count FROM customers c
+        JOIN users u ON c.user_id = u.id
+        WHERE c.customer_company_id = ? AND u.is_active = TRUE
+      `, [id]);
+
+      if (activeMembers[0].count > 0) {
+        return res.status(400).json({
+          success: false,
+          message: `Cannot delete company with ${activeMembers[0].count} active team member(s). Deactivate all team members first.`
+        });
+      }
+
+      if (permanent === 'true') {
+        // Hard delete - remove company and orphan customer records
+        await connection.beginTransaction();
+
+        try {
+          // Remove customer records linked to this company
+          await connection.query(
+            'DELETE FROM customers WHERE customer_company_id = ?',
+            [id]
+          );
+
+          // Delete the company
+          await connection.query(
+            'DELETE FROM customer_companies WHERE id = ?',
+            [id]
+          );
+
+          await connection.commit();
+
+          console.log(`Permanently deleted company: ${company.company_name} (ID: ${id})`);
+          res.json({
+            success: true,
+            message: 'Customer company permanently deleted'
+          });
+        } catch (error) {
+          await connection.rollback();
+          throw error;
+        }
+      } else {
+        // Soft delete - just deactivate
+        await connection.query(
+          'UPDATE customer_companies SET is_active = FALSE, updated_at = NOW() WHERE id = ?',
+          [id]
+        );
+
+        console.log(`Deactivated company: ${company.company_name} (ID: ${id})`);
+        res.json({
+          success: true,
+          message: 'Customer company deactivated successfully'
+        });
+      }
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error deleting customer company:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
 // Add team member to company
 router.post('/:id/team-members', requireRole(['admin', 'expert']), writeOperationsLimiter, async (req, res) => {
   try {
