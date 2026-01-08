@@ -637,28 +637,44 @@ router.delete('/:tenantId/:expertId/erase', async (req, res) => {
         }
       };
 
-      // Unassign from tickets
+      // Unassign from tickets (handle all user reference columns)
       await safeQuery('UPDATE tickets SET assignee_id = NULL WHERE assignee_id = ?', [expertId]);
       await safeQuery('UPDATE tickets SET created_by = NULL WHERE created_by = ?', [expertId]);
+      await safeQuery('UPDATE tickets SET requester_id = NULL WHERE requester_id = ?', [expertId]);
+      await safeQuery('UPDATE tickets SET customer_id = NULL WHERE customer_id = ?', [expertId]);
+      await safeQuery('UPDATE tickets SET previous_assignee_id = NULL WHERE previous_assignee_id = ?', [expertId]);
 
       // Clear KB references
       await safeQuery('UPDATE kb_articles SET created_by = NULL WHERE created_by = ?', [expertId]);
       await safeQuery('UPDATE kb_articles SET updated_by = NULL WHERE updated_by = ?', [expertId]);
       await safeQuery('UPDATE kb_categories SET created_by = NULL WHERE created_by = ?', [expertId]);
+      await safeQuery('UPDATE kb_article_reviews SET reviewed_by = NULL WHERE reviewed_by = ?', [expertId]);
+      await safeQuery('UPDATE kb_suggested_articles SET created_by = NULL WHERE created_by = ?', [expertId]);
 
       // Clear CMDB references
       await safeQuery('UPDATE cmdb_items SET created_by = NULL WHERE created_by = ?', [expertId]);
+      await safeQuery('UPDATE cmdb_items SET owner_id = NULL WHERE owner_id = ?', [expertId]);
       await safeQuery('UPDATE ticket_cmdb SET created_by = NULL WHERE created_by = ?', [expertId]);
+      await safeQuery('UPDATE cmdb_relationships SET created_by = NULL WHERE created_by = ?', [expertId]);
 
       // Clear ticket rules references
       await safeQuery('UPDATE ticket_processing_rules SET created_by = NULL WHERE created_by = ?', [expertId]);
 
+      // Clear AI references
+      await safeQuery('UPDATE ai_suggestions SET user_id = NULL WHERE user_id = ?', [expertId]);
+      await safeQuery('UPDATE ai_suggestions SET acknowledged_by = NULL WHERE acknowledged_by = ?', [expertId]);
+
+      // Clear customer companies admin reference
+      await safeQuery('UPDATE customer_companies SET admin_user_id = NULL WHERE admin_user_id = ?', [expertId]);
+
       // Delete related records (these are user-specific, not shared)
       await safeQuery('DELETE FROM expert_ticket_permissions WHERE expert_id = ?', [expertId]);
+      await safeQuery('DELETE FROM expert_ticket_permissions WHERE customer_id = ?', [expertId]);
       await safeQuery('DELETE FROM ticket_activity WHERE user_id = ?', [expertId]);
       await safeQuery('DELETE FROM kb_article_feedback WHERE user_id = ?', [expertId]);
       await safeQuery('DELETE FROM kb_article_views WHERE user_id = ?', [expertId]);
       await safeQuery('DELETE FROM tenant_audit_log WHERE user_id = ?', [expertId]);
+      await safeQuery('DELETE FROM customers WHERE user_id = ?', [expertId]);
 
       // Permanently delete the expert
       await connection.query('DELETE FROM users WHERE id = ?', [expertId]);
