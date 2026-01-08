@@ -52,6 +52,7 @@ router.get('/:tenantId/deleted', async (req, res) => {
           u.created_at, u.updated_at
          FROM users u
          WHERE u.role IN ('admin', 'expert') AND u.is_active = FALSE
+           AND u.invitation_token IS NULL
          ORDER BY u.full_name ASC, u.username ASC`
       );
 
