@@ -551,10 +551,10 @@ router.post('/:tenantId/bulk-invite', async (req, res) => {
     try {
       // Get tenant name for emails
       const [tenants] = await masterConn.query(
-        'SELECT name FROM tenants WHERE code = ?',
+        'SELECT company_name FROM tenants WHERE tenant_code = ?',
         [tenantId]
       );
-      const tenantName = tenants[0]?.name || tenantId;
+      const tenantName = tenants[0]?.company_name || tenantId;
       const baseUrl = process.env.BASE_URL || 'https://serviflow.app';
 
       const results = [];
