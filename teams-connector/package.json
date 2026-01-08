@@ -1,0 +1,20 @@
+{
+  "name": "serviflow-teams-connector",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["teams", "bot", "serviflow", "ticketing"],
+  "author": "Apoyar",
+  "license": "ISC",
+  "description": "Microsoft Teams connector for ServiFlow ticket management",
+  "dependencies": {
+    "botbuilder": "^4.23.3",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "node-fetch": "^2.7.0"
+  }
+}

@@ -1,0 +1,73 @@
+{
+  "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.16/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.16",
+  "version": "1.0.0",
+  "id": "{{MICROSOFT_APP_ID}}",
+  "packageName": "com.serviflow.teamsbot",
+  "developer": {
+    "name": "Apoyar",
+    "websiteUrl": "https://serviflow.app",
+    "privacyUrl": "https://serviflow.app/privacy",
+    "termsOfUseUrl": "https://serviflow.app/terms"
+  },
+  "icons": {
+    "color": "icon-color.png",
+    "outline": "icon-outline.png"
+  },
+  "name": {
+    "short": "ServiFlow",
+    "full": "ServiFlow Ticket Management"
+  },
+  "description": {
+    "short": "Manage support tickets from Teams",
+    "full": "ServiFlow bot allows you to create, view, and manage support tickets directly from Microsoft Teams. Get notified about ticket updates and take action without leaving Teams."
+  },
+  "accentColor": "#2563eb",
+  "bots": [
+    {
+      "botId": "{{MICROSOFT_APP_ID}}",
+      "scopes": ["personal", "team", "groupchat"],
+      "supportsFiles": false,
+      "isNotificationOnly": false,
+      "commandLists": [
+        {
+          "scopes": ["personal", "team", "groupchat"],
+          "commands": [
+            {
+              "title": "create",
+              "description": "Create a new ticket"
+            },
+            {
+              "title": "status",
+              "description": "Check ticket status (e.g., status #123)"
+            },
+            {
+              "title": "my tickets",
+              "description": "List your assigned tickets"
+            },
+            {
+              "title": "assign",
+              "description": "Assign ticket to yourself (e.g., assign #123)"
+            },
+            {
+              "title": "resolve",
+              "description": "Resolve a ticket (e.g., resolve #123 Fixed the issue)"
+            },
+            {
+              "title": "help",
+              "description": "Show available commands"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "permissions": [
+    "identity",
+    "messageTeamMembers"
+  ],
+  "validDomains": [
+    "serviflow.app",
+    "web-production-11114.up.railway.app"
+  ]
+}
