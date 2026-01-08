@@ -650,7 +650,7 @@ router.delete('/:tenantId/:expertId/erase', async (req, res) => {
       await safeQuery('UPDATE ticket_cmdb SET created_by = NULL WHERE created_by = ?', [expertId]);
 
       // Clear ticket rules references
-      await safeQuery('UPDATE ticket_rules SET created_by = NULL WHERE created_by = ?', [expertId]);
+      await safeQuery('UPDATE ticket_processing_rules SET created_by = NULL WHERE created_by = ?', [expertId]);
 
       // Delete related records (these are user-specific, not shared)
       await safeQuery('DELETE FROM expert_ticket_permissions WHERE expert_id = ?', [expertId]);
