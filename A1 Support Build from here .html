@@ -2375,6 +2375,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           <div class="row space mb-12">
             <div class="row"><button class="btn ghost" onclick="switchView('dash')">← Back</button><h3 class="title" style="margin:0 0 0 8px">Manage Customers</h3></div>
             <div class="row" style="gap:8px">
+              <button class="btn ghost" onclick="showManageCompanies()">Manage Companies</button>
               <button class="btn primary" onclick="showCreateCustomerCompanyForm()">+ Add Company</button>
               <button class="btn" onclick="showCreateCustomerForm()">+ Add Team Member</button>
             </div>
@@ -2556,6 +2557,35 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+
+        <!-- Company Management Modal -->
+        <div id="company-list-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:1000;overflow-y:auto">
+          <div style="max-width:800px;margin:40px auto;background:white;border-radius:8px;padding:24px">
+            <div class="row space mb-16">
+              <h3 class="title" style="margin:0">Manage Companies</h3>
+              <button class="btn ghost" onclick="closeCompanyListModal()">✕</button>
+            </div>
+
+            <p class="subtitle mb-16">View, edit, and delete customer companies. Companies with active team members cannot be deleted.</p>
+
+            <div id="company-list-content">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Company Name</th>
+                    <th>Domain</th>
+                    <th>SLA Level</th>
+                    <th style="text-align:center">Team Members</th>
+                    <th style="width:180px">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="company-list-body">
+                  <tr><td colspan="5" style="text-align:center">Loading...</td></tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 
@@ -10386,6 +10416,126 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   function closeCompanyModal() {
     document.getElementById('company-modal').style.display = 'none';
     document.getElementById('company-form').reset();
+  }
+
+  // Company Management Functions
+  async function showManageCompanies() {
+    document.getElementById('company-list-modal').style.display = 'block';
+    await renderCompanyList();
+  }
+
+  function closeCompanyListModal() {
+    document.getElementById('company-list-modal').style.display = 'none';
+  }
+
+  async function renderCompanyList() {
+    const body = document.getElementById('company-list-body');
+    body.innerHTML = '<tr><td colspan="5" style="text-align:center">Loading...</td></tr>';
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE}/api/customer-companies`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      const data = await response.json();
+
+      if (data.success && data.companies) {
+        if (data.companies.length === 0) {
+          body.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#6b7280">No companies found</td></tr>';
+          return;
+        }
+
+        body.innerHTML = data.companies.map(company => {
+          const slaLabels = { basic: 'Basic', premium: 'Premium', enterprise: 'Enterprise' };
+          const memberCount = company.team_member_count || 0;
+          const canDelete = memberCount === 0;
+
+          return `
+            <tr>
+              <td><strong>${escapeHtml(company.company_name)}</strong></td>
+              <td>${escapeHtml(company.company_domain || '-')}</td>
+              <td>${slaLabels[company.sla_level] || company.sla_level || 'Basic'}</td>
+              <td style="text-align:center">${memberCount}</td>
+              <td>
+                <div class="row" style="gap:4px">
+                  <button class="btn ghost small" onclick="editCompany(${company.id})">Edit</button>
+                  <button class="btn ghost small" onclick="deleteCompany(${company.id}, '${escapeHtml(company.company_name)}', ${memberCount})" ${canDelete ? '' : 'disabled'} title="${canDelete ? 'Delete company' : 'Cannot delete - has team members'}">Delete</button>
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } else {
+        body.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#b91c1c">Failed to load companies</td></tr>';
+      }
+    } catch (error) {
+      console.error('Error loading companies:', error);
+      body.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#b91c1c">Error loading companies</td></tr>';
+    }
+  }
+
+  function editCompany(companyId) {
+    const company = allCustomerCompanies.find(c => c.id === companyId);
+    if (!company) {
+      alert('Company not found');
+      return;
+    }
+
+    document.getElementById('company-modal-title').textContent = 'Edit Company';
+    document.getElementById('company-save-btn-text').textContent = 'Save Changes';
+    document.getElementById('company-id').value = company.id;
+    document.getElementById('company-name').value = company.company_name || '';
+    document.getElementById('company-domain').value = company.company_domain || '';
+    document.getElementById('company-phone').value = company.contact_phone || '';
+    document.getElementById('company-address').value = company.address || '';
+    document.getElementById('company-sla').value = company.sla_level || 'basic';
+    document.getElementById('company-notes').value = company.notes || '';
+    document.getElementById('company-form-message').style.display = 'none';
+    document.getElementById('company-form-error').style.display = 'none';
+
+    closeCompanyListModal();
+    document.getElementById('company-modal').style.display = 'block';
+  }
+
+  async function deleteCompany(companyId, companyName, memberCount) {
+    if (memberCount > 0) {
+      alert(`Cannot delete "${companyName}" - it has ${memberCount} active team member(s). Deactivate all team members first.`);
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to delete "${companyName}"?\n\nThis will deactivate the company. To permanently delete, you can do so from the database.`)) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE}/api/customer-companies/${companyId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        alert(`Company "${companyName}" has been deleted.`);
+        // Reload companies
+        allCustomerCompanies = [];
+        await loadCustomerCompanies();
+        await renderCompanyList();
+        renderCustomers();
+      } else {
+        alert(data.message || 'Failed to delete company');
+      }
+    } catch (error) {
+      console.error('Error deleting company:', error);
+      alert('Error deleting company. Please try again.');
+    }
   }
 
   async function saveCustomerCompany(event) {
