@@ -12,6 +12,7 @@ const {
   writeOperationsLimiter,
   readOperationsLimiter
 } = require('../middleware/rateLimiter');
+const { triggerTeamsNotificationAsync } = require('../services/teams-notification');
 
 // AI-powered CMDB auto-linking (fire-and-forget)
 const { triggerAutoLink } = require('../scripts/auto-link-cmdb');
@@ -697,6 +698,9 @@ router.post('/:tenantId', writeOperationsLimiter, validateTicketCreate, async (r
         tenantCode: tenantCode
       }, 'created', {});
 
+      // Send Teams notification (fire-and-forget)
+      triggerTeamsNotificationAsync('created', tickets[0], tenantCode);
+
       // Trigger AI-powered CMDB auto-linking (fire-and-forget)
       if (description && description.trim().length > 10) {
         triggerAutoLink(tenantCode, ticketId, req.user.userId);
@@ -1053,6 +1057,9 @@ router.put('/:tenantId/:ticketId', writeOperationsLimiter, validateTicketUpdate,
           }, 'resolved', { comment });
         }
 
+        // Send Teams notification for resolved ticket
+        triggerTeamsNotificationAsync('resolved', tickets[0], tenantCode, { resolutionComment: comment });
+
         // Fire-and-forget: Auto-generate KB article from resolved ticket
         autoGenerateKBArticle(tenantCode, parseInt(ticketId), { userId: req.user.userId })
           .then(result => {
@@ -1072,6 +1079,9 @@ router.put('/:tenantId/:ticketId', writeOperationsLimiter, validateTicketUpdate,
           customer_name: tickets[0].requester_name,
           tenantCode: tenantCode
         }, 'status_changed', { oldStatus, newStatus: status });
+
+        // Send Teams notification for status change
+        triggerTeamsNotificationAsync('status_changed', tickets[0], tenantCode, { previous_status: oldStatus });
       }
 
       // Send email notification if ticket was assigned
@@ -1087,6 +1097,9 @@ router.put('/:tenantId/:ticketId', writeOperationsLimiter, validateTicketUpdate,
           assignee_role: tickets[0].assignee_role,
           comment
         });
+
+        // Send Teams notification for assignment
+        triggerTeamsNotificationAsync('assigned', tickets[0], tenantCode, { assignedTo: tickets[0].assignee_name });
       }
 
       // Re-trigger AI CMDB auto-linking if a meaningful comment was added
