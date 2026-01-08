@@ -2274,30 +2274,72 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             <div class="row"><button class="btn ghost" onclick="switchView('dash')">← Back</button><h3 class="title" style="margin:0 0 0 8px">Manage Experts</h3></div>
             <div class="row" style="gap:8px">
               <button class="btn primary" onclick="showCreateExpertForm()">+ Add Expert</button>
-              <button class="btn" onclick="showInviteExpertModal()">✉️ Invite Expert</button>
-              <button id="show-deleted-btn" class="btn" onclick="toggleDeletedExperts()">Show Deleted</button>
+              <button class="btn" onclick="showBulkImportModal()">Import</button>
+              <button class="btn" onclick="showInviteExpertModal()">Invite</button>
               <input id="expert-search" class="input" style="min-width:260px" placeholder="Search experts by name, username, location..." oninput="renderExperts(); saveFilterSettings('experts')"/>
             </div>
           </div>
-          <!-- Desktop table view -->
-          <div class="card p-16 hide-mobile">
-            <table>
-              <thead>
-                <tr>
-                  <th>Real Name</th>
-                  <th>Username</th>
-                  <th>Location</th>
-                  <th>Email</th>
-                  <th>Open Tickets</th>
-                  <th>Last Login</th>
-                  <th style="width:180px">Actions</th>
-                </tr>
-              </thead>
-              <tbody id="experts-body"></tbody>
-            </table>
+          <!-- Expert tabs -->
+          <div class="row mb-16" style="gap:8px">
+            <button id="tab-active-experts" class="btn primary" onclick="showActiveExperts()">Active Experts</button>
+            <button id="tab-invited-experts" class="btn ghost" onclick="showInvitedExperts()">Invited</button>
+            <button id="tab-deleted-experts" class="btn ghost" onclick="showDeletedExperts()">Deleted</button>
           </div>
-          <!-- Mobile card view -->
-          <div id="experts-cards" class="mobile-cards show-mobile"></div>
+          <!-- Active experts table (Desktop) -->
+          <div id="active-experts-section">
+            <div class="card p-16 hide-mobile">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Real Name</th>
+                    <th>Username</th>
+                    <th>Location</th>
+                    <th>Email</th>
+                    <th>Open Tickets</th>
+                    <th>Last Login</th>
+                    <th style="width:180px">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="experts-body"></tbody>
+              </table>
+            </div>
+            <!-- Mobile card view -->
+            <div id="experts-cards" class="mobile-cards show-mobile"></div>
+          </div>
+          <!-- Invited experts section -->
+          <div id="invited-experts-section" style="display:none">
+            <div class="card p-16">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Invited</th>
+                    <th>Expires</th>
+                    <th>Status</th>
+                    <th style="width:180px">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="invited-experts-body"></tbody>
+              </table>
+            </div>
+          </div>
+          <!-- Deleted experts section -->
+          <div id="deleted-experts-section" style="display:none">
+            <div class="card p-16">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Username</th>
+                    <th>Email</th>
+                    <th style="width:180px">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="deleted-experts-body"></tbody>
+              </table>
+            </div>
+          </div>
         </div>
 
         <!-- Expert Detail View -->
@@ -3217,6 +3259,48 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             <div class="foot">
               <button class="btn ghost" onclick="closeInviteExpertModal()">Cancel</button>
               <button id="invite-submit-btn" class="btn primary" onclick="sendExpertInvitation()">Send Invitation</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bulk Import Experts Modal -->
+        <div id="bulk-import-modal" class="modal" style="display:none">
+          <div class="sheet" style="width:min(700px,calc(100vw - 32px))">
+            <div class="head">Import Experts</div>
+            <div class="body">
+              <div class="subtitle mb-12" style="background:#eff6ff;padding:12px;border-radius:4px;border-left:4px solid #2563eb">
+                Paste CSV data to invite multiple experts at once. One expert per line.
+              </div>
+
+              <div class="mb-12">
+                <label class="subtitle">Format: email, first_name, last_name, salutation (optional)</label>
+                <textarea id="bulk-import-data" class="input" rows="8" placeholder="john@example.com, John, Doe
+jane@example.com, Jane, Smith, Dr.
+bob@example.com, Bob, Wilson"></textarea>
+              </div>
+
+              <div id="bulk-import-results" style="display:none">
+                <h4 class="mb-8">Import Results</h4>
+                <div id="bulk-import-summary" class="subtitle mb-12"></div>
+                <div style="max-height:200px;overflow-y:auto">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Email</th>
+                        <th>Status</th>
+                        <th>Message</th>
+                      </tr>
+                    </thead>
+                    <tbody id="bulk-import-results-body"></tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div id="bulk-import-error" class="subtitle" style="color:#b91c1c;display:none;margin-top:8px"></div>
+            </div>
+            <div class="foot">
+              <button class="btn ghost" onclick="closeBulkImportModal()">Cancel</button>
+              <button id="bulk-import-submit-btn" class="btn primary" onclick="processBulkImport()">Import Experts</button>
             </div>
           </div>
         </div>
@@ -9374,6 +9458,296 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       errorEl.style.display = 'block';
       submitBtn.disabled = false;
       submitBtn.textContent = 'Send Invitation';
+    }
+  }
+
+  // =============================================
+  // Bulk Import Experts Functions
+  // =============================================
+
+  function showBulkImportModal() {
+    document.getElementById('bulk-import-data').value = '';
+    document.getElementById('bulk-import-results').style.display = 'none';
+    document.getElementById('bulk-import-error').style.display = 'none';
+    document.getElementById('bulk-import-submit-btn').disabled = false;
+    document.getElementById('bulk-import-submit-btn').textContent = 'Import Experts';
+    document.getElementById('bulk-import-modal').style.display = 'flex';
+  }
+
+  function closeBulkImportModal() {
+    document.getElementById('bulk-import-modal').style.display = 'none';
+    // Refresh experts list if any were imported
+    renderExperts();
+    loadInvitedExperts();
+  }
+
+  async function processBulkImport() {
+    const dataText = document.getElementById('bulk-import-data').value.trim();
+    const errorEl = document.getElementById('bulk-import-error');
+    const resultsEl = document.getElementById('bulk-import-results');
+    const submitBtn = document.getElementById('bulk-import-submit-btn');
+
+    errorEl.style.display = 'none';
+    resultsEl.style.display = 'none';
+
+    if (!dataText) {
+      errorEl.textContent = 'Please enter CSV data';
+      errorEl.style.display = 'block';
+      return;
+    }
+
+    // Parse CSV
+    const lines = dataText.split('\n').filter(line => line.trim());
+    const experts = [];
+
+    for (const line of lines) {
+      const parts = line.split(',').map(p => p.trim());
+      if (parts.length < 3) {
+        errorEl.textContent = `Invalid line: "${line}". Format: email, first_name, last_name, salutation (optional)`;
+        errorEl.style.display = 'block';
+        return;
+      }
+      experts.push({
+        email: parts[0],
+        first_name: parts[1],
+        last_name: parts[2],
+        salutation: parts[3] || ''
+      });
+    }
+
+    if (experts.length === 0) {
+      errorEl.textContent = 'No valid experts found in input';
+      errorEl.style.display = 'block';
+      return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Importing...';
+
+    try {
+      const token = localStorage.getItem('token');
+      const tenantCode = localStorage.getItem('tenantCode') || 'apoyar';
+      const response = await fetch(`${API_BASE}/api/experts/${tenantCode}/bulk-invite`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ experts })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Show results
+        document.getElementById('bulk-import-summary').textContent = data.message;
+        const resultsBody = document.getElementById('bulk-import-results-body');
+        resultsBody.innerHTML = data.results.map(r => {
+          const statusClass = r.status === 'invited' ? 'color:#16a34a' : r.status === 'skipped' ? 'color:#ca8a04' : 'color:#b91c1c';
+          return `<tr>
+            <td>${escapeHtml(r.email)}</td>
+            <td style="${statusClass};font-weight:600">${r.status.toUpperCase()}</td>
+            <td>${escapeHtml(r.message)}</td>
+          </tr>`;
+        }).join('');
+        resultsEl.style.display = 'block';
+        submitBtn.textContent = 'Done';
+      } else {
+        errorEl.textContent = data.message || 'Import failed';
+        errorEl.style.display = 'block';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Import Experts';
+      }
+    } catch (error) {
+      console.error('Error bulk importing:', error);
+      errorEl.textContent = 'Error importing experts. Please try again.';
+      errorEl.style.display = 'block';
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Import Experts';
+    }
+  }
+
+  // =============================================
+  // Expert Tab Navigation Functions
+  // =============================================
+
+  function showActiveExperts() {
+    document.getElementById('tab-active-experts').className = 'btn primary';
+    document.getElementById('tab-invited-experts').className = 'btn ghost';
+    document.getElementById('tab-deleted-experts').className = 'btn ghost';
+    document.getElementById('active-experts-section').style.display = 'block';
+    document.getElementById('invited-experts-section').style.display = 'none';
+    document.getElementById('deleted-experts-section').style.display = 'none';
+    renderExperts();
+  }
+
+  function showInvitedExperts() {
+    document.getElementById('tab-active-experts').className = 'btn ghost';
+    document.getElementById('tab-invited-experts').className = 'btn primary';
+    document.getElementById('tab-deleted-experts').className = 'btn ghost';
+    document.getElementById('active-experts-section').style.display = 'none';
+    document.getElementById('invited-experts-section').style.display = 'block';
+    document.getElementById('deleted-experts-section').style.display = 'none';
+    loadInvitedExperts();
+  }
+
+  function showDeletedExperts() {
+    document.getElementById('tab-active-experts').className = 'btn ghost';
+    document.getElementById('tab-invited-experts').className = 'btn ghost';
+    document.getElementById('tab-deleted-experts').className = 'btn primary';
+    document.getElementById('active-experts-section').style.display = 'none';
+    document.getElementById('invited-experts-section').style.display = 'none';
+    document.getElementById('deleted-experts-section').style.display = 'block';
+    loadDeletedExperts();
+  }
+
+  async function loadInvitedExperts() {
+    const body = document.getElementById('invited-experts-body');
+    body.innerHTML = '<tr><td colspan="6" style="text-align:center">Loading...</td></tr>';
+
+    try {
+      const token = localStorage.getItem('token');
+      const tenantCode = localStorage.getItem('tenantCode') || 'apoyar';
+      const response = await fetch(`${API_BASE}/api/experts/${tenantCode}/invited`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.experts) {
+        if (data.experts.length === 0) {
+          body.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#6b7280">No pending invitations</td></tr>';
+          return;
+        }
+
+        body.innerHTML = data.experts.map(e => {
+          const invitedDate = e.invitation_sent_at ? new Date(e.invitation_sent_at).toLocaleDateString() : '-';
+          const expiresDate = e.invitation_expires ? new Date(e.invitation_expires).toLocaleDateString() : '-';
+          const statusBadge = e.status === 'pending'
+            ? '<span class="badge" style="background:#dcfce7;color:#16a34a">Pending</span>'
+            : '<span class="badge" style="background:#fef2f2;color:#b91c1c">Expired</span>';
+
+          return `<tr>
+            <td>${escapeHtml(e.full_name || '-')}</td>
+            <td>${escapeHtml(e.email)}</td>
+            <td>${invitedDate}</td>
+            <td>${expiresDate}</td>
+            <td>${statusBadge}</td>
+            <td>
+              <div class="row" style="gap:4px">
+                <button class="btn ghost small" onclick="reinviteExpert(${e.id}, '${escapeHtml(e.email)}')">Reinvite</button>
+                <button class="btn ghost small" onclick="revokeInvite(${e.id}, '${escapeHtml(e.full_name || e.email)}')">Revoke</button>
+              </div>
+            </td>
+          </tr>`;
+        }).join('');
+      } else {
+        body.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#b91c1c">Failed to load invitations</td></tr>';
+      }
+    } catch (error) {
+      console.error('Error loading invited experts:', error);
+      body.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#b91c1c">Error loading invitations</td></tr>';
+    }
+  }
+
+  async function loadDeletedExperts() {
+    const body = document.getElementById('deleted-experts-body');
+    body.innerHTML = '<tr><td colspan="4" style="text-align:center">Loading...</td></tr>';
+
+    try {
+      const token = localStorage.getItem('token');
+      const tenantCode = localStorage.getItem('tenantCode') || 'apoyar';
+      const response = await fetch(`${API_BASE}/api/experts/${tenantCode}/deleted`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.experts) {
+        if (data.experts.length === 0) {
+          body.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#6b7280">No deleted experts</td></tr>';
+          return;
+        }
+
+        body.innerHTML = data.experts.map(e => `<tr>
+          <td>${escapeHtml(e.full_name || '-')}</td>
+          <td>${escapeHtml(e.username)}</td>
+          <td>${escapeHtml(e.email)}</td>
+          <td>
+            <div class="row" style="gap:4px">
+              <button class="btn ghost small" onclick="restoreExpert(${e.id}, '${escapeHtml(e.full_name || e.username)}')">Restore</button>
+              <button class="btn ghost small" onclick="eraseExpert(${e.id}, '${escapeHtml(e.full_name || e.username)}')">Erase</button>
+            </div>
+          </td>
+        </tr>`).join('');
+      } else {
+        body.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#b91c1c">Failed to load deleted experts</td></tr>';
+      }
+    } catch (error) {
+      console.error('Error loading deleted experts:', error);
+      body.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#b91c1c">Error loading deleted experts</td></tr>';
+    }
+  }
+
+  async function reinviteExpert(expertId, email) {
+    if (!confirm(`Resend invitation to ${email}?`)) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const tenantCode = localStorage.getItem('tenantCode') || 'apoyar';
+      const response = await fetch(`${API_BASE}/api/experts/${tenantCode}/${expertId}/resend-invite`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        alert('Invitation resent successfully');
+        loadInvitedExperts();
+      } else {
+        alert('Failed to resend invitation: ' + (data.message || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error resending invitation:', error);
+      alert('Error resending invitation');
+    }
+  }
+
+  async function revokeInvite(expertId, name) {
+    if (!confirm(`Revoke invitation for "${name}"?\n\nThis will permanently remove the pending invitation.`)) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const tenantCode = localStorage.getItem('tenantCode') || 'apoyar';
+      const response = await fetch(`${API_BASE}/api/experts/${tenantCode}/${expertId}/revoke-invite`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        alert('Invitation revoked');
+        loadInvitedExperts();
+      } else {
+        alert('Failed to revoke invitation: ' + (data.message || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error revoking invitation:', error);
+      alert('Error revoking invitation');
     }
   }
 
