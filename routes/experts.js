@@ -626,24 +626,37 @@ router.delete('/:tenantId/:expertId/erase', async (req, res) => {
         });
       }
 
-      // Check for assigned tickets
-      const [assignedTickets] = await connection.query(
-        'SELECT COUNT(*) as count FROM tickets WHERE assignee_id = ?',
-        [expertId]
-      );
+      // Clean up all foreign key references before deletion
+      // Helper to run query and ignore "table doesn't exist" errors
+      const safeQuery = async (sql, params) => {
+        try {
+          await connection.query(sql, params);
+        } catch (err) {
+          if (err.code !== 'ER_NO_SUCH_TABLE') throw err;
+        }
+      };
 
-      if (assignedTickets[0].count > 0) {
-        // Unassign tickets before deletion
-        await connection.query(
-          'UPDATE tickets SET assignee_id = NULL WHERE assignee_id = ?',
-          [expertId]
-        );
-        console.log(`Unassigned ${assignedTickets[0].count} tickets from expert ${expertId}`);
-      }
+      // Unassign from tickets
+      await safeQuery('UPDATE tickets SET assignee_id = NULL WHERE assignee_id = ?', [expertId]);
+      await safeQuery('UPDATE tickets SET created_by = NULL WHERE created_by = ?', [expertId]);
 
-      // Delete related records first (due to foreign keys)
-      await connection.query('DELETE FROM expert_ticket_permissions WHERE expert_id = ?', [expertId]);
-      await connection.query('DELETE FROM ticket_activity WHERE user_id = ?', [expertId]);
+      // Clear KB references
+      await safeQuery('UPDATE kb_articles SET created_by = NULL WHERE created_by = ?', [expertId]);
+      await safeQuery('UPDATE kb_articles SET updated_by = NULL WHERE updated_by = ?', [expertId]);
+      await safeQuery('UPDATE kb_categories SET created_by = NULL WHERE created_by = ?', [expertId]);
+
+      // Clear CMDB references
+      await safeQuery('UPDATE cmdb_items SET created_by = NULL WHERE created_by = ?', [expertId]);
+      await safeQuery('UPDATE ticket_cmdb SET created_by = NULL WHERE created_by = ?', [expertId]);
+
+      // Clear ticket rules references
+      await safeQuery('UPDATE ticket_rules SET created_by = NULL WHERE created_by = ?', [expertId]);
+
+      // Delete related records (these are user-specific, not shared)
+      await safeQuery('DELETE FROM expert_ticket_permissions WHERE expert_id = ?', [expertId]);
+      await safeQuery('DELETE FROM ticket_activity WHERE user_id = ?', [expertId]);
+      await safeQuery('DELETE FROM kb_article_feedback WHERE user_id = ?', [expertId]);
+      await safeQuery('DELETE FROM kb_article_views WHERE user_id = ?', [expertId]);
 
       // Permanently delete the expert
       await connection.query('DELETE FROM users WHERE id = ?', [expertId]);
