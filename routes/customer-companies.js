@@ -92,6 +92,7 @@ router.get('/', requireRole(['admin', 'expert']), readOperationsLimiter, async (
            WHERE c.customer_company_id = cc.id AND cu.is_active = TRUE) as team_member_count
         FROM customer_companies cc
         LEFT JOIN users u ON cc.admin_user_id = u.id
+        WHERE cc.is_active = TRUE
         ORDER BY cc.company_name ASC
       `);
 
