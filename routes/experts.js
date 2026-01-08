@@ -637,10 +637,21 @@ router.delete('/:tenantId/:expertId/erase', async (req, res) => {
         }
       };
 
-      // Unassign from tickets (handle all user reference columns)
+      // Check if user has created any tickets (as requester)
+      const [requestedTickets] = await connection.query(
+        'SELECT COUNT(*) as count FROM tickets WHERE requester_id = ?',
+        [expertId]
+      );
+      if (requestedTickets[0].count > 0) {
+        return res.status(400).json({
+          success: false,
+          message: `Cannot erase expert - they have created ${requestedTickets[0].count} ticket(s). Reassign or delete those tickets first.`
+        });
+      }
+
+      // Unassign from tickets (handle nullable user reference columns)
       await safeQuery('UPDATE tickets SET assignee_id = NULL WHERE assignee_id = ?', [expertId]);
       await safeQuery('UPDATE tickets SET created_by = NULL WHERE created_by = ?', [expertId]);
-      await safeQuery('UPDATE tickets SET requester_id = NULL WHERE requester_id = ?', [expertId]);
       await safeQuery('UPDATE tickets SET customer_id = NULL WHERE customer_id = ?', [expertId]);
       await safeQuery('UPDATE tickets SET previous_assignee_id = NULL WHERE previous_assignee_id = ?', [expertId]);
 
