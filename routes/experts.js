@@ -627,12 +627,13 @@ router.delete('/:tenantId/:expertId/erase', async (req, res) => {
       }
 
       // Clean up all foreign key references before deletion
-      // Helper to run query and ignore "table doesn't exist" errors
+      // Helper to run query and ignore missing table/column errors
       const safeQuery = async (sql, params) => {
         try {
           await connection.query(sql, params);
         } catch (err) {
-          if (err.code !== 'ER_NO_SUCH_TABLE') throw err;
+          // Ignore missing table or column errors
+          if (err.code !== 'ER_NO_SUCH_TABLE' && err.code !== 'ER_BAD_FIELD_ERROR') throw err;
         }
       };
 
