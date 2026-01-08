@@ -637,16 +637,18 @@ router.delete('/:tenantId/:expertId/erase', async (req, res) => {
         }
       };
 
-      // Check if user has created any tickets (as requester)
+      // Reassign any tickets where this expert is the requester to the admin performing the erase
+      const adminId = req.user.userId;
       const [requestedTickets] = await connection.query(
         'SELECT COUNT(*) as count FROM tickets WHERE requester_id = ?',
         [expertId]
       );
       if (requestedTickets[0].count > 0) {
-        return res.status(400).json({
-          success: false,
-          message: `Cannot erase expert - they have created ${requestedTickets[0].count} ticket(s). Reassign or delete those tickets first.`
-        });
+        await connection.query(
+          'UPDATE tickets SET requester_id = ? WHERE requester_id = ?',
+          [adminId, expertId]
+        );
+        console.log(`Reassigned ${requestedTickets[0].count} tickets from erased expert ${expertId} to admin ${adminId}`);
       }
 
       // Unassign from tickets (handle nullable user reference columns)
@@ -692,13 +694,17 @@ router.delete('/:tenantId/:expertId/erase', async (req, res) => {
 
       console.log(`🗑️ Permanently erased expert: ${existing[0].email} (ID: ${expertId})`);
 
+      const ticketsReassigned = requestedTickets[0].count;
       res.json({
         success: true,
-        message: 'Expert permanently erased',
+        message: ticketsReassigned > 0
+          ? `Expert permanently erased. ${ticketsReassigned} ticket(s) were reassigned to you.`
+          : 'Expert permanently erased',
         erased: {
           id: expertId,
           email: existing[0].email,
-          fullName: existing[0].full_name
+          fullName: existing[0].full_name,
+          ticketsReassigned
         }
       });
     } finally {
