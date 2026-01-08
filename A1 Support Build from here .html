@@ -3269,14 +3269,30 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             <div class="head">Import Experts</div>
             <div class="body">
               <div class="subtitle mb-12" style="background:#eff6ff;padding:12px;border-radius:4px;border-left:4px solid #2563eb">
-                Paste CSV data to invite multiple experts at once. One expert per line.
+                Upload a CSV file to invite multiple experts at once.<br>
+                <strong>Format:</strong> email, first_name, last_name, salutation (optional)
               </div>
 
               <div class="mb-12">
-                <label class="subtitle">Format: email, first_name, last_name, salutation (optional)</label>
-                <textarea id="bulk-import-data" class="input" rows="8" placeholder="john@example.com, John, Doe
-jane@example.com, Jane, Smith, Dr.
-bob@example.com, Bob, Wilson"></textarea>
+                <label class="subtitle">Select CSV File</label>
+                <input type="file" id="bulk-import-file" class="input" accept=".csv" style="padding:8px">
+              </div>
+
+              <div id="bulk-import-preview" style="display:none" class="mb-12">
+                <label class="subtitle">Preview (<span id="bulk-import-count">0</span> experts)</label>
+                <div style="max-height:150px;overflow-y:auto;background:#f9fafb;border:1px solid #e5e7eb;border-radius:4px;padding:8px;font-size:13px">
+                  <table style="width:100%">
+                    <thead>
+                      <tr style="text-align:left">
+                        <th style="padding:4px">Email</th>
+                        <th style="padding:4px">First Name</th>
+                        <th style="padding:4px">Last Name</th>
+                        <th style="padding:4px">Salutation</th>
+                      </tr>
+                    </thead>
+                    <tbody id="bulk-import-preview-body"></tbody>
+                  </table>
+                </div>
               </div>
 
               <div id="bulk-import-results" style="display:none">
@@ -9465,12 +9481,16 @@ bob@example.com, Bob, Wilson"></textarea>
   // Bulk Import Experts Functions
   // =============================================
 
+  let bulkImportExperts = []; // Store parsed experts from CSV
+
   function showBulkImportModal() {
-    document.getElementById('bulk-import-data').value = '';
+    document.getElementById('bulk-import-file').value = '';
+    document.getElementById('bulk-import-preview').style.display = 'none';
     document.getElementById('bulk-import-results').style.display = 'none';
     document.getElementById('bulk-import-error').style.display = 'none';
-    document.getElementById('bulk-import-submit-btn').disabled = false;
+    document.getElementById('bulk-import-submit-btn').disabled = true;
     document.getElementById('bulk-import-submit-btn').textContent = 'Import Experts';
+    bulkImportExperts = [];
     document.getElementById('bulk-import-modal').style.display = 'flex';
   }
 
@@ -9481,8 +9501,113 @@ bob@example.com, Bob, Wilson"></textarea>
     loadInvitedExperts();
   }
 
+  // Handle CSV file selection
+  document.addEventListener('DOMContentLoaded', function() {
+    const fileInput = document.getElementById('bulk-import-file');
+    if (fileInput) {
+      fileInput.addEventListener('change', handleBulkImportFile);
+    }
+  });
+
+  function handleBulkImportFile(event) {
+    const file = event.target.files[0];
+    const errorEl = document.getElementById('bulk-import-error');
+    const previewEl = document.getElementById('bulk-import-preview');
+    const submitBtn = document.getElementById('bulk-import-submit-btn');
+
+    errorEl.style.display = 'none';
+    previewEl.style.display = 'none';
+    submitBtn.disabled = true;
+    bulkImportExperts = [];
+
+    if (!file) return;
+
+    if (!file.name.endsWith('.csv')) {
+      errorEl.textContent = 'Please select a CSV file';
+      errorEl.style.display = 'block';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const text = e.target.result;
+      const lines = text.split(/\r?\n/).filter(line => line.trim());
+
+      // Skip header row if it looks like a header
+      let startIndex = 0;
+      if (lines.length > 0) {
+        const firstLine = lines[0].toLowerCase();
+        if (firstLine.includes('email') || firstLine.includes('first') || firstLine.includes('name')) {
+          startIndex = 1;
+        }
+      }
+
+      const experts = [];
+      const errors = [];
+
+      for (let i = startIndex; i < lines.length; i++) {
+        const line = lines[i];
+        const parts = line.split(',').map(p => p.trim().replace(/^["']|["']$/g, '')); // Remove quotes
+        if (parts.length < 3) {
+          errors.push(`Line ${i + 1}: Not enough columns`);
+          continue;
+        }
+        if (!parts[0] || !parts[0].includes('@')) {
+          errors.push(`Line ${i + 1}: Invalid email "${parts[0]}"`);
+          continue;
+        }
+        experts.push({
+          email: parts[0],
+          first_name: parts[1],
+          last_name: parts[2],
+          salutation: parts[3] || ''
+        });
+      }
+
+      if (errors.length > 0 && experts.length === 0) {
+        errorEl.textContent = errors.join('; ');
+        errorEl.style.display = 'block';
+        return;
+      }
+
+      if (experts.length === 0) {
+        errorEl.textContent = 'No valid experts found in CSV file';
+        errorEl.style.display = 'block';
+        return;
+      }
+
+      bulkImportExperts = experts;
+
+      // Show preview
+      document.getElementById('bulk-import-count').textContent = experts.length;
+      const previewBody = document.getElementById('bulk-import-preview-body');
+      previewBody.innerHTML = experts.slice(0, 10).map(e => `
+        <tr>
+          <td style="padding:4px">${e.email}</td>
+          <td style="padding:4px">${e.first_name}</td>
+          <td style="padding:4px">${e.last_name}</td>
+          <td style="padding:4px">${e.salutation || '-'}</td>
+        </tr>
+      `).join('') + (experts.length > 10 ? `<tr><td colspan="4" style="padding:4px;color:#6b7280">...and ${experts.length - 10} more</td></tr>` : '');
+
+      previewEl.style.display = 'block';
+      submitBtn.disabled = false;
+
+      if (errors.length > 0) {
+        errorEl.textContent = `Warning: ${errors.length} invalid rows skipped`;
+        errorEl.style.display = 'block';
+      }
+    };
+
+    reader.onerror = function() {
+      errorEl.textContent = 'Error reading file';
+      errorEl.style.display = 'block';
+    };
+
+    reader.readAsText(file);
+  }
+
   async function processBulkImport() {
-    const dataText = document.getElementById('bulk-import-data').value.trim();
     const errorEl = document.getElementById('bulk-import-error');
     const resultsEl = document.getElementById('bulk-import-results');
     const submitBtn = document.getElementById('bulk-import-submit-btn');
@@ -9490,33 +9615,8 @@ bob@example.com, Bob, Wilson"></textarea>
     errorEl.style.display = 'none';
     resultsEl.style.display = 'none';
 
-    if (!dataText) {
-      errorEl.textContent = 'Please enter CSV data';
-      errorEl.style.display = 'block';
-      return;
-    }
-
-    // Parse CSV
-    const lines = dataText.split('\n').filter(line => line.trim());
-    const experts = [];
-
-    for (const line of lines) {
-      const parts = line.split(',').map(p => p.trim());
-      if (parts.length < 3) {
-        errorEl.textContent = `Invalid line: "${line}". Format: email, first_name, last_name, salutation (optional)`;
-        errorEl.style.display = 'block';
-        return;
-      }
-      experts.push({
-        email: parts[0],
-        first_name: parts[1],
-        last_name: parts[2],
-        salutation: parts[3] || ''
-      });
-    }
-
-    if (experts.length === 0) {
-      errorEl.textContent = 'No valid experts found in input';
+    if (bulkImportExperts.length === 0) {
+      errorEl.textContent = 'Please select a CSV file first';
       errorEl.style.display = 'block';
       return;
     }
@@ -9533,7 +9633,7 @@ bob@example.com, Bob, Wilson"></textarea>
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ experts })
+        body: JSON.stringify({ experts: bulkImportExperts })
       });
 
       const data = await response.json();
