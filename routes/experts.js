@@ -658,6 +658,7 @@ router.delete('/:tenantId/:expertId/erase', async (req, res) => {
       await safeQuery('DELETE FROM ticket_activity WHERE user_id = ?', [expertId]);
       await safeQuery('DELETE FROM kb_article_feedback WHERE user_id = ?', [expertId]);
       await safeQuery('DELETE FROM kb_article_views WHERE user_id = ?', [expertId]);
+      await safeQuery('DELETE FROM tenant_audit_log WHERE user_id = ?', [expertId]);
 
       // Permanently delete the expert
       await connection.query('DELETE FROM users WHERE id = ?', [expertId]);
