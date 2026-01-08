@@ -65,6 +65,42 @@ router.get('/:tenantId/deleted', async (req, res) => {
   }
 });
 
+// Get invited (pending) experts for a tenant - MUST come before /:tenantId/:expertId
+router.get('/:tenantId/invited', async (req, res) => {
+  try {
+    const { tenantId } = req.params;
+    const connection = await getTenantConnection(tenantId);
+
+    try {
+      const now = new Date();
+      const [experts] = await connection.query(
+        `SELECT
+          u.id, u.username, u.email, u.full_name, u.role, u.is_active,
+          u.invitation_sent_at, u.invitation_expires,
+          u.created_at, u.updated_at
+         FROM users u
+         WHERE u.role IN ('admin', 'expert')
+           AND u.is_active = FALSE
+           AND u.invitation_token IS NOT NULL
+         ORDER BY u.invitation_sent_at DESC`
+      );
+
+      // Add status field based on expiry
+      const expertsWithStatus = experts.map(expert => ({
+        ...expert,
+        status: new Date(expert.invitation_expires) > now ? 'pending' : 'expired'
+      }));
+
+      res.json({ success: true, experts: expertsWithStatus });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error fetching invited experts:', error);
+    res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
+  }
+});
+
 // Get single expert by ID
 router.get('/:tenantId/:expertId', async (req, res) => {
   try {
@@ -378,7 +414,7 @@ router.post('/:tenantId/invite', async (req, res) => {
 
       // Generate invitation token
       const invitationToken = crypto.randomBytes(32).toString('hex');
-      const tokenExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+      const tokenExpiry = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000); // 14 days
 
       // Create full name
       const fullName = salutation
@@ -442,7 +478,7 @@ router.post('/:tenantId/invite', async (req, res) => {
             </div>
 
             <p style="font-size: 14px; color: #666; line-height: 1.6;">
-              This invitation link will expire in 7 days. If the button above doesn't work,
+              This invitation link will expire in 14 days. If the button above doesn't work,
               copy and paste this link into your browser:
             </p>
             <p style="font-size: 12px; color: #888; word-break: break-all; background: #f5f5f5; padding: 10px; border-radius: 4px;">
@@ -495,6 +531,158 @@ router.post('/:tenantId/invite', async (req, res) => {
   }
 });
 
+// Bulk invite experts
+router.post('/:tenantId/bulk-invite', async (req, res) => {
+  try {
+    const { tenantId } = req.params;
+    const { experts: expertsList } = req.body;
+
+    if (!Array.isArray(expertsList) || expertsList.length === 0) {
+      return res.status(400).json({ success: false, message: 'experts array is required' });
+    }
+
+    if (expertsList.length > 100) {
+      return res.status(400).json({ success: false, message: 'Maximum 100 experts per batch' });
+    }
+
+    const connection = await getTenantConnection(tenantId);
+    const masterConn = await getMasterConnection();
+
+    try {
+      // Get tenant name for emails
+      const [tenants] = await masterConn.query(
+        'SELECT name FROM tenants WHERE code = ?',
+        [tenantId]
+      );
+      const tenantName = tenants[0]?.name || tenantId;
+      const baseUrl = process.env.BASE_URL || 'https://serviflow.app';
+
+      const results = [];
+
+      for (const expert of expertsList) {
+        const { email, first_name, last_name, salutation } = expert;
+
+        // Validate required fields
+        if (!email || !first_name || !last_name) {
+          results.push({
+            email: email || 'unknown',
+            status: 'error',
+            message: 'Missing required fields (email, first_name, last_name)'
+          });
+          continue;
+        }
+
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+          results.push({ email, status: 'error', message: 'Invalid email format' });
+          continue;
+        }
+
+        // Check if email exists
+        const [existing] = await connection.query(
+          'SELECT id, is_active, invitation_token, deleted_at, full_name FROM users WHERE email = ?',
+          [email.toLowerCase()]
+        );
+
+        if (existing.length > 0) {
+          const user = existing[0];
+
+          if (user.is_active) {
+            results.push({ email, status: 'skipped', message: 'Already exists as active expert' });
+            continue;
+          }
+
+          if (user.invitation_token && !user.deleted_at) {
+            results.push({ email, status: 'skipped', message: 'Already has pending invitation' });
+            continue;
+          }
+
+          if (user.deleted_at) {
+            results.push({
+              email,
+              status: 'skipped',
+              message: `Deleted expert exists (${user.full_name}). Restore or erase first.`
+            });
+            continue;
+          }
+        }
+
+        // Create invitation
+        const fullName = salutation ? `${salutation} ${first_name} ${last_name}` : `${first_name} ${last_name}`;
+        const invitationToken = crypto.randomBytes(32).toString('hex');
+        const tokenExpiry = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000); // 14 days
+
+        const [insertResult] = await connection.query(
+          `INSERT INTO users (username, email, password_hash, full_name, role, is_active, invitation_token, invitation_expires, invitation_sent_at, created_at, updated_at)
+           VALUES (?, ?, '', ?, 'expert', FALSE, ?, ?, NOW(), NOW(), NOW())`,
+          [email.toLowerCase(), email.toLowerCase(), fullName, invitationToken, tokenExpiry]
+        );
+
+        const expertId = insertResult.insertId;
+        const invitationUrl = `${baseUrl}/accept-invite?token=${invitationToken}&tenant=${tenantId}`;
+
+        // Send email
+        const emailHtml = `
+          <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background: #f9fafb; padding: 20px;">
+            <div style="background: white; border-radius: 8px; padding: 30px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+              <h1 style="color: #003366; margin-bottom: 20px;">Welcome to ServiFlow!</h1>
+              <p style="font-size: 16px; color: #374151; line-height: 1.6;">
+                Hi ${first_name},
+              </p>
+              <p style="font-size: 16px; color: #374151; line-height: 1.6;">
+                You've been invited to join <strong>${tenantName}</strong>'s support team as an Expert.
+              </p>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${invitationUrl}" style="background: #003366; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600;">
+                  Accept Invitation
+                </a>
+              </div>
+              <p style="font-size: 14px; color: #666;">
+                This invitation link will expire in 14 days.
+              </p>
+            </div>
+          </div>
+        `;
+
+        const emailResult = await sendEmail(tenantId, {
+          to: email,
+          subject: `You're invited to join ${tenantName}'s ServiFlow Support Team`,
+          html: emailHtml,
+          emailType: 'experts',
+          skipUserCheck: true
+        });
+
+        results.push({
+          email,
+          status: 'invited',
+          message: emailResult.success ? 'Invitation sent' : 'Created but email failed',
+          expertId,
+          emailSent: emailResult.success
+        });
+      }
+
+      // Summary
+      const invited = results.filter(r => r.status === 'invited').length;
+      const skipped = results.filter(r => r.status === 'skipped').length;
+      const errors = results.filter(r => r.status === 'error').length;
+
+      res.json({
+        success: true,
+        message: `Processed ${results.length} experts: ${invited} invited, ${skipped} skipped, ${errors} errors`,
+        summary: { total: results.length, invited, skipped, errors },
+        results
+      });
+    } finally {
+      connection.release();
+      masterConn.release();
+    }
+  } catch (error) {
+    console.error('Error bulk inviting experts:', error);
+    res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
+  }
+});
+
 // Resend invitation email
 router.post('/:tenantId/:expertId/resend-invite', async (req, res) => {
   try {
@@ -520,7 +708,7 @@ router.post('/:tenantId/:expertId/resend-invite', async (req, res) => {
       const now = new Date();
       if (!invitationToken || new Date(expert.invitation_expires) < now) {
         invitationToken = crypto.randomBytes(32).toString('hex');
-        const tokenExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+        const tokenExpiry = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000); // 14 days
 
         await connection.query(
           'UPDATE users SET invitation_token = ?, invitation_expires = ?, invitation_sent_at = NOW() WHERE id = ?',
@@ -570,7 +758,7 @@ router.post('/:tenantId/:expertId/resend-invite', async (req, res) => {
             </div>
 
             <p style="font-size: 14px; color: #666;">
-              This link will expire in 7 days.
+              This link will expire in 14 days.
             </p>
           </div>
         </div>
@@ -598,6 +786,62 @@ router.post('/:tenantId/:expertId/resend-invite', async (req, res) => {
     }
   } catch (error) {
     console.error('Error resending invitation:', error);
+    res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
+  }
+});
+
+// Revoke invitation (permanently delete pending invite)
+router.delete('/:tenantId/:expertId/revoke-invite', async (req, res) => {
+  try {
+    const { tenantId, expertId } = req.params;
+    const connection = await getTenantConnection(tenantId);
+
+    try {
+      // Check if expert exists and has pending invitation
+      const [existing] = await connection.query(
+        'SELECT id, email, full_name, is_active, invitation_token FROM users WHERE id = ? AND role IN ("admin", "expert")',
+        [expertId]
+      );
+
+      if (existing.length === 0) {
+        return res.status(404).json({ success: false, message: 'Expert not found' });
+      }
+
+      const expert = existing[0];
+
+      if (expert.is_active) {
+        return res.status(400).json({
+          success: false,
+          message: 'Cannot revoke invitation for an active expert'
+        });
+      }
+
+      if (!expert.invitation_token) {
+        return res.status(400).json({
+          success: false,
+          message: 'Expert does not have a pending invitation'
+        });
+      }
+
+      // Permanently delete the user record (they never activated)
+      await connection.query('DELETE FROM users WHERE id = ?', [expertId]);
+
+      console.log(`🗑️ Revoked invitation and deleted pending expert: ${expert.email} (ID: ${expertId})`);
+
+      res.json({
+        success: true,
+        message: 'Invitation revoked and user removed',
+        revoked: {
+          id: expertId,
+          email: expert.email,
+          fullName: expert.full_name
+        }
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error revoking invitation:', error);
     res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
   }
 });
