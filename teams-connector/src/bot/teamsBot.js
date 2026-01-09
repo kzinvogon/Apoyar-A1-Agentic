@@ -117,6 +117,12 @@ async function generateUniqueUsername(pool, base) {
 async function ensureTeamsUser(context, tenantCode, { defaultMode = 'customer' } = {}) {
   const pool = await getTenantConnection(tenantCode);
 
+  // Debug: verify DB connection and schema
+  const [dbRow] = await pool.query("SELECT DATABASE() AS db");
+  console.log("[Bot][DB] Connected DB:", dbRow[0].db);
+  const [cols] = await pool.query("SHOW COLUMNS FROM teams_user_preferences LIKE 'teams_user_id'");
+  console.log("[Bot][DB] teams_user_id column exists:", cols.length > 0);
+
   // Prefer AAD object id (stable) as teams_user_id
   const teamsUserId =
     context.activity.from?.aadObjectId ||
