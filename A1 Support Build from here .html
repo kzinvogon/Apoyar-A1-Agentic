@@ -8130,6 +8130,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   function updateTicketActionButtons() {
     const t = tickets.find(x => x.id === currentTicketId);
+    const currentRole = window.role || role;
     const isCustomer = currentRole === 'customer';
     const isResolved = t && t.status === 'Resolved';
 
