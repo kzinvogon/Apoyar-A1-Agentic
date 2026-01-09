@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const { TeamsActivityHandler, CardFactory, TeamsInfo } = require('botbuilder');
 const { buildTicketCard, buildTicketListCard, buildHelpCard, buildCreateTicketForm, buildModeCard } = require('./adaptiveCards/ticketCard');
 
@@ -81,6 +82,173 @@ function getCompanyNameFromDomain(domain) {
   // Remove common TLDs and capitalize
   const name = domain.split('.')[0];
   return name.charAt(0).toUpperCase() + name.slice(1);
+}
+
+/**
+ * Slugify a string for use as username
+ */
+function slugifyUsername(s) {
+  return String(s || '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9._-]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 40);
+}
+
+/**
+ * Generate a unique username based on a base string
+ */
+async function generateUniqueUsername(pool, base) {
+  const root = slugifyUsername(base) || 'teamsuser';
+  for (let i = 0; i < 50; i++) {
+    const candidate = i === 0 ? root : `${root}-${i + 1}`;
+    const [rows] = await pool.query('SELECT id FROM users WHERE username = ? LIMIT 1', [candidate]);
+    if (rows.length === 0) return candidate;
+  }
+  return `${root}-${crypto.randomBytes(3).toString('hex')}`.slice(0, 50);
+}
+
+/**
+ * Ensures a Teams user exists and is mapped via teams_user_preferences table.
+ * Returns: { userId, email, created, mode }
+ */
+async function ensureTeamsUser(context, tenantCode, { defaultMode = 'customer' } = {}) {
+  const pool = await getTenantConnection(tenantCode);
+
+  // Prefer AAD object id (stable) as teams_user_id
+  const teamsUserId =
+    context.activity.from?.aadObjectId ||
+    context.activity.from?.id ||
+    null;
+
+  // Pull Teams profile for name/email (best effort)
+  let member = null;
+  try {
+    member = await TeamsInfo.getMember(context, context.activity.from.id);
+  } catch (_) {}
+
+  const emailLc = normaliseEmail(
+    context.activity.from?.email ||
+    context.activity.from?.userPrincipalName ||
+    member?.email ||
+    member?.userPrincipalName
+  );
+
+  const fullName =
+    (member && (member.name || `${member.givenName || ''} ${member.surname || ''}`.trim())) ||
+    context.activity.from?.name ||
+    emailLc ||
+    'Teams User';
+
+  // 1) If we have teamsUserId, try mapping table first
+  if (teamsUserId) {
+    const [maps] = await pool.query(
+      `SELECT user_id, mode FROM teams_user_preferences WHERE teams_user_id = ? LIMIT 1`,
+      [teamsUserId]
+    );
+
+    if (maps.length > 0) {
+      const { user_id: userId, mode } = maps[0];
+
+      // Optional: keep user active + update name/email if we got them
+      await pool.query(
+        `UPDATE users
+            SET is_active = 1,
+                full_name = COALESCE(NULLIF(full_name,''), ?),
+                email = COALESCE(email, ?),
+                updated_at = CURRENT_TIMESTAMP
+          WHERE id = ?`,
+        [fullName, emailLc, userId]
+      );
+
+      return { userId, email: emailLc, created: false, mode };
+    }
+  }
+
+  // 2) Fall back: if we have email, see if user already exists
+  let existingUserId = null;
+  let existingRole = null;
+
+  if (emailLc) {
+    const [urows] = await pool.query(
+      'SELECT id, role FROM users WHERE email = ? LIMIT 1',
+      [emailLc]
+    );
+    if (urows.length > 0) {
+      existingUserId = urows[0].id;
+      existingRole = urows[0].role;
+    }
+  }
+
+  // 3) Create user if needed
+  let userId = existingUserId;
+  let created = false;
+
+  if (!userId) {
+    const baseUsername = (emailLc && emailLc.split('@')[0]) || fullName;
+    const username = await generateUniqueUsername(pool, baseUsername);
+
+    // Non-login placeholder (can replace later with invitation flow)
+    const passwordHash = `teams:${crypto.randomBytes(32).toString('hex')}`;
+
+    const role = defaultMode === 'expert' ? 'expert' : 'customer';
+
+    const [ins] = await pool.query(
+      `INSERT INTO users (username, password_hash, role, email, full_name, is_active, must_reset_password)
+       VALUES (?, ?, ?, ?, ?, 1, 0)`,
+      [username, passwordHash, role, emailLc, fullName]
+    );
+
+    userId = ins.insertId;
+    created = true;
+  } else {
+    // Ensure active + update name/email
+    await pool.query(
+      `UPDATE users
+          SET is_active = 1,
+              full_name = COALESCE(NULLIF(full_name,''), ?),
+              email = COALESCE(email, ?),
+              updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?`,
+      [fullName, emailLc, userId]
+    );
+  }
+
+  // 4) Insert mapping row if we have teamsUserId
+  const mode = defaultMode;
+
+  if (teamsUserId) {
+    try {
+      await pool.query(
+        `INSERT INTO teams_user_preferences (user_id, teams_user_id, mode)
+         VALUES (?, ?, ?)
+         ON DUPLICATE KEY UPDATE teams_user_id = VALUES(teams_user_id), mode = VALUES(mode), updated_at = CURRENT_TIMESTAMP`,
+        [userId, teamsUserId, mode]
+      );
+    } catch (err) {
+      // If UNIQUE(user_id) blocks insert (already mapped), just update it
+      await pool.query(
+        `UPDATE teams_user_preferences
+            SET teams_user_id = COALESCE(teams_user_id, ?),
+                mode = COALESCE(mode, ?),
+                updated_at = CURRENT_TIMESTAMP
+          WHERE user_id = ?`,
+        [teamsUserId, mode, userId]
+      );
+    }
+  }
+
+  // Optional: sync users.role with mode if you want
+  if (defaultMode && (!existingRole || existingRole !== (defaultMode === 'expert' ? 'expert' : 'customer'))) {
+    await pool.query(
+      `UPDATE users SET role = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      [defaultMode === 'expert' ? 'expert' : 'customer', userId]
+    );
+  }
+
+  return { userId, email: emailLc, created, mode };
 }
 
 class ServiFlowBot extends TeamsActivityHandler {
