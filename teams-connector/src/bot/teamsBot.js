@@ -2,6 +2,7 @@ const { TeamsActivityHandler, CardFactory, TeamsInfo } = require('botbuilder');
 const { buildTicketCard, buildTicketListCard, buildHelpCard, buildCreateTicketForm } = require('./adaptiveCards/ticketCard');
 
 // Import database utilities (local for standalone deployment)
+// NOTE: These functions return mysql2 *pools*, not single connections.
 const { getTenantConnection, getMasterConnection } = require('../config/database');
 
 // Fallback tenant code if no mapping found
@@ -11,33 +12,50 @@ const DEFAULT_TENANT_CODE = process.env.SERVIFLOW_TENANT_CODE || 'apoyar';
 const tenantCache = new Map();
 const CACHE_TTL = 5 * 60 * 1000;
 
+// Optional: disable DB-driven tenant mapping until the mapping tables exist.
+// Set DISABLE_TEAMS_TENANT_MAPPING=true to always use DEFAULT_TENANT_CODE.
+const DISABLE_TEAMS_TENANT_MAPPING = String(process.env.DISABLE_TEAMS_TENANT_MAPPING || '').toLowerCase() === 'true';
+
 /**
- * Get user email from Teams context
- * Tries multiple sources: activity.from, TeamsInfo API
+ * Normalise an email-like value into a lowercase string (or null).
+ */
+function normaliseEmail(value) {
+  if (value == null) return null;
+  const email = String(value).trim();
+  if (!email) return null;
+  if (!email.includes('@')) return null;
+  return email.toLowerCase();
+}
+
+/**
+ * Get user email from Teams context.
+ * Tries multiple sources: activity.from, TeamsInfo API.
  */
 async function getUserEmail(context) {
   // Try direct properties first
-  let email = context.activity.from?.email || context.activity.from?.userPrincipalName;
-
-  if (email) return email;
+  const direct = context.activity.from?.email || context.activity.from?.userPrincipalName;
+  const directNorm = normaliseEmail(direct);
+  if (directNorm) return directNorm;
 
   // Try to get from Teams API
   try {
     const member = await TeamsInfo.getMember(context, context.activity.from.id);
-    email = member.email || member.userPrincipalName;
-    if (email) {
-      console.log(`[Bot] Got email from TeamsInfo: ${email}`);
-      return email;
+    const apiEmail = member?.email || member?.userPrincipalName;
+    const apiNorm = normaliseEmail(apiEmail);
+    if (apiNorm) {
+      console.log(`[Bot] Got email from TeamsInfo: ${apiNorm}`);
+      return apiNorm;
     }
   } catch (error) {
     console.log(`[Bot] TeamsInfo.getMember failed: ${error.message}`);
   }
 
-  // Log what we have for debugging
+  // Log what we have for debugging (avoid dumping huge objects)
   console.log('[Bot] User info available:', JSON.stringify({
     id: context.activity.from?.id,
     name: context.activity.from?.name,
-    aadObjectId: context.activity.from?.aadObjectId
+    aadObjectId: context.activity.from?.aadObjectId,
+    userPrincipalName: context.activity.from?.userPrincipalName
   }));
 
   return null;
@@ -55,7 +73,7 @@ class ServiFlowBot extends TeamsActivityHandler {
 
     // Handle when bot is added to a team/channel
     this.onMembersAdded(async (context, next) => {
-      const membersAdded = context.activity.membersAdded;
+      const membersAdded = context.activity.membersAdded || [];
       for (const member of membersAdded) {
         if (member.id !== context.activity.recipient.id) {
           await context.sendActivity(
@@ -71,22 +89,35 @@ class ServiFlowBot extends TeamsActivityHandler {
       }
       await next();
     });
-
   }
 
   /**
-   * Resolve tenant code from Teams context
-   * Priority: 1) Teams tenant ID mapping, 2) Email domain mapping, 3) Default
+   * Resolve tenant code from Teams context.
+   * Priority: 1) Teams tenant ID mapping, 2) Email domain mapping, 3) Default.
+   *
+   * IMPORTANT: getMasterConnection() returns a *pool*.
+   * Pools must NOT be released per request.
    */
   async resolveTenant(context) {
-    const teamsTenantId = context.activity.conversation?.tenantId ||
-                          context.activity.channelData?.tenant?.id;
-    const userEmail = context.activity.from?.email ||
-                      context.activity.from?.userPrincipalName || '';
-    const emailDomain = userEmail.split('@')[1]?.toLowerCase();
+    if (DISABLE_TEAMS_TENANT_MAPPING) {
+      return DEFAULT_TENANT_CODE;
+    }
 
-    // Check cache first
+    const teamsTenantId =
+      context.activity.conversation?.tenantId ||
+      context.activity.channelData?.tenant?.id;
+
+    const rawUserEmail =
+      context.activity.from?.email ||
+      context.activity.from?.userPrincipalName ||
+      '';
+
+    const emailLc = normaliseEmail(rawUserEmail);
+    const emailDomain = emailLc ? emailLc.split('@')[1] : null;
+
+    // Cache key preference: Teams tenant ID first, then email domain
     const cacheKey = teamsTenantId || emailDomain;
+
     if (cacheKey && tenantCache.has(cacheKey)) {
       const cached = tenantCache.get(cacheKey);
       if (Date.now() - cached.timestamp < CACHE_TTL) {
@@ -97,14 +128,13 @@ class ServiFlowBot extends TeamsActivityHandler {
     }
 
     let tenantCode = null;
-    let masterConn;
 
     try {
-      masterConn = await getMasterConnection();
+      const masterPool = await getMasterConnection();
 
       // Try Teams tenant ID mapping first
       if (teamsTenantId) {
-        const [rows] = await masterConn.query(
+        const [rows] = await masterPool.query(
           'SELECT tenant_code FROM teams_tenant_mappings WHERE teams_tenant_id = ? AND is_active = TRUE',
           [teamsTenantId]
         );
@@ -116,7 +146,7 @@ class ServiFlowBot extends TeamsActivityHandler {
 
       // Fall back to email domain mapping
       if (!tenantCode && emailDomain) {
-        const [rows] = await masterConn.query(
+        const [rows] = await masterPool.query(
           'SELECT tenant_code FROM teams_email_domain_mappings WHERE email_domain = ? AND is_active = TRUE',
           [emailDomain]
         );
@@ -130,10 +160,9 @@ class ServiFlowBot extends TeamsActivityHandler {
       if (tenantCode && cacheKey) {
         tenantCache.set(cacheKey, { tenantCode, timestamp: Date.now() });
       }
-
     } catch (error) {
+      // Tables might not exist yet, fall back to default (avoid crashing the bot)
       console.error('[Bot] Error resolving tenant:', error.message);
-      // Tables might not exist yet, fall back to default
     }
 
     // Fall back to default
@@ -181,9 +210,10 @@ class ServiFlowBot extends TeamsActivityHandler {
   async handleMessage(context) {
     const rawText = this.removeBotMention(context.activity.text || '').trim();
     const text = rawText.toLowerCase();
-    const teamsUserEmail = context.activity.from.email || context.activity.from.userPrincipalName;
 
-    console.log(`[Bot] Message from ${teamsUserEmail}: ${text}`);
+    const userEmail = await getUserEmail(context);
+    const fallbackIdentity = context.activity.from?.aadObjectId || context.activity.from?.id || 'unknown';
+    console.log(`[Bot] Message from ${userEmail || fallbackIdentity}: ${text}`);
 
     try {
       // raise ticket: [description]
@@ -242,20 +272,19 @@ class ServiFlowBot extends TeamsActivityHandler {
       return;
     }
 
-    const userEmail = await getUserEmail(context);
-    const userName = context.activity.from?.name || userEmail || 'Unknown';
+    const userEmailLc = await getUserEmail(context); // already normalised / lowercase
+    const userName = context.activity.from?.name || userEmailLc || 'Unknown';
     const tenantCode = await this.resolveTenant(context);
 
-    let connection;
     try {
-      connection = await getTenantConnection(tenantCode);
+      const pool = await getTenantConnection(tenantCode);
 
-      // Find or create requester
+      // Find requester
       let requesterId = null;
-      if (userEmail) {
-        const [users] = await connection.query(
+      if (userEmailLc) {
+        const [users] = await pool.query(
           'SELECT id FROM users WHERE email = ? AND is_active = TRUE',
-          [userEmail.toLowerCase()]
+          [userEmailLc]
         );
         if (users.length > 0) {
           requesterId = users[0].id;
@@ -263,7 +292,7 @@ class ServiFlowBot extends TeamsActivityHandler {
       }
 
       // Create ticket
-      const [result] = await connection.query(
+      const [result] = await pool.query(
         `INSERT INTO tickets (title, description, status, priority, requester_id, source, created_at, updated_at)
          VALUES (?, ?, 'Open', 'medium', ?, 'teams', NOW(), NOW())`,
         [description.substring(0, 100), description, requesterId]
@@ -272,19 +301,19 @@ class ServiFlowBot extends TeamsActivityHandler {
       const ticketId = result.insertId;
 
       // Log activity
-      await connection.query(
+      await pool.query(
         `INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
          VALUES (?, ?, 'created', ?)`,
-        [ticketId, requesterId, `Ticket created from Teams by ${userName}`]
+        [ticketId, requesterId, \`Ticket created from Teams by \${userName}\`]
       );
 
       // Get full ticket with joins
-      const [tickets] = await connection.query(
+      const [tickets] = await pool.query(
         `SELECT t.*,
                 u.full_name as requester_name, u.email as requester_email,
                 a.full_name as assignee_name,
-                ci.name as cmdb_item_name, ci.id as cmdb_item_id,
-                ae.sentiment, ae.category, ae.suggested_resolution, ae.confidence_score
+                ci.asset_name as cmdb_item_name, ci.id as cmdb_item_id,
+                ae.sentiment, ae.ai_category as category, ae.confidence_score
          FROM tickets t
          LEFT JOIN users u ON t.requester_id = u.id
          LEFT JOIN users a ON t.assignee_id = a.id
@@ -297,15 +326,12 @@ class ServiFlowBot extends TeamsActivityHandler {
       const ticket = tickets[0];
       const card = buildTicketCard(ticket);
       await context.sendActivity({
-        text: `✅ Ticket #${ticketId} created successfully!`,
+        text: \`✅ Ticket #\${ticketId} created successfully!\`,
         attachments: [CardFactory.adaptiveCard(card)]
       });
-
     } catch (error) {
       console.error('[Bot] Create ticket error:', error);
-      await context.sendActivity(`Failed to create ticket: ${error.message}`);
-    } finally {
-      if (connection && connection.release) connection.release();
+      await context.sendActivity(\`Failed to create ticket: \${error.message}\`);
     }
   }
 
@@ -315,17 +341,17 @@ class ServiFlowBot extends TeamsActivityHandler {
 
   async handleViewTicket(context, ticketId) {
     const tenantCode = await this.resolveTenant(context);
-    let connection;
-    try {
-      connection = await getTenantConnection(tenantCode);
 
-      const [tickets] = await connection.query(
+    try {
+      const pool = await getTenantConnection(tenantCode);
+
+      const [tickets] = await pool.query(
         `SELECT t.*,
                 u.full_name as requester_name, u.email as requester_email,
                 a.full_name as assignee_name, a.email as assignee_email,
-                ci.name as cmdb_item_name, ci.id as cmdb_item_id, ci.type as cmdb_item_type,
-                ae.sentiment, ae.category, ae.suggested_resolution, ae.confidence_score,
-                ae.root_cause, ae.impact_level
+                ci.asset_name as cmdb_item_name, ci.id as cmdb_item_id, ci.asset_category as cmdb_item_type,
+                ae.sentiment, ae.ai_category as category, ae.confidence_score,
+                ae.root_cause_type as root_cause, ae.impact_level
          FROM tickets t
          LEFT JOIN users u ON t.requester_id = u.id
          LEFT JOIN users a ON t.assignee_id = a.id
@@ -336,38 +362,34 @@ class ServiFlowBot extends TeamsActivityHandler {
       );
 
       if (tickets.length === 0) {
-        await context.sendActivity(`Ticket #${ticketId} not found.`);
+        await context.sendActivity(\`Ticket #\${ticketId} not found.\`);
         return;
       }
 
       const card = buildTicketCard(tickets[0]);
       await context.sendActivity({ attachments: [CardFactory.adaptiveCard(card)] });
-
     } catch (error) {
       console.error('[Bot] View ticket error:', error);
-      await context.sendActivity(`Failed to get ticket: ${error.message}`);
-    } finally {
-      if (connection && connection.release) connection.release();
+      await context.sendActivity(\`Failed to get ticket: \${error.message}\`);
     }
   }
 
   async handleMyTickets(context) {
-    const userEmail = await getUserEmail(context);
+    const userEmailLc = await getUserEmail(context);
     const tenantCode = await this.resolveTenant(context);
 
-    if (!userEmail) {
+    if (!userEmailLc) {
       await context.sendActivity('Unable to identify your email. Please ensure you are signed in to Teams with a work account.');
       return;
     }
 
-    let connection;
     try {
-      connection = await getTenantConnection(tenantCode);
+      const pool = await getTenantConnection(tenantCode);
 
       // Find user by email
-      const [users] = await connection.query(
+      const [users] = await pool.query(
         'SELECT id FROM users WHERE email = ? AND is_active = TRUE',
-        [userEmail.toLowerCase()]
+        [userEmailLc]
       );
 
       if (users.length === 0) {
@@ -377,10 +399,10 @@ class ServiFlowBot extends TeamsActivityHandler {
 
       const userId = users[0].id;
 
-      const [tickets] = await connection.query(
+      const [tickets] = await pool.query(
         `SELECT t.*,
                 u.full_name as requester_name,
-                ci.name as cmdb_item_name
+                ci.asset_name as cmdb_item_name
          FROM tickets t
          LEFT JOIN users u ON t.requester_id = u.id
          LEFT JOIN cmdb_items ci ON t.cmdb_item_id = ci.id
@@ -404,32 +426,28 @@ class ServiFlowBot extends TeamsActivityHandler {
 
       const card = buildTicketListCard(tickets);
       await context.sendActivity({ attachments: [CardFactory.adaptiveCard(card)] });
-
     } catch (error) {
       console.error('[Bot] My tickets error:', error);
-      await context.sendActivity(`Failed to get tickets: ${error.message}`);
-    } finally {
-      if (connection && connection.release) connection.release();
+      await context.sendActivity(\`Failed to get tickets: \${error.message}\`);
     }
   }
 
   async handleAssignToMe(context, ticketId) {
-    const userEmail = await getUserEmail(context);
+    const userEmailLc = await getUserEmail(context);
     const tenantCode = await this.resolveTenant(context);
 
-    if (!userEmail) {
+    if (!userEmailLc) {
       await context.sendActivity('Unable to identify your email.');
       return;
     }
 
-    let connection;
     try {
-      connection = await getTenantConnection(tenantCode);
+      const pool = await getTenantConnection(tenantCode);
 
       // Find user
-      const [users] = await connection.query(
+      const [users] = await pool.query(
         'SELECT id, full_name FROM users WHERE email = ? AND is_active = TRUE',
-        [userEmail.toLowerCase()]
+        [userEmailLc]
       );
 
       if (users.length === 0) {
@@ -441,46 +459,42 @@ class ServiFlowBot extends TeamsActivityHandler {
       const userName = users[0].full_name;
 
       // Update ticket
-      await connection.query(
+      await pool.query(
         'UPDATE tickets SET assignee_id = ?, status = "In Progress", updated_at = NOW() WHERE id = ?',
         [userId, ticketId]
       );
 
       // Log activity
-      await connection.query(
+      await pool.query(
         `INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
          VALUES (?, ?, 'assigned', ?)`,
-        [ticketId, userId, `Assigned to ${userName} via Teams`]
+        [ticketId, userId, \`Assigned to \${userName} via Teams\`]
       );
 
-      await context.sendActivity(`✅ Ticket #${ticketId} assigned to you.`);
+      await context.sendActivity(\`✅ Ticket #\${ticketId} assigned to you.\`);
       await this.handleViewTicket(context, ticketId);
-
     } catch (error) {
       console.error('[Bot] Assign ticket error:', error);
-      await context.sendActivity(`Failed to assign ticket: ${error.message}`);
-    } finally {
-      if (connection && connection.release) connection.release();
+      await context.sendActivity(\`Failed to assign ticket: \${error.message}\`);
     }
   }
 
   async handleResolveTicket(context, ticketId, comment = 'Resolved via Teams') {
-    const userEmail = await getUserEmail(context);
+    const userEmailLc = await getUserEmail(context);
     const tenantCode = await this.resolveTenant(context);
 
-    if (!userEmail) {
+    if (!userEmailLc) {
       await context.sendActivity('Unable to identify your email.');
       return;
     }
 
-    let connection;
     try {
-      connection = await getTenantConnection(tenantCode);
+      const pool = await getTenantConnection(tenantCode);
 
       // Find user
-      const [users] = await connection.query(
+      const [users] = await pool.query(
         'SELECT id, full_name FROM users WHERE email = ? AND is_active = TRUE',
-        [userEmail.toLowerCase()]
+        [userEmailLc]
       );
 
       if (users.length === 0) {
@@ -492,7 +506,7 @@ class ServiFlowBot extends TeamsActivityHandler {
       const userName = users[0].full_name;
 
       // Update ticket
-      await connection.query(
+      await pool.query(
         `UPDATE tickets
          SET status = 'Resolved', resolved_by = ?, resolved_at = NOW(),
              resolution_comment = ?, updated_at = NOW()
@@ -501,31 +515,28 @@ class ServiFlowBot extends TeamsActivityHandler {
       );
 
       // Log activity
-      await connection.query(
+      await pool.query(
         `INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
          VALUES (?, ?, 'resolved', ?)`,
-        [ticketId, userId, `Resolved by ${userName} via Teams: ${comment}`]
+        [ticketId, userId, \`Resolved by \${userName} via Teams: \${comment}\`]
       );
 
-      await context.sendActivity(`✅ Ticket #${ticketId} resolved.`);
+      await context.sendActivity(\`✅ Ticket #\${ticketId} resolved.\`);
       await this.handleViewTicket(context, ticketId);
-
     } catch (error) {
       console.error('[Bot] Resolve ticket error:', error);
-      await context.sendActivity(`Failed to resolve ticket: ${error.message}`);
-    } finally {
-      if (connection && connection.release) connection.release();
+      await context.sendActivity(\`Failed to resolve ticket: \${error.message}\`);
     }
   }
 
   async handleTrends(context) {
     const tenantCode = await this.resolveTenant(context);
-    let connection;
+
     try {
-      connection = await getTenantConnection(tenantCode);
+      const pool = await getTenantConnection(tenantCode);
 
       // Get ticket stats for last 7 days
-      const [stats] = await connection.query(`
+      const [stats] = await pool.query(`
         SELECT
           COUNT(*) as total_tickets,
           SUM(CASE WHEN status = 'Open' THEN 1 ELSE 0 END) as open_tickets,
@@ -538,17 +549,17 @@ class ServiFlowBot extends TeamsActivityHandler {
       `);
 
       // Get top categories from AI analysis
-      const [categories] = await connection.query(`
-        SELECT category, COUNT(*) as count
+      const [categories] = await pool.query(`
+        SELECT ai_category as category, COUNT(*) as count
         FROM ai_email_analysis
-        WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) AND category IS NOT NULL
-        GROUP BY category
+        WHERE analysis_timestamp >= DATE_SUB(NOW(), INTERVAL 7 DAY) AND ai_category IS NOT NULL
+        GROUP BY ai_category
         ORDER BY count DESC
         LIMIT 5
       `);
 
       // Get recent AI insights
-      const [insights] = await connection.query(`
+      const [insights] = await pool.query(`
         SELECT insight_type, description, severity, created_at
         FROM ai_insights
         WHERE status = 'active'
@@ -556,7 +567,7 @@ class ServiFlowBot extends TeamsActivityHandler {
         LIMIT 3
       `);
 
-      const s = stats[0];
+      const s = (stats && stats[0]) ? stats[0] : {};
       const card = {
         type: 'AdaptiveCard',
         version: '1.4',
@@ -572,15 +583,15 @@ class ServiFlowBot extends TeamsActivityHandler {
             type: 'ColumnSet',
             columns: [
               { type: 'Column', width: 'stretch', items: [
-                { type: 'TextBlock', text: s.total_tickets?.toString() || '0', size: 'extraLarge', weight: 'bolder', horizontalAlignment: 'center' },
+                { type: 'TextBlock', text: String(s.total_tickets ?? 0), size: 'extraLarge', weight: 'bolder', horizontalAlignment: 'center' },
                 { type: 'TextBlock', text: 'Total', horizontalAlignment: 'center', isSubtle: true }
               ]},
               { type: 'Column', width: 'stretch', items: [
-                { type: 'TextBlock', text: s.open_tickets?.toString() || '0', size: 'extraLarge', weight: 'bolder', horizontalAlignment: 'center', color: 'attention' },
+                { type: 'TextBlock', text: String(s.open_tickets ?? 0), size: 'extraLarge', weight: 'bolder', horizontalAlignment: 'center', color: 'attention' },
                 { type: 'TextBlock', text: 'Open', horizontalAlignment: 'center', isSubtle: true }
               ]},
               { type: 'Column', width: 'stretch', items: [
-                { type: 'TextBlock', text: s.resolved_today?.toString() || '0', size: 'extraLarge', weight: 'bolder', horizontalAlignment: 'center', color: 'good' },
+                { type: 'TextBlock', text: String(s.resolved_today ?? 0), size: 'extraLarge', weight: 'bolder', horizontalAlignment: 'center', color: 'good' },
                 { type: 'TextBlock', text: 'Resolved', horizontalAlignment: 'center', isSubtle: true }
               ]}
             ]
@@ -594,7 +605,7 @@ class ServiFlowBot extends TeamsActivityHandler {
       };
 
       // Add categories if available
-      if (categories.length > 0) {
+      if (Array.isArray(categories) && categories.length > 0) {
         card.body.push({
           type: 'TextBlock',
           text: '🏷️ Top Categories',
@@ -609,7 +620,7 @@ class ServiFlowBot extends TeamsActivityHandler {
       }
 
       // Add AI insights if available
-      if (insights.length > 0) {
+      if (Array.isArray(insights) && insights.length > 0) {
         card.body.push({
           type: 'TextBlock',
           text: '🤖 AI Insights',
@@ -627,38 +638,35 @@ class ServiFlowBot extends TeamsActivityHandler {
       }
 
       await context.sendActivity({ attachments: [CardFactory.adaptiveCard(card)] });
-
     } catch (error) {
       console.error('[Bot] Trends error:', error);
       await context.sendActivity(`Failed to get trends: ${error.message}`);
-    } finally {
-      if (connection && connection.release) connection.release();
     }
   }
 
   async handleCMDBSearch(context, search) {
     const tenantCode = await this.resolveTenant(context);
-    let connection;
+
     try {
-      connection = await getTenantConnection(tenantCode);
+      const pool = await getTenantConnection(tenantCode);
 
       let query = `
-        SELECT id, name, type, status, description
+        SELECT id, asset_name as name, asset_category as type, status, description
         FROM cmdb_items
         WHERE is_active = TRUE
       `;
       const params = [];
 
       if (search) {
-        query += ` AND (name LIKE ? OR description LIKE ? OR type LIKE ?)`;
+        query += ` AND (asset_name LIKE ? OR description LIKE ? OR asset_category LIKE ?)`;
         params.push(`%${search}%`, `%${search}%`, `%${search}%`);
       }
 
-      query += ` ORDER BY name LIMIT 10`;
+      query += ` ORDER BY asset_name LIMIT 10`;
 
-      const [items] = await connection.query(query, params);
+      const [items] = await pool.query(query, params);
 
-      if (items.length === 0) {
+      if (!items || items.length === 0) {
         await context.sendActivity(search ? `No CMDB items found matching "${search}".` : 'No CMDB items found.');
         return;
       }
@@ -696,16 +704,14 @@ class ServiFlowBot extends TeamsActivityHandler {
       };
 
       await context.sendActivity({ attachments: [CardFactory.adaptiveCard(card)] });
-
     } catch (error) {
       console.error('[Bot] CMDB search error:', error);
       await context.sendActivity(`Failed to search CMDB: ${error.message}`);
-    } finally {
-      if (connection && connection.release) connection.release();
     }
   }
 
   async handleViewCMDB(context, cmdbId) {
+    // Placeholder: existing behaviour was to call search. Keep it.
     await this.handleCMDBSearch(context, '');
   }
 
