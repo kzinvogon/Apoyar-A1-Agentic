@@ -2031,10 +2031,11 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               <button id="btn-resume-sla" class="btn" onclick="resumeSLA()">Resume SLA</button>
               <button id="btn-ai-assist" class="btn ai-btn" onclick="loadAISuggestions()">AI Assist</button>
             </div>
-            <!-- Customer Actions (shown when ticket is Resolved) -->
+            <!-- Customer Actions -->
             <div id="customer-actions" class="row wrap" style="display:none">
-              <button id="btn-accept-resolution" class="btn success" onclick="acceptResolution()">✓ Accept Resolution</button>
-              <button id="btn-decline-resolution" class="btn warn" onclick="declineResolution()">✗ Decline Resolution</button>
+              <button id="btn-add-comment" class="btn primary" onclick="focusCommentBox()">💬 Add Comment</button>
+              <button id="btn-accept-resolution" class="btn success" onclick="acceptResolution()" style="display:none">✓ Accept Resolution</button>
+              <button id="btn-decline-resolution" class="btn warn" onclick="declineResolution()" style="display:none">✗ Decline Resolution</button>
             </div>
           </div>
           <!-- AI Suggestions Panel -->
@@ -2091,7 +2092,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
                 <div style="flex:1"><div class="subtitle">Priority</div><select id="td-priority" class="input"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="critical">Critical</option></select></div>
                 <div style="flex:1"><div class="subtitle">Status</div><select id="td-status" class="input" disabled><option>Open</option><option>In Progress</option><option>Pending</option><option>Resolved</option></select></div>
               </div>
-              <div class="row mb-12">
+              <div id="assignee-row" class="row mb-12">
                 <div style="flex:1">
                   <div class="subtitle">Assignee</div>
                   <div style="display: flex; gap: 8px;">
@@ -8137,9 +8138,21 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     // Expert/Admin actions - hide for customers
     document.getElementById('expert-actions').style.display = isCustomer ? 'none' : 'flex';
 
-    // Customer actions - show only for customers when ticket is resolved
-    const customerActions = document.getElementById('customer-actions');
-    customerActions.style.display = (isCustomer && isResolved) ? 'flex' : 'none';
+    // Assignee row - hide for customers
+    document.getElementById('assignee-row').style.display = isCustomer ? 'none' : 'flex';
+
+    // Customer actions - show for customers
+    document.getElementById('customer-actions').style.display = isCustomer ? 'flex' : 'none';
+
+    // Accept/Decline buttons - only show when ticket is Resolved
+    document.getElementById('btn-accept-resolution').style.display = isResolved ? 'inline-block' : 'none';
+    document.getElementById('btn-decline-resolution').style.display = isResolved ? 'inline-block' : 'none';
+  }
+
+  function focusCommentBox() {
+    const noteInput = document.getElementById('td-note');
+    noteInput.focus();
+    noteInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
   // ---- Assignment functions ----
