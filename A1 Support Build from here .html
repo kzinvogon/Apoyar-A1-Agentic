@@ -2021,14 +2021,20 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         <div id="view-ticket-detail" style="display:none">
           <div class="row space mb-12">
             <div class="row"><button class="btn ghost" onclick="switchView('tickets')">← Back</button><h3 class="title" style="margin:0 0 0 8px">Ticket <span id="td-id"></span></h3></div>
-            <div class="row wrap">
+            <!-- Expert/Admin Actions -->
+            <div id="expert-actions" class="row wrap">
               <button id="btn-self-assign" class="btn success" onclick="selfAssignTicket()" style="display:none">👋 Self Assign</button>
               <button id="btn-next" class="btn primary" onclick="advanceStatus()">Next status</button>
               <button id="btn-resolve" class="btn" onclick="openCompletion('resolve')">Resolve</button>
               <button id="btn-reassign" class="btn" onclick="openCompletion('reassign')">Reassign</button>
-              <button class="btn warn" onclick="pauseSLA()">Pause SLA</button>
-              <button class="btn" onclick="resumeSLA()">Resume SLA</button>
+              <button id="btn-pause-sla" class="btn warn" onclick="pauseSLA()">Pause SLA</button>
+              <button id="btn-resume-sla" class="btn" onclick="resumeSLA()">Resume SLA</button>
               <button id="btn-ai-assist" class="btn ai-btn" onclick="loadAISuggestions()">AI Assist</button>
+            </div>
+            <!-- Customer Actions (shown when ticket is Resolved) -->
+            <div id="customer-actions" class="row wrap" style="display:none">
+              <button id="btn-accept-resolution" class="btn success" onclick="acceptResolution()">✓ Accept Resolution</button>
+              <button id="btn-decline-resolution" class="btn warn" onclick="declineResolution()">✗ Decline Resolution</button>
             </div>
           </div>
           <!-- AI Suggestions Panel -->
@@ -8117,6 +8123,22 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
     // Auto-trigger AI CMDB analysis
     autoAnalyzeCMDB();
+
+    // Role-based button visibility
+    updateTicketActionButtons();
+  }
+
+  function updateTicketActionButtons() {
+    const t = tickets.find(x => x.id === currentTicketId);
+    const isCustomer = currentRole === 'customer';
+    const isResolved = t && t.status === 'Resolved';
+
+    // Expert/Admin actions - hide for customers
+    document.getElementById('expert-actions').style.display = isCustomer ? 'none' : 'flex';
+
+    // Customer actions - show only for customers when ticket is resolved
+    const customerActions = document.getElementById('customer-actions');
+    customerActions.style.display = (isCustomer && isResolved) ? 'flex' : 'none';
   }
 
   // ---- Assignment functions ----
@@ -8429,6 +8451,80 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   // SLA pause/resume
   function pauseSLA(){ const t=tickets.find(x=>x.id===currentTicketId); if(!t) return; if(t.sla.paused) return; t.sla.paused=true; t.sla.pausedAt=new Date().toISOString(); const act=document.getElementById('td-activity'); const div=document.createElement('div'); div.className='card p-12 mb-8'; div.innerHTML=`<strong>SLA Bot</strong>: SLA paused`; act.appendChild(div); updateTicketSLA(); }
   function resumeSLA(){ const t=tickets.find(x=>x.id===currentTicketId); if(!t) return; if(!t.sla.paused) return; const pausedDur = new Date().getTime() - new Date(t.sla.pausedAt).getTime(); const newStart = new Date(new Date(t.sla.startedAt).getTime() + pausedDur); t.sla.startedAt = newStart.toISOString(); t.sla.paused=false; t.sla.pausedAt=null; const act=document.getElementById('td-activity'); const div=document.createElement('div'); div.className='card p-12 mb-8'; div.innerHTML=`<strong>SLA Bot</strong>: SLA resumed`; act.appendChild(div); updateTicketSLA(); }
+
+  // ---- Customer Resolution Actions ----
+  async function acceptResolution() {
+    const t = tickets.find(x => x.id === currentTicketId);
+    if (!t || t.status !== 'Resolved') return alert('This ticket is not resolved yet.');
+
+    if (!confirm('Are you satisfied with the resolution? This will close the ticket.')) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const tenantCode = window.tenant || 'apoyar';
+
+      const response = await fetch(`${API_BASE}/api/tickets/${tenantCode}/${currentTicketId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          status: 'Closed',
+          activity: 'Customer accepted the resolution and closed the ticket.'
+        })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        t.status = 'Closed';
+        showToast('Thank you! Ticket has been closed.');
+        renderTicketDetail();
+      } else {
+        alert('Error: ' + (data.error || 'Could not accept resolution'));
+      }
+    } catch (error) {
+      console.error('Error accepting resolution:', error);
+      alert('Error accepting resolution: ' + error.message);
+    }
+  }
+
+  async function declineResolution() {
+    const t = tickets.find(x => x.id === currentTicketId);
+    if (!t || t.status !== 'Resolved') return alert('This ticket is not resolved yet.');
+
+    const reason = prompt('Please explain why you are declining the resolution:');
+    if (!reason || !reason.trim()) return alert('A reason is required to decline the resolution.');
+
+    try {
+      const token = localStorage.getItem('token');
+      const tenantCode = window.tenant || 'apoyar';
+
+      const response = await fetch(`${API_BASE}/api/tickets/${tenantCode}/${currentTicketId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          status: 'Open',
+          activity: `Customer declined the resolution. Reason: ${reason.trim()}`
+        })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        t.status = 'Open';
+        showToast('Ticket reopened. The team will review your feedback.');
+        renderTicketDetail();
+      } else {
+        alert('Error: ' + (data.error || 'Could not decline resolution'));
+      }
+    } catch (error) {
+      console.error('Error declining resolution:', error);
+      alert('Error declining resolution: ' + error.message);
+    }
+  }
 
   // ---- Experts & Customers ----
   let allExperts = []; // Store all experts for searching
