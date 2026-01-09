@@ -2,9 +2,14 @@ const { TeamsActivityHandler, CardFactory } = require('botbuilder');
 const { buildTicketCard, buildTicketListCard, buildHelpCard, buildCreateTicketForm } = require('./adaptiveCards/ticketCard');
 
 // Import database utilities (local for standalone deployment)
-const { getTenantConnection } = require('../config/database');
+const { getTenantConnection, getMasterConnection } = require('../config/database');
 
-const TENANT_CODE = process.env.SERVIFLOW_TENANT_CODE || 'apoyar';
+// Fallback tenant code if no mapping found
+const DEFAULT_TENANT_CODE = process.env.SERVIFLOW_TENANT_CODE || 'apoyar';
+
+// Cache for tenant mappings (TTL: 5 minutes)
+const tenantCache = new Map();
+const CACHE_TTL = 5 * 60 * 1000;
 
 class ServiFlowBot extends TeamsActivityHandler {
   constructor() {
@@ -35,6 +40,77 @@ class ServiFlowBot extends TeamsActivityHandler {
       await next();
     });
 
+  }
+
+  /**
+   * Resolve tenant code from Teams context
+   * Priority: 1) Teams tenant ID mapping, 2) Email domain mapping, 3) Default
+   */
+  async resolveTenant(context) {
+    const teamsTenantId = context.activity.conversation?.tenantId ||
+                          context.activity.channelData?.tenant?.id;
+    const userEmail = context.activity.from?.email ||
+                      context.activity.from?.userPrincipalName || '';
+    const emailDomain = userEmail.split('@')[1]?.toLowerCase();
+
+    // Check cache first
+    const cacheKey = teamsTenantId || emailDomain;
+    if (cacheKey && tenantCache.has(cacheKey)) {
+      const cached = tenantCache.get(cacheKey);
+      if (Date.now() - cached.timestamp < CACHE_TTL) {
+        console.log(`[Bot] Tenant from cache: ${cached.tenantCode}`);
+        return cached.tenantCode;
+      }
+      tenantCache.delete(cacheKey);
+    }
+
+    let tenantCode = null;
+    let masterConn;
+
+    try {
+      masterConn = await getMasterConnection();
+
+      // Try Teams tenant ID mapping first
+      if (teamsTenantId) {
+        const [rows] = await masterConn.query(
+          'SELECT tenant_code FROM teams_tenant_mappings WHERE teams_tenant_id = ? AND is_active = TRUE',
+          [teamsTenantId]
+        );
+        if (rows.length > 0) {
+          tenantCode = rows[0].tenant_code;
+          console.log(`[Bot] Tenant from Teams ID mapping: ${tenantCode}`);
+        }
+      }
+
+      // Fall back to email domain mapping
+      if (!tenantCode && emailDomain) {
+        const [rows] = await masterConn.query(
+          'SELECT tenant_code FROM teams_email_domain_mappings WHERE email_domain = ? AND is_active = TRUE',
+          [emailDomain]
+        );
+        if (rows.length > 0) {
+          tenantCode = rows[0].tenant_code;
+          console.log(`[Bot] Tenant from email domain mapping: ${tenantCode}`);
+        }
+      }
+
+      // Cache the result
+      if (tenantCode && cacheKey) {
+        tenantCache.set(cacheKey, { tenantCode, timestamp: Date.now() });
+      }
+
+    } catch (error) {
+      console.error('[Bot] Error resolving tenant:', error.message);
+      // Tables might not exist yet, fall back to default
+    }
+
+    // Fall back to default
+    if (!tenantCode) {
+      tenantCode = DEFAULT_TENANT_CODE;
+      console.log(`[Bot] Using default tenant: ${tenantCode}`);
+    }
+
+    return tenantCode;
   }
 
   // Handle adaptive card actions (override method)
@@ -136,10 +212,11 @@ class ServiFlowBot extends TeamsActivityHandler {
 
     const userEmail = context.activity.from.email || context.activity.from.userPrincipalName;
     const userName = context.activity.from.name || userEmail;
+    const tenantCode = await this.resolveTenant(context);
 
     let connection;
     try {
-      connection = await getTenantConnection(TENANT_CODE);
+      connection = await getTenantConnection(tenantCode);
 
       // Find or create requester
       let requesterId = null;
@@ -203,9 +280,10 @@ class ServiFlowBot extends TeamsActivityHandler {
   }
 
   async handleViewTicket(context, ticketId) {
+    const tenantCode = await this.resolveTenant(context);
     let connection;
     try {
-      connection = await getTenantConnection(TENANT_CODE);
+      connection = await getTenantConnection(tenantCode);
 
       const [tickets] = await connection.query(
         `SELECT t.*,
@@ -241,10 +319,11 @@ class ServiFlowBot extends TeamsActivityHandler {
 
   async handleMyTickets(context) {
     const userEmail = context.activity.from.email || context.activity.from.userPrincipalName;
+    const tenantCode = await this.resolveTenant(context);
 
     let connection;
     try {
-      connection = await getTenantConnection(TENANT_CODE);
+      connection = await getTenantConnection(tenantCode);
 
       // Find user by email
       const [users] = await connection.query(
@@ -297,10 +376,11 @@ class ServiFlowBot extends TeamsActivityHandler {
 
   async handleAssignToMe(context, ticketId) {
     const userEmail = context.activity.from.email || context.activity.from.userPrincipalName;
+    const tenantCode = await this.resolveTenant(context);
 
     let connection;
     try {
-      connection = await getTenantConnection(TENANT_CODE);
+      connection = await getTenantConnection(tenantCode);
 
       // Find user
       const [users] = await connection.query(
@@ -342,10 +422,11 @@ class ServiFlowBot extends TeamsActivityHandler {
 
   async handleResolveTicket(context, ticketId, comment = 'Resolved via Teams') {
     const userEmail = context.activity.from.email || context.activity.from.userPrincipalName;
+    const tenantCode = await this.resolveTenant(context);
 
     let connection;
     try {
-      connection = await getTenantConnection(TENANT_CODE);
+      connection = await getTenantConnection(tenantCode);
 
       // Find user
       const [users] = await connection.query(
@@ -389,9 +470,10 @@ class ServiFlowBot extends TeamsActivityHandler {
   }
 
   async handleTrends(context) {
+    const tenantCode = await this.resolveTenant(context);
     let connection;
     try {
-      connection = await getTenantConnection(TENANT_CODE);
+      connection = await getTenantConnection(tenantCode);
 
       // Get ticket stats for last 7 days
       const [stats] = await connection.query(`
@@ -506,9 +588,10 @@ class ServiFlowBot extends TeamsActivityHandler {
   }
 
   async handleCMDBSearch(context, search) {
+    const tenantCode = await this.resolveTenant(context);
     let connection;
     try {
-      connection = await getTenantConnection(TENANT_CODE);
+      connection = await getTenantConnection(tenantCode);
 
       let query = `
         SELECT id, name, type, status, description
