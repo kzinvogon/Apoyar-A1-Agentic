@@ -242,8 +242,8 @@ class ServiFlowBot extends TeamsActivityHandler {
       return;
     }
 
-    const userEmail = context.activity.from.email || context.activity.from.userPrincipalName;
-    const userName = context.activity.from.name || userEmail;
+    const userEmail = await getUserEmail(context);
+    const userName = context.activity.from?.name || userEmail || 'Unknown';
     const tenantCode = await this.resolveTenant(context);
 
     let connection;
@@ -252,12 +252,14 @@ class ServiFlowBot extends TeamsActivityHandler {
 
       // Find or create requester
       let requesterId = null;
-      const [users] = await connection.query(
-        'SELECT id FROM users WHERE email = ? AND is_active = TRUE',
-        [userEmail.toLowerCase()]
-      );
-      if (users.length > 0) {
-        requesterId = users[0].id;
+      if (userEmail) {
+        const [users] = await connection.query(
+          'SELECT id FROM users WHERE email = ? AND is_active = TRUE',
+          [userEmail.toLowerCase()]
+        );
+        if (users.length > 0) {
+          requesterId = users[0].id;
+        }
       }
 
       // Create ticket
@@ -412,8 +414,13 @@ class ServiFlowBot extends TeamsActivityHandler {
   }
 
   async handleAssignToMe(context, ticketId) {
-    const userEmail = context.activity.from.email || context.activity.from.userPrincipalName;
+    const userEmail = await getUserEmail(context);
     const tenantCode = await this.resolveTenant(context);
+
+    if (!userEmail) {
+      await context.sendActivity('Unable to identify your email.');
+      return;
+    }
 
     let connection;
     try {
@@ -458,8 +465,13 @@ class ServiFlowBot extends TeamsActivityHandler {
   }
 
   async handleResolveTicket(context, ticketId, comment = 'Resolved via Teams') {
-    const userEmail = context.activity.from.email || context.activity.from.userPrincipalName;
+    const userEmail = await getUserEmail(context);
     const tenantCode = await this.resolveTenant(context);
+
+    if (!userEmail) {
+      await context.sendActivity('Unable to identify your email.');
+      return;
+    }
 
     let connection;
     try {
