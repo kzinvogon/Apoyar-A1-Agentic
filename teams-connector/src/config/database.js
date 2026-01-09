@@ -14,7 +14,7 @@ const connectionPools = {};
  * @returns {Promise<mysql.Connection>}
  */
 async function getTenantConnection(tenantCode) {
-  const databaseName = `${tenantCode}_tenant`;
+  const databaseName = `a1_tenant_${tenantCode}`;
 
   if (!connectionPools[databaseName]) {
     const config = {
