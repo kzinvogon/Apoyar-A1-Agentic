@@ -2,7 +2,7 @@
   "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.16/MicrosoftTeams.schema.json",
   "manifestVersion": "1.16",
   "version": "1.0.0",
-  "id": "{{MICROSOFT_APP_ID}}",
+  "id": "07baea90-efe0-4a3b-b1b0-2d00d83b570e",
   "packageName": "com.serviflow.teamsbot",
   "developer": {
     "name": "Apoyar",
@@ -25,7 +25,7 @@
   "accentColor": "#2563eb",
   "bots": [
     {
-      "botId": "{{MICROSOFT_APP_ID}}",
+      "botId": "07baea90-efe0-4a3b-b1b0-2d00d83b570e",
       "scopes": ["personal", "team", "groupchat"],
       "supportsFiles": false,
       "isNotificationOnly": false,
@@ -69,6 +69,6 @@
   "validDomains": [
     "serviflow.app",
     "web-production-11114.up.railway.app",
-    "wai-nonreclaimable-dreadfully.ngrok-free.app"
+    "web-production-36e2e.up.railway.app"
   ]
 }

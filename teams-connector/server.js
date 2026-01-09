@@ -8,10 +8,12 @@ const app = express();
 const PORT = process.env.PORT || 3978;
 
 // Bot Framework Authentication
+// For SingleTenant bots, MicrosoftAppType must be set
 const botFrameworkAuth = new ConfigurationBotFrameworkAuthentication({
   MicrosoftAppId: process.env.MICROSOFT_APP_ID,
   MicrosoftAppPassword: process.env.MICROSOFT_APP_PASSWORD,
-  MicrosoftAppTenantId: process.env.MICROSOFT_APP_TENANT_ID
+  MicrosoftAppTenantId: process.env.MICROSOFT_APP_TENANT_ID,
+  MicrosoftAppType: process.env.MICROSOFT_APP_TENANT_ID ? 'SingleTenant' : 'MultiTenant'
 });
 
 const adapter = new CloudAdapter(botFrameworkAuth);
