@@ -61,7 +61,7 @@
     "nodemailer": "^7.0.10"
   },
   "engines": {
-    "node": ">=14.0.0"
+    "node": ">=18.0.0"
   },
   "devDependencies": {
     "sharp": "^0.34.5",
