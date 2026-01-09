@@ -4,7 +4,7 @@
   "description": "ServiFlow Support Platform with Multi-Tenant MySQL Backend",
   "main": "server.js",
   "scripts": {
-    "start": "node -e \"require(process.env.APP_MODE === 'teams' ? './teams-connector/server.js' : './server.js')\"",
+    "start": "node entry.js",
     "start:main": "node server.js",
     "start:teams": "node teams-connector/server.js",
     "start-simple": "node server-simple.js",
