@@ -40,6 +40,7 @@ const expertPermissionsRoutes = require('./routes/expert-permissions');
 const aiSuggestionsRoutes = require('./routes/ai-suggestions');
 const knowledgeBaseRoutes = require('./routes/knowledge-base');
 const rawVariablesRoutes = require('./routes/raw-variables');
+const integrationsTeamsRoutes = require('./routes/integrations-teams');
 
 // Import email processor service
 const { startEmailProcessing } = require('./services/email-processor');
@@ -80,6 +81,7 @@ app.use('/api/expert-permissions', expertPermissionsRoutes);
 app.use('/api/ai', aiSuggestionsRoutes);
 app.use('/api/kb', knowledgeBaseRoutes);
 app.use('/api/raw-variables', rawVariablesRoutes);
+app.use('/api/integrations', integrationsTeamsRoutes);
 
 // Public routes (no authentication required) - Must be before authenticated routes
 app.use('/ticket', publicTicketRoutes);
@@ -87,6 +89,17 @@ app.use('/ticket', publicTicketRoutes);
 // Marketing site route
 app.get('/marketing', (req, res) => {
   res.sendFile(path.join(__dirname, 'marketing.html'));
+});
+
+// Teams app manifest download
+app.get('/teams-manifest.zip', (req, res) => {
+  const manifestPath = path.join(__dirname, 'teams-connector', 'manifest.zip');
+  res.download(manifestPath, 'serviflow-teams-app.zip', (err) => {
+    if (err) {
+      console.error('Teams manifest download error:', err);
+      res.status(404).json({ error: 'Teams app manifest not found. Please run "npm run manifest" in the teams-connector folder.' });
+    }
+  });
 });
 
 // Main route - serve the HTML file
