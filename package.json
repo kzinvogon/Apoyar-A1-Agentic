@@ -2,7 +2,7 @@
   "name": "serviflow-support-platform",
   "version": "1.0.0",
   "description": "ServiFlow Support Platform with Multi-Tenant MySQL Backend",
-  "main": "server.js",
+  "main": "entry.js",
   "scripts": {
     "start": "node entry.js",
     "start:main": "node server.js",
