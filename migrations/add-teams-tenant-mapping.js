@@ -23,6 +23,7 @@ async function runMigration() {
 
   try {
     // Create teams_tenant_mappings table in master database
+    // Note: No foreign key to avoid collation issues - tenant_code validated at app level
     await connection.query(`
       CREATE TABLE IF NOT EXISTS teams_tenant_mappings (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -33,8 +34,7 @@ async function runMigration() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         INDEX idx_teams_tenant_id (teams_tenant_id),
-        INDEX idx_tenant_code (tenant_code),
-        FOREIGN KEY (tenant_code) REFERENCES tenants(tenant_code) ON DELETE CASCADE
+        INDEX idx_tenant_code (tenant_code)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
     console.log('✅ Created teams_tenant_mappings table');
@@ -48,8 +48,7 @@ async function runMigration() {
         is_active BOOLEAN DEFAULT TRUE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         INDEX idx_email_domain (email_domain),
-        INDEX idx_tenant_code (tenant_code),
-        FOREIGN KEY (tenant_code) REFERENCES tenants(tenant_code) ON DELETE CASCADE
+        INDEX idx_tenant_code (tenant_code)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
     console.log('✅ Created teams_email_domain_mappings table');
