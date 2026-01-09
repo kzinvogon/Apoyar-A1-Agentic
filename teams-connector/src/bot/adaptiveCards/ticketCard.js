@@ -303,7 +303,7 @@ function buildTicketListCard(tickets, title = 'My Assigned Tickets') {
       {
         type: 'Action.OpenUrl',
         title: 'View All in ServiFlow',
-        url: `${SERVIFLOW_URL}/tickets`
+        url: SERVIFLOW_URL
       }
     ]
   };
