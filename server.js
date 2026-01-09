@@ -129,6 +129,14 @@ app.get('/accept-invite', (req, res) => {
   res.sendFile(path.join(__dirname, 'accept-invite.html'));
 });
 
+// Tickets list route - deep link from Teams bot
+app.get('/tickets', (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.sendFile(path.join(__dirname, 'A1 Support Build from here .html'));
+});
+
 // Ticket view route - serves HTML for email links
 app.get('/ticket/:id', (req, res) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
