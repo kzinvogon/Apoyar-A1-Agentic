@@ -36,7 +36,13 @@ app.get('/health', (req, res) => {
 
 // Bot messaging endpoint - receives messages from Teams
 app.post('/api/messages', express.json(), async (req, res) => {
-  await adapter.process(req, res, (context) => bot.run(context));
+  console.log('[Bot] Received message:', JSON.stringify(req.body?.type), req.body?.text?.substring(0, 50));
+  try {
+    await adapter.process(req, res, (context) => bot.run(context));
+  } catch (error) {
+    console.error('[Bot] Error processing message:', error.message);
+    res.status(500).send('Error');
+  }
 });
 
 // Webhook endpoint - receives notifications from ServiFlow main app
@@ -47,6 +53,7 @@ app.listen(PORT, () => {
   console.log(`ServiFlow Teams Connector running on port ${PORT}`);
   console.log(`Bot messaging endpoint: /api/messages`);
   console.log(`Webhook endpoint: /api/webhook`);
+  console.log(`Microsoft App ID: ${process.env.MICROSOFT_APP_ID ? process.env.MICROSOFT_APP_ID.substring(0, 8) + '...' : 'NOT SET'}`);
 });
 
 module.exports = { adapter, bot };
