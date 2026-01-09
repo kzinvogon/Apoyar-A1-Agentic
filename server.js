@@ -285,6 +285,15 @@ async function startServer() {
           console.warn(`⚠️  Warning: Soft delete columns migration:`, migrationError.message);
         }
 
+        // Run Teams user preferences migration
+        try {
+          const { runMigration: runTeamsUserPrefsMigration } = require('./migrations/add-teams-user-preferences');
+          await runTeamsUserPrefsMigration('apoyar');
+          console.log('✅ Teams user preferences migration completed');
+        } catch (migrationError) {
+          console.warn(`⚠️  Warning: Teams user preferences migration:`, migrationError.message);
+        }
+
         // Start email processing for apoyar tenant
         try {
           await startEmailProcessing('apoyar');
