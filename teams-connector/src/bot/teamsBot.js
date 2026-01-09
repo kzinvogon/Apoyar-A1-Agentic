@@ -271,7 +271,7 @@ class ServiFlowBot extends TeamsActivityHandler {
       console.error('[Bot] Create ticket error:', error);
       await context.sendActivity(`Failed to create ticket: ${error.message}`);
     } finally {
-      if (connection) connection.release();
+      if (connection && connection.release) connection.release();
     }
   }
 
@@ -313,13 +313,18 @@ class ServiFlowBot extends TeamsActivityHandler {
       console.error('[Bot] View ticket error:', error);
       await context.sendActivity(`Failed to get ticket: ${error.message}`);
     } finally {
-      if (connection) connection.release();
+      if (connection && connection.release) connection.release();
     }
   }
 
   async handleMyTickets(context) {
-    const userEmail = context.activity.from.email || context.activity.from.userPrincipalName;
+    const userEmail = context.activity.from?.email || context.activity.from?.userPrincipalName;
     const tenantCode = await this.resolveTenant(context);
+
+    if (!userEmail) {
+      await context.sendActivity('Unable to identify your email. Please ensure you are signed in to Teams.');
+      return;
+    }
 
     let connection;
     try {
@@ -370,7 +375,7 @@ class ServiFlowBot extends TeamsActivityHandler {
       console.error('[Bot] My tickets error:', error);
       await context.sendActivity(`Failed to get tickets: ${error.message}`);
     } finally {
-      if (connection) connection.release();
+      if (connection && connection.release) connection.release();
     }
   }
 
@@ -416,7 +421,7 @@ class ServiFlowBot extends TeamsActivityHandler {
       console.error('[Bot] Assign ticket error:', error);
       await context.sendActivity(`Failed to assign ticket: ${error.message}`);
     } finally {
-      if (connection) connection.release();
+      if (connection && connection.release) connection.release();
     }
   }
 
@@ -465,7 +470,7 @@ class ServiFlowBot extends TeamsActivityHandler {
       console.error('[Bot] Resolve ticket error:', error);
       await context.sendActivity(`Failed to resolve ticket: ${error.message}`);
     } finally {
-      if (connection) connection.release();
+      if (connection && connection.release) connection.release();
     }
   }
 
@@ -583,7 +588,7 @@ class ServiFlowBot extends TeamsActivityHandler {
       console.error('[Bot] Trends error:', error);
       await context.sendActivity(`Failed to get trends: ${error.message}`);
     } finally {
-      if (connection) connection.release();
+      if (connection && connection.release) connection.release();
     }
   }
 
@@ -652,7 +657,7 @@ class ServiFlowBot extends TeamsActivityHandler {
       console.error('[Bot] CMDB search error:', error);
       await context.sendActivity(`Failed to search CMDB: ${error.message}`);
     } finally {
-      if (connection) connection.release();
+      if (connection && connection.release) connection.release();
     }
   }
 
