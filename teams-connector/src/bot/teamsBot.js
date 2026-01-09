@@ -654,38 +654,23 @@ class ServiFlowBot extends TeamsActivityHandler {
    * Wrapper for expert-only commands
    */
   async handleExpertCommand(context, handler) {
-    const userEmailLc = await getUserEmail(context);
     const tenantCode = await this.resolveTenant(context);
+    const { userId, mode } = await ensureTeamsUser(context, tenantCode, { defaultMode: 'customer' });
 
-    if (!userEmailLc) {
-      await context.sendActivity('Unable to identify your email.');
+    if (!userId) {
+      await context.sendActivity("I couldn't identify you in Teams strongly enough to run this command.");
+      return;
+    }
+
+    if (mode !== 'expert') {
+      await context.sendActivity(
+        '🔒 This command is only available in **Expert mode**.\n\n' +
+        'Type `mode expert` to switch to Expert mode.'
+      );
       return;
     }
 
     try {
-      const pool = await getTenantConnection(tenantCode);
-
-      const [users] = await pool.query(
-        `SELECT id FROM users WHERE email = ? AND is_active = TRUE`,
-        [userEmailLc]
-      );
-
-      if (users.length === 0) {
-        await context.sendActivity('Your email is not linked to a ServiFlow account.');
-        return;
-      }
-
-      const userId = users[0].id;
-      const mode = await this.getUserMode(pool, userId, userEmailLc);
-
-      if (mode !== 'expert') {
-        await context.sendActivity(
-          '🔒 This command is only available in **Expert mode**.\n\n' +
-          'Type `mode expert` to switch to Expert mode.'
-        );
-        return;
-      }
-
       // User is in expert mode, execute the command
       await handler();
     } catch (error) {
