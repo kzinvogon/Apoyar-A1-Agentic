@@ -1,4 +1,4 @@
-const { TeamsActivityHandler, CardFactory } = require('botbuilder');
+const { TeamsActivityHandler, CardFactory, TeamsInfo } = require('botbuilder');
 const { buildTicketCard, buildTicketListCard, buildHelpCard, buildCreateTicketForm } = require('./adaptiveCards/ticketCard');
 
 // Import database utilities (local for standalone deployment)
@@ -10,6 +10,38 @@ const DEFAULT_TENANT_CODE = process.env.SERVIFLOW_TENANT_CODE || 'apoyar';
 // Cache for tenant mappings (TTL: 5 minutes)
 const tenantCache = new Map();
 const CACHE_TTL = 5 * 60 * 1000;
+
+/**
+ * Get user email from Teams context
+ * Tries multiple sources: activity.from, TeamsInfo API
+ */
+async function getUserEmail(context) {
+  // Try direct properties first
+  let email = context.activity.from?.email || context.activity.from?.userPrincipalName;
+
+  if (email) return email;
+
+  // Try to get from Teams API
+  try {
+    const member = await TeamsInfo.getMember(context, context.activity.from.id);
+    email = member.email || member.userPrincipalName;
+    if (email) {
+      console.log(`[Bot] Got email from TeamsInfo: ${email}`);
+      return email;
+    }
+  } catch (error) {
+    console.log(`[Bot] TeamsInfo.getMember failed: ${error.message}`);
+  }
+
+  // Log what we have for debugging
+  console.log('[Bot] User info available:', JSON.stringify({
+    id: context.activity.from?.id,
+    name: context.activity.from?.name,
+    aadObjectId: context.activity.from?.aadObjectId
+  }));
+
+  return null;
+}
 
 class ServiFlowBot extends TeamsActivityHandler {
   constructor() {
@@ -318,11 +350,11 @@ class ServiFlowBot extends TeamsActivityHandler {
   }
 
   async handleMyTickets(context) {
-    const userEmail = context.activity.from?.email || context.activity.from?.userPrincipalName;
+    const userEmail = await getUserEmail(context);
     const tenantCode = await this.resolveTenant(context);
 
     if (!userEmail) {
-      await context.sendActivity('Unable to identify your email. Please ensure you are signed in to Teams.');
+      await context.sendActivity('Unable to identify your email. Please ensure you are signed in to Teams with a work account.');
       return;
     }
 
