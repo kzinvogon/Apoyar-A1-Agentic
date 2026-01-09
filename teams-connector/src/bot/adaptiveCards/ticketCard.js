@@ -1,4 +1,4 @@
-const SERVIFLOW_URL = process.env.SERVIFLOW_URL || 'https://serviflow.app';
+const SERVIFLOW_URL = process.env.SERVIFLOW_URL || 'https://app.serviflow.app';
 
 const priorityColors = {
   low: 'good',
