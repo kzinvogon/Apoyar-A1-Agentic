@@ -1,3 +1,9 @@
+// APP_MODE routing - must be at the very top before any other requires
+if (process.env.APP_MODE === 'teams') {
+  console.log('🤖 APP_MODE=teams detected, starting Teams Connector...');
+  require('./teams-connector/server.js');
+} else {
+// Main ServiFlow app starts here
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -333,3 +339,4 @@ process.on('SIGTERM', async () => {
 
 // Start the server
 startServer();
+} // End of else block for APP_MODE check
