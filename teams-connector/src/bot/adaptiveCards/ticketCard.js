@@ -228,7 +228,7 @@ function buildTicketCard(ticket) {
   };
 }
 
-function buildTicketListCard(tickets) {
+function buildTicketListCard(tickets, title = 'My Assigned Tickets') {
   const ticketItems = tickets.slice(0, 10).map(ticket => ({
     type: 'Container',
     items: [
@@ -287,7 +287,7 @@ function buildTicketListCard(tickets) {
     body: [
       {
         type: 'TextBlock',
-        text: `My Assigned Tickets (${tickets.length})`,
+        text: `${title} (${tickets.length})`,
         weight: 'bolder',
         size: 'large'
       },
@@ -309,7 +309,28 @@ function buildTicketListCard(tickets) {
   };
 }
 
-function buildHelpCard() {
+function buildHelpCard(mode = 'expert') {
+  const isExpert = mode === 'expert';
+  const modeEmoji = isExpert ? '👔' : '👤';
+  const modeLabel = isExpert ? 'Expert' : 'Customer';
+
+  const commonCommands = [
+    { title: 'raise ticket: <description>', value: 'Create a new ticket' },
+    { title: 'status #123', value: 'View ticket details' },
+    { title: 'my tickets', value: isExpert ? 'List assigned tickets' : 'List your raised tickets' },
+    { title: 'mode', value: 'Show/switch mode (Expert/Customer)' },
+    { title: 'help', value: 'Show this help message' }
+  ];
+
+  const expertCommands = [
+    { title: 'assign #123', value: 'Assign ticket to yourself' },
+    { title: 'resolve #123 <comment>', value: 'Resolve a ticket' },
+    { title: 'trends', value: 'View ticket analytics & AI insights' },
+    { title: 'cmdb <search>', value: 'Search CMDB items' }
+  ];
+
+  const facts = isExpert ? [...commonCommands, ...expertCommands] : commonCommands;
+
   return {
     type: 'AdaptiveCard',
     version: '1.4',
@@ -323,22 +344,19 @@ function buildHelpCard() {
       },
       {
         type: 'TextBlock',
-        text: 'Use these commands to manage tickets:',
+        text: `${modeEmoji} Current mode: **${modeLabel}**`,
+        wrap: true,
+        spacing: 'small'
+      },
+      {
+        type: 'TextBlock',
+        text: 'Available commands:',
         wrap: true,
         spacing: 'medium'
       },
       {
         type: 'FactSet',
-        facts: [
-          { title: 'raise ticket: <description>', value: 'Create a new ticket' },
-          { title: 'status #123', value: 'View ticket details' },
-          { title: 'my tickets', value: 'List your assigned tickets' },
-          { title: 'assign #123', value: 'Assign ticket to yourself' },
-          { title: 'resolve #123 <comment>', value: 'Resolve a ticket' },
-          { title: 'trends', value: 'View ticket analytics & AI insights' },
-          { title: 'cmdb search <query>', value: 'Search CMDB items' },
-          { title: 'help', value: 'Show this help message' }
-        ]
+        facts: facts
       }
     ],
     actions: [
@@ -348,6 +366,86 @@ function buildHelpCard() {
         url: SERVIFLOW_URL
       }
     ]
+  };
+}
+
+function buildModeCard(currentMode, isExpert, userName) {
+  const modeEmoji = currentMode === 'expert' ? '👔' : '👤';
+  const modeLabel = currentMode.charAt(0).toUpperCase() + currentMode.slice(1);
+
+  const body = [
+    {
+      type: 'TextBlock',
+      text: `${modeEmoji} Bot Mode Settings`,
+      weight: 'bolder',
+      size: 'large'
+    },
+    {
+      type: 'TextBlock',
+      text: `Hello, ${userName}!`,
+      wrap: true,
+      spacing: 'small'
+    },
+    {
+      type: 'FactSet',
+      facts: [
+        { title: 'Current Mode', value: modeLabel },
+        { title: 'Account Type', value: isExpert ? 'Expert/Staff' : 'Customer' }
+      ],
+      spacing: 'medium'
+    }
+  ];
+
+  // Add mode descriptions
+  if (currentMode === 'expert') {
+    body.push({
+      type: 'TextBlock',
+      text: '**Expert Mode Features:**\n• View tickets assigned to you\n• Resolve and assign tickets\n• Access trends and CMDB\n• Create internal tickets',
+      wrap: true,
+      spacing: 'medium'
+    });
+  } else {
+    body.push({
+      type: 'TextBlock',
+      text: '**Customer Mode Features:**\n• View tickets you have raised\n• Create new support tickets\n• Check ticket status',
+      wrap: true,
+      spacing: 'medium'
+    });
+  }
+
+  const actions = [];
+
+  // Only show switch options if user is eligible
+  if (isExpert) {
+    if (currentMode === 'expert') {
+      actions.push({
+        type: 'Action.Submit',
+        title: '👤 Switch to Customer Mode',
+        data: { action: 'setMode', mode: 'customer' }
+      });
+    } else {
+      actions.push({
+        type: 'Action.Submit',
+        title: '👔 Switch to Expert Mode',
+        data: { action: 'setMode', mode: 'expert' }
+      });
+    }
+  } else {
+    body.push({
+      type: 'TextBlock',
+      text: '_You are registered as a customer. Expert mode is not available._',
+      wrap: true,
+      spacing: 'medium',
+      isSubtle: true
+    });
+  }
+
+  return {
+    type: 'AdaptiveCard',
+    version: '1.4',
+    $schema: 'http://adaptivecards.io/schemas/adaptive-card.json',
+    body: body,
+    actions: actions
   };
 }
 
@@ -421,5 +519,6 @@ module.exports = {
   buildTicketCard,
   buildTicketListCard,
   buildHelpCard,
-  buildCreateTicketForm
+  buildCreateTicketForm,
+  buildModeCard
 };
