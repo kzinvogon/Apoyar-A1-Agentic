@@ -293,8 +293,8 @@ class ServiFlowBot extends TeamsActivityHandler {
 
       // Create ticket
       const [result] = await pool.query(
-        `INSERT INTO tickets (title, description, status, priority, requester_id, source, created_at, updated_at)
-         VALUES (?, ?, 'Open', 'medium', ?, 'teams', NOW(), NOW())`,
+        `INSERT INTO tickets (title, description, status, priority, requester_id, category)
+         VALUES (?, ?, 'Open', 'medium', ?, 'Teams')`,
         [description.substring(0, 100), description, requesterId]
       );
 
