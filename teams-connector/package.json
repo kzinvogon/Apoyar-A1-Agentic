@@ -1,10 +1,11 @@
 {
   "name": "serviflow-teams-connector",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "server.js",
   "scripts": {
-    "start": "node index.js",
-    "dev": "node --watch index.js",
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "manifest": "node scripts/create-manifest.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": ["teams", "bot", "serviflow", "ticketing"],
@@ -15,6 +16,7 @@
     "botbuilder": "^4.23.3",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
+    "mysql2": "^3.11.0",
     "node-fetch": "^2.7.0"
   }
 }
