@@ -786,22 +786,22 @@ class ServiFlowBot extends TeamsActivityHandler {
       return;
     }
 
-    const userEmailLc = await getUserEmail(context);
-    const userName = context.activity.from?.name || userEmailLc || 'Unknown';
     const tenantCode = await this.resolveTenant(context);
+    const { userId: requesterId, email: userEmailLc, mode } = await ensureTeamsUser(context, tenantCode, { defaultMode: 'customer' });
+
+    if (!requesterId) {
+      await context.sendActivity("I couldn't identify you in Teams strongly enough to create a ticket.");
+      return;
+    }
+
+    const userName = context.activity.from?.name || userEmailLc || 'Unknown';
 
     try {
       const pool = await getTenantConnection(tenantCode);
 
-      // Find or create user
-      const { userId, isNew: isNewUser } = await this.findOrCreateUser(pool, userEmailLc, userName);
-
-      // Get user mode
-      const mode = await this.getUserMode(pool, userId, userEmailLc);
-
       // If in customer mode, ensure customer profile exists
       if (mode === 'customer') {
-        await this.findOrCreateCustomer(pool, userId, userEmailLc, userName);
+        await this.findOrCreateCustomer(pool, requesterId, userEmailLc, userName);
       }
 
       // Create ticket
@@ -809,7 +809,7 @@ class ServiFlowBot extends TeamsActivityHandler {
       const [result] = await pool.query(
         `INSERT INTO tickets (title, description, status, priority, requester_id, category)
          VALUES (?, ?, 'Open', 'medium', ?, ?)`,
-        [description.substring(0, 100), description, userId, category]
+        [description.substring(0, 100), description, requesterId, category]
       );
 
       const ticketId = result.insertId;
@@ -822,7 +822,7 @@ class ServiFlowBot extends TeamsActivityHandler {
       await pool.query(
         `INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
          VALUES (?, ?, 'created', ?)`,
-        [ticketId, userId, activityDesc]
+        [ticketId, requesterId, activityDesc]
       );
 
       // Get full ticket with joins
