@@ -304,7 +304,7 @@ class ServiFlowBot extends TeamsActivityHandler {
       await pool.query(
         `INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
          VALUES (?, ?, 'created', ?)`,
-        [ticketId, requesterId, \`Ticket created from Teams by \${userName}\`]
+        [ticketId, requesterId, `Ticket created from Teams by ${userName}`]
       );
 
       // Get full ticket with joins
@@ -326,12 +326,12 @@ class ServiFlowBot extends TeamsActivityHandler {
       const ticket = tickets[0];
       const card = buildTicketCard(ticket);
       await context.sendActivity({
-        text: \`✅ Ticket #\${ticketId} created successfully!\`,
+        text: `✅ Ticket #${ticketId} created successfully!`,
         attachments: [CardFactory.adaptiveCard(card)]
       });
     } catch (error) {
       console.error('[Bot] Create ticket error:', error);
-      await context.sendActivity(\`Failed to create ticket: \${error.message}\`);
+      await context.sendActivity(`Failed to create ticket: ${error.message}`);
     }
   }
 
@@ -362,7 +362,7 @@ class ServiFlowBot extends TeamsActivityHandler {
       );
 
       if (tickets.length === 0) {
-        await context.sendActivity(\`Ticket #\${ticketId} not found.\`);
+        await context.sendActivity(`Ticket #${ticketId} not found.`);
         return;
       }
 
@@ -370,7 +370,7 @@ class ServiFlowBot extends TeamsActivityHandler {
       await context.sendActivity({ attachments: [CardFactory.adaptiveCard(card)] });
     } catch (error) {
       console.error('[Bot] View ticket error:', error);
-      await context.sendActivity(\`Failed to get ticket: \${error.message}\`);
+      await context.sendActivity(`Failed to get ticket: ${error.message}`);
     }
   }
 
@@ -428,7 +428,7 @@ class ServiFlowBot extends TeamsActivityHandler {
       await context.sendActivity({ attachments: [CardFactory.adaptiveCard(card)] });
     } catch (error) {
       console.error('[Bot] My tickets error:', error);
-      await context.sendActivity(\`Failed to get tickets: \${error.message}\`);
+      await context.sendActivity(`Failed to get tickets: ${error.message}`);
     }
   }
 
@@ -468,14 +468,14 @@ class ServiFlowBot extends TeamsActivityHandler {
       await pool.query(
         `INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
          VALUES (?, ?, 'assigned', ?)`,
-        [ticketId, userId, \`Assigned to \${userName} via Teams\`]
+        [ticketId, userId, `Assigned to ${userName} via Teams`]
       );
 
-      await context.sendActivity(\`✅ Ticket #\${ticketId} assigned to you.\`);
+      await context.sendActivity(`✅ Ticket #${ticketId} assigned to you.`);
       await this.handleViewTicket(context, ticketId);
     } catch (error) {
       console.error('[Bot] Assign ticket error:', error);
-      await context.sendActivity(\`Failed to assign ticket: \${error.message}\`);
+      await context.sendActivity(`Failed to assign ticket: ${error.message}`);
     }
   }
 
@@ -518,14 +518,14 @@ class ServiFlowBot extends TeamsActivityHandler {
       await pool.query(
         `INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
          VALUES (?, ?, 'resolved', ?)`,
-        [ticketId, userId, \`Resolved by \${userName} via Teams: \${comment}\`]
+        [ticketId, userId, `Resolved by ${userName} via Teams: ${comment}`]
       );
 
-      await context.sendActivity(\`✅ Ticket #\${ticketId} resolved.\`);
+      await context.sendActivity(`✅ Ticket #${ticketId} resolved.`);
       await this.handleViewTicket(context, ticketId);
     } catch (error) {
       console.error('[Bot] Resolve ticket error:', error);
-      await context.sendActivity(\`Failed to resolve ticket: \${error.message}\`);
+      await context.sendActivity(`Failed to resolve ticket: ${error.message}`);
     }
   }
 
