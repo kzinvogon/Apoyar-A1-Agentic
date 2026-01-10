@@ -5,7 +5,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { authenticateToken, requireRole } = require('../middleware/auth');
+const { verifyToken, requireRole } = require('../middleware/auth');
 const { getTenantConnection } = require('../config/database');
 
 // IANA timezone validation (basic check)
@@ -35,7 +35,7 @@ function isStartBeforeEnd(start, end) {
 // ============================================
 
 // GET /api/sla/:tenantCode/business-hours - List all business hours profiles
-router.get('/:tenantCode/business-hours', authenticateToken, requireRole(['admin']), async (req, res) => {
+router.get('/:tenantCode/business-hours', verifyToken, requireRole(['admin']), async (req, res) => {
   try {
     const { tenantCode } = req.params;
     const pool = await getTenantConnection(tenantCode);
@@ -54,7 +54,7 @@ router.get('/:tenantCode/business-hours', authenticateToken, requireRole(['admin
 });
 
 // GET /api/sla/:tenantCode/business-hours/:id - Get single profile
-router.get('/:tenantCode/business-hours/:id', authenticateToken, requireRole(['admin']), async (req, res) => {
+router.get('/:tenantCode/business-hours/:id', verifyToken, requireRole(['admin']), async (req, res) => {
   try {
     const { tenantCode, id } = req.params;
     const pool = await getTenantConnection(tenantCode);
@@ -77,7 +77,7 @@ router.get('/:tenantCode/business-hours/:id', authenticateToken, requireRole(['a
 });
 
 // POST /api/sla/:tenantCode/business-hours - Create profile
-router.post('/:tenantCode/business-hours', authenticateToken, requireRole(['admin']), async (req, res) => {
+router.post('/:tenantCode/business-hours', verifyToken, requireRole(['admin']), async (req, res) => {
   try {
     const { tenantCode } = req.params;
     const { name, timezone, days_of_week, start_time, end_time, is_24x7 } = req.body;
@@ -136,7 +136,7 @@ router.post('/:tenantCode/business-hours', authenticateToken, requireRole(['admi
 });
 
 // PUT /api/sla/:tenantCode/business-hours/:id - Update profile
-router.put('/:tenantCode/business-hours/:id', authenticateToken, requireRole(['admin']), async (req, res) => {
+router.put('/:tenantCode/business-hours/:id', verifyToken, requireRole(['admin']), async (req, res) => {
   try {
     const { tenantCode, id } = req.params;
     const { name, timezone, days_of_week, start_time, end_time, is_24x7, is_active } = req.body;
@@ -197,7 +197,7 @@ router.put('/:tenantCode/business-hours/:id', authenticateToken, requireRole(['a
 });
 
 // DELETE /api/sla/:tenantCode/business-hours/:id - Delete profile
-router.delete('/:tenantCode/business-hours/:id', authenticateToken, requireRole(['admin']), async (req, res) => {
+router.delete('/:tenantCode/business-hours/:id', verifyToken, requireRole(['admin']), async (req, res) => {
   try {
     const { tenantCode, id } = req.params;
     const pool = await getTenantConnection(tenantCode);
@@ -226,7 +226,7 @@ router.delete('/:tenantCode/business-hours/:id', authenticateToken, requireRole(
 // ============================================
 
 // GET /api/sla/:tenantCode/definitions - List all SLA definitions
-router.get('/:tenantCode/definitions', authenticateToken, requireRole(['admin']), async (req, res) => {
+router.get('/:tenantCode/definitions', verifyToken, requireRole(['admin']), async (req, res) => {
   try {
     const { tenantCode } = req.params;
     const pool = await getTenantConnection(tenantCode);
@@ -251,7 +251,7 @@ router.get('/:tenantCode/definitions', authenticateToken, requireRole(['admin'])
 });
 
 // GET /api/sla/:tenantCode/definitions/:id - Get single SLA definition
-router.get('/:tenantCode/definitions/:id', authenticateToken, requireRole(['admin']), async (req, res) => {
+router.get('/:tenantCode/definitions/:id', verifyToken, requireRole(['admin']), async (req, res) => {
   try {
     const { tenantCode, id } = req.params;
     const pool = await getTenantConnection(tenantCode);
@@ -280,7 +280,7 @@ router.get('/:tenantCode/definitions/:id', authenticateToken, requireRole(['admi
 });
 
 // POST /api/sla/:tenantCode/definitions - Create SLA definition
-router.post('/:tenantCode/definitions', authenticateToken, requireRole(['admin']), async (req, res) => {
+router.post('/:tenantCode/definitions', verifyToken, requireRole(['admin']), async (req, res) => {
   try {
     const { tenantCode } = req.params;
     const {
@@ -345,7 +345,7 @@ router.post('/:tenantCode/definitions', authenticateToken, requireRole(['admin']
 });
 
 // PUT /api/sla/:tenantCode/definitions/:id - Update SLA definition
-router.put('/:tenantCode/definitions/:id', authenticateToken, requireRole(['admin']), async (req, res) => {
+router.put('/:tenantCode/definitions/:id', verifyToken, requireRole(['admin']), async (req, res) => {
   try {
     const { tenantCode, id } = req.params;
     const {
@@ -414,7 +414,7 @@ router.put('/:tenantCode/definitions/:id', authenticateToken, requireRole(['admi
 });
 
 // DELETE /api/sla/:tenantCode/definitions/:id - Delete SLA definition
-router.delete('/:tenantCode/definitions/:id', authenticateToken, requireRole(['admin']), async (req, res) => {
+router.delete('/:tenantCode/definitions/:id', verifyToken, requireRole(['admin']), async (req, res) => {
   try {
     const { tenantCode, id } = req.params;
     const pool = await getTenantConnection(tenantCode);
