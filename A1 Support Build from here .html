@@ -4198,6 +4198,12 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       }
     }
 
+    // Move modals to document.body to escape Ionic transform containers
+    ['sla-definition-modal', 'business-hours-modal'].forEach(id => {
+      const modal = document.getElementById(id);
+      if (modal && modal.parentNode !== document.body) document.body.appendChild(modal);
+    });
+
     // First ensure login screen is shown by default (with inline styles for extra security)
     document.querySelectorAll('.screen').forEach(s => {
       s.classList.remove('active');
