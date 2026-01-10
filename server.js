@@ -49,6 +49,7 @@ const rawVariablesRoutes = require('./routes/raw-variables');
 const integrationsTeamsRoutes = require('./routes/integrations-teams');
 const slaRoutes = require('./routes/sla');
 const adminRoutes = require('./routes/admin');
+const notificationsRoutes = require('./routes/notifications');
 
 // Import email processor service
 const { startEmailProcessing } = require('./services/email-processor');
@@ -92,6 +93,7 @@ app.use('/api/raw-variables', rawVariablesRoutes);
 app.use('/api/integrations', integrationsTeamsRoutes);
 app.use('/api/sla', slaRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/notifications', notificationsRoutes);
 
 // Public routes (no authentication required) - Must be before authenticated routes
 app.use('/ticket', publicTicketRoutes);
