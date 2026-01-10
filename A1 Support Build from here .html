@@ -6214,8 +6214,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         <td style="padding:8px">${hours}</td>
         <td style="padding:8px">${p.is_24x7 ? 'All days' : days}</td>
         <td style="padding:8px;text-align:right">
-          <button class="btn btn-sm" onclick="editBusinessHours(${p.id})">Edit</button>
-          <button class="btn btn-sm" style="color:#b91c1c" onclick="deleteBusinessHours(${p.id})">Delete</button>
+          <button type="button" class="btn btn-sm" onclick="event.stopPropagation();editBusinessHours(${p.id})">Edit</button>
+          <button type="button" class="btn btn-sm" style="color:#b91c1c" onclick="event.stopPropagation();deleteBusinessHours(${p.id})">Delete</button>
         </td>
       </tr>`;
     }).join('');
@@ -6239,8 +6239,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         <td style="padding:8px">${resolve}</td>
         <td style="padding:8px">${s.business_hours_name || 'Calendar time'}</td>
         <td style="padding:8px;text-align:right">
-          <button class="btn btn-sm" onclick="editSLADefinition(${s.id})">Edit</button>
-          <button class="btn btn-sm" style="color:#b91c1c" onclick="deleteSLADefinition(${s.id})">Delete</button>
+          <button type="button" class="btn btn-sm" onclick="event.stopPropagation();editSLADefinition(${s.id})">Edit</button>
+          <button type="button" class="btn btn-sm" style="color:#b91c1c" onclick="event.stopPropagation();deleteSLADefinition(${s.id})">Delete</button>
         </td>
       </tr>`;
     }).join('');
