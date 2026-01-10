@@ -6220,11 +6220,11 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     document.getElementById('bh-error').style.display = 'none';
 
     if (id) {
-      const p = businessHoursProfiles.find(x => x.id === id);
+      const p = businessHoursProfiles.find(x => x.id == id); // Use == for type coercion
       if (p) {
         document.getElementById('bh-name').value = p.name;
         document.getElementById('bh-timezone').value = p.timezone;
-        document.getElementById('bh-is-24x7').checked = p.is_24x7;
+        document.getElementById('bh-is-24x7').checked = !!p.is_24x7; // Ensure boolean
         document.getElementById('bh-start-time').value = p.start_time?.slice(0,5) || '09:00';
         document.getElementById('bh-end-time').value = p.end_time?.slice(0,5) || '17:00';
         const days = p.days_of_week || [];
@@ -6326,7 +6326,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     populateBusinessHoursDropdown();
 
     if (id) {
-      const s = slaDefinitions.find(x => x.id === id);
+      const s = slaDefinitions.find(x => x.id == id); // Use == for type coercion
       if (s) {
         document.getElementById('sla-name').value = s.name;
         document.getElementById('sla-description').value = s.description || '';
