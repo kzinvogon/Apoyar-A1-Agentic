@@ -179,6 +179,15 @@ vNext-FULL-ActionsSLA:
   /* Popover mode for Edit (anchored to button) */
   .sheet.popover{position:fixed;z-index:2000;width:500px;max-width:92vw;max-height:85vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,0.35)}
 
+  /* Compact mode for Quick Edit popovers */
+  .sheet.compact .sla-description-row{display:none}
+  .sheet.compact .head{padding:10px 16px;font-size:14px}
+  .sheet.compact .body{padding:12px 16px}
+  .sheet.compact .body .mb-12{margin-bottom:8px}
+  .sheet.compact .body .subtitle{margin-bottom:2px;font-size:12px}
+  .sheet.compact .body .input{padding:6px 10px;font-size:13px}
+  .sheet.compact .foot{padding:8px 16px}
+
   /* Wizard Nav */
   .wizard-nav-item{padding:12px 16px;cursor:pointer;border-bottom:1px solid var(--border);font-size:13px;transition:background .15s}
   .wizard-nav-item:last-child{border-bottom:none}
@@ -4185,7 +4194,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         <label class="subtitle">SLA Name *</label>
         <input id="sla-name" class="input" placeholder="e.g., Premium SLA"/>
       </div>
-      <div class="mb-12">
+      <div class="mb-12 sla-description-row">
         <label class="subtitle">Description</label>
         <input id="sla-description" class="input" placeholder="e.g., Priority support for enterprise clients"/>
       </div>
@@ -6376,7 +6385,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   function closeBusinessHoursModal() {
     const modal = document.getElementById('business-hours-modal');
     const sheet = modal.querySelector('.sheet');
-    sheet.classList.remove('popover');
+    sheet.classList.remove('popover', 'compact');
     sheet.style.top = '';
     sheet.style.left = '';
     modal.style.display = 'none';
@@ -6393,14 +6402,37 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   // Popover helpers for Edit buttons
   function positionPopover(sheetEl, anchorEl) {
     const pad = 12;
-    const a = anchorEl.getBoundingClientRect();
+
+    // Anchor to the row, not just the button
+    const rowEl = anchorEl.closest('tr') || anchorEl.closest('.row') || anchorEl.parentElement;
+    const a = (rowEl || anchorEl).getBoundingClientRect();
+
+    // Setup sheet for measurement
+    sheetEl.style.cssText = '';
     sheetEl.style.display = 'block';
-    const r = sheetEl.getBoundingClientRect();
-    let top = a.top; // Align with the clicked Edit button
+    sheetEl.style.position = 'fixed';
+    sheetEl.style.zIndex = '2000';
+    sheetEl.classList.add('popover');
+    sheetEl.style.overflow = 'auto';
+
+    const popW = sheetEl.getBoundingClientRect().width;
+    const popH = sheetEl.getBoundingClientRect().height;
+
+    // Horizontal: prefer right of row, flip left if needed
     let left = a.right + pad;
-    if (left + r.width > window.innerWidth - pad) left = a.left - r.width - pad;
-    if (top + r.height > window.innerHeight - pad) top = window.innerHeight - r.height - pad;
-    if (top < pad) top = pad;
+    if (left + popW > window.innerWidth - pad) left = a.left - popW - pad;
+
+    // Vertical: anchor near the row center, allow internal scroll
+    const rowMid = a.top + a.height / 2;
+    let top = rowMid - Math.min(200, popH / 3); // keeps header near row
+
+    // Set maxHeight so sheet scrolls internally instead of jumping away
+    const maxH = Math.max(280, window.innerHeight - pad * 2);
+    sheetEl.style.maxHeight = `${maxH}px`;
+
+    // Clamp top to viewport, but stay attached to row area
+    top = Math.max(pad, Math.min(top, window.innerHeight - pad - 80));
+
     sheetEl.style.top = `${top}px`;
     sheetEl.style.left = `${left}px`;
   }
@@ -6440,10 +6472,10 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const sheet = modal.querySelector('.sheet');
 
     if (anchorEl) {
-      // Popover mode
+      // Popover mode (compact Quick Edit)
       modal.style.display = 'block';
       modal.style.background = 'transparent';
-      sheet.classList.add('popover');
+      sheet.classList.add('popover', 'compact');
       positionPopover(sheet, anchorEl);
       bindPopoverClose(modal, sheet, closeBusinessHoursModal);
     } else {
@@ -6560,7 +6592,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   function closeSLADefinitionModal() {
     const modal = document.getElementById('sla-definition-modal');
     const sheet = modal.querySelector('.sheet');
-    sheet.classList.remove('popover');
+    sheet.classList.remove('popover', 'compact');
     sheet.style.top = '';
     sheet.style.left = '';
     modal.style.display = 'none';
@@ -6603,10 +6635,10 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const sheet = modal.querySelector('.sheet');
 
     if (anchorEl) {
-      // Popover mode
+      // Popover mode (compact Quick Edit)
       modal.style.display = 'block';
       modal.style.background = 'transparent';
-      sheet.classList.add('popover');
+      sheet.classList.add('popover', 'compact');
       positionPopover(sheet, anchorEl);
       bindPopoverClose(modal, sheet, closeSLADefinitionModal);
     } else {
