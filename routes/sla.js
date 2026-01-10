@@ -44,8 +44,7 @@ router.get('/:tenantCode/business-hours', verifyToken, requireRole(['admin']), a
     const [profiles] = await connection.query(`
       SELECT id, name, timezone, days_of_week, start_time, end_time, is_24x7, is_active, created_at, updated_at
       FROM business_hours_profiles
-      WHERE is_active = 1
-      ORDER BY name
+      ORDER BY is_active DESC, name
     `);
 
     res.json({ success: true, profiles });
@@ -222,7 +221,7 @@ router.delete('/:tenantCode/business-hours/:id', verifyToken, requireRole(['admi
       return res.status(400).json({ success: false, error: 'Cannot delete: This profile is used by active SLA definitions' });
     }
 
-    const [result] = await connection.query('UPDATE business_hours_profiles SET is_active = 0 WHERE id = ? AND is_active = 1', [id]);
+    const [result] = await connection.query('UPDATE business_hours_profiles SET is_active = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND is_active = 1', [id]);
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ success: false, error: 'Business hours profile not found or already deleted' });
@@ -257,8 +256,7 @@ router.get('/:tenantCode/definitions', verifyToken, requireRole(['admin']), asyn
         b.name as business_hours_name
       FROM sla_definitions s
       LEFT JOIN business_hours_profiles b ON s.business_hours_profile_id = b.id
-      WHERE s.is_active = 1
-      ORDER BY s.name
+      ORDER BY s.is_active DESC, s.name
     `);
 
     res.json({ success: true, definitions });
@@ -449,7 +447,7 @@ router.delete('/:tenantCode/definitions/:id', verifyToken, requireRole(['admin']
     const { tenantCode, id } = req.params;
     connection = await getTenantConnection(tenantCode);
 
-    const [result] = await connection.query('UPDATE sla_definitions SET is_active = 0 WHERE id = ? AND is_active = 1', [id]);
+    const [result] = await connection.query('UPDATE sla_definitions SET is_active = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND is_active = 1', [id]);
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ success: false, error: 'SLA definition not found or already deleted' });
