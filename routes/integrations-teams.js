@@ -26,9 +26,10 @@ const APP_BASE_URL = process.env.APP_BASE_URL || 'https://web-production-11114.u
  */
 router.get('/:tenantCode/teams/status', async (req, res) => {
   const { tenantCode } = req.params;
+  let masterConn;
 
   try {
-    const masterConn = await getMasterConnection();
+    masterConn = await getMasterConnection();
 
     // Check for existing mapping (use COLLATE to handle mixed collations)
     const [mappings] = await masterConn.query(
@@ -63,6 +64,8 @@ router.get('/:tenantCode/teams/status', async (req, res) => {
   } catch (error) {
     console.error('[Teams Integration] Status error:', error);
     res.status(500).json({ error: 'Failed to check Teams integration status' });
+  } finally {
+    if (masterConn) masterConn.release();
   }
 });
 
