@@ -55,10 +55,11 @@ vNext-FULL-ActionsSLA:
 - NON‑DESTRUCTIVE: prior flows preserved.
 -->
 <style>
-  :root{color-scheme:light;--bg:#fafafa;--card:#ffffff;--ink:#1a1a1a;--muted:#717171;--primary:#1a1a1a;--primary-dark:#000000;--accent:#1a1a1a;--danger:#dc2626;--warn:#ca8a04;--ok:#16a34a;--radius:8px;--shadow:0 1px 2px rgba(0,0,0,.04);--shadow-lg:0 2px 8px rgba(0,0,0,.08);--border:#e5e5e5;--card-hover:#f5f5f5;--table-header:#fafafa;--input-bg:#ffffff;--topnav-bg:#ffffff;--logo-bg:#1a1a1a;--logo-text:#ffffff;--avatar-bg:#1a1a1a;--badge-bg:#fafafa}
+  /* Theme: Light (default) */
+  :root,html.theme-light{color-scheme:light;--bg:#fafafa;--card:#ffffff;--ink:#1a1a1a;--muted:#717171;--primary:#1a1a1a;--primary-dark:#000000;--accent:#1a1a1a;--danger:#dc2626;--warn:#ca8a04;--ok:#16a34a;--radius:8px;--shadow:0 1px 2px rgba(0,0,0,.04);--shadow-lg:0 2px 8px rgba(0,0,0,.08);--border:#e5e5e5;--card-hover:#f5f5f5;--table-header:#fafafa;--input-bg:#ffffff;--topnav-bg:#ffffff;--logo-bg:#1a1a1a;--logo-text:#ffffff;--avatar-bg:#1a1a1a;--badge-bg:#fafafa}
 
-  /* Dark Mode */
-  body.dark-mode{color-scheme:dark;--bg:#0a0a0a;--card:#141414;--ink:#f5f5f5;--muted:#a3a3a3;--primary:#ffffff;--primary-dark:#e5e5e5;--accent:#ffffff;--border:#262626;--card-hover:#1f1f1f;--table-header:#141414;--input-bg:#1a1a1a;--topnav-bg:#0a0a0a;--logo-bg:#ffffff;--logo-text:#0a0a0a;--avatar-bg:#ffffff;--badge-bg:#1a1a1a}
+  /* Theme: Dark */
+  html.theme-dark{color-scheme:dark;--bg:#0a0a0a;--card:#141414;--ink:#f5f5f5;--muted:#a3a3a3;--primary:#ffffff;--primary-dark:#e5e5e5;--accent:#ffffff;--danger:#dc2626;--warn:#ca8a04;--ok:#16a34a;--border:#262626;--card-hover:#1f1f1f;--table-header:#141414;--input-bg:#1a1a1a;--topnav-bg:#0a0a0a;--logo-bg:#ffffff;--logo-text:#0a0a0a;--avatar-bg:#ffffff;--badge-bg:#1a1a1a}
 
   *{box-sizing:border-box}
   /* Override Ionic's body styles that break scrolling */
@@ -457,7 +458,7 @@ vNext-FULL-ActionsSLA:
 
   /* Capacitor status bar area */
   .capacitor-ios .topnav{background:var(--topnav-bg)}
-  .capacitor-ios.dark-mode .topnav{background:var(--topnav-bg)}
+  html.theme-dark .capacitor-ios .topnav{background:var(--topnav-bg)}
 
   /* ========================================
      IONIC FRAMEWORK INTEGRATION
@@ -488,7 +489,7 @@ vNext-FULL-ActionsSLA:
   }
 
   /* Ionic Dark Mode */
-  .dark-mode {
+  html.theme-dark {
     --ion-background-color: var(--bg);
     --ion-text-color: var(--ink);
     --ion-toolbar-background: var(--topnav-bg);
@@ -630,23 +631,23 @@ vNext-FULL-ActionsSLA:
   }
 
   /* Dark mode for Ionic menu */
-  body.dark-mode ion-menu {
+  html.theme-dark ion-menu {
     --background: var(--card);
   }
 
-  body.dark-mode ion-menu ion-content {
+  html.theme-dark ion-menu ion-content {
     --background: var(--card);
   }
 
-  body.dark-mode ion-menu ion-item {
+  html.theme-dark ion-menu ion-item {
     --color: var(--ink);
   }
 
-  body.dark-mode ion-menu ion-icon {
+  html.theme-dark ion-menu ion-icon {
     color: var(--muted);
   }
 
-  body.dark-mode ion-menu ion-item-divider {
+  html.theme-dark ion-menu ion-item-divider {
     --background: var(--bg);
     --color: var(--muted);
   }
@@ -4479,29 +4480,55 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     document.getElementById('topnav-right').style.display = (where==='login') ? 'none' : 'flex';
   }
 
-  // Theme toggle functionality
+  // Theme Controller
+  // localStorage key: 'serviflow.theme' with values: 'light' | 'dark' | 'system'
+  const systemDarkQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+  function getEffectiveTheme(mode) {
+    if (mode === 'dark') return 'dark';
+    if (mode === 'light') return 'light';
+    return systemDarkQuery.matches ? 'dark' : 'light';
+  }
+
+  function applyTheme(effectiveTheme) {
+    const html = document.documentElement;
+    html.classList.remove('theme-light', 'theme-dark');
+    html.classList.add('theme-' + effectiveTheme);
+    html.style.colorScheme = effectiveTheme;
+    updateThemeIcon(effectiveTheme === 'dark');
+  }
+
+  function setTheme(mode) {
+    localStorage.setItem('serviflow.theme', mode);
+    applyTheme(getEffectiveTheme(mode));
+  }
+  window.setTheme = setTheme;
+
   function toggleTheme() {
-    const body = document.body;
-    const isDark = body.classList.toggle('dark-mode');
-    localStorage.setItem('theme', isDark ? 'dark' : 'light');
-    updateThemeIcon(isDark);
+    const current = localStorage.getItem('serviflow.theme') || 'system';
+    const effectiveNow = getEffectiveTheme(current);
+    // Toggle to opposite of current effective theme
+    setTheme(effectiveNow === 'dark' ? 'light' : 'dark');
   }
 
   function updateThemeIcon(isDark) {
-    document.getElementById('theme-icon-sun').style.display = isDark ? 'none' : 'block';
-    document.getElementById('theme-icon-moon').style.display = isDark ? 'block' : 'none';
+    const sun = document.getElementById('theme-icon-sun');
+    const moon = document.getElementById('theme-icon-moon');
+    if (sun) sun.style.display = isDark ? 'none' : 'block';
+    if (moon) moon.style.display = isDark ? 'block' : 'none';
   }
 
-  // Initialize theme from localStorage
   function initTheme() {
-    const savedTheme = localStorage.getItem('theme');
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const isDark = savedTheme === 'dark' || (savedTheme === null && prefersDark);
-    if (isDark) {
-      document.body.classList.add('dark-mode');
-    }
-    updateThemeIcon(isDark);
+    const saved = localStorage.getItem('serviflow.theme') || 'system';
+    applyTheme(getEffectiveTheme(saved));
   }
+
+  // Listen for system theme changes (only affects 'system' mode)
+  systemDarkQuery.addEventListener('change', () => {
+    const mode = localStorage.getItem('serviflow.theme') || 'system';
+    if (mode === 'system') applyTheme(getEffectiveTheme('system'));
+  });
+
   initTheme();
 
   // Mobile menu functions
