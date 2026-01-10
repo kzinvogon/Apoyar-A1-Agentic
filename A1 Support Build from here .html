@@ -87,10 +87,17 @@ vNext-FULL-ActionsSLA:
   .topnav-btn.primary{background:var(--primary);color:var(--bg);border-color:var(--primary)}
   .topnav-btn.primary:hover{background:var(--primary-dark)}
 
-  /* Theme Toggle */
+  /* Theme Toggle Dropdown */
+  .theme-dropdown{position:relative}
   .theme-toggle{width:36px;height:36px;border-radius:8px;border:1px solid var(--border);background:var(--card);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
   .theme-toggle:hover{background:var(--card-hover)}
   .theme-toggle svg{width:18px;height:18px;color:var(--ink)}
+  .theme-menu{position:absolute;top:calc(100% + 4px);right:0;background:var(--card);border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow-lg);min-width:120px;z-index:1000;display:none;overflow:hidden}
+  .theme-dropdown.open .theme-menu{display:block}
+  .theme-menu-item{display:flex;align-items:center;gap:8px;padding:10px 14px;cursor:pointer;font-size:13px;color:var(--ink);transition:background .1s}
+  .theme-menu-item:hover{background:var(--card-hover)}
+  .theme-menu-item.active{background:var(--card-hover);font-weight:500}
+  .theme-menu-item svg{width:16px;height:16px;color:var(--muted)}
 
   .container{max-width:1200px;margin:0 auto;padding:20px}
 
@@ -168,6 +175,9 @@ vNext-FULL-ActionsSLA:
   .modal .head{padding:16px 20px;background:var(--primary);color:var(--bg);font-weight:500;font-size:15px}
   .modal .body{padding:20px}
   .modal .foot{padding:12px 20px;display:flex;gap:8px;justify-content:flex-end;border-top:1px solid var(--border);background:var(--table-header)}
+
+  /* Popover mode for Edit (anchored to button) */
+  .sheet.popover{position:fixed;z-index:2000;width:500px;max-width:92vw;max-height:85vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,0.35)}
 
   /* Wizard Nav */
   .wizard-nav-item{padding:12px 16px;cursor:pointer;border-bottom:1px solid var(--border);font-size:13px;transition:background .15s}
@@ -752,22 +762,38 @@ vNext-FULL-ActionsSLA:
       </a>
     </div>
     <div style="display:flex;align-items:center;gap:12px">
-      <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark/light mode" id="theme-toggle-btn">
-        <svg id="theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="5"></circle>
-          <line x1="12" y1="1" x2="12" y2="3"></line>
-          <line x1="12" y1="21" x2="12" y2="23"></line>
-          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-          <line x1="1" y1="12" x2="3" y2="12"></line>
-          <line x1="21" y1="12" x2="23" y2="12"></line>
-          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-        </svg>
-        <svg id="theme-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
-          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-        </svg>
-      </button>
+      <div class="theme-dropdown" id="theme-dropdown">
+        <button class="theme-toggle" onclick="toggleThemeMenu(event)" title="Theme" id="theme-toggle-btn">
+          <svg id="theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+          <svg id="theme-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        </button>
+        <div class="theme-menu">
+          <div class="theme-menu-item" data-theme="light" onclick="selectTheme('light')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+            Light
+          </div>
+          <div class="theme-menu-item" data-theme="dark" onclick="selectTheme('dark')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            Dark
+          </div>
+          <div class="theme-menu-item" data-theme="system" onclick="selectTheme('system')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            System
+          </div>
+        </div>
+      </div>
       <div class="topnav-right" id="topnav-right" style="display:none">
       <div class="topnav-user" onclick="go('login')">
         <div class="topnav-avatar" id="topnav-avatar">A</div>
@@ -4501,14 +4527,25 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   function setTheme(mode) {
     localStorage.setItem('serviflow.theme', mode);
     applyTheme(getEffectiveTheme(mode));
+    updateThemeMenuSelection(mode);
   }
   window.setTheme = setTheme;
 
-  function toggleTheme() {
-    const current = localStorage.getItem('serviflow.theme') || 'system';
-    const effectiveNow = getEffectiveTheme(current);
-    // Toggle to opposite of current effective theme
-    setTheme(effectiveNow === 'dark' ? 'light' : 'dark');
+  function toggleThemeMenu(event) {
+    event.stopPropagation();
+    const dropdown = document.getElementById('theme-dropdown');
+    dropdown.classList.toggle('open');
+  }
+
+  function selectTheme(mode) {
+    setTheme(mode);
+    document.getElementById('theme-dropdown').classList.remove('open');
+  }
+
+  function updateThemeMenuSelection(mode) {
+    document.querySelectorAll('.theme-menu-item').forEach(item => {
+      item.classList.toggle('active', item.dataset.theme === mode);
+    });
   }
 
   function updateThemeIcon(isDark) {
@@ -4521,12 +4558,21 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   function initTheme() {
     const saved = localStorage.getItem('serviflow.theme') || 'system';
     applyTheme(getEffectiveTheme(saved));
+    updateThemeMenuSelection(saved);
   }
 
   // Listen for system theme changes (only affects 'system' mode)
   systemDarkQuery.addEventListener('change', () => {
     const mode = localStorage.getItem('serviflow.theme') || 'system';
     if (mode === 'system') applyTheme(getEffectiveTheme('system'));
+  });
+
+  // Close theme dropdown when clicking elsewhere
+  document.addEventListener('click', (e) => {
+    const dropdown = document.getElementById('theme-dropdown');
+    if (dropdown && !dropdown.contains(e.target)) {
+      dropdown.classList.remove('open');
+    }
   });
 
   initTheme();
@@ -6247,7 +6293,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         <td style="padding:8px">${hours}</td>
         <td style="padding:8px">${p.is_24x7 ? 'All days' : days}</td>
         <td style="padding:8px;text-align:right">
-          <button type="button" class="btn btn-sm" onclick="event.preventDefault();event.stopPropagation();editBusinessHours(${p.id})">Edit</button>
+          <button type="button" class="btn btn-sm" onclick="event.preventDefault();event.stopPropagation();editBusinessHours(${p.id},this)">Edit</button>
           <button type="button" class="btn btn-sm" style="color:#b91c1c" onclick="event.preventDefault();event.stopPropagation();deleteBusinessHours(${p.id})">Delete</button>
         </td>
       </tr>`;
@@ -6272,7 +6318,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         <td style="padding:8px">${resolve}</td>
         <td style="padding:8px">${s.business_hours_name || 'Calendar time'}</td>
         <td style="padding:8px;text-align:right">
-          <button type="button" class="btn btn-sm" onclick="event.preventDefault();event.stopPropagation();editSLADefinition(${s.id})">Edit</button>
+          <button type="button" class="btn btn-sm" onclick="event.preventDefault();event.stopPropagation();editSLADefinition(${s.id},this)">Edit</button>
           <button type="button" class="btn btn-sm" style="color:#b91c1c" onclick="event.preventDefault();event.stopPropagation();deleteSLADefinition(${s.id})">Delete</button>
         </td>
       </tr>`;
@@ -6328,8 +6374,15 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   }
 
   function closeBusinessHoursModal() {
-    document.getElementById('business-hours-modal').style.display = 'none';
+    const modal = document.getElementById('business-hours-modal');
+    const sheet = modal.querySelector('.sheet');
+    sheet.classList.remove('popover');
+    sheet.style.top = '';
+    sheet.style.left = '';
+    modal.style.display = 'none';
+    modal.style.background = '';
     document.body.style.overflow = '';
+    if (modal._popoverCleanup) { modal._popoverCleanup(); modal._popoverCleanup = null; }
   }
 
   function toggle24x7() {
@@ -6337,8 +6390,67 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     document.getElementById('bh-hours-section').style.display = is24x7 ? 'none' : 'block';
   }
 
-  function editBusinessHours(id) {
-    openBusinessHoursModal(id);
+  // Popover helpers for Edit buttons
+  function positionPopover(sheetEl, anchorEl) {
+    const pad = 12;
+    const rowOffset = 56; // ~2 table rows down
+    const a = anchorEl.getBoundingClientRect();
+    sheetEl.style.display = 'block';
+    const r = sheetEl.getBoundingClientRect();
+    let top = a.top - 8 + rowOffset;
+    let left = a.right + pad;
+    if (left + r.width > window.innerWidth - pad) left = a.left - r.width - pad;
+    if (top + r.height > window.innerHeight - pad) top = window.innerHeight - r.height - pad;
+    if (top < pad) top = pad;
+    sheetEl.style.top = `${top}px`;
+    sheetEl.style.left = `${left}px`;
+  }
+
+  function bindPopoverClose(modalEl, sheetEl, closeFn) {
+    setTimeout(() => {
+      function onDown(e) { if (!sheetEl.contains(e.target)) { cleanup(); closeFn(); } }
+      function onKey(e) { if (e.key === 'Escape') { cleanup(); closeFn(); } }
+      function cleanup() {
+        document.removeEventListener('mousedown', onDown, true);
+        document.removeEventListener('keydown', onKey, true);
+      }
+      document.addEventListener('mousedown', onDown, true);
+      document.addEventListener('keydown', onKey, true);
+      modalEl._popoverCleanup = cleanup;
+    }, 0);
+  }
+
+  function editBusinessHours(id, anchorEl) {
+    // Populate form
+    document.getElementById('bh-edit-id').value = id || '';
+    document.getElementById('business-hours-modal-title').textContent = 'Edit Business Hours Profile';
+    document.getElementById('bh-error').style.display = 'none';
+    const p = businessHoursProfiles.find(x => x.id == id);
+    if (p) {
+      document.getElementById('bh-name').value = p.name;
+      document.getElementById('bh-timezone').value = p.timezone;
+      document.getElementById('bh-is-24x7').checked = !!p.is_24x7;
+      document.getElementById('bh-start-time').value = p.start_time?.slice(0,5) || '09:00';
+      document.getElementById('bh-end-time').value = p.end_time?.slice(0,5) || '17:00';
+      const days = p.days_of_week || [];
+      for (let i = 1; i <= 7; i++) document.getElementById('bh-day-' + i).checked = days.includes(i);
+      toggle24x7();
+    }
+
+    const modal = document.getElementById('business-hours-modal');
+    const sheet = modal.querySelector('.sheet');
+
+    if (anchorEl) {
+      // Popover mode
+      modal.style.display = 'block';
+      modal.style.background = 'transparent';
+      sheet.classList.add('popover');
+      positionPopover(sheet, anchorEl);
+      bindPopoverClose(modal, sheet, closeBusinessHoursModal);
+    } else {
+      // Fallback to centered modal
+      openBusinessHoursModal(id);
+    }
   }
 
   async function saveBusinessHours() {
@@ -6447,12 +6559,61 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   }
 
   function closeSLADefinitionModal() {
-    document.getElementById('sla-definition-modal').style.display = 'none';
+    const modal = document.getElementById('sla-definition-modal');
+    const sheet = modal.querySelector('.sheet');
+    sheet.classList.remove('popover');
+    sheet.style.top = '';
+    sheet.style.left = '';
+    modal.style.display = 'none';
+    modal.style.background = '';
     document.body.style.overflow = '';
+    if (modal._popoverCleanup) { modal._popoverCleanup(); modal._popoverCleanup = null; }
   }
 
-  function editSLADefinition(id) {
-    openSLADefinitionModal(id);
+  function editSLADefinition(id, anchorEl) {
+    // Populate form
+    document.getElementById('sla-edit-id').value = id || '';
+    document.getElementById('sla-definition-modal-title').textContent = 'Edit SLA Definition';
+    document.getElementById('sla-def-error').style.display = 'none';
+    populateBusinessHoursDropdown();
+
+    const s = slaDefinitions.find(x => x.id == id);
+    if (s) {
+      document.getElementById('sla-name').value = s.name;
+      document.getElementById('sla-description').value = s.description || '';
+      document.getElementById('sla-business-hours').value = s.business_hours_profile_id || '';
+      const respMins = s.response_target_minutes;
+      if (respMins >= 60 && respMins % 60 === 0) {
+        document.getElementById('sla-response-value').value = respMins / 60;
+        document.getElementById('sla-response-unit').value = 'hours';
+      } else {
+        document.getElementById('sla-response-value').value = respMins;
+        document.getElementById('sla-response-unit').value = 'minutes';
+      }
+      const resMins = s.resolve_target_minutes;
+      if (resMins >= 60 && resMins % 60 === 0) {
+        document.getElementById('sla-resolve-value').value = resMins / 60;
+        document.getElementById('sla-resolve-unit').value = 'hours';
+      } else {
+        document.getElementById('sla-resolve-value').value = resMins;
+        document.getElementById('sla-resolve-unit').value = 'minutes';
+      }
+    }
+
+    const modal = document.getElementById('sla-definition-modal');
+    const sheet = modal.querySelector('.sheet');
+
+    if (anchorEl) {
+      // Popover mode
+      modal.style.display = 'block';
+      modal.style.background = 'transparent';
+      sheet.classList.add('popover');
+      positionPopover(sheet, anchorEl);
+      bindPopoverClose(modal, sheet, closeSLADefinitionModal);
+    } else {
+      // Fallback to centered modal
+      openSLADefinitionModal(id);
+    }
   }
 
   async function saveSLADefinition() {
