@@ -325,12 +325,30 @@ async function startServer() {
           console.warn(`⚠️  Warning: SLA ticket fields migration:`, migrationError.message);
         }
 
+        // Run SLA notification fields migration
+        try {
+          const { runMigration: runSLANotificationFieldsMigration } = require('./migrations/add-sla-notification-fields');
+          await runSLANotificationFieldsMigration('apoyar');
+          console.log('✅ SLA notification fields migration completed');
+        } catch (migrationError) {
+          console.warn(`⚠️  Warning: SLA notification fields migration:`, migrationError.message);
+        }
+
         // Start email processing for apoyar tenant
         try {
           await startEmailProcessing('apoyar');
           console.log('✅ Email processing service started for tenant "apoyar"');
         } catch (emailError) {
           console.warn(`⚠️  Warning: Could not start email processing:`, emailError.message);
+        }
+
+        // Start SLA notification scheduler
+        try {
+          const { startScheduler } = require('./services/sla-notifier');
+          startScheduler(5 * 60 * 1000); // Every 5 minutes
+          console.log('✅ SLA notification scheduler started');
+        } catch (schedulerError) {
+          console.warn(`⚠️  Warning: Could not start SLA scheduler:`, schedulerError.message);
         }
       } catch (error) {
         console.warn(`⚠️  Warning: Could not initialize tenant 'apoyar':`, error.message);
@@ -366,6 +384,13 @@ async function startServer() {
 process.on('SIGINT', async () => {
   console.log('\n🛑 Shutting down gracefully...');
   try {
+    // Stop SLA notification scheduler
+    try {
+      const { stopScheduler } = require('./services/sla-notifier');
+      stopScheduler();
+    } catch (e) {
+      // Ignore if not loaded
+    }
     await closeAllConnections();
     console.log('✅ Database connections closed');
   } catch (error) {
