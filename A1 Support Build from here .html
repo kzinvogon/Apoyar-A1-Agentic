@@ -2905,19 +2905,19 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             <!-- Settings Nav Menu -->
             <div id="wizard-nav" style="width:200px;flex-shrink:0;position:sticky;top:72px">
               <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden">
-                <div class="wizard-nav-item active" onclick="scrollToWizardSection('admin-section-profile')">🏢 Company Profile</div>
-                <div class="wizard-nav-item" onclick="scrollToWizardSection('admin-section-email-ingest')">📧 Email Ingest</div>
-                <div class="wizard-nav-item" onclick="scrollToWizardSection('admin-section-expert-reg')">👤 Expert Registration</div>
-                <div class="wizard-nav-item" onclick="scrollToWizardSection('admin-section-support')">🎫 Support Settings</div>
-                <div class="wizard-nav-item" onclick="scrollToWizardSection('admin-section-integrations')">🔗 Integrations</div>
-                <div class="wizard-nav-item" onclick="scrollToWizardSection('admin-section-sla')">⏱️ SLA Management</div>
+                <div class="wizard-nav-item active" data-section="admin-section-profile" onclick="showWizardSection('admin-section-profile')">🏢 Company Profile</div>
+                <div class="wizard-nav-item" data-section="admin-section-email-ingest" onclick="showWizardSection('admin-section-email-ingest')">📧 Email Ingest</div>
+                <div class="wizard-nav-item" data-section="admin-section-expert-reg" onclick="showWizardSection('admin-section-expert-reg')">👤 Expert Registration</div>
+                <div class="wizard-nav-item" data-section="admin-section-support" onclick="showWizardSection('admin-section-support')">🎫 Support Settings</div>
+                <div class="wizard-nav-item" data-section="admin-section-integrations" onclick="showWizardSection('admin-section-integrations')">🔗 Integrations</div>
+                <div class="wizard-nav-item" data-section="admin-section-sla" onclick="showWizardSection('admin-section-sla')">⏱️ SLA Management</div>
               </div>
             </div>
 
             <!-- Settings Content -->
             <div style="flex:1;min-width:0">
           <!-- Company Profile Section -->
-          <div id="admin-section-profile" class="card p-16 mb-12">
+          <div id="admin-section-profile" class="wizard-section card p-16 mb-12">
             <div class="row space mb-12">
               <h4 class="subtitle" style="margin:0;font-weight:600">Company Profile</h4>
               <button class="btn primary" onclick="saveCompanyProfile()">Save Profile</button>
@@ -2948,7 +2948,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           </div>
 
           <!-- Email Ingest Rules Section -->
-          <div id="admin-section-email-ingest" class="card p-16 mb-12">
+          <div id="admin-section-email-ingest" class="wizard-section card p-16 mb-12" style="display:none">
             <div class="row space mb-12">
               <h4 class="subtitle" style="margin:0;font-weight:600">Email Ingest Rules</h4>
               <div class="row">
@@ -3017,7 +3017,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           </div>
 
           <!-- Expert Registration Settings -->
-          <div id="admin-section-expert-reg" class="card p-16 mb-12">
+          <div id="admin-section-expert-reg" class="wizard-section card p-16 mb-12" style="display:none">
             <div class="row space mb-12">
               <h4 class="subtitle" style="margin:0;font-weight:600">Expert Registration via Email</h4>
               <button class="btn primary" onclick="saveExpertRegSettings()">Save Settings</button>
@@ -3054,7 +3054,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           </div>
 
           <!-- Support Settings -->
-          <div id="admin-section-support" class="card p-16 mb-12">
+          <div id="admin-section-support" class="wizard-section card p-16 mb-12" style="display:none">
             <div class="row space mb-12">
               <h4 class="subtitle" style="margin:0;font-weight:600">Support Settings</h4>
               <button class="btn primary" onclick="saveSupportSettings()">Save Settings</button>
@@ -3077,7 +3077,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           </div>
 
           <!-- Integrations Section -->
-          <div id="admin-section-integrations" class="card p-16 mb-12">
+          <div id="admin-section-integrations" class="wizard-section card p-16 mb-12" style="display:none">
             <div class="row space mb-12">
               <h4 class="subtitle" style="margin:0;font-weight:600">🔗 Integrations</h4>
             </div>
@@ -3174,7 +3174,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           </div>
 
           <!-- SLA Management Section -->
-          <div id="admin-section-sla" class="card p-16 mb-12">
+          <div id="admin-section-sla" class="wizard-section card p-16 mb-12" style="display:none">
             <div class="row space mb-12">
               <h4 class="subtitle" style="margin:0;font-weight:600">⏱️ SLA Management</h4>
             </div>
@@ -4893,7 +4893,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   function nav(el){ document.querySelectorAll('.navlink').forEach(n=>n.classList.remove('active')); el.classList.add('active'); switchView(el.getAttribute('data-target')); if(el.getAttribute('data-target')==='dash') renderAllDashboards(); }
   function navTo(view){ switchView(view); }
-  function switchView(view){ currentView=view; ['dash','profile','tickets','ticket-detail','experts','expert-detail','customers','cmdb','cmdb-detail','manage-cmdb','cmdb-mgmt','wizard','raise','tenants','subscriptions','billing','plans','system','usage','customer-plans','customer-billing','analytics','ai-insights','ticket-rules','email-processing','system-control','knowledge-base','raw-variables'].forEach(n=>{ const el=document.getElementById('view-'+n); if(el) el.style.display=(n===view)?'block':'none'; }); if(view==='tickets') { loadFilterSettings('tickets'); renderList(); } if(view==='experts') { loadFilterSettings('experts'); renderExperts(); } if(view==='expert-detail') renderExpertDetail(); if(view==='customers') { loadFilterSettings('customers'); renderCustomers(); } if(view==='cmdb') { loadFilterSettings('cmdb'); renderCMDB(); } if(view==='cmdb-detail') renderCMDBDetail(); if(view==='manage-cmdb') loadManageCMDB(); if(view==='cmdb-mgmt') loadCMDBMgmt(); if(view==='raise') loadRaiseFormOptions(); if(view==='ticket-detail') renderTicketDetail(); if(view==='tenants') loadTenants(); if(view==='subscriptions') loadSubscriptions(); if(view==='billing') loadBilling(); if(view==='plans') loadPlans(); if(view==='system') loadSystemOverview(); if(view==='usage') loadUsageDashboard(); if(view==='customer-plans') loadCustomerPlans(); if(view==='customer-billing') loadCustomerBilling(); if(view==='analytics') loadAnalytics(); if(view==='ai-insights') loadAIInsights(); if(view==='ticket-rules') loadTicketRules(); if(view==='email-processing') loadEmailProcessing(); if(view==='system-control') loadSystemControlSettings(); if(view==='knowledge-base') initKnowledgeBase(); if(view==='raw-variables') loadRawVariables(); if(view==='wizard') { loadCompanyProfile(); loadEmailIngestSettings(); loadExpertRegSettings(); loadSupportSettings(); loadTeamsIntegrationStatus(); loadSLAData(); } if(view==='profile') loadProfile(); }
+  function switchView(view){ currentView=view; ['dash','profile','tickets','ticket-detail','experts','expert-detail','customers','cmdb','cmdb-detail','manage-cmdb','cmdb-mgmt','wizard','raise','tenants','subscriptions','billing','plans','system','usage','customer-plans','customer-billing','analytics','ai-insights','ticket-rules','email-processing','system-control','knowledge-base','raw-variables'].forEach(n=>{ const el=document.getElementById('view-'+n); if(el) el.style.display=(n===view)?'block':'none'; }); if(view==='tickets') { loadFilterSettings('tickets'); renderList(); } if(view==='experts') { loadFilterSettings('experts'); renderExperts(); } if(view==='expert-detail') renderExpertDetail(); if(view==='customers') { loadFilterSettings('customers'); renderCustomers(); } if(view==='cmdb') { loadFilterSettings('cmdb'); renderCMDB(); } if(view==='cmdb-detail') renderCMDBDetail(); if(view==='manage-cmdb') loadManageCMDB(); if(view==='cmdb-mgmt') loadCMDBMgmt(); if(view==='raise') loadRaiseFormOptions(); if(view==='ticket-detail') renderTicketDetail(); if(view==='tenants') loadTenants(); if(view==='subscriptions') loadSubscriptions(); if(view==='billing') loadBilling(); if(view==='plans') loadPlans(); if(view==='system') loadSystemOverview(); if(view==='usage') loadUsageDashboard(); if(view==='customer-plans') loadCustomerPlans(); if(view==='customer-billing') loadCustomerBilling(); if(view==='analytics') loadAnalytics(); if(view==='ai-insights') loadAIInsights(); if(view==='ticket-rules') loadTicketRules(); if(view==='email-processing') loadEmailProcessing(); if(view==='system-control') loadSystemControlSettings(); if(view==='knowledge-base') initKnowledgeBase(); if(view==='raw-variables') loadRawVariables(); if(view==='wizard') { initWizardSection(); loadCompanyProfile(); loadEmailIngestSettings(); loadExpertRegSettings(); loadSupportSettings(); loadTeamsIntegrationStatus(); loadSLAData(); } if(view==='profile') loadProfile(); }
   function configureRole(){
     const currentRole = window.role || role; // Use global role from login, fallback to local
     document.getElementById('nav-admin').style.display = (currentRole==='admin') ? 'block' : 'none';
@@ -5619,18 +5619,24 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     }
   }
 
-  // Wizard Navigation
-  function scrollToWizardSection(sectionId) {
+  // Wizard Navigation - panel switching
+  function showWizardSection(sectionId) {
+    // Hide all sections
+    document.querySelectorAll('.wizard-section').forEach(s => s.style.display = 'none');
+    // Show selected section
     const section = document.getElementById(sectionId);
-    if (section) {
-      section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      // Update active nav item
-      document.querySelectorAll('.wizard-nav-item').forEach(item => item.classList.remove('active'));
-      const navItems = document.querySelectorAll('.wizard-nav-item');
-      navItems.forEach(item => {
-        if (item.onclick.toString().includes(sectionId)) item.classList.add('active');
-      });
-    }
+    if (section) section.style.display = 'block';
+    // Update active nav item
+    document.querySelectorAll('.wizard-nav-item').forEach(item => {
+      item.classList.toggle('active', item.dataset.section === sectionId);
+    });
+    // Persist selection
+    localStorage.setItem('wizardSection', sectionId);
+  }
+
+  function initWizardSection() {
+    const saved = localStorage.getItem('wizardSection') || 'admin-section-profile';
+    showWizardSection(saved);
   }
 
   // Company Profile Functions
@@ -6214,8 +6220,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         <td style="padding:8px">${hours}</td>
         <td style="padding:8px">${p.is_24x7 ? 'All days' : days}</td>
         <td style="padding:8px;text-align:right">
-          <button type="button" class="btn btn-sm" onclick="event.stopPropagation();editBusinessHours(${p.id})">Edit</button>
-          <button type="button" class="btn btn-sm" style="color:#b91c1c" onclick="event.stopPropagation();deleteBusinessHours(${p.id})">Delete</button>
+          <button type="button" class="btn btn-sm" onclick="event.preventDefault();event.stopPropagation();editBusinessHours(${p.id})">Edit</button>
+          <button type="button" class="btn btn-sm" style="color:#b91c1c" onclick="event.preventDefault();event.stopPropagation();deleteBusinessHours(${p.id})">Delete</button>
         </td>
       </tr>`;
     }).join('');
@@ -6239,8 +6245,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         <td style="padding:8px">${resolve}</td>
         <td style="padding:8px">${s.business_hours_name || 'Calendar time'}</td>
         <td style="padding:8px;text-align:right">
-          <button type="button" class="btn btn-sm" onclick="event.stopPropagation();editSLADefinition(${s.id})">Edit</button>
-          <button type="button" class="btn btn-sm" style="color:#b91c1c" onclick="event.stopPropagation();deleteSLADefinition(${s.id})">Delete</button>
+          <button type="button" class="btn btn-sm" onclick="event.preventDefault();event.stopPropagation();editSLADefinition(${s.id})">Edit</button>
+          <button type="button" class="btn btn-sm" style="color:#b91c1c" onclick="event.preventDefault();event.stopPropagation();deleteSLADefinition(${s.id})">Delete</button>
         </td>
       </tr>`;
     }).join('');
