@@ -316,6 +316,15 @@ async function startServer() {
           console.warn(`⚠️  Warning: Resolve after response migration:`, migrationError.message);
         }
 
+        // Run SLA ticket fields migration
+        try {
+          const { runMigration: runSLATicketFieldsMigration } = require('./migrations/add-sla-ticket-fields');
+          await runSLATicketFieldsMigration('apoyar');
+          console.log('✅ SLA ticket fields migration completed');
+        } catch (migrationError) {
+          console.warn(`⚠️  Warning: SLA ticket fields migration:`, migrationError.message);
+        }
+
         // Start email processing for apoyar tenant
         try {
           await startEmailProcessing('apoyar');
