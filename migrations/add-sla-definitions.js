@@ -65,22 +65,8 @@ async function runMigration(tenantCode) {
     `);
     console.log(`✅ Default SLA definitions seeded for tenant ${tenantCode}`);
 
-    // Fix FK constraint if it was created with SET NULL instead of RESTRICT
-    try {
-      const [fks] = await connection.query(`
-        SELECT CONSTRAINT_NAME, DELETE_RULE
-        FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS
-        WHERE CONSTRAINT_SCHEMA = ? AND TABLE_NAME = 'sla_definitions' AND REFERENCED_TABLE_NAME = 'business_hours_profiles'
-      `, [`a1_tenant_${tenantCode}`]);
-
-      if (fks.length > 0 && fks[0].DELETE_RULE !== 'RESTRICT') {
-        await connection.query(`ALTER TABLE sla_definitions DROP FOREIGN KEY ${fks[0].CONSTRAINT_NAME}`);
-        await connection.query(`ALTER TABLE sla_definitions ADD CONSTRAINT ${fks[0].CONSTRAINT_NAME} FOREIGN KEY (business_hours_profile_id) REFERENCES business_hours_profiles(id) ON DELETE RESTRICT`);
-        console.log(`✅ FK constraint updated to RESTRICT for tenant ${tenantCode}`);
-      }
-    } catch (fkError) {
-      console.warn(`⚠️  Could not update FK constraint:`, fkError.message);
-    }
+    // FK constraint fix disabled - was causing connection issues
+    // The soft delete logic in routes/sla.js handles the protection
 
     return true;
   } catch (error) {
