@@ -8492,7 +8492,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       const data = await response.json();
       if (data.success) {
         t.status = 'Closed';
-        showToast('Thank you! Ticket has been closed.');
+        alert('Thank you! Ticket has been closed.');
         renderTicketDetail();
       } else {
         alert('Error: ' + (data.error || 'Could not accept resolution'));
@@ -8529,7 +8529,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       const data = await response.json();
       if (data.success) {
         t.status = 'Open';
-        showToast('Ticket reopened. The team will review your feedback.');
+        alert('Ticket reopened. The team will review your feedback.');
         renderTicketDetail();
       } else {
         alert('Error: ' + (data.error || 'Could not decline resolution'));
