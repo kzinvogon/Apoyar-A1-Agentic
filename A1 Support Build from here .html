@@ -3149,9 +3149,64 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             </div>
           </div>
 
-          <!-- Future Settings Placeholder -->
-          <div class="card p-16">
-            <div class="subtitle">Future settings: SLA configuration, ticket categories, user roles…</div>
+          <!-- SLA Management Section -->
+          <div id="admin-section-sla" class="card p-16 mb-12">
+            <div class="row space mb-12">
+              <h4 class="subtitle" style="margin:0;font-weight:600">⏱️ SLA Management</h4>
+            </div>
+
+            <!-- Business Hours Profiles -->
+            <div style="border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px">
+              <div class="row space mb-12">
+                <div>
+                  <div style="font-weight:600">Business Hours Profiles</div>
+                  <div class="subtitle" style="color:#666;font-size:12px">Define working hours for SLA calculations</div>
+                </div>
+                <button class="btn primary" onclick="openBusinessHoursModal()">+ Add Profile</button>
+              </div>
+              <table style="width:100%;border-collapse:collapse" id="business-hours-table">
+                <thead>
+                  <tr style="border-bottom:1px solid var(--border);background:#f9fafb">
+                    <th style="text-align:left;padding:8px">Name</th>
+                    <th style="text-align:left;padding:8px">Timezone</th>
+                    <th style="text-align:left;padding:8px">Hours</th>
+                    <th style="text-align:left;padding:8px">Days</th>
+                    <th style="text-align:right;padding:8px">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="business-hours-tbody">
+                  <tr><td colspan="5" style="padding:16px;text-align:center;color:#666">Loading...</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- SLA Definitions -->
+            <div style="border:1px solid var(--border);border-radius:8px;padding:16px">
+              <div class="row space mb-12">
+                <div>
+                  <div style="font-weight:600">SLA Definitions</div>
+                  <div class="subtitle" style="color:#666;font-size:12px">Define response and resolution targets</div>
+                </div>
+                <button class="btn primary" onclick="openSLADefinitionModal()">+ Add SLA</button>
+              </div>
+              <table style="width:100%;border-collapse:collapse" id="sla-definitions-table">
+                <thead>
+                  <tr style="border-bottom:1px solid var(--border);background:#f9fafb">
+                    <th style="text-align:left;padding:8px">Name</th>
+                    <th style="text-align:left;padding:8px">Response</th>
+                    <th style="text-align:left;padding:8px">Resolution</th>
+                    <th style="text-align:left;padding:8px">Business Hours</th>
+                    <th style="text-align:right;padding:8px">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="sla-definitions-tbody">
+                  <tr><td colspan="5" style="padding:16px;text-align:center;color:#666">Loading...</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div id="sla-message" class="subtitle" style="color:#16a34a;display:none;margin-top:12px"></div>
+            <div id="sla-error" class="subtitle" style="color:#b91c1c;display:none;margin-top:12px"></div>
           </div>
         </div>
 
@@ -4002,6 +4057,122 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   </div>
 </div>
 
+<!-- Business Hours Modal -->
+<div id="business-hours-modal" class="modal" role="dialog" aria-modal="true" style="display:none">
+  <div class="sheet" style="max-width:500px">
+    <div class="head"><span id="business-hours-modal-title">Add Business Hours Profile</span></div>
+    <div class="body">
+      <input type="hidden" id="bh-edit-id">
+      <div class="mb-12">
+        <label class="subtitle">Profile Name *</label>
+        <input id="bh-name" class="input" placeholder="e.g., Standard Business Hours"/>
+      </div>
+      <div class="mb-12">
+        <label class="subtitle">Timezone *</label>
+        <select id="bh-timezone" class="input">
+          <option value="Australia/Sydney">Australia/Sydney</option>
+          <option value="Australia/Melbourne">Australia/Melbourne</option>
+          <option value="Australia/Brisbane">Australia/Brisbane</option>
+          <option value="Australia/Perth">Australia/Perth</option>
+          <option value="Europe/London">Europe/London</option>
+          <option value="Europe/Madrid">Europe/Madrid</option>
+          <option value="America/New_York">America/New_York</option>
+          <option value="America/Los_Angeles">America/Los_Angeles</option>
+          <option value="Asia/Singapore">Asia/Singapore</option>
+          <option value="Asia/Tokyo">Asia/Tokyo</option>
+          <option value="UTC">UTC</option>
+        </select>
+      </div>
+      <div class="mb-12">
+        <label class="subtitle">
+          <input type="checkbox" id="bh-is-24x7" style="margin-right:8px" onchange="toggle24x7()"/>
+          24x7 Support (always on)
+        </label>
+      </div>
+      <div id="bh-hours-section">
+        <div class="row" style="gap:12px;margin-bottom:12px">
+          <div style="flex:1">
+            <label class="subtitle">Start Time</label>
+            <input id="bh-start-time" class="input" type="time" value="09:00"/>
+          </div>
+          <div style="flex:1">
+            <label class="subtitle">End Time</label>
+            <input id="bh-end-time" class="input" type="time" value="17:00"/>
+          </div>
+        </div>
+        <div class="mb-12">
+          <label class="subtitle">Working Days</label>
+          <div class="row wrap" style="gap:8px;margin-top:8px">
+            <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="bh-day-1" checked> Mon</label>
+            <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="bh-day-2" checked> Tue</label>
+            <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="bh-day-3" checked> Wed</label>
+            <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="bh-day-4" checked> Thu</label>
+            <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="bh-day-5" checked> Fri</label>
+            <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="bh-day-6"> Sat</label>
+            <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="bh-day-7"> Sun</label>
+          </div>
+        </div>
+      </div>
+      <div id="bh-error" class="subtitle" style="color:#b91c1c;display:none;margin-top:8px"></div>
+    </div>
+    <div class="foot">
+      <button class="btn ghost" onclick="closeBusinessHoursModal()">Cancel</button>
+      <button class="btn primary" onclick="saveBusinessHours()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- SLA Definition Modal -->
+<div id="sla-definition-modal" class="modal" role="dialog" aria-modal="true" style="display:none">
+  <div class="sheet" style="max-width:500px">
+    <div class="head"><span id="sla-definition-modal-title">Add SLA Definition</span></div>
+    <div class="body">
+      <input type="hidden" id="sla-edit-id">
+      <div class="mb-12">
+        <label class="subtitle">SLA Name *</label>
+        <input id="sla-name" class="input" placeholder="e.g., Premium SLA"/>
+      </div>
+      <div class="mb-12">
+        <label class="subtitle">Description</label>
+        <input id="sla-description" class="input" placeholder="e.g., Priority support for enterprise clients"/>
+      </div>
+      <div class="mb-12">
+        <label class="subtitle">Business Hours Profile</label>
+        <select id="sla-business-hours" class="input">
+          <option value="">-- Select Business Hours --</option>
+        </select>
+      </div>
+      <div class="row" style="gap:12px;margin-bottom:12px">
+        <div style="flex:1">
+          <label class="subtitle">Response Target *</label>
+          <div class="row" style="gap:8px">
+            <input id="sla-response-value" class="input" type="number" min="1" value="60" style="width:80px"/>
+            <select id="sla-response-unit" class="input" style="flex:1">
+              <option value="minutes">Minutes</option>
+              <option value="hours" selected>Hours</option>
+            </select>
+          </div>
+        </div>
+        <div style="flex:1">
+          <label class="subtitle">Resolution Target *</label>
+          <div class="row" style="gap:8px">
+            <input id="sla-resolve-value" class="input" type="number" min="1" value="8" style="width:80px"/>
+            <select id="sla-resolve-unit" class="input" style="flex:1">
+              <option value="minutes">Minutes</option>
+              <option value="hours" selected>Hours</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div id="sla-def-error" class="subtitle" style="color:#b91c1c;display:none;margin-top:8px"></div>
+    </div>
+    <div class="foot">
+      <button class="btn ghost" onclick="closeSLADefinitionModal()">Cancel</button>
+      <button class="btn primary" onclick="saveSLADefinition()">Save</button>
+    </div>
+  </div>
+</div>
+
 <script>
   // API Base URL - use current origin for deployed version, localhost for development
   const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
@@ -4690,7 +4861,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   function nav(el){ document.querySelectorAll('.navlink').forEach(n=>n.classList.remove('active')); el.classList.add('active'); switchView(el.getAttribute('data-target')); if(el.getAttribute('data-target')==='dash') renderAllDashboards(); }
   function navTo(view){ switchView(view); }
-  function switchView(view){ currentView=view; ['dash','profile','tickets','ticket-detail','experts','expert-detail','customers','cmdb','cmdb-detail','manage-cmdb','cmdb-mgmt','wizard','raise','tenants','subscriptions','billing','plans','system','usage','customer-plans','customer-billing','analytics','ai-insights','ticket-rules','email-processing','system-control','knowledge-base','raw-variables'].forEach(n=>{ const el=document.getElementById('view-'+n); if(el) el.style.display=(n===view)?'block':'none'; }); if(view==='tickets') { loadFilterSettings('tickets'); renderList(); } if(view==='experts') { loadFilterSettings('experts'); renderExperts(); } if(view==='expert-detail') renderExpertDetail(); if(view==='customers') { loadFilterSettings('customers'); renderCustomers(); } if(view==='cmdb') { loadFilterSettings('cmdb'); renderCMDB(); } if(view==='cmdb-detail') renderCMDBDetail(); if(view==='manage-cmdb') loadManageCMDB(); if(view==='cmdb-mgmt') loadCMDBMgmt(); if(view==='raise') loadRaiseFormOptions(); if(view==='ticket-detail') renderTicketDetail(); if(view==='tenants') loadTenants(); if(view==='subscriptions') loadSubscriptions(); if(view==='billing') loadBilling(); if(view==='plans') loadPlans(); if(view==='system') loadSystemOverview(); if(view==='usage') loadUsageDashboard(); if(view==='customer-plans') loadCustomerPlans(); if(view==='customer-billing') loadCustomerBilling(); if(view==='analytics') loadAnalytics(); if(view==='ai-insights') loadAIInsights(); if(view==='ticket-rules') loadTicketRules(); if(view==='email-processing') loadEmailProcessing(); if(view==='system-control') loadSystemControlSettings(); if(view==='knowledge-base') initKnowledgeBase(); if(view==='raw-variables') loadRawVariables(); if(view==='wizard') { loadCompanyProfile(); loadEmailIngestSettings(); loadExpertRegSettings(); loadSupportSettings(); loadTeamsIntegrationStatus(); } if(view==='profile') loadProfile(); }
+  function switchView(view){ currentView=view; ['dash','profile','tickets','ticket-detail','experts','expert-detail','customers','cmdb','cmdb-detail','manage-cmdb','cmdb-mgmt','wizard','raise','tenants','subscriptions','billing','plans','system','usage','customer-plans','customer-billing','analytics','ai-insights','ticket-rules','email-processing','system-control','knowledge-base','raw-variables'].forEach(n=>{ const el=document.getElementById('view-'+n); if(el) el.style.display=(n===view)?'block':'none'; }); if(view==='tickets') { loadFilterSettings('tickets'); renderList(); } if(view==='experts') { loadFilterSettings('experts'); renderExperts(); } if(view==='expert-detail') renderExpertDetail(); if(view==='customers') { loadFilterSettings('customers'); renderCustomers(); } if(view==='cmdb') { loadFilterSettings('cmdb'); renderCMDB(); } if(view==='cmdb-detail') renderCMDBDetail(); if(view==='manage-cmdb') loadManageCMDB(); if(view==='cmdb-mgmt') loadCMDBMgmt(); if(view==='raise') loadRaiseFormOptions(); if(view==='ticket-detail') renderTicketDetail(); if(view==='tenants') loadTenants(); if(view==='subscriptions') loadSubscriptions(); if(view==='billing') loadBilling(); if(view==='plans') loadPlans(); if(view==='system') loadSystemOverview(); if(view==='usage') loadUsageDashboard(); if(view==='customer-plans') loadCustomerPlans(); if(view==='customer-billing') loadCustomerBilling(); if(view==='analytics') loadAnalytics(); if(view==='ai-insights') loadAIInsights(); if(view==='ticket-rules') loadTicketRules(); if(view==='email-processing') loadEmailProcessing(); if(view==='system-control') loadSystemControlSettings(); if(view==='knowledge-base') initKnowledgeBase(); if(view==='raw-variables') loadRawVariables(); if(view==='wizard') { loadCompanyProfile(); loadEmailIngestSettings(); loadExpertRegSettings(); loadSupportSettings(); loadTeamsIntegrationStatus(); loadSLAData(); } if(view==='profile') loadProfile(); }
   function configureRole(){
     const currentRole = window.role || role; // Use global role from login, fallback to local
     document.getElementById('nav-admin').style.display = (currentRole==='admin') ? 'block' : 'none';
@@ -4721,6 +4892,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     if (expertRegSection) expertRegSection.style.display = isAdmin ? 'block' : 'none';
     const integrationsSection = document.getElementById('admin-section-integrations');
     if (integrationsSection) integrationsSection.style.display = isAdmin ? 'block' : 'none';
+    const slaSection = document.getElementById('admin-section-sla');
+    if (slaSection) slaSection.style.display = isAdmin ? 'block' : 'none';
 
     // Hide CMDB Delete All button for experts (admin only)
     const cmdbDeleteAllBtn = document.getElementById('cmdb-mgmt-delete-all-btn');
@@ -5938,6 +6111,324 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   function hideSupportSettingsMessages() {
     document.getElementById('support-settings-message').style.display = 'none';
     document.getElementById('support-settings-error').style.display = 'none';
+  }
+
+  // ============================================
+  // SLA Management Functions
+  // ============================================
+  let businessHoursProfiles = [];
+  let slaDefinitions = [];
+
+  async function loadSLAData() {
+    const tenantCode = window.tenant || currentUser?.tenantCode || 'apoyar';
+    const token = localStorage.getItem('token');
+
+    try {
+      // Load business hours
+      const bhRes = await fetch(`${API_BASE}/api/sla/${tenantCode}/business-hours`, {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      if (bhRes.ok) {
+        const bhData = await bhRes.json();
+        businessHoursProfiles = bhData.profiles || [];
+        renderBusinessHoursTable();
+      }
+
+      // Load SLA definitions
+      const slaRes = await fetch(`${API_BASE}/api/sla/${tenantCode}/definitions`, {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      if (slaRes.ok) {
+        const slaData = await slaRes.json();
+        slaDefinitions = slaData.definitions || [];
+        renderSLADefinitionsTable();
+        populateBusinessHoursDropdown();
+      }
+    } catch (error) {
+      console.error('Error loading SLA data:', error);
+    }
+  }
+
+  function renderBusinessHoursTable() {
+    const tbody = document.getElementById('business-hours-tbody');
+    if (!tbody) return;
+
+    if (businessHoursProfiles.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" style="padding:16px;text-align:center;color:#666">No business hours profiles defined</td></tr>';
+      return;
+    }
+
+    const dayNames = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    tbody.innerHTML = businessHoursProfiles.map(p => {
+      const days = (p.days_of_week || []).map(d => dayNames[d]).join(', ');
+      const hours = p.is_24x7 ? '24x7' : `${p.start_time?.slice(0,5)} - ${p.end_time?.slice(0,5)}`;
+      return `<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:8px">${p.name}</td>
+        <td style="padding:8px">${p.timezone}</td>
+        <td style="padding:8px">${hours}</td>
+        <td style="padding:8px">${p.is_24x7 ? 'All days' : days}</td>
+        <td style="padding:8px;text-align:right">
+          <button class="btn btn-sm" onclick="editBusinessHours(${p.id})">Edit</button>
+          <button class="btn btn-sm" style="color:#b91c1c" onclick="deleteBusinessHours(${p.id})">Delete</button>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  function renderSLADefinitionsTable() {
+    const tbody = document.getElementById('sla-definitions-tbody');
+    if (!tbody) return;
+
+    if (slaDefinitions.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" style="padding:16px;text-align:center;color:#666">No SLA definitions defined</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = slaDefinitions.map(s => {
+      const response = formatDuration(s.response_target_minutes);
+      const resolve = formatDuration(s.resolve_target_minutes);
+      return `<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:8px"><strong>${s.name}</strong><br><span style="color:#666;font-size:12px">${s.description || ''}</span></td>
+        <td style="padding:8px">${response}</td>
+        <td style="padding:8px">${resolve}</td>
+        <td style="padding:8px">${s.business_hours_name || 'Calendar time'}</td>
+        <td style="padding:8px;text-align:right">
+          <button class="btn btn-sm" onclick="editSLADefinition(${s.id})">Edit</button>
+          <button class="btn btn-sm" style="color:#b91c1c" onclick="deleteSLADefinition(${s.id})">Delete</button>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  function formatDuration(minutes) {
+    if (minutes >= 1440) return (minutes / 1440) + ' days';
+    if (minutes >= 60) return (minutes / 60) + ' hours';
+    return minutes + ' min';
+  }
+
+  function populateBusinessHoursDropdown() {
+    const select = document.getElementById('sla-business-hours');
+    if (!select) return;
+    select.innerHTML = '<option value="">-- Calendar Time (no business hours) --</option>' +
+      businessHoursProfiles.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+  }
+
+  // Business Hours Modal
+  function openBusinessHoursModal(id = null) {
+    document.getElementById('bh-edit-id').value = id || '';
+    document.getElementById('business-hours-modal-title').textContent = id ? 'Edit Business Hours Profile' : 'Add Business Hours Profile';
+    document.getElementById('bh-error').style.display = 'none';
+
+    if (id) {
+      const p = businessHoursProfiles.find(x => x.id === id);
+      if (p) {
+        document.getElementById('bh-name').value = p.name;
+        document.getElementById('bh-timezone').value = p.timezone;
+        document.getElementById('bh-is-24x7').checked = p.is_24x7;
+        document.getElementById('bh-start-time').value = p.start_time?.slice(0,5) || '09:00';
+        document.getElementById('bh-end-time').value = p.end_time?.slice(0,5) || '17:00';
+        const days = p.days_of_week || [];
+        for (let i = 1; i <= 7; i++) {
+          document.getElementById('bh-day-' + i).checked = days.includes(i);
+        }
+        toggle24x7();
+      }
+    } else {
+      document.getElementById('bh-name').value = '';
+      document.getElementById('bh-timezone').value = 'Australia/Sydney';
+      document.getElementById('bh-is-24x7').checked = false;
+      document.getElementById('bh-start-time').value = '09:00';
+      document.getElementById('bh-end-time').value = '17:00';
+      for (let i = 1; i <= 5; i++) document.getElementById('bh-day-' + i).checked = true;
+      for (let i = 6; i <= 7; i++) document.getElementById('bh-day-' + i).checked = false;
+      toggle24x7();
+    }
+
+    document.getElementById('business-hours-modal').style.display = 'flex';
+  }
+
+  function closeBusinessHoursModal() {
+    document.getElementById('business-hours-modal').style.display = 'none';
+  }
+
+  function toggle24x7() {
+    const is24x7 = document.getElementById('bh-is-24x7').checked;
+    document.getElementById('bh-hours-section').style.display = is24x7 ? 'none' : 'block';
+  }
+
+  function editBusinessHours(id) {
+    openBusinessHoursModal(id);
+  }
+
+  async function saveBusinessHours() {
+    const id = document.getElementById('bh-edit-id').value;
+    const name = document.getElementById('bh-name').value.trim();
+    const timezone = document.getElementById('bh-timezone').value;
+    const is_24x7 = document.getElementById('bh-is-24x7').checked;
+    const start_time = document.getElementById('bh-start-time').value;
+    const end_time = document.getElementById('bh-end-time').value;
+
+    const days_of_week = [];
+    for (let i = 1; i <= 7; i++) {
+      if (document.getElementById('bh-day-' + i).checked) days_of_week.push(i);
+    }
+
+    if (!name) {
+      document.getElementById('bh-error').textContent = 'Name is required';
+      document.getElementById('bh-error').style.display = 'block';
+      return;
+    }
+
+    const tenantCode = window.tenant || currentUser?.tenantCode || 'apoyar';
+    const token = localStorage.getItem('token');
+    const url = id ? `${API_BASE}/api/sla/${tenantCode}/business-hours/${id}` : `${API_BASE}/api/sla/${tenantCode}/business-hours`;
+    const method = id ? 'PUT' : 'POST';
+
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, timezone, days_of_week, start_time, end_time, is_24x7 })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to save');
+      closeBusinessHoursModal();
+      loadSLAData();
+    } catch (error) {
+      document.getElementById('bh-error').textContent = error.message;
+      document.getElementById('bh-error').style.display = 'block';
+    }
+  }
+
+  async function deleteBusinessHours(id) {
+    if (!confirm('Delete this business hours profile?')) return;
+    const tenantCode = window.tenant || currentUser?.tenantCode || 'apoyar';
+    const token = localStorage.getItem('token');
+
+    try {
+      const res = await fetch(`${API_BASE}/api/sla/${tenantCode}/business-hours/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to delete');
+      loadSLAData();
+    } catch (error) {
+      alert(error.message);
+    }
+  }
+
+  // SLA Definition Modal
+  function openSLADefinitionModal(id = null) {
+    document.getElementById('sla-edit-id').value = id || '';
+    document.getElementById('sla-definition-modal-title').textContent = id ? 'Edit SLA Definition' : 'Add SLA Definition';
+    document.getElementById('sla-def-error').style.display = 'none';
+    populateBusinessHoursDropdown();
+
+    if (id) {
+      const s = slaDefinitions.find(x => x.id === id);
+      if (s) {
+        document.getElementById('sla-name').value = s.name;
+        document.getElementById('sla-description').value = s.description || '';
+        document.getElementById('sla-business-hours').value = s.business_hours_profile_id || '';
+
+        // Convert minutes to best unit
+        const respMins = s.response_target_minutes;
+        if (respMins >= 60 && respMins % 60 === 0) {
+          document.getElementById('sla-response-value').value = respMins / 60;
+          document.getElementById('sla-response-unit').value = 'hours';
+        } else {
+          document.getElementById('sla-response-value').value = respMins;
+          document.getElementById('sla-response-unit').value = 'minutes';
+        }
+
+        const resMins = s.resolve_target_minutes;
+        if (resMins >= 60 && resMins % 60 === 0) {
+          document.getElementById('sla-resolve-value').value = resMins / 60;
+          document.getElementById('sla-resolve-unit').value = 'hours';
+        } else {
+          document.getElementById('sla-resolve-value').value = resMins;
+          document.getElementById('sla-resolve-unit').value = 'minutes';
+        }
+      }
+    } else {
+      document.getElementById('sla-name').value = '';
+      document.getElementById('sla-description').value = '';
+      document.getElementById('sla-business-hours').value = '';
+      document.getElementById('sla-response-value').value = 1;
+      document.getElementById('sla-response-unit').value = 'hours';
+      document.getElementById('sla-resolve-value').value = 8;
+      document.getElementById('sla-resolve-unit').value = 'hours';
+    }
+
+    document.getElementById('sla-definition-modal').style.display = 'flex';
+  }
+
+  function closeSLADefinitionModal() {
+    document.getElementById('sla-definition-modal').style.display = 'none';
+  }
+
+  function editSLADefinition(id) {
+    openSLADefinitionModal(id);
+  }
+
+  async function saveSLADefinition() {
+    const id = document.getElementById('sla-edit-id').value;
+    const name = document.getElementById('sla-name').value.trim();
+    const description = document.getElementById('sla-description').value.trim();
+    const business_hours_profile_id = document.getElementById('sla-business-hours').value || null;
+
+    const respValue = parseInt(document.getElementById('sla-response-value').value);
+    const respUnit = document.getElementById('sla-response-unit').value;
+    const response_target_minutes = respUnit === 'hours' ? respValue * 60 : respValue;
+
+    const resValue = parseInt(document.getElementById('sla-resolve-value').value);
+    const resUnit = document.getElementById('sla-resolve-unit').value;
+    const resolve_target_minutes = resUnit === 'hours' ? resValue * 60 : resValue;
+
+    if (!name) {
+      document.getElementById('sla-def-error').textContent = 'Name is required';
+      document.getElementById('sla-def-error').style.display = 'block';
+      return;
+    }
+
+    const tenantCode = window.tenant || currentUser?.tenantCode || 'apoyar';
+    const token = localStorage.getItem('token');
+    const url = id ? `${API_BASE}/api/sla/${tenantCode}/definitions/${id}` : `${API_BASE}/api/sla/${tenantCode}/definitions`;
+    const method = id ? 'PUT' : 'POST';
+
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, description, business_hours_profile_id, response_target_minutes, resolve_target_minutes })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to save');
+      closeSLADefinitionModal();
+      loadSLAData();
+    } catch (error) {
+      document.getElementById('sla-def-error').textContent = error.message;
+      document.getElementById('sla-def-error').style.display = 'block';
+    }
+  }
+
+  async function deleteSLADefinition(id) {
+    if (!confirm('Delete this SLA definition?')) return;
+    const tenantCode = window.tenant || currentUser?.tenantCode || 'apoyar';
+    const token = localStorage.getItem('token');
+
+    try {
+      const res = await fetch(`${API_BASE}/api/sla/${tenantCode}/definitions/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to delete');
+      loadSLAData();
+    } catch (error) {
+      alert(error.message);
+    }
   }
 
   // Email Ingest Functions
