@@ -1047,6 +1047,7 @@ vNext-FULL-ActionsSLA:
             </div>
             <div class="navlink" data-target="system-control" onclick="nav(this)">🔧 System Control</div>
             <div class="navlink" data-target="audit-log" onclick="nav(this)">📋 Audit Log</div>
+            <div class="navlink" data-target="view-notifications" onclick="nav(this)">🔔 Notifications</div>
             <div class="navlink" data-target="raw-variables" onclick="openRawVariablesSecure(this)">⚙️ Raw Variables</div>
           </div>
         </div>
@@ -3745,6 +3746,84 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           </div>
         </div>
 
+        <!-- Notifications -->
+        <div id="view-notifications" style="display:none">
+          <div class="row space mb-12">
+            <div class="row"><button class="btn ghost" onclick="switchView('dash')">← Back</button><h3 class="title" style="margin:0 0 0 8px">Notifications</h3></div>
+            <button class="btn" onclick="loadNotifications()">Refresh</button>
+          </div>
+
+          <div class="card p-16 mb-12">
+            <div class="row" style="gap:12px;flex-wrap:wrap;align-items:flex-end">
+              <div>
+                <label class="subtitle">Severity</label>
+                <select id="notif-filter-severity" class="input" style="min-width:120px" onchange="loadNotifications()">
+                  <option value="">All</option>
+                  <option value="info">Info</option>
+                  <option value="warning">Warning</option>
+                  <option value="critical">Critical</option>
+                </select>
+              </div>
+              <div>
+                <label class="subtitle">Type</label>
+                <select id="notif-filter-type" class="input" style="min-width:180px" onchange="loadNotifications()">
+                  <option value="">All Types</option>
+                  <option value="SLA_RESPONSE_NEAR">Response Near</option>
+                  <option value="SLA_RESPONSE_BREACHED">Response Breached</option>
+                  <option value="SLA_RESPONSE_PAST">Response Past</option>
+                  <option value="SLA_RESOLVE_NEAR">Resolve Near</option>
+                  <option value="SLA_RESOLVE_BREACHED">Resolve Breached</option>
+                  <option value="SLA_RESOLVE_PAST">Resolve Past</option>
+                </select>
+              </div>
+              <div>
+                <label class="subtitle">Delivered</label>
+                <select id="notif-filter-delivered" class="input" style="min-width:120px" onchange="loadNotifications()">
+                  <option value="">All</option>
+                  <option value="0">Undelivered</option>
+                  <option value="1">Delivered</option>
+                </select>
+              </div>
+              <div>
+                <label class="subtitle">Time Range</label>
+                <select id="notif-filter-range" class="input" style="min-width:120px" onchange="loadNotifications()">
+                  <option value="">All Time</option>
+                  <option value="24h">Last 24 Hours</option>
+                  <option value="7d">Last 7 Days</option>
+                  <option value="30d">Last 30 Days</option>
+                </select>
+              </div>
+              <button class="btn ghost" onclick="clearNotifFilters()">Clear</button>
+            </div>
+          </div>
+
+          <div class="card p-0">
+            <div id="notif-loading" style="text-align:center;padding:40px;color:var(--muted)">Loading notifications...</div>
+            <table id="notif-table" class="table" style="display:none;width:100%">
+              <thead>
+                <tr style="border-bottom:1px solid var(--border)">
+                  <th style="text-align:left;padding:8px">Time</th>
+                  <th style="text-align:left;padding:8px">Severity</th>
+                  <th style="text-align:left;padding:8px">Type</th>
+                  <th style="text-align:left;padding:8px">Message</th>
+                  <th style="text-align:left;padding:8px">Ticket</th>
+                  <th style="text-align:left;padding:8px">Delivered</th>
+                </tr>
+              </thead>
+              <tbody id="notif-body"></tbody>
+            </table>
+            <div id="notif-empty" style="display:none;text-align:center;padding:40px;color:var(--muted)">
+              <div style="font-size:48px;margin-bottom:16px">🔔</div>
+              <div>No notifications found</div>
+            </div>
+          </div>
+          <div id="notif-pagination" style="display:none;margin-top:16px;text-align:center">
+            <button class="btn ghost" id="notif-prev" onclick="loadNotifications(notifCurrentPage - 1)">← Previous</button>
+            <span id="notif-page-info" style="margin:0 16px;color:var(--muted)"></span>
+            <button class="btn ghost" id="notif-next" onclick="loadNotifications(notifCurrentPage + 1)">Next →</button>
+          </div>
+        </div>
+
         <!-- System Control -->
         <div id="view-system-control" style="display:none">
           <div class="row space mb-12">
@@ -5158,7 +5237,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   function nav(el){ document.querySelectorAll('.navlink').forEach(n=>n.classList.remove('active')); el.classList.add('active'); switchView(el.getAttribute('data-target')); if(el.getAttribute('data-target')==='dash') renderAllDashboards(); }
   function navTo(view){ switchView(view); }
-  function switchView(view){ currentView=view; ['dash','profile','tickets','ticket-detail','experts','expert-detail','customers','cmdb-hub','cmdb','cmdb-detail','manage-cmdb','cmdb-mgmt','wizard','raise','tenants','subscriptions','billing','plans','system','usage','customer-plans','customer-billing','analytics','ai-insights','ticket-rules','email-processing','system-control','knowledge-base','raw-variables','audit-log'].forEach(n=>{ const el=document.getElementById('view-'+n); if(el) el.style.display=(n===view)?'block':'none'; }); if(view==='tickets') { loadFilterSettings('tickets'); renderList(); } if(view==='experts') { loadFilterSettings('experts'); renderExperts(); } if(view==='expert-detail') renderExpertDetail(); if(view==='customers') { loadFilterSettings('customers'); renderCustomers(); } if(view==='cmdb-hub') initCmdbHub(); if(view==='cmdb') { loadFilterSettings('cmdb'); renderCMDB(); } if(view==='cmdb-detail') renderCMDBDetail(); if(view==='manage-cmdb') loadManageCMDB(); if(view==='cmdb-mgmt') loadCMDBMgmt(); if(view==='raise') loadRaiseFormOptions(); if(view==='ticket-detail') renderTicketDetail(); if(view==='tenants') loadTenants(); if(view==='subscriptions') loadSubscriptions(); if(view==='billing') loadBilling(); if(view==='plans') loadPlans(); if(view==='system') loadSystemOverview(); if(view==='usage') loadUsageDashboard(); if(view==='customer-plans') loadCustomerPlans(); if(view==='customer-billing') loadCustomerBilling(); if(view==='analytics') loadAnalytics(); if(view==='ai-insights') loadAIInsights(); if(view==='ticket-rules') loadTicketRules(); if(view==='email-processing') loadEmailProcessing(); if(view==='system-control') loadSystemControlSettings(); if(view==='knowledge-base') initKnowledgeBase(); if(view==='raw-variables') loadRawVariables(); if(view==='audit-log') { loadAuditActions(); loadAuditLog(); } if(view==='wizard') { initWizardSection(); loadCompanyProfile(); loadEmailIngestSettings(); loadExpertRegSettings(); loadSupportSettings(); loadTeamsIntegrationStatus(); loadSLAData(); } if(view==='profile') loadProfile(); }
+  function switchView(view){ currentView=view; ['dash','profile','tickets','ticket-detail','experts','expert-detail','customers','cmdb-hub','cmdb','cmdb-detail','manage-cmdb','cmdb-mgmt','wizard','raise','tenants','subscriptions','billing','plans','system','usage','customer-plans','customer-billing','analytics','ai-insights','ticket-rules','email-processing','system-control','knowledge-base','raw-variables','audit-log','notifications'].forEach(n=>{ const el=document.getElementById('view-'+n); if(el) el.style.display=(n===view)?'block':'none'; }); if(view==='tickets') { loadFilterSettings('tickets'); renderList(); } if(view==='experts') { loadFilterSettings('experts'); renderExperts(); } if(view==='expert-detail') renderExpertDetail(); if(view==='customers') { loadFilterSettings('customers'); renderCustomers(); } if(view==='cmdb-hub') initCmdbHub(); if(view==='cmdb') { loadFilterSettings('cmdb'); renderCMDB(); } if(view==='cmdb-detail') renderCMDBDetail(); if(view==='manage-cmdb') loadManageCMDB(); if(view==='cmdb-mgmt') loadCMDBMgmt(); if(view==='raise') loadRaiseFormOptions(); if(view==='ticket-detail') renderTicketDetail(); if(view==='tenants') loadTenants(); if(view==='subscriptions') loadSubscriptions(); if(view==='billing') loadBilling(); if(view==='plans') loadPlans(); if(view==='system') loadSystemOverview(); if(view==='usage') loadUsageDashboard(); if(view==='customer-plans') loadCustomerPlans(); if(view==='customer-billing') loadCustomerBilling(); if(view==='analytics') loadAnalytics(); if(view==='ai-insights') loadAIInsights(); if(view==='ticket-rules') loadTicketRules(); if(view==='email-processing') loadEmailProcessing(); if(view==='system-control') loadSystemControlSettings(); if(view==='knowledge-base') initKnowledgeBase(); if(view==='raw-variables') loadRawVariables(); if(view==='audit-log') { loadAuditActions(); loadAuditLog(); } if(view==='notifications') loadNotifications(); if(view==='wizard') { initWizardSection(); loadCompanyProfile(); loadEmailIngestSettings(); loadExpertRegSettings(); loadSupportSettings(); loadTeamsIntegrationStatus(); loadSLAData(); } if(view==='profile') loadProfile(); }
   function configureRole(){
     const currentRole = window.role || role; // Use global role from login, fallback to local
     document.getElementById('nav-admin').style.display = (currentRole==='admin') ? 'block' : 'none';
@@ -5688,6 +5767,149 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       }
     } catch (e) {
       console.error('Failed to load audit actions:', e);
+    }
+  }
+
+  // =============================================
+  // Notifications Functions
+  // =============================================
+  let notifCurrentPage = 1;
+  const notifPageSize = 50;
+
+  async function loadNotifications(page = 1) {
+    notifCurrentPage = page;
+    const loading = document.getElementById('notif-loading');
+    const table = document.getElementById('notif-table');
+    const empty = document.getElementById('notif-empty');
+    const pagination = document.getElementById('notif-pagination');
+
+    loading.style.display = 'block';
+    table.style.display = 'none';
+    empty.style.display = 'none';
+    pagination.style.display = 'none';
+
+    try {
+      const token = localStorage.getItem('token');
+      const tenantCode = window.tenant || 'apoyar';
+      const params = new URLSearchParams({
+        limit: notifPageSize,
+        offset: (page - 1) * notifPageSize
+      });
+
+      const severity = document.getElementById('notif-filter-severity').value;
+      const type = document.getElementById('notif-filter-type').value;
+      const delivered = document.getElementById('notif-filter-delivered').value;
+      const range = document.getElementById('notif-filter-range').value;
+
+      if (severity) params.append('severity', severity);
+      if (type) params.append('type', type);
+      if (delivered) params.append('delivered', delivered);
+
+      // Calculate date range
+      if (range) {
+        const now = new Date();
+        let from;
+        if (range === '24h') {
+          from = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        } else if (range === '7d') {
+          from = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        } else if (range === '30d') {
+          from = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        }
+        if (from) params.append('from', from.toISOString());
+      }
+
+      const response = await fetch(`${API_BASE}/api/notifications/${tenantCode}?${params}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        renderNotifications(data.notifications, data.total, data.limit, data.offset);
+      } else {
+        console.error('Failed to load notifications:', data.message);
+        empty.style.display = 'block';
+      }
+    } catch (error) {
+      console.error('Error loading notifications:', error);
+      empty.style.display = 'block';
+    } finally {
+      loading.style.display = 'none';
+    }
+  }
+
+  function renderNotifications(notifications, total, limit, offset) {
+    const table = document.getElementById('notif-table');
+    const body = document.getElementById('notif-body');
+    const empty = document.getElementById('notif-empty');
+    const paginationEl = document.getElementById('notif-pagination');
+
+    if (!notifications || notifications.length === 0) {
+      empty.style.display = 'block';
+      return;
+    }
+
+    body.innerHTML = notifications.map(n => `
+      <tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:8px;font-size:13px;white-space:nowrap">${formatNotifDate(n.created_at)}</td>
+        <td style="padding:8px">${getSeverityBadge(n.severity)}</td>
+        <td style="padding:8px;font-size:13px">${formatNotifType(n.type)}</td>
+        <td style="padding:8px;font-size:13px">${escapeHtml(n.message)}</td>
+        <td style="padding:8px"><button class="btn btn-sm ghost" onclick="openNotifTicket(${n.ticket_id})">Open #${n.ticket_id}</button></td>
+        <td style="padding:8px">${n.delivered_at ? '<span class="badge badge-green">Yes</span>' : '<span class="badge badge-gray">No</span>'}</td>
+      </tr>
+    `).join('');
+
+    table.style.display = 'table';
+
+    // Update pagination
+    const totalPages = Math.ceil(total / limit);
+    const startItem = offset + 1;
+    const endItem = Math.min(offset + notifications.length, total);
+    document.getElementById('notif-page-info').textContent = `Showing ${startItem}–${endItem} of ${total}`;
+    document.getElementById('notif-prev').disabled = notifCurrentPage <= 1;
+    document.getElementById('notif-next').disabled = notifCurrentPage >= totalPages;
+    paginationEl.style.display = totalPages > 1 ? 'block' : 'none';
+  }
+
+  function formatNotifDate(dateStr) {
+    if (!dateStr) return '-';
+    const d = new Date(dateStr);
+    return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function getSeverityBadge(severity) {
+    if (severity === 'critical') return '<span class="badge badge-red">Critical</span>';
+    if (severity === 'warning') return '<span class="badge badge-amber">Warning</span>';
+    if (severity === 'info') return '<span class="badge badge-blue">Info</span>';
+    return '<span class="badge badge-gray">' + escapeHtml(severity || '-') + '</span>';
+  }
+
+  function formatNotifType(type) {
+    if (!type) return '-';
+    // Convert SLA_RESPONSE_NEAR to "Response Near"
+    return type.replace('SLA_', '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  }
+
+  function clearNotifFilters() {
+    document.getElementById('notif-filter-severity').value = '';
+    document.getElementById('notif-filter-type').value = '';
+    document.getElementById('notif-filter-delivered').value = '';
+    document.getElementById('notif-filter-range').value = '';
+    loadNotifications();
+  }
+
+  function openNotifTicket(ticketId) {
+    // Find ticket in local cache or load it
+    const ticket = tickets.find(t => t.id === ticketId);
+    if (ticket) {
+      currentTicketId = ticketId;
+      switchView('ticket-detail');
+    } else {
+      // Load ticket directly by navigating to tickets view with filter
+      currentTicketId = ticketId;
+      switchView('ticket-detail');
     }
   }
 
