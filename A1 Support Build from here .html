@@ -123,6 +123,16 @@ vNext-FULL-ActionsSLA:
   .navlink{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;margin-bottom:2px;cursor:pointer;font-size:14px;font-weight:400;color:var(--muted);transition:all .15s ease}
   .navlink:hover{background:var(--card-hover);color:var(--ink)}
   .navlink.active{background:var(--primary);color:var(--bg)}
+  /* Collapsible Nav Group */
+  .nav-group{margin-bottom:2px}
+  .nav-group .navlink{display:flex;justify-content:space-between;align-items:center}
+  .nav-group .chev{font-size:10px;transition:transform .15s}
+  .nav-group.open .chev{transform:rotate(90deg)}
+  .nav-subitems{display:none;padding-left:12px}
+  .nav-group.open .nav-subitems{display:block}
+  .nav-subitem{display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:6px;margin-bottom:2px;cursor:pointer;font-size:13px;color:var(--muted);transition:all .15s ease}
+  .nav-subitem:hover{background:var(--card-hover);color:var(--ink)}
+  .nav-subitem.active{background:var(--primary);color:var(--bg)}
   .btn{appearance:none;border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-weight:500;font-size:13px;cursor:pointer;background:var(--card);color:var(--ink);transition:all .15s ease}
   .btn:hover{background:var(--card-hover)}
   .btn.primary{background:var(--primary);color:var(--bg);border-color:var(--primary)}
@@ -706,10 +716,22 @@ vNext-FULL-ActionsSLA:
         <ion-icon name="business-outline" slot="start"></ion-icon>
         <ion-label>Manage Customers</ion-label>
       </ion-item>
-      <ion-item button onclick="ionicNav('cmdb-hub'); closeIonicMenu();">
+      <ion-item button onclick="toggleIonicCmdb()">
         <ion-icon name="server-outline" slot="start"></ion-icon>
         <ion-label>CMDB</ion-label>
+        <ion-icon name="chevron-forward-outline" slot="end" id="ionic-cmdb-chev" style="font-size:14px;transition:transform .15s"></ion-icon>
       </ion-item>
+      <div id="ionic-cmdb-subitems" style="display:none;padding-left:32px;background:var(--card-hover)">
+        <ion-item button onclick="openCmdb('cmdb-section-items'); closeIonicMenu();">
+          <ion-label style="font-size:14px">CMDB Items</ion-label>
+        </ion-item>
+        <ion-item button onclick="openCmdb('cmdb-section-types'); closeIonicMenu();">
+          <ion-label style="font-size:14px">CMDB Types</ion-label>
+        </ion-item>
+        <ion-item button onclick="openCmdb('cmdb-section-management'); closeIonicMenu();">
+          <ion-label style="font-size:14px">CMDB Management</ion-label>
+        </ion-item>
+      </div>
       <ion-item button onclick="ionicNav('knowledge-base'); closeIonicMenu();">
         <ion-icon name="book-outline" slot="start"></ion-icon>
         <ion-label>Knowledge Base</ion-label>
@@ -718,10 +740,31 @@ vNext-FULL-ActionsSLA:
         <ion-icon name="bulb-outline" slot="start"></ion-icon>
         <ion-label>AI Insights</ion-label>
       </ion-item>
-      <ion-item button onclick="ionicNav('wizard'); closeIonicMenu();">
+      <ion-item button onclick="toggleIonicAdminSettings()">
         <ion-icon name="settings-outline" slot="start"></ion-icon>
-        <ion-label>Settings</ion-label>
+        <ion-label>Admin Settings</ion-label>
+        <ion-icon name="chevron-forward-outline" slot="end" id="ionic-admin-settings-chev" style="font-size:14px;transition:transform .15s"></ion-icon>
       </ion-item>
+      <div id="ionic-admin-settings-subitems" style="display:none;padding-left:32px;background:var(--card-hover)">
+        <ion-item button onclick="openAdminSettings('admin-section-profile'); closeIonicMenu();">
+          <ion-label style="font-size:14px">Company Profile</ion-label>
+        </ion-item>
+        <ion-item button onclick="openAdminSettings('admin-section-email-ingest'); closeIonicMenu();">
+          <ion-label style="font-size:14px">Email Ingest</ion-label>
+        </ion-item>
+        <ion-item button onclick="openAdminSettings('admin-section-expert-reg'); closeIonicMenu();">
+          <ion-label style="font-size:14px">Expert Registration</ion-label>
+        </ion-item>
+        <ion-item button onclick="openAdminSettings('admin-section-support'); closeIonicMenu();">
+          <ion-label style="font-size:14px">Support Settings</ion-label>
+        </ion-item>
+        <ion-item button onclick="openAdminSettings('admin-section-integrations'); closeIonicMenu();">
+          <ion-label style="font-size:14px">Integrations</ion-label>
+        </ion-item>
+        <ion-item button onclick="openAdminSettings('admin-section-sla'); closeIonicMenu();">
+          <ion-label style="font-size:14px">SLA Management</ion-label>
+        </ion-item>
+      </div>
       <ion-item button onclick="ionicNav('raise'); closeIonicMenu();">
         <ion-icon name="add-circle-outline" slot="start"></ion-icon>
         <ion-label>Raise Request</ion-label>
@@ -959,13 +1002,30 @@ vNext-FULL-ActionsSLA:
           <div class="navlink" data-target="knowledge-base" onclick="nav(this)">📚 Knowledge Base</div>
           <div class="navlink" data-target="experts" onclick="nav(this)">👩‍🔧 Manage Experts</div>
           <div class="navlink" data-target="customers" onclick="nav(this)">🧑‍💼 Manage Customers</div>
-          <div class="navlink" data-target="cmdb-hub" onclick="nav(this)">🗃️ CMDB</div>
+          <div class="nav-group" id="nav-cmdb-group">
+            <div class="navlink" onclick="toggleNavGroup('nav-cmdb-group')">🗃️ CMDB <span class="chev">▸</span></div>
+            <div class="nav-subitems">
+              <div class="nav-subitem" data-section="cmdb-section-items" onclick="openCmdb('cmdb-section-items')">CMDB Items</div>
+              <div class="nav-subitem" data-section="cmdb-section-types" onclick="openCmdb('cmdb-section-types')">CMDB Types</div>
+              <div class="nav-subitem" data-section="cmdb-section-management" onclick="openCmdb('cmdb-section-management')">CMDB Management</div>
+            </div>
+          </div>
           <div class="navlink" data-target="analytics" onclick="nav(this)">📈 Analytics</div>
           <div class="navlink" data-target="ai-insights" onclick="nav(this)">🤖 AI Insights</div>
           <div class="navlink" data-target="ticket-rules" onclick="nav(this)">⚙️ Ticket Rules</div>
           <div class="navlink" data-target="usage" onclick="nav(this)">📊 Usage & Limits</div>
           <div class="navlink" data-target="raise" onclick="nav(this)">📝 Raise Request</div>
-          <div class="navlink" data-target="wizard" onclick="nav(this)">🪄 Admin Settings Wizard</div>
+          <div class="nav-group" id="nav-admin-settings-group">
+            <div class="navlink" onclick="toggleNavGroup('nav-admin-settings-group')">🪄 Admin Settings <span class="chev">▸</span></div>
+            <div class="nav-subitems">
+              <div class="nav-subitem" data-section="admin-section-profile" onclick="openAdminSettings('admin-section-profile')">🏢 Company Profile</div>
+              <div class="nav-subitem" data-section="admin-section-email-ingest" onclick="openAdminSettings('admin-section-email-ingest')">📧 Email Ingest</div>
+              <div class="nav-subitem" data-section="admin-section-expert-reg" onclick="openAdminSettings('admin-section-expert-reg')">👤 Expert Registration</div>
+              <div class="nav-subitem" data-section="admin-section-support" onclick="openAdminSettings('admin-section-support')">🎫 Support Settings</div>
+              <div class="nav-subitem" data-section="admin-section-integrations" onclick="openAdminSettings('admin-section-integrations')">🔗 Integrations</div>
+              <div class="nav-subitem" data-section="admin-section-sla" onclick="openAdminSettings('admin-section-sla')">⏱️ SLA Management</div>
+            </div>
+          </div>
           <div class="navlink" data-target="system-control" onclick="nav(this)">🔧 System Control</div>
           <div class="navlink" data-target="raw-variables" onclick="nav(this)">⚙️ Raw Variables</div>
         </div>
@@ -975,7 +1035,14 @@ vNext-FULL-ActionsSLA:
           <div class="navlink" data-target="profile" onclick="nav(this)">👤 My Profile</div>
           <div class="navlink" data-target="tickets" onclick="nav(this)">🎫 Tickets</div>
           <div class="navlink" data-target="knowledge-base" onclick="nav(this)">📚 Knowledge Base</div>
-          <div class="navlink" data-target="cmdb-hub" onclick="nav(this)">🗃️ CMDB</div>
+          <div class="nav-group" id="nav-cmdb-group-expert">
+            <div class="navlink" onclick="toggleNavGroup('nav-cmdb-group-expert')">🗃️ CMDB <span class="chev">▸</span></div>
+            <div class="nav-subitems">
+              <div class="nav-subitem" data-section="cmdb-section-items" onclick="openCmdb('cmdb-section-items')">CMDB Items</div>
+              <div class="nav-subitem" data-section="cmdb-section-types" onclick="openCmdb('cmdb-section-types')">CMDB Types</div>
+              <div class="nav-subitem" data-section="cmdb-section-management" onclick="openCmdb('cmdb-section-management')">CMDB Management</div>
+            </div>
+          </div>
           <div class="navlink" data-target="analytics" onclick="nav(this)">📈 Analytics</div>
           <div class="navlink" data-target="ai-insights" onclick="nav(this)">🤖 AI Insights</div>
           <div class="navlink" data-target="raise" onclick="nav(this)">📝 Raise Request</div>
@@ -990,7 +1057,14 @@ vNext-FULL-ActionsSLA:
           <div class="navlink" data-target="customer-plans" onclick="nav(this)">📋 Plans & Upgrades</div>
           <div class="navlink" data-target="analytics" onclick="nav(this)">📈 Analytics</div>
           <div class="navlink" data-target="ai-insights" onclick="nav(this)">🤖 AI Insights</div>
-          <div class="navlink" data-target="cmdb-hub" onclick="nav(this)">🗃️ My CMDB</div>
+          <div class="nav-group" id="nav-cmdb-group-customer">
+            <div class="navlink" onclick="toggleNavGroup('nav-cmdb-group-customer')">🗃️ My CMDB <span class="chev">▸</span></div>
+            <div class="nav-subitems">
+              <div class="nav-subitem" data-section="cmdb-section-items" onclick="openCmdb('cmdb-section-items')">CMDB Items</div>
+              <div class="nav-subitem" data-section="cmdb-section-types" onclick="openCmdb('cmdb-section-types')">CMDB Types</div>
+              <div class="nav-subitem" data-section="cmdb-section-management" onclick="openCmdb('cmdb-section-management')">CMDB Management</div>
+            </div>
+          </div>
           <div class="navlink" data-target="raise" onclick="nav(this)">📝 Raise Request</div>
         </div>
       </aside>
@@ -1030,7 +1104,7 @@ vNext-FULL-ActionsSLA:
                 <button class="btn primary" onclick="navTo('customers')">Manage Customers</button>
                 <button class="btn primary" onclick="navTo('cmdb')">Open CMDB</button>
                 <button class="btn" onclick="navTo('tickets')">View All Tickets</button>
-                <button class="btn" onclick="navTo('wizard')">Settings Wizard</button>
+                <button class="btn" onclick="navTo('wizard')">Admin Settings</button>
               </div>
             </div>
 
@@ -2742,27 +2816,11 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           </div>
         </div>
 
-        <!-- CMDB Hub -->
+        <!-- CMDB Hub (no in-content sub-menu, uses collapsible left nav) -->
         <div id="view-cmdb-hub" style="display:none">
-          <div class="row space mb-12">
-            <h3 class="title" style="margin:0">CMDB Hub</h3>
-          </div>
-          <div style="display:flex;gap:24px;align-items:flex-start">
-            <!-- Sub-menu -->
-            <div style="width:220px;flex-shrink:0;position:sticky;top:72px">
-              <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden">
-                <div class="cmdb-nav-item active" data-section="cmdb-section-items" onclick="showCmdbSection('cmdb-section-items')">🗂️ CMDB</div>
-                <div class="cmdb-nav-item" data-section="cmdb-section-types" onclick="showCmdbSection('cmdb-section-types')">⚙️ CMDB Types</div>
-                <div class="cmdb-nav-item" data-section="cmdb-section-management" onclick="showCmdbSection('cmdb-section-management')">🛠️ CMDB Management</div>
-              </div>
-            </div>
-            <!-- Content host -->
-            <div style="flex:1;min-width:0">
-              <div id="cmdb-section-items" class="cmdb-section"></div>
-              <div id="cmdb-section-types" class="cmdb-section" style="display:none"></div>
-              <div id="cmdb-section-management" class="cmdb-section" style="display:none"></div>
-            </div>
-          </div>
+          <div id="cmdb-section-items" class="cmdb-section"></div>
+          <div id="cmdb-section-types" class="cmdb-section" style="display:none"></div>
+          <div id="cmdb-section-management" class="cmdb-section" style="display:none"></div>
         </div>
 
         <!-- CMDB (original - content will be moved to hub) -->
@@ -2956,27 +3014,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           </div>
         </div>
 
-        <!-- Admin Settings Wizard -->
+        <!-- Admin Settings (no in-content sub-menu, uses collapsible left nav) -->
         <div id="view-wizard" style="display:none">
-          <div class="row space mb-12">
-            <h3 class="title" style="margin:0">Admin Settings Wizard</h3>
-          </div>
-
-          <div style="display:flex;gap:24px;align-items:flex-start">
-            <!-- Settings Nav Menu -->
-            <div id="wizard-nav" style="width:200px;flex-shrink:0;position:sticky;top:72px">
-              <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden">
-                <div class="wizard-nav-item active" data-section="admin-section-profile" onclick="showWizardSection('admin-section-profile')">🏢 Company Profile</div>
-                <div class="wizard-nav-item" data-section="admin-section-email-ingest" onclick="showWizardSection('admin-section-email-ingest')">📧 Email Ingest</div>
-                <div class="wizard-nav-item" data-section="admin-section-expert-reg" onclick="showWizardSection('admin-section-expert-reg')">👤 Expert Registration</div>
-                <div class="wizard-nav-item" data-section="admin-section-support" onclick="showWizardSection('admin-section-support')">🎫 Support Settings</div>
-                <div class="wizard-nav-item" data-section="admin-section-integrations" onclick="showWizardSection('admin-section-integrations')">🔗 Integrations</div>
-                <div class="wizard-nav-item" data-section="admin-section-sla" onclick="showWizardSection('admin-section-sla')">⏱️ SLA Management</div>
-              </div>
-            </div>
-
-            <!-- Settings Content -->
-            <div style="flex:1;min-width:0">
           <!-- Company Profile Section -->
           <div id="admin-section-profile" class="wizard-section card p-16 mb-12">
             <div class="row space mb-12">
@@ -3293,8 +3332,6 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             <div id="sla-message" class="subtitle" style="color:#16a34a;display:none;margin-top:12px"></div>
             <div id="sla-error" class="subtitle" style="color:#b91c1c;display:none;margin-top:12px"></div>
           </div>
-            </div><!-- End Settings Content -->
-          </div><!-- End flex container -->
         </div>
 
         <!-- Raw Variables Editor -->
@@ -5021,7 +5058,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     document.getElementById('topnav-role').textContent = roleDisplay;
     document.getElementById('topnav-avatar').textContent = username.charAt(0).toUpperCase();
 
-    // Hide/show admin-only sections in Admin Settings Wizard
+    // Hide/show admin-only sections in Admin Settings
     const isAdmin = (currentRole === 'admin');
     const profileSection = document.getElementById('admin-section-profile');
     const emailIngestSection = document.getElementById('admin-section-email-ingest');
@@ -5042,6 +5079,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     if (typeof updateIonicMenu === 'function') {
       updateIonicMenu();
     }
+
+    // Initialize collapsible nav groups
+    initNavGroups();
   }
 
   // ---- SLA Utilities ----
@@ -5733,8 +5773,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     // Show selected section
     const section = document.getElementById(sectionId);
     if (section) section.style.display = 'block';
-    // Update active nav item
-    document.querySelectorAll('.wizard-nav-item').forEach(item => {
+    // Update active state on left nav subitems
+    document.querySelectorAll('#nav-admin-settings-group .nav-subitem').forEach(item => {
       item.classList.toggle('active', item.dataset.section === sectionId);
     });
     // Persist selection
@@ -5749,11 +5789,73 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   // CMDB Hub Functions
   let cmdbHubInitialized = false;
 
+  // Collapsible Nav Group Functions
+  function toggleNavGroup(groupId) {
+    const group = document.getElementById(groupId);
+    if (!group) return;
+    const isOpen = group.classList.contains('open');
+    group.classList.toggle('open', !isOpen);
+    try { localStorage.setItem(`serviflow.nav.${groupId}.open`, isOpen ? '0' : '1'); } catch(e) {}
+  }
+
+  function initNavGroups() {
+    // CMDB groups
+    let cmdbOpen = '0';
+    try { cmdbOpen = localStorage.getItem('serviflow.nav.nav-cmdb-group.open') || '0'; } catch(e) {}
+    ['nav-cmdb-group', 'nav-cmdb-group-expert', 'nav-cmdb-group-customer'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.toggle('open', cmdbOpen === '1');
+    });
+    // Admin Settings group
+    let adminOpen = '0';
+    try { adminOpen = localStorage.getItem('serviflow.nav.nav-admin-settings-group.open') || '0'; } catch(e) {}
+    const adminGroup = document.getElementById('nav-admin-settings-group');
+    if (adminGroup) adminGroup.classList.toggle('open', adminOpen === '1');
+  }
+
+  function openCmdb(sectionId) {
+    // Switch to CMDB hub view
+    switchView('cmdb-hub');
+    // Show requested section
+    showCmdbSection(sectionId);
+    // Ensure nav group is expanded
+    const groups = ['nav-cmdb-group', 'nav-cmdb-group-expert', 'nav-cmdb-group-customer'];
+    groups.forEach(id => {
+      const el = document.getElementById(id);
+      if (el && !el.classList.contains('open')) el.classList.add('open');
+    });
+    try { localStorage.setItem('serviflow.nav.nav-cmdb-group.open', '1'); } catch(e) {}
+    // Update active state on subitems
+    document.querySelectorAll('.nav-subitem').forEach(item => {
+      item.classList.toggle('active', item.dataset.section === sectionId);
+    });
+    // Clear active state from regular navlinks
+    document.querySelectorAll('.navlink').forEach(n => n.classList.remove('active'));
+  }
+
+  function openAdminSettings(sectionId) {
+    // Switch to wizard view
+    switchView('wizard');
+    // Show requested section
+    showWizardSection(sectionId);
+    // Ensure nav group is expanded
+    const group = document.getElementById('nav-admin-settings-group');
+    if (group && !group.classList.contains('open')) group.classList.add('open');
+    try { localStorage.setItem('serviflow.nav.nav-admin-settings-group.open', '1'); } catch(e) {}
+    // Update active state on subitems
+    document.querySelectorAll('#nav-admin-settings-group .nav-subitem').forEach(item => {
+      item.classList.toggle('active', item.dataset.section === sectionId);
+    });
+    // Clear active state from regular navlinks
+    document.querySelectorAll('.navlink').forEach(n => n.classList.remove('active'));
+  }
+
   function showCmdbSection(sectionId) {
     document.querySelectorAll('.cmdb-section').forEach(s => s.style.display = 'none');
     const section = document.getElementById(sectionId);
     if (section) section.style.display = 'block';
-    document.querySelectorAll('.cmdb-nav-item').forEach(item => {
+    // Update active state on left nav subitems
+    document.querySelectorAll('.nav-subitem').forEach(item => {
       item.classList.toggle('active', item.dataset.section === sectionId);
     });
     try { localStorage.setItem('serviflow.cmdb.section', sectionId); } catch(e) {}
@@ -15331,6 +15433,24 @@ function openIonicMenu() {
 function closeIonicMenu() {
   const menu = document.querySelector('ion-menu');
   if (menu) menu.close();
+}
+
+function toggleIonicCmdb() {
+  const subs = document.getElementById('ionic-cmdb-subitems');
+  const chev = document.getElementById('ionic-cmdb-chev');
+  if (!subs) return;
+  const isOpen = subs.style.display !== 'none';
+  subs.style.display = isOpen ? 'none' : 'block';
+  if (chev) chev.style.transform = isOpen ? '' : 'rotate(90deg)';
+}
+
+function toggleIonicAdminSettings() {
+  const subs = document.getElementById('ionic-admin-settings-subitems');
+  const chev = document.getElementById('ionic-admin-settings-chev');
+  if (!subs) return;
+  const isOpen = subs.style.display !== 'none';
+  subs.style.display = isOpen ? 'none' : 'block';
+  if (chev) chev.style.transform = isOpen ? '' : 'rotate(90deg)';
 }
 
 function ionicNav(view) {
