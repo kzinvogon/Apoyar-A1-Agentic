@@ -165,6 +165,10 @@ vNext-FULL-ActionsSLA:
   .badge.status-pending{background:#fef3c7;color:#d97706;border-color:#fde68a}
   .badge.status-cancelled{background:#fef2f2;color:#dc2626;border-color:#fecaca}
   .badge.status-success{background:#dcfce7;color:#16a34a;border-color:#bbf7d0}
+  .badge-red{background:#fef2f2;color:#dc2626;border-color:#fecaca}
+  .badge-amber{background:#fef3c7;color:#d97706;border-color:#fde68a}
+  .badge-green{background:#dcfce7;color:#16a34a;border-color:#bbf7d0}
+  .badge-gray{background:#f5f5f5;color:#525252;border-color:#e5e5e5}
   .badge.status-warning{background:#fef3c7;color:#d97706;border-color:#fde68a}
   .badge.status-error{background:#fef2f2;color:#dc2626;border-color:#fecaca}
   
@@ -1042,6 +1046,7 @@ vNext-FULL-ActionsSLA:
               </div>
             </div>
             <div class="navlink" data-target="system-control" onclick="nav(this)">🔧 System Control</div>
+            <div class="navlink" data-target="audit-log" onclick="nav(this)">📋 Audit Log</div>
             <div class="navlink" data-target="raw-variables" onclick="openRawVariablesSecure(this)">⚙️ Raw Variables</div>
           </div>
         </div>
@@ -3682,6 +3687,63 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           </div>
         </div>
 
+        <!-- Audit Log -->
+        <div id="view-audit-log" style="display:none">
+          <div class="row space mb-12">
+            <div class="row"><button class="btn ghost" onclick="switchView('dash')">← Back</button><h3 class="title" style="margin:0 0 0 8px">Audit Log</h3></div>
+            <button class="btn" onclick="loadAuditLog()">Refresh</button>
+          </div>
+
+          <div class="card p-16 mb-12">
+            <div class="row" style="gap:12px;flex-wrap:wrap;align-items:flex-end">
+              <div>
+                <label class="subtitle">Action</label>
+                <select id="audit-filter-action" class="input" style="min-width:160px" onchange="loadAuditLog()">
+                  <option value="">All Actions</option>
+                </select>
+              </div>
+              <div>
+                <label class="subtitle">User</label>
+                <input id="audit-filter-user" class="input" style="min-width:140px" placeholder="Username..." oninput="debounceAuditFilter()"/>
+              </div>
+              <div>
+                <label class="subtitle">From</label>
+                <input id="audit-filter-from" type="date" class="input" onchange="loadAuditLog()"/>
+              </div>
+              <div>
+                <label class="subtitle">To</label>
+                <input id="audit-filter-to" type="date" class="input" onchange="loadAuditLog()"/>
+              </div>
+              <button class="btn ghost" onclick="clearAuditFilters()">Clear</button>
+            </div>
+          </div>
+
+          <div class="card p-16">
+            <div id="audit-loading" style="text-align:center;padding:40px;color:var(--muted)">Loading audit log...</div>
+            <table id="audit-table" style="display:none;width:100%">
+              <thead>
+                <tr style="border-bottom:1px solid var(--border)">
+                  <th style="text-align:left;padding:8px">Timestamp</th>
+                  <th style="text-align:left;padding:8px">User</th>
+                  <th style="text-align:left;padding:8px">Action</th>
+                  <th style="text-align:left;padding:8px">Entity</th>
+                  <th style="text-align:left;padding:8px">Details</th>
+                </tr>
+              </thead>
+              <tbody id="audit-body"></tbody>
+            </table>
+            <div id="audit-empty" style="display:none;text-align:center;padding:40px;color:var(--muted)">
+              <div style="font-size:48px;margin-bottom:16px">📋</div>
+              <div>No audit log entries found</div>
+            </div>
+            <div id="audit-pagination" style="display:none;margin-top:16px;text-align:center">
+              <button class="btn ghost" id="audit-prev" onclick="loadAuditLog(auditCurrentPage - 1)">← Previous</button>
+              <span id="audit-page-info" style="margin:0 16px;color:var(--muted)"></span>
+              <button class="btn ghost" id="audit-next" onclick="loadAuditLog(auditCurrentPage + 1)">Next →</button>
+            </div>
+          </div>
+        </div>
+
         <!-- System Control -->
         <div id="view-system-control" style="display:none">
           <div class="row space mb-12">
@@ -4845,6 +4907,20 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     localStorage.removeItem('currentUser');
     localStorage.removeItem('username');
 
+    // Clear admin mode and step-up reauth
+    localStorage.setItem('serviflow.adminMode', '0');
+    sessionStorage.removeItem('serviflow.reauthUntil');
+
+    // Reset admin mode UI
+    const grp = document.getElementById('adminMenuGroup');
+    const orig = document.getElementById('adminMenuOriginalPoint');
+    if (grp && orig) {
+      grp.style.display = 'none';
+      orig.parentNode.insertBefore(grp, orig.nextSibling);
+    }
+    const cb = document.getElementById('adminModeToggle');
+    if (cb) cb.checked = false;
+
     // Clear global variables
     window.currentUser = null;
     window.role = null;
@@ -5080,7 +5156,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   function nav(el){ document.querySelectorAll('.navlink').forEach(n=>n.classList.remove('active')); el.classList.add('active'); switchView(el.getAttribute('data-target')); if(el.getAttribute('data-target')==='dash') renderAllDashboards(); }
   function navTo(view){ switchView(view); }
-  function switchView(view){ currentView=view; ['dash','profile','tickets','ticket-detail','experts','expert-detail','customers','cmdb-hub','cmdb','cmdb-detail','manage-cmdb','cmdb-mgmt','wizard','raise','tenants','subscriptions','billing','plans','system','usage','customer-plans','customer-billing','analytics','ai-insights','ticket-rules','email-processing','system-control','knowledge-base','raw-variables'].forEach(n=>{ const el=document.getElementById('view-'+n); if(el) el.style.display=(n===view)?'block':'none'; }); if(view==='tickets') { loadFilterSettings('tickets'); renderList(); } if(view==='experts') { loadFilterSettings('experts'); renderExperts(); } if(view==='expert-detail') renderExpertDetail(); if(view==='customers') { loadFilterSettings('customers'); renderCustomers(); } if(view==='cmdb-hub') initCmdbHub(); if(view==='cmdb') { loadFilterSettings('cmdb'); renderCMDB(); } if(view==='cmdb-detail') renderCMDBDetail(); if(view==='manage-cmdb') loadManageCMDB(); if(view==='cmdb-mgmt') loadCMDBMgmt(); if(view==='raise') loadRaiseFormOptions(); if(view==='ticket-detail') renderTicketDetail(); if(view==='tenants') loadTenants(); if(view==='subscriptions') loadSubscriptions(); if(view==='billing') loadBilling(); if(view==='plans') loadPlans(); if(view==='system') loadSystemOverview(); if(view==='usage') loadUsageDashboard(); if(view==='customer-plans') loadCustomerPlans(); if(view==='customer-billing') loadCustomerBilling(); if(view==='analytics') loadAnalytics(); if(view==='ai-insights') loadAIInsights(); if(view==='ticket-rules') loadTicketRules(); if(view==='email-processing') loadEmailProcessing(); if(view==='system-control') loadSystemControlSettings(); if(view==='knowledge-base') initKnowledgeBase(); if(view==='raw-variables') loadRawVariables(); if(view==='wizard') { initWizardSection(); loadCompanyProfile(); loadEmailIngestSettings(); loadExpertRegSettings(); loadSupportSettings(); loadTeamsIntegrationStatus(); loadSLAData(); } if(view==='profile') loadProfile(); }
+  function switchView(view){ currentView=view; ['dash','profile','tickets','ticket-detail','experts','expert-detail','customers','cmdb-hub','cmdb','cmdb-detail','manage-cmdb','cmdb-mgmt','wizard','raise','tenants','subscriptions','billing','plans','system','usage','customer-plans','customer-billing','analytics','ai-insights','ticket-rules','email-processing','system-control','knowledge-base','raw-variables','audit-log'].forEach(n=>{ const el=document.getElementById('view-'+n); if(el) el.style.display=(n===view)?'block':'none'; }); if(view==='tickets') { loadFilterSettings('tickets'); renderList(); } if(view==='experts') { loadFilterSettings('experts'); renderExperts(); } if(view==='expert-detail') renderExpertDetail(); if(view==='customers') { loadFilterSettings('customers'); renderCustomers(); } if(view==='cmdb-hub') initCmdbHub(); if(view==='cmdb') { loadFilterSettings('cmdb'); renderCMDB(); } if(view==='cmdb-detail') renderCMDBDetail(); if(view==='manage-cmdb') loadManageCMDB(); if(view==='cmdb-mgmt') loadCMDBMgmt(); if(view==='raise') loadRaiseFormOptions(); if(view==='ticket-detail') renderTicketDetail(); if(view==='tenants') loadTenants(); if(view==='subscriptions') loadSubscriptions(); if(view==='billing') loadBilling(); if(view==='plans') loadPlans(); if(view==='system') loadSystemOverview(); if(view==='usage') loadUsageDashboard(); if(view==='customer-plans') loadCustomerPlans(); if(view==='customer-billing') loadCustomerBilling(); if(view==='analytics') loadAnalytics(); if(view==='ai-insights') loadAIInsights(); if(view==='ticket-rules') loadTicketRules(); if(view==='email-processing') loadEmailProcessing(); if(view==='system-control') loadSystemControlSettings(); if(view==='knowledge-base') initKnowledgeBase(); if(view==='raw-variables') loadRawVariables(); if(view==='audit-log') { loadAuditActions(); loadAuditLog(); } if(view==='wizard') { initWizardSection(); loadCompanyProfile(); loadEmailIngestSettings(); loadExpertRegSettings(); loadSupportSettings(); loadTeamsIntegrationStatus(); loadSLAData(); } if(view==='profile') loadProfile(); }
   function configureRole(){
     const currentRole = window.role || role; // Use global role from login, fallback to local
     document.getElementById('nav-admin').style.display = (currentRole==='admin') ? 'block' : 'none';
@@ -5470,6 +5546,149 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   
 
   // =============================================
+  // Audit Log Functions
+  // =============================================
+  let auditCurrentPage = 1;
+  const auditPageSize = 25;
+  let auditFilterTimeout = null;
+
+  async function loadAuditLog(page = 1) {
+    auditCurrentPage = page;
+    const loading = document.getElementById('audit-loading');
+    const table = document.getElementById('audit-table');
+    const empty = document.getElementById('audit-empty');
+    const pagination = document.getElementById('audit-pagination');
+
+    loading.style.display = 'block';
+    table.style.display = 'none';
+    empty.style.display = 'none';
+    pagination.style.display = 'none';
+
+    try {
+      const token = localStorage.getItem('token');
+      const params = new URLSearchParams({
+        limit: auditPageSize,
+        offset: (page - 1) * auditPageSize
+      });
+
+      const action = document.getElementById('audit-filter-action').value;
+      const user = document.getElementById('audit-filter-user').value.trim();
+      const dateFrom = document.getElementById('audit-filter-from').value;
+      const dateTo = document.getElementById('audit-filter-to').value;
+
+      if (action) params.append('action', action);
+      if (user) params.append('user', user);
+      if (dateFrom) params.append('dateFrom', dateFrom);
+      if (dateTo) params.append('dateTo', dateTo);
+
+      const response = await fetch(`${API_BASE}/api/admin/audit-log?${params}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        renderAuditLog(data.data, data.pagination);
+      } else {
+        console.error('Failed to load audit log:', data.error);
+        empty.style.display = 'block';
+      }
+    } catch (error) {
+      console.error('Error loading audit log:', error);
+      empty.style.display = 'block';
+    } finally {
+      loading.style.display = 'none';
+    }
+  }
+
+  function renderAuditLog(entries, pagination) {
+    const table = document.getElementById('audit-table');
+    const body = document.getElementById('audit-body');
+    const empty = document.getElementById('audit-empty');
+    const paginationEl = document.getElementById('audit-pagination');
+
+    if (!entries || entries.length === 0) {
+      empty.style.display = 'block';
+      return;
+    }
+
+    body.innerHTML = entries.map(entry => `
+      <tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:8px;font-size:13px;white-space:nowrap">${formatAuditDate(entry.created_at)}</td>
+        <td style="padding:8px">${escapeHtml(entry.username || '-')}</td>
+        <td style="padding:8px"><span class="badge ${getActionBadgeClass(entry.action)}">${escapeHtml(entry.action)}</span></td>
+        <td style="padding:8px;font-size:13px">${escapeHtml(entry.entity_id || entry.entity_type)}</td>
+        <td style="padding:8px;font-size:12px;color:var(--muted)">${formatAuditDetails(entry.details_json)}</td>
+      </tr>
+    `).join('');
+
+    table.style.display = 'table';
+
+    // Update pagination
+    const totalPages = Math.ceil(pagination.total / pagination.limit);
+    document.getElementById('audit-page-info').textContent = `Page ${auditCurrentPage} of ${totalPages} (${pagination.total} entries)`;
+    document.getElementById('audit-prev').disabled = auditCurrentPage <= 1;
+    document.getElementById('audit-next').disabled = !pagination.hasMore;
+    paginationEl.style.display = totalPages > 1 ? 'block' : 'none';
+  }
+
+  function formatAuditDate(dateStr) {
+    if (!dateStr) return '-';
+    const d = new Date(dateStr);
+    return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function getActionBadgeClass(action) {
+    if (action?.includes('DELETE')) return 'badge-red';
+    if (action?.includes('UPDATE') || action?.includes('IMPORT')) return 'badge-amber';
+    if (action?.includes('CREATE')) return 'badge-green';
+    return 'badge-gray';
+  }
+
+  function formatAuditDetails(details) {
+    if (!details) return '-';
+    const parts = [];
+    if (details.key) parts.push(`key: ${details.key}`);
+    if (details.scope) parts.push(`scope: ${details.scope}`);
+    if (details.valueChanged) parts.push('value changed');
+    if (details.countReturned) parts.push(`${details.countReturned} vars`);
+    if (details.countExported) parts.push(`${details.countExported} exported`);
+    if (details.keysImportedCount) parts.push(`${details.keysImportedCount} keys`);
+    if (details.created) parts.push(`${details.created} created`);
+    if (details.updated) parts.push(`${details.updated} updated`);
+    return parts.length > 0 ? parts.join(', ') : '-';
+  }
+
+  function debounceAuditFilter() {
+    clearTimeout(auditFilterTimeout);
+    auditFilterTimeout = setTimeout(() => loadAuditLog(), 400);
+  }
+
+  function clearAuditFilters() {
+    document.getElementById('audit-filter-action').value = '';
+    document.getElementById('audit-filter-user').value = '';
+    document.getElementById('audit-filter-from').value = '';
+    document.getElementById('audit-filter-to').value = '';
+    loadAuditLog();
+  }
+
+  async function loadAuditActions() {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE}/api/admin/audit-log/actions`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (data.success) {
+        const select = document.getElementById('audit-filter-action');
+        select.innerHTML = '<option value="">All Actions</option>' +
+          data.actions.map(a => `<option value="${escapeHtml(a)}">${escapeHtml(a)}</option>`).join('');
+      }
+    } catch (e) {
+      console.error('Failed to load audit actions:', e);
+    }
+  }
+
   // Raw Variables Functions
   // =============================================
   let rawVariablesData = null;
@@ -5592,9 +5811,12 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     currentEditingVariable = null;
   }
 
-  async function saveVariableEdit() {
+  function saveVariableEdit() {
     if (!currentEditingVariable) return;
+    ensureReauthThen(doSaveVariableEdit);
+  }
 
+  async function doSaveVariableEdit() {
     const key = document.getElementById('var-edit-key').value;
     const value = document.getElementById('var-edit-value').value;
     const token = localStorage.getItem('token');
@@ -5636,12 +5858,12 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     document.getElementById('variable-add-modal').style.display = 'none';
   }
 
-  async function saveNewVariable() {
+  function saveNewVariable() {
     const key = document.getElementById('var-add-key').value.trim();
     const value = document.getElementById('var-add-value').value;
     const errorEl = document.getElementById('var-add-error');
 
-    // Validate key
+    // Validate key before reauth
     if (!key) {
       errorEl.textContent = 'Key is required';
       errorEl.style.display = 'block';
@@ -5660,6 +5882,11 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       return;
     }
 
+    ensureReauthThen(() => doSaveNewVariable(key, value));
+  }
+
+  async function doSaveNewVariable(key, value) {
+    const errorEl = document.getElementById('var-add-error');
     const token = localStorage.getItem('token');
     const tenantCode = localStorage.getItem('tenantCode') || 'apoyar';
 
@@ -5690,9 +5917,12 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     }
   }
 
-  async function deleteVariable(key) {
+  function deleteVariable(key) {
     if (!confirm(`Delete variable "${key}"? This cannot be undone.`)) return;
+    ensureReauthThen(() => doDeleteVariable(key));
+  }
 
+  async function doDeleteVariable(key) {
     const token = localStorage.getItem('token');
     const tenantCode = localStorage.getItem('tenantCode') || 'apoyar';
 
@@ -5757,10 +5987,11 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     document.getElementById('json-import-modal').style.display = 'none';
   }
 
-  async function importVariablesFromJSON() {
+  function importVariablesFromJSON() {
     const content = document.getElementById('json-import-content').value.trim();
     const errorEl = document.getElementById('json-import-error');
 
+    // Validate before reauth
     if (!content) {
       errorEl.textContent = 'Please paste JSON content';
       errorEl.style.display = 'block';
@@ -5782,6 +6013,11 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       return;
     }
 
+    ensureReauthThen(() => doImportVariablesFromJSON(variables));
+  }
+
+  async function doImportVariablesFromJSON(variables) {
+    const errorEl = document.getElementById('json-import-error');
     const token = localStorage.getItem('token');
     const tenantCode = localStorage.getItem('tenantCode') || 'apoyar';
 
@@ -5890,6 +6126,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   }
 
   // Reauth functions for Raw Variables security
+  let pendingReauthCallback = null;
+
   function hasReauth() {
     try {
       const until = sessionStorage.getItem('serviflow.reauthUntil');
@@ -5898,10 +6136,20 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     } catch(e) { return false; }
   }
 
+  function ensureReauthThen(cb) {
+    if (hasReauth()) {
+      cb();
+    } else {
+      pendingReauthCallback = cb;
+      showReauthModal();
+    }
+  }
+
   function openRawVariablesSecure(el) {
     if (hasReauth()) {
       nav(el);
     } else {
+      pendingReauthCallback = () => nav(el);
       showReauthModal();
     }
   }
@@ -5915,6 +6163,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   function closeReauthModal() {
     document.getElementById('reauth-modal').style.display = 'none';
+    pendingReauthCallback = null;
   }
 
   async function submitReauth() {
@@ -5937,9 +6186,10 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       if (data.success) {
         sessionStorage.setItem('serviflow.reauthUntil', data.reauth_until);
         closeReauthModal();
-        // Navigate to Raw Variables
-        const rawVarLink = document.querySelector('[data-target="raw-variables"]');
-        if (rawVarLink) nav(rawVarLink);
+        // Run pending callback if any
+        const cb = pendingReauthCallback;
+        pendingReauthCallback = null;
+        if (cb) cb();
       } else {
         errEl.textContent = data.error || 'Invalid password';
         errEl.style.display = 'block';
