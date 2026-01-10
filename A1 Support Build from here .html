@@ -162,7 +162,7 @@ vNext-FULL-ActionsSLA:
   #err{display:none;position:fixed;left:0;right:0;bottom:0;background:#fef2f2;color:#dc2626;padding:10px 16px;font-size:13px;border-top:1px solid #fecaca;z-index:200}
 
   /* Modal */
-  .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);z-index:150}
+  .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);z-index:1000}
   .modal .sheet{width:min(560px,calc(100vw - 32px));background:var(--card);border-radius:12px;box-shadow:var(--shadow-lg);overflow:hidden;border:1px solid var(--border)}
   .modal .head{padding:16px 20px;background:var(--primary);color:var(--bg);font-weight:500;font-size:15px}
   .modal .body{padding:20px}
@@ -6245,10 +6245,12 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     }
 
     document.getElementById('business-hours-modal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
   }
 
   function closeBusinessHoursModal() {
     document.getElementById('business-hours-modal').style.display = 'none';
+    document.body.style.overflow = '';
   }
 
   function toggle24x7() {
@@ -6362,10 +6364,12 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     }
 
     document.getElementById('sla-definition-modal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
   }
 
   function closeSLADefinitionModal() {
     document.getElementById('sla-definition-modal').style.display = 'none';
+    document.body.style.overflow = '';
   }
 
   function editSLADefinition(id) {
@@ -12882,6 +12886,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   const chatInput = document.getElementById('chat-input');
   chatToggle.onclick = () => { chat.style.display = (chat.style.display==='flex' ? 'none' : 'flex'); chat.style.display==='flex' && chatInput.focus(); if (!chatBody.dataset.boot) bootChat(); };
   document.addEventListener('keydown', (e)=>{ if(e.key==='F7') chatToggle.click(); });
+  document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') { if(document.getElementById('sla-definition-modal').style.display==='flex') closeSLADefinitionModal(); else if(document.getElementById('business-hours-modal').style.display==='flex') closeBusinessHoursModal(); } });
   function bootChat() { chatBody.dataset.boot = '1'; addAI('Hi! I can help you raise a request. What do you need help with?'); }
   function addAI(text) { const d=document.createElement('div'); d.className='msg ai'; d.textContent=text; chatBody.appendChild(d); chatBody.scrollTop = chatBody.scrollHeight; }
   function addMe(text) { const d=document.createElement('div'); d.className='msg me'; d.textContent=text; chatBody.appendChild(d); chatBody.scrollTop = chatBody.scrollHeight; }
