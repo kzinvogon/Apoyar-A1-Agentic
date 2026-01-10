@@ -1035,15 +1035,19 @@ router.get('/invitation/validate', async (req, res) => {
 
       // Get tenant name
       let tenantName = tenant;
+      let masterConn;
       try {
-        const masterConn = await getMasterConnection();
+        masterConn = await getMasterConnection();
         const [tenantInfo] = await masterConn.query(
           'SELECT company_name FROM tenants WHERE tenant_code = ?',
           [tenant]
         );
-        masterConn.release();
         if (tenantInfo.length > 0) tenantName = tenantInfo[0].company_name;
-      } catch (e) {}
+      } catch (e) {
+        // Tenant lookup is optional - continue with default name
+      } finally {
+        if (masterConn) masterConn.release();
+      }
 
       res.json({
         success: true,
