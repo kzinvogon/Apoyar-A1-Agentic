@@ -507,9 +507,57 @@ async function closeAllConnections() {
   }
 }
 
+// Get tenant pool directly (for routes that don't need transactions)
+// Using pool.query() auto-manages connections - no release needed
+async function getTenantPool(tenantCode) {
+  try {
+    // Check if we already have a pool for this tenant
+    if (tenantPools.has(tenantCode)) {
+      return tenantPools.get(tenantCode);
+    }
+
+    // Get tenant database configuration from master database
+    const masterConn = await getMasterConnection();
+    try {
+      const [rows] = await masterConn.query(
+        "SELECT database_name, database_user, database_password FROM tenants WHERE tenant_code = ? AND is_active = 1",
+        [tenantCode]
+      );
+
+      if (rows.length === 0) {
+        throw new Error(`Tenant ${tenantCode} not found or inactive`);
+      }
+
+      const tenant = rows[0];
+
+      const tenantConfig = {
+        host: process.env.MASTER_DB_HOST || process.env.MYSQLHOST || process.env.MYSQL_HOST || 'localhost',
+        port: process.env.MASTER_DB_PORT || process.env.MYSQLPORT || process.env.MYSQL_PORT || 3306,
+        user: tenant.database_user || process.env.MYSQLUSER || process.env.MYSQL_USER,
+        password: tenant.database_password || process.env.MYSQLPASSWORD || process.env.MYSQL_PASSWORD,
+        database: tenant.database_name,
+        waitForConnections: true,
+        connectionLimit: 20,
+        queueLimit: 0
+      };
+
+      const tenantPool = mysql.createPool(tenantConfig);
+      tenantPools.set(tenantCode, tenantPool);
+
+      return tenantPool;
+    } finally {
+      masterConn.release();
+    }
+  } catch (error) {
+    console.error(`Error getting tenant pool for ${tenantCode}:`, error);
+    throw error;
+  }
+}
+
 module.exports = {
   getMasterConnection,
   getTenantConnection,
+  getTenantPool,
   initializeMasterDatabase,
   initializeTenantDatabase,
   closeAllConnections,
