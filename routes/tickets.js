@@ -20,6 +20,14 @@ const { triggerAutoLink } = require('../scripts/auto-link-cmdb');
 // AI-powered KB article auto-generation (fire-and-forget)
 const { autoGenerateKBArticle } = require('../scripts/auto-generate-kb-article');
 
+// SLA calculator service
+const {
+  getDefaultSLA,
+  computeInitialDeadlines,
+  computeResolveDeadline,
+  computeSLAStatus
+} = require('../services/sla-calculator');
+
 // ========== PUBLIC ROUTES (NO AUTH) ==========
 // These routes must come BEFORE the verifyToken middleware
 
@@ -541,7 +549,10 @@ router.get('/:tenantId/:ticketId', readOperationsLimiter, validateTicketGet, asy
          ORDER BY ta.created_at DESC`,
         [ticketId]
       );
-      
+
+      // Enrich with SLA status
+      await enrichTicketWithSLAStatus(tickets[0], connection);
+
       res.json({ success: true, ticket: tickets[0], activities });
     } finally {
       connection.release();
@@ -657,10 +668,32 @@ router.post('/:tenantId', writeOperationsLimiter, validateTicketCreate, async (r
       };
       const mappedPriority = priorityMap[(priority || 'medium').toLowerCase()] || 'medium';
 
+      // Get default SLA and compute deadlines
+      const sla = await getDefaultSLA(connection);
+      let slaFields = {
+        sla_definition_id: null,
+        sla_applied_at: null,
+        response_due_at: null,
+        resolve_due_at: null
+      };
+
+      if (sla) {
+        const now = new Date();
+        const deadlines = computeInitialDeadlines(sla, now);
+        slaFields = {
+          sla_definition_id: sla.id,
+          sla_applied_at: now,
+          response_due_at: deadlines.response_due_at,
+          resolve_due_at: deadlines.resolve_due_at
+        };
+      }
+
       const [result] = await connection.query(
-        `INSERT INTO tickets (title, description, priority, requester_id, cmdb_item_id, sla_deadline, category)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [title, description, mappedPriority, customer_id, cmdb_item_id || null, due_date || null, 'General']
+        `INSERT INTO tickets (title, description, priority, requester_id, cmdb_item_id, sla_deadline, category,
+                              sla_definition_id, sla_applied_at, response_due_at, resolve_due_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [title, description, mappedPriority, customer_id, cmdb_item_id || null, due_date || null, 'General',
+         slaFields.sla_definition_id, slaFields.sla_applied_at, slaFields.response_due_at, slaFields.resolve_due_at]
       );
 
       const ticketId = result.insertId;
@@ -705,6 +738,9 @@ router.post('/:tenantId', writeOperationsLimiter, validateTicketCreate, async (r
       if (description && description.trim().length > 10) {
         triggerAutoLink(tenantCode, ticketId, req.user.userId);
       }
+
+      // Enrich with SLA status
+      await enrichTicketWithSLAStatus(tickets[0], connection);
 
       res.json({ success: true, ticket: tickets[0] });
     } finally {
@@ -892,7 +928,7 @@ router.put('/:tenantId/:ticketId', writeOperationsLimiter, validateTicketUpdate,
         values.push(status);
 
         // If resolving the ticket, save who resolved it and the resolution comment (case-insensitive)
-        if (status.toLowerCase() === 'resolved') {
+        if (status.toLowerCase() === 'resolved' || status.toLowerCase() === 'closed') {
           updates.push('resolved_by = ?');
           values.push(req.user.userId);
           updates.push('resolved_at = NOW()');
@@ -900,6 +936,24 @@ router.put('/:tenantId/:ticketId', writeOperationsLimiter, validateTicketUpdate,
           if (comment) {
             updates.push('resolution_comment = ?');
             values.push(comment);
+          }
+        }
+
+        // SLA: Set first_responded_at when moving away from 'Open' for the first time
+        if (oldStatus === 'Open' && status !== 'Open' && !currentTicket.first_responded_at) {
+          updates.push('first_responded_at = NOW()');
+
+          // Recompute resolve_due_at if SLA is applied
+          if (currentTicket.sla_definition_id) {
+            const [slaDefs] = await connection.query(
+              'SELECT resolve_after_response_minutes, resolve_target_minutes FROM sla_definitions WHERE id = ?',
+              [currentTicket.sla_definition_id]
+            );
+            if (slaDefs.length > 0) {
+              const resolveMinutes = slaDefs[0].resolve_after_response_minutes || slaDefs[0].resolve_target_minutes;
+              updates.push('resolve_due_at = DATE_ADD(NOW(), INTERVAL ? MINUTE)');
+              values.push(resolveMinutes);
+            }
           }
         }
       }
@@ -1108,6 +1162,9 @@ router.put('/:tenantId/:ticketId', writeOperationsLimiter, validateTicketUpdate,
         triggerAutoLink(tenantCode, parseInt(ticketId), req.user.userId);
       }
 
+      // Enrich with SLA status
+      await enrichTicketWithSLAStatus(tickets[0], connection);
+
       res.json({ success: true, ticket: tickets[0] });
     } finally {
       connection.release();
@@ -1227,6 +1284,41 @@ router.post('/:tenantId/bulk-action', writeOperationsLimiter, requireRole(['expe
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
+
+/**
+ * Helper: Enrich ticket object with computed SLA status
+ * @param {Object} ticket - Ticket row from database
+ * @param {Object} connection - Database connection (optional, for SLA name lookup)
+ * @returns {Object} Ticket with sla_status field
+ */
+async function enrichTicketWithSLAStatus(ticket, connection = null) {
+  if (!ticket) return ticket;
+
+  // Get SLA definition name if available
+  let slaDef = null;
+  if (ticket.sla_definition_id && connection) {
+    try {
+      const [defs] = await connection.query(
+        'SELECT name, near_breach_percent FROM sla_definitions WHERE id = ?',
+        [ticket.sla_definition_id]
+      );
+      if (defs.length > 0) slaDef = defs[0];
+    } catch (e) {
+      // Ignore SLA lookup errors
+    }
+  }
+
+  // Compute SLA status
+  ticket.sla_status = computeSLAStatus(ticket, slaDef);
+  return ticket;
+}
+
+/**
+ * Helper: Enrich multiple tickets with SLA status
+ */
+async function enrichTicketsWithSLAStatus(tickets, connection = null) {
+  return Promise.all(tickets.map(t => enrichTicketWithSLAStatus(t, connection)));
+}
 
 module.exports = router;
 
