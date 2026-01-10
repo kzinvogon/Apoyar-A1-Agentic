@@ -30,11 +30,11 @@ router.get('/:tenantCode/teams/status', async (req, res) => {
   try {
     const masterConn = await getMasterConnection();
 
-    // Check for existing mapping
+    // Check for existing mapping (use COLLATE to handle mixed collations)
     const [mappings] = await masterConn.query(
       `SELECT ttm.*, t.company_name as tenant_name
        FROM teams_tenant_mappings ttm
-       JOIN tenants t ON t.tenant_code = ttm.tenant_code
+       JOIN tenants t ON t.tenant_code COLLATE utf8mb4_unicode_ci = ttm.tenant_code COLLATE utf8mb4_unicode_ci
        WHERE ttm.tenant_code = ? AND ttm.is_active = TRUE`,
       [tenantCode]
     );
