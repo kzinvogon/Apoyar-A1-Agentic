@@ -6393,11 +6393,10 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   // Popover helpers for Edit buttons
   function positionPopover(sheetEl, anchorEl) {
     const pad = 12;
-    const rowOffset = 56; // ~2 table rows down
     const a = anchorEl.getBoundingClientRect();
     sheetEl.style.display = 'block';
     const r = sheetEl.getBoundingClientRect();
-    let top = a.top - 8 + rowOffset;
+    let top = a.top; // Align with the clicked Edit button
     let left = a.right + pad;
     if (left + r.width > window.innerWidth - pad) left = a.left - r.width - pad;
     if (top + r.height > window.innerHeight - pad) top = window.innerHeight - r.height - pad;
