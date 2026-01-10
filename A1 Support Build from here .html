@@ -133,6 +133,14 @@ vNext-FULL-ActionsSLA:
   .nav-subitem{display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:6px;margin-bottom:2px;cursor:pointer;font-size:13px;color:var(--muted);transition:all .15s ease}
   .nav-subitem:hover{background:var(--card-hover);color:var(--ink)}
   .nav-subitem.active{background:var(--primary);color:var(--bg)}
+  /* Admin Mode Toggle */
+  .admin-mode-toggle{display:flex;align-items:center;gap:8px;padding:8px 12px;margin-bottom:8px;border-radius:8px;background:var(--card);border:1px solid var(--border);font-size:12px;color:var(--muted)}
+  .admin-mode-toggle .switch{position:relative;width:32px;height:18px;flex-shrink:0}
+  .admin-mode-toggle .switch input{opacity:0;width:0;height:0}
+  .admin-mode-toggle .slider{position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:18px;transition:.2s}
+  .admin-mode-toggle .slider:before{content:"";position:absolute;height:14px;width:14px;left:2px;bottom:2px;background:#fff;border-radius:50%;transition:.2s}
+  .admin-mode-toggle .switch input:checked+.slider{background:var(--primary)}
+  .admin-mode-toggle .switch input:checked+.slider:before{transform:translateX(14px)}
   .btn{appearance:none;border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-weight:500;font-size:13px;cursor:pointer;background:var(--card);color:var(--ink);transition:all .15s ease}
   .btn:hover{background:var(--card-hover)}
   .btn.primary{background:var(--primary);color:var(--bg);border-color:var(--primary)}
@@ -998,6 +1006,11 @@ vNext-FULL-ActionsSLA:
         <div id="nav-admin">
           <div class="subtitle">Admin Navigation</div>
           <div class="navlink" data-target="dash" onclick="nav(this)">🏠 Dashboard</div>
+          <div class="admin-mode-toggle">
+            <label class="switch"><input type="checkbox" id="adminModeToggle" onchange="setAdminMode(this.checked)"><span class="slider"></span></label>
+            <span>Admin Mode</span>
+          </div>
+          <div id="adminMenuInsertPoint"></div>
           <div class="navlink" data-target="tickets" onclick="nav(this)">🎫 Tickets</div>
           <div class="navlink" data-target="knowledge-base" onclick="nav(this)">📚 Knowledge Base</div>
           <div class="navlink" data-target="experts" onclick="nav(this)">👩‍🔧 Manage Experts</div>
@@ -1012,22 +1025,25 @@ vNext-FULL-ActionsSLA:
           </div>
           <div class="navlink" data-target="analytics" onclick="nav(this)">📈 Analytics</div>
           <div class="navlink" data-target="ai-insights" onclick="nav(this)">🤖 AI Insights</div>
-          <div class="navlink" data-target="ticket-rules" onclick="nav(this)">⚙️ Ticket Rules</div>
           <div class="navlink" data-target="usage" onclick="nav(this)">📊 Usage & Limits</div>
           <div class="navlink" data-target="raise" onclick="nav(this)">📝 Raise Request</div>
-          <div class="nav-group" id="nav-admin-settings-group">
-            <div class="navlink" onclick="toggleNavGroup('nav-admin-settings-group')">🪄 Admin Settings <span class="chev">▸</span></div>
-            <div class="nav-subitems">
-              <div class="nav-subitem" data-section="admin-section-profile" onclick="openAdminSettings('admin-section-profile')">🏢 Company Profile</div>
-              <div class="nav-subitem" data-section="admin-section-email-ingest" onclick="openAdminSettings('admin-section-email-ingest')">📧 Email Ingest</div>
-              <div class="nav-subitem" data-section="admin-section-expert-reg" onclick="openAdminSettings('admin-section-expert-reg')">👤 Expert Registration</div>
-              <div class="nav-subitem" data-section="admin-section-support" onclick="openAdminSettings('admin-section-support')">🎫 Support Settings</div>
-              <div class="nav-subitem" data-section="admin-section-integrations" onclick="openAdminSettings('admin-section-integrations')">🔗 Integrations</div>
-              <div class="nav-subitem" data-section="admin-section-sla" onclick="openAdminSettings('admin-section-sla')">⏱️ SLA Management</div>
+          <div id="adminMenuOriginalPoint"></div>
+          <div id="adminMenuGroup" style="display:none">
+            <div class="navlink" data-target="ticket-rules" onclick="nav(this)">⚙️ Ticket Rules</div>
+            <div class="nav-group" id="nav-admin-settings-group">
+              <div class="navlink" onclick="toggleNavGroup('nav-admin-settings-group')">🪄 Admin Settings <span class="chev">▸</span></div>
+              <div class="nav-subitems">
+                <div class="nav-subitem" data-section="admin-section-profile" onclick="openAdminSettings('admin-section-profile')">🏢 Company Profile</div>
+                <div class="nav-subitem" data-section="admin-section-email-ingest" onclick="openAdminSettings('admin-section-email-ingest')">📧 Email Ingest</div>
+                <div class="nav-subitem" data-section="admin-section-expert-reg" onclick="openAdminSettings('admin-section-expert-reg')">👤 Expert Registration</div>
+                <div class="nav-subitem" data-section="admin-section-support" onclick="openAdminSettings('admin-section-support')">🎫 Support Settings</div>
+                <div class="nav-subitem" data-section="admin-section-integrations" onclick="openAdminSettings('admin-section-integrations')">🔗 Integrations</div>
+                <div class="nav-subitem" data-section="admin-section-sla" onclick="openAdminSettings('admin-section-sla')">⏱️ SLA Management</div>
+              </div>
             </div>
+            <div class="navlink" data-target="system-control" onclick="nav(this)">🔧 System Control</div>
+            <div class="navlink" data-target="raw-variables" onclick="openRawVariablesSecure(this)">⚙️ Raw Variables</div>
           </div>
-          <div class="navlink" data-target="system-control" onclick="nav(this)">🔧 System Control</div>
-          <div class="navlink" data-target="raw-variables" onclick="nav(this)">⚙️ Raw Variables</div>
         </div>
         <div id="nav-expert" style="display:none">
           <div class="subtitle">Expert Navigation</div>
@@ -2812,6 +2828,26 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               <div class="row" style="gap:8px;margin-top:16px;justify-content:flex-end">
                 <button class="btn primary" onclick="addExpertPermission()">Add Permission</button>
               </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Reauth Modal for Raw Variables -->
+        <div id="reauth-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:1000;overflow-y:auto">
+          <div style="max-width:400px;margin:100px auto;background:var(--card);border-radius:12px;padding:24px;box-shadow:0 20px 40px rgba(0,0,0,0.2)">
+            <div class="row space mb-16">
+              <h3 style="margin:0">🔐 Confirm Identity</h3>
+              <button class="btn ghost small" onclick="closeReauthModal()">✕</button>
+            </div>
+            <p class="subtitle mb-16">Raw Variables contains sensitive configuration. Please re-enter your password to continue.</p>
+            <div class="mb-16">
+              <label class="subtitle">Password</label>
+              <input type="password" id="reauth-password" class="input" placeholder="Enter your password" onkeydown="if(event.key==='Enter')submitReauth()">
+            </div>
+            <div id="reauth-error" style="display:none;color:var(--error);font-size:13px;margin-bottom:12px"></div>
+            <div class="row" style="gap:8px;justify-content:flex-end">
+              <button class="btn ghost" onclick="closeReauthModal()">Cancel</button>
+              <button class="btn primary" onclick="submitReauth()">Continue</button>
             </div>
           </div>
         </div>
@@ -5082,6 +5118,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
     // Initialize collapsible nav groups
     initNavGroups();
+
+    // Initialize Admin Mode
+    initAdminMode();
   }
 
   // ---- SLA Utilities ----
@@ -5811,6 +5850,97 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     try { adminOpen = localStorage.getItem('serviflow.nav.nav-admin-settings-group.open') || '0'; } catch(e) {}
     const adminGroup = document.getElementById('nav-admin-settings-group');
     if (adminGroup) adminGroup.classList.toggle('open', adminOpen === '1');
+  }
+
+  // Admin Mode Functions
+  function applyAdminMode(on) {
+    const grp = document.getElementById('adminMenuGroup');
+    const ins = document.getElementById('adminMenuInsertPoint');
+    const orig = document.getElementById('adminMenuOriginalPoint');
+    if (!grp || !ins || !orig) return;
+
+    if (on) {
+      grp.style.display = '';
+      ins.parentNode.insertBefore(grp, ins.nextSibling);
+    } else {
+      grp.style.display = 'none';
+      orig.parentNode.insertBefore(grp, orig.nextSibling);
+    }
+  }
+
+  function setAdminMode(on) {
+    applyAdminMode(on);
+    try { localStorage.setItem('serviflow.adminMode', on ? '1' : '0'); } catch(e) {}
+  }
+
+  function initAdminMode() {
+    let on = '0';
+    try { on = localStorage.getItem('serviflow.adminMode') || '0'; } catch(e) {}
+    const enabled = on === '1';
+    const cb = document.getElementById('adminModeToggle');
+    if (cb) cb.checked = enabled;
+    applyAdminMode(enabled);
+  }
+
+  // Reauth functions for Raw Variables security
+  function hasReauth() {
+    try {
+      const until = sessionStorage.getItem('serviflow.reauthUntil');
+      if (!until) return false;
+      return Date.now() < parseInt(until, 10);
+    } catch(e) { return false; }
+  }
+
+  function openRawVariablesSecure(el) {
+    if (hasReauth()) {
+      nav(el);
+    } else {
+      showReauthModal();
+    }
+  }
+
+  function showReauthModal() {
+    document.getElementById('reauth-modal').style.display = 'block';
+    document.getElementById('reauth-password').value = '';
+    document.getElementById('reauth-error').style.display = 'none';
+    document.getElementById('reauth-password').focus();
+  }
+
+  function closeReauthModal() {
+    document.getElementById('reauth-modal').style.display = 'none';
+  }
+
+  async function submitReauth() {
+    const password = document.getElementById('reauth-password').value;
+    const errEl = document.getElementById('reauth-error');
+    if (!password) {
+      errEl.textContent = 'Please enter your password';
+      errEl.style.display = 'block';
+      return;
+    }
+    try {
+      const tenantCode = window.tenant || 'apoyar';
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/auth/${tenantCode}/reauth`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ password })
+      });
+      const data = await res.json();
+      if (data.success) {
+        sessionStorage.setItem('serviflow.reauthUntil', data.reauth_until);
+        closeReauthModal();
+        // Navigate to Raw Variables
+        const rawVarLink = document.querySelector('[data-target="raw-variables"]');
+        if (rawVarLink) nav(rawVarLink);
+      } else {
+        errEl.textContent = data.error || 'Invalid password';
+        errEl.style.display = 'block';
+      }
+    } catch(e) {
+      errEl.textContent = 'Network error. Please try again.';
+      errEl.style.display = 'block';
+    }
   }
 
   function openCmdb(sectionId) {
