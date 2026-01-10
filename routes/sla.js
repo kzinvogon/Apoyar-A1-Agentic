@@ -251,6 +251,7 @@ router.get('/:tenantCode/definitions', verifyToken, requireRole(['admin']), asyn
       SELECT
         s.id, s.name, s.description, s.business_hours_profile_id,
         s.response_target_minutes, s.resolve_target_minutes,
+        s.resolve_after_response_minutes,
         s.near_breach_percent, s.past_breach_percent,
         s.is_active, s.created_at, s.updated_at,
         b.name as business_hours_name
@@ -279,6 +280,7 @@ router.get('/:tenantCode/definitions/:id', verifyToken, requireRole(['admin']), 
       SELECT
         s.id, s.name, s.description, s.business_hours_profile_id,
         s.response_target_minutes, s.resolve_target_minutes,
+        s.resolve_after_response_minutes,
         s.near_breach_percent, s.past_breach_percent,
         s.is_active, s.created_at, s.updated_at,
         b.name as business_hours_name
@@ -308,6 +310,7 @@ router.post('/:tenantCode/definitions', verifyToken, requireRole(['admin']), asy
     const {
       name, description, business_hours_profile_id,
       response_target_minutes, resolve_target_minutes,
+      resolve_after_response_minutes,
       near_breach_percent, past_breach_percent
     } = req.body;
 
@@ -320,8 +323,10 @@ router.post('/:tenantCode/definitions', verifyToken, requireRole(['admin']), asy
       return res.status(400).json({ success: false, error: 'response_target_minutes must be greater than 0' });
     }
 
-    if (!resolve_target_minutes || resolve_target_minutes <= 0) {
-      return res.status(500).json({ success: false, error: 'resolve_target_minutes must be greater than 0' });
+    // Use resolve_after_response_minutes if provided, else fall back to resolve_target_minutes
+    const effectiveResolveMinutes = resolve_after_response_minutes || resolve_target_minutes;
+    if (!effectiveResolveMinutes || effectiveResolveMinutes <= 0) {
+      return res.status(400).json({ success: false, error: 'resolve_after_response_minutes must be greater than 0' });
     }
 
     if (near_breach_percent !== undefined && (near_breach_percent < 0 || near_breach_percent > 100)) {
@@ -344,14 +349,15 @@ router.post('/:tenantCode/definitions', verifyToken, requireRole(['admin']), asy
 
     const [result] = await connection.query(`
       INSERT INTO sla_definitions
-        (name, description, business_hours_profile_id, response_target_minutes, resolve_target_minutes, near_breach_percent, past_breach_percent)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+        (name, description, business_hours_profile_id, response_target_minutes, resolve_target_minutes, resolve_after_response_minutes, near_breach_percent, past_breach_percent)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       name.trim(),
       description || null,
       business_hours_profile_id || null,
       response_target_minutes,
-      resolve_target_minutes,
+      effectiveResolveMinutes, // Keep resolve_target_minutes in sync for backward compatibility
+      effectiveResolveMinutes,
       near_breach_percent || 85,
       past_breach_percent || 120
     ]);
@@ -376,6 +382,7 @@ router.put('/:tenantCode/definitions/:id', verifyToken, requireRole(['admin']), 
     const {
       name, description, business_hours_profile_id,
       response_target_minutes, resolve_target_minutes,
+      resolve_after_response_minutes,
       near_breach_percent, past_breach_percent, is_active
     } = req.body;
 
@@ -396,8 +403,8 @@ router.put('/:tenantCode/definitions/:id', verifyToken, requireRole(['admin']), 
       return res.status(400).json({ success: false, error: 'response_target_minutes must be > 0' });
     }
 
-    if (resolve_target_minutes !== undefined && resolve_target_minutes <= 0) {
-      return res.status(400).json({ success: false, error: 'resolve_target_minutes must be > 0' });
+    if (resolve_after_response_minutes !== undefined && resolve_after_response_minutes <= 0) {
+      return res.status(400).json({ success: false, error: 'resolve_after_response_minutes must be > 0' });
     }
 
     // Verify business hours profile if changing
@@ -416,7 +423,11 @@ router.put('/:tenantCode/definitions/:id', verifyToken, requireRole(['admin']), 
     if (description !== undefined) { updates.push('description = ?'); values.push(description); }
     if (business_hours_profile_id !== undefined) { updates.push('business_hours_profile_id = ?'); values.push(business_hours_profile_id); }
     if (response_target_minutes !== undefined) { updates.push('response_target_minutes = ?'); values.push(response_target_minutes); }
-    if (resolve_target_minutes !== undefined) { updates.push('resolve_target_minutes = ?'); values.push(resolve_target_minutes); }
+    if (resolve_after_response_minutes !== undefined) {
+      updates.push('resolve_after_response_minutes = ?'); values.push(resolve_after_response_minutes);
+      // Keep resolve_target_minutes in sync for backward compatibility
+      updates.push('resolve_target_minutes = ?'); values.push(resolve_after_response_minutes);
+    }
     if (near_breach_percent !== undefined) { updates.push('near_breach_percent = ?'); values.push(near_breach_percent); }
     if (past_breach_percent !== undefined) { updates.push('past_breach_percent = ?'); values.push(past_breach_percent); }
     if (is_active !== undefined) { updates.push('is_active = ?'); values.push(is_active); }
