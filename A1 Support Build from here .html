@@ -2254,9 +2254,10 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
               <div class="mb-12">
                 <div class="subtitle">SLA</div>
-                <div class="row wrap">
+                <div id="td-sla-name" style="font-weight:600;margin-bottom:4px"></div>
+                <div class="row wrap" style="align-items:center;gap:8px">
                   <span id="td-sla-badge" class="badge sla">—</span>
-                  <div class="progress" style="flex:1;min-width:160px"><span id="td-sla-progress" style="width:0%"></span></div>
+                  <div class="progress" id="td-sla-progress-container" style="flex:1;min-width:160px"><span id="td-sla-progress" style="width:0%"></span></div>
                 </div>
                 <div class="subtitle" id="td-sla-text" style="margin-top:6px"></div>
               </div>
@@ -9428,7 +9429,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         Object.assign(t, {
           status: ticket.status,
           priority: ticket.priority,
-          assignee: ticket.assignee_name
+          assignee: ticket.assignee_name,
+          sla_status: ticket.sla_status
         });
 
         // Render activities from backend
@@ -9759,7 +9761,127 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   }
 
   // ---- SLA updates on detail view ----
-  function updateTicketSLA(){ const t=tickets.find(x=>x.id===currentTicketId); if(!t) return; const st=getSLAState(t); const badge=document.getElementById('td-sla-badge'); const prog=document.getElementById('td-sla-progress'); const text=document.getElementById('td-sla-text'); if(!badge || !prog || !text) return; badge.className='badge sla '+st.cls; badge.textContent=st.label; prog.style.width = st.pct + '%'; text.textContent = (t.sla && t.sla.paused?'Paused • ':'') + `Consumed ${st.pct}% of time to due date`; }
+  function updateTicketSLA() {
+    const t = tickets.find(x => x.id === currentTicketId);
+    if (!t) return;
+
+    const slaNameEl = document.getElementById('td-sla-name');
+    const badge = document.getElementById('td-sla-badge');
+    const progContainer = document.getElementById('td-sla-progress-container');
+    const prog = document.getElementById('td-sla-progress');
+    const text = document.getElementById('td-sla-text');
+    if (!badge || !prog || !text) return;
+
+    const sla = t.sla_status;
+
+    // No SLA applied
+    if (!sla || !sla.sla_definition_id) {
+      if (slaNameEl) slaNameEl.textContent = '';
+      badge.className = 'badge sla';
+      badge.textContent = 'No SLA';
+      if (progContainer) progContainer.style.display = 'none';
+      text.textContent = 'No SLA policy applied to this ticket';
+      return;
+    }
+
+    // Show SLA name
+    if (slaNameEl) slaNameEl.textContent = sla.sla_name || 'SLA Policy';
+
+    // Determine which phase we're in and show appropriate info
+    const phase = sla.sla_phase || 'awaiting_response';
+    const response = sla.response || {};
+    const resolve = sla.resolve || {};
+
+    let badgeClass = '';
+    let badgeText = '';
+    let statusText = '';
+    let showProgress = false;
+    let progressPct = 0;
+
+    if (phase === 'resolved') {
+      // Ticket is resolved - show final state
+      const respState = response.state;
+      const resState = resolve.state;
+      if (respState === 'met' && resState === 'met') {
+        badgeClass = 'ok';
+        badgeText = 'SLA Met';
+        statusText = 'Response and resolution targets met';
+      } else if (respState === 'breached' || resState === 'breached') {
+        badgeClass = 'danger';
+        badgeText = 'SLA Breached';
+        statusText = (respState === 'breached' ? 'Response SLA breached' : '') +
+                     (respState === 'breached' && resState === 'breached' ? ' & ' : '') +
+                     (resState === 'breached' ? 'Resolution SLA breached' : '');
+      } else {
+        badgeClass = 'ok';
+        badgeText = 'Resolved';
+        statusText = 'Ticket resolved within SLA';
+      }
+      showProgress = false;
+    } else if (phase === 'awaiting_response') {
+      // Waiting for first response
+      const respState = response.state;
+      progressPct = response.percent_elapsed || 0;
+
+      if (respState === 'breached') {
+        badgeClass = 'danger';
+        badgeText = 'Response Overdue';
+      } else if (respState === 'near_breach') {
+        badgeClass = 'warn';
+        badgeText = 'Response Due Soon';
+      } else {
+        badgeClass = 'ok';
+        badgeText = 'Awaiting Response';
+      }
+
+      const dueAt = response.due_at ? new Date(response.due_at) : null;
+      if (sla.outside_business_hours) {
+        statusText = 'SLA clock paused (outside business hours)';
+        if (dueAt) statusText += ' - Response due at ' + dueAt.toLocaleString();
+      } else if (dueAt) {
+        statusText = 'Response due at ' + dueAt.toLocaleString();
+      } else {
+        statusText = 'Waiting for first response';
+      }
+      showProgress = true;
+    } else if (phase === 'in_progress') {
+      // Responded, now tracking resolution
+      const resState = resolve.state;
+      progressPct = resolve.percent_elapsed || 0;
+
+      if (resState === 'breached') {
+        badgeClass = 'danger';
+        badgeText = 'Resolution Overdue';
+      } else if (resState === 'near_breach') {
+        badgeClass = 'warn';
+        badgeText = 'Resolution Due Soon';
+      } else {
+        badgeClass = 'ok';
+        badgeText = 'In Progress';
+      }
+
+      const dueAt = resolve.due_at ? new Date(resolve.due_at) : null;
+      if (sla.outside_business_hours) {
+        statusText = 'SLA clock paused (outside business hours)';
+        if (dueAt) statusText += ' - Resolution due at ' + dueAt.toLocaleString();
+      } else if (dueAt) {
+        statusText = 'Resolution due at ' + dueAt.toLocaleString();
+      } else {
+        statusText = 'Working on resolution';
+      }
+      showProgress = true;
+    }
+
+    // Apply to DOM
+    badge.className = 'badge sla ' + badgeClass;
+    badge.textContent = badgeText;
+
+    if (progContainer) {
+      progContainer.style.display = showProgress ? 'block' : 'none';
+    }
+    prog.style.width = Math.min(progressPct, 100) + '%';
+    text.textContent = statusText;
+  }
 
   // ---- Status transitions ----
   const TRANSITIONS = { 'Open': ['In Progress','Pending','Resolved'], 'In Progress': ['Pending','Resolved'], 'Pending': ['In Progress','Resolved'], 'Resolved': [] };

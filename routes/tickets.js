@@ -1294,14 +1294,17 @@ router.post('/:tenantId/bulk-action', writeOperationsLimiter, requireRole(['expe
 async function enrichTicketWithSLAStatus(ticket, connection = null) {
   if (!ticket) return ticket;
 
-  // Get SLA definition name if available
+  // Get SLA definition with business hours profile
   let slaDef = null;
   if (ticket.sla_definition_id && connection) {
     try {
-      const [defs] = await connection.query(
-        'SELECT name, near_breach_percent FROM sla_definitions WHERE id = ?',
-        [ticket.sla_definition_id]
-      );
+      const [defs] = await connection.query(`
+        SELECT s.name, s.near_breach_percent, s.business_hours_profile_id,
+               b.timezone, b.days_of_week, b.start_time, b.end_time, b.is_24x7
+        FROM sla_definitions s
+        LEFT JOIN business_hours_profiles b ON s.business_hours_profile_id = b.id
+        WHERE s.id = ?
+      `, [ticket.sla_definition_id]);
       if (defs.length > 0) slaDef = defs[0];
     } catch (e) {
       // Ignore SLA lookup errors
