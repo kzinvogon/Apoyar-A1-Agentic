@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { authenticateMasterUser, authenticateTenantUser, hashPassword, JWT_SECRET } = require('../middleware/auth');
+const { authenticateMasterUser, authenticateTenantUser, hashPassword, comparePassword, verifyToken, JWT_SECRET } = require('../middleware/auth');
 const { getMasterConnection, getTenantConnection } = require('../config/database');
 const {
   validateLogin,
@@ -1153,6 +1153,50 @@ router.post('/invitation/accept', async (req, res) => {
   } catch (error) {
     console.error('Error accepting invitation:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// Re-authentication for sensitive operations (e.g., Raw Variables)
+router.post('/:tenantCode/reauth', verifyToken, async (req, res) => {
+  const { tenantCode } = req.params;
+  const { password } = req.body;
+
+  if (!password) {
+    return res.status(400).json({ success: false, error: 'Password is required' });
+  }
+
+  let connection;
+  try {
+    connection = await getTenantConnection(tenantCode);
+
+    // Get user from JWT
+    const userId = req.user.userId;
+    const [users] = await connection.query(
+      'SELECT id, password_hash, role FROM users WHERE id = ? AND deleted_at IS NULL',
+      [userId]
+    );
+
+    if (users.length === 0) {
+      return res.status(401).json({ success: false, error: 'User not found' });
+    }
+
+    const user = users[0];
+
+    // Verify password
+    const isValid = await comparePassword(password, user.password_hash);
+    if (!isValid) {
+      return res.status(401).json({ success: false, error: 'Invalid password' });
+    }
+
+    // Return success with 10-minute window
+    const reauthUntil = Date.now() + (10 * 60 * 1000);
+    res.json({ success: true, reauth_until: reauthUntil });
+
+  } catch (error) {
+    console.error('[Reauth] Error:', error.message);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  } finally {
+    if (connection) connection.release();
   }
 });
 
