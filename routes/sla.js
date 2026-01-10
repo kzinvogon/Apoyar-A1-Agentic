@@ -1,17 +1,19 @@
 /**
  * SLA Routes - Business Hours Profiles and SLA Definitions
  * Task 1: CRUD endpoints for SLA data model (admin-only)
+ *
+ * Uses getTenantPool() which returns the pool directly.
+ * pool.query() auto-manages connections - no release needed.
  */
 
 const express = require('express');
 const router = express.Router();
 const { verifyToken, requireRole } = require('../middleware/auth');
-const { getTenantConnection } = require('../config/database');
+const { getTenantPool } = require('../config/database');
 
 // IANA timezone validation (basic check)
 function isValidTimezone(tz) {
   if (!tz || typeof tz !== 'string') return false;
-  // Basic IANA format: Region/City or UTC
   return /^[A-Z][a-zA-Z_]+\/[A-Za-z_]+$/.test(tz) || tz === 'UTC';
 }
 
@@ -36,12 +38,11 @@ function isStartBeforeEnd(start, end) {
 
 // GET /api/sla/:tenantCode/business-hours - List all business hours profiles
 router.get('/:tenantCode/business-hours', verifyToken, requireRole(['admin']), async (req, res) => {
-  let connection;
   try {
     const { tenantCode } = req.params;
-    connection = await getTenantConnection(tenantCode);
+    const pool = await getTenantPool(tenantCode);
 
-    const [profiles] = await connection.query(`
+    const [profiles] = await pool.query(`
       SELECT id, name, timezone, days_of_week, start_time, end_time, is_24x7, is_active, created_at, updated_at
       FROM business_hours_profiles
       WHERE is_active = 1
@@ -52,19 +53,16 @@ router.get('/:tenantCode/business-hours', verifyToken, requireRole(['admin']), a
   } catch (error) {
     console.error('Error fetching business hours profiles:', error);
     res.status(500).json({ success: false, error: error.message });
-  } finally {
-    if (connection) connection.release();
   }
 });
 
 // GET /api/sla/:tenantCode/business-hours/:id - Get single profile
 router.get('/:tenantCode/business-hours/:id', verifyToken, requireRole(['admin']), async (req, res) => {
-  let connection;
   try {
     const { tenantCode, id } = req.params;
-    connection = await getTenantConnection(tenantCode);
+    const pool = await getTenantPool(tenantCode);
 
-    const [profiles] = await connection.query(`
+    const [profiles] = await pool.query(`
       SELECT id, name, timezone, days_of_week, start_time, end_time, is_24x7, is_active, created_at, updated_at
       FROM business_hours_profiles
       WHERE id = ?
@@ -78,14 +76,11 @@ router.get('/:tenantCode/business-hours/:id', verifyToken, requireRole(['admin']
   } catch (error) {
     console.error('Error fetching business hours profile:', error);
     res.status(500).json({ success: false, error: error.message });
-  } finally {
-    if (connection) connection.release();
   }
 });
 
 // POST /api/sla/:tenantCode/business-hours - Create profile
 router.post('/:tenantCode/business-hours', verifyToken, requireRole(['admin']), async (req, res) => {
-  let connection;
   try {
     const { tenantCode } = req.params;
     const { name, timezone, days_of_week, start_time, end_time, is_24x7 } = req.body;
@@ -119,9 +114,9 @@ router.post('/:tenantCode/business-hours', verifyToken, requireRole(['admin']), 
       return res.status(400).json({ success: false, error: 'days_of_week must contain integers 1-7 (Mon=1, Sun=7)' });
     }
 
-    connection = await getTenantConnection(tenantCode);
+    const pool = await getTenantPool(tenantCode);
 
-    const [result] = await connection.query(`
+    const [result] = await pool.query(`
       INSERT INTO business_hours_profiles (name, timezone, days_of_week, start_time, end_time, is_24x7)
       VALUES (?, ?, ?, ?, ?, ?)
     `, [
@@ -140,22 +135,19 @@ router.post('/:tenantCode/business-hours', verifyToken, requireRole(['admin']), 
     }
     console.error('Error creating business hours profile:', error);
     res.status(500).json({ success: false, error: error.message });
-  } finally {
-    if (connection) connection.release();
   }
 });
 
 // PUT /api/sla/:tenantCode/business-hours/:id - Update profile
 router.put('/:tenantCode/business-hours/:id', verifyToken, requireRole(['admin']), async (req, res) => {
-  let connection;
   try {
     const { tenantCode, id } = req.params;
     const { name, timezone, days_of_week, start_time, end_time, is_24x7, is_active } = req.body;
 
-    connection = await getTenantConnection(tenantCode);
+    const pool = await getTenantPool(tenantCode);
 
     // Check exists
-    const [existing] = await connection.query('SELECT id FROM business_hours_profiles WHERE id = ?', [id]);
+    const [existing] = await pool.query('SELECT id FROM business_hours_profiles WHERE id = ?', [id]);
     if (existing.length === 0) {
       return res.status(404).json({ success: false, error: 'Business hours profile not found' });
     }
@@ -195,7 +187,7 @@ router.put('/:tenantCode/business-hours/:id', verifyToken, requireRole(['admin']
     }
 
     values.push(id);
-    await connection.query(`UPDATE business_hours_profiles SET ${updates.join(', ')} WHERE id = ?`, values);
+    await pool.query(`UPDATE business_hours_profiles SET ${updates.join(', ')} WHERE id = ?`, values);
 
     res.json({ success: true, message: 'Business hours profile updated' });
   } catch (error) {
@@ -204,25 +196,22 @@ router.put('/:tenantCode/business-hours/:id', verifyToken, requireRole(['admin']
     }
     console.error('Error updating business hours profile:', error);
     res.status(500).json({ success: false, error: error.message });
-  } finally {
-    if (connection) connection.release();
   }
 });
 
 // DELETE /api/sla/:tenantCode/business-hours/:id - Soft delete profile
 router.delete('/:tenantCode/business-hours/:id', verifyToken, requireRole(['admin']), async (req, res) => {
-  let connection;
   try {
     const { tenantCode, id } = req.params;
-    connection = await getTenantConnection(tenantCode);
+    const pool = await getTenantPool(tenantCode);
 
     // Check if used by any active SLA definitions
-    const [usedBy] = await connection.query('SELECT COUNT(*) as count FROM sla_definitions WHERE business_hours_profile_id = ? AND is_active = 1', [id]);
+    const [usedBy] = await pool.query('SELECT COUNT(*) as count FROM sla_definitions WHERE business_hours_profile_id = ? AND is_active = 1', [id]);
     if (usedBy[0].count > 0) {
       return res.status(400).json({ success: false, error: 'Cannot delete: This profile is used by active SLA definitions' });
     }
 
-    const [result] = await connection.query('UPDATE business_hours_profiles SET is_active = 0 WHERE id = ? AND is_active = 1', [id]);
+    const [result] = await pool.query('UPDATE business_hours_profiles SET is_active = 0 WHERE id = ? AND is_active = 1', [id]);
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ success: false, error: 'Business hours profile not found or already deleted' });
@@ -232,8 +221,6 @@ router.delete('/:tenantCode/business-hours/:id', verifyToken, requireRole(['admi
   } catch (error) {
     console.error('Error deleting business hours profile:', error);
     res.status(500).json({ success: false, error: error.message });
-  } finally {
-    if (connection) connection.release();
   }
 });
 
@@ -243,12 +230,11 @@ router.delete('/:tenantCode/business-hours/:id', verifyToken, requireRole(['admi
 
 // GET /api/sla/:tenantCode/definitions - List all SLA definitions
 router.get('/:tenantCode/definitions', verifyToken, requireRole(['admin']), async (req, res) => {
-  let connection;
   try {
     const { tenantCode } = req.params;
-    connection = await getTenantConnection(tenantCode);
+    const pool = await getTenantPool(tenantCode);
 
-    const [definitions] = await connection.query(`
+    const [definitions] = await pool.query(`
       SELECT
         s.id, s.name, s.description, s.business_hours_profile_id,
         s.response_target_minutes, s.resolve_target_minutes,
@@ -265,19 +251,16 @@ router.get('/:tenantCode/definitions', verifyToken, requireRole(['admin']), asyn
   } catch (error) {
     console.error('Error fetching SLA definitions:', error);
     res.status(500).json({ success: false, error: error.message });
-  } finally {
-    if (connection) connection.release();
   }
 });
 
 // GET /api/sla/:tenantCode/definitions/:id - Get single SLA definition
 router.get('/:tenantCode/definitions/:id', verifyToken, requireRole(['admin']), async (req, res) => {
-  let connection;
   try {
     const { tenantCode, id } = req.params;
-    connection = await getTenantConnection(tenantCode);
+    const pool = await getTenantPool(tenantCode);
 
-    const [definitions] = await connection.query(`
+    const [definitions] = await pool.query(`
       SELECT
         s.id, s.name, s.description, s.business_hours_profile_id,
         s.response_target_minutes, s.resolve_target_minutes,
@@ -297,14 +280,11 @@ router.get('/:tenantCode/definitions/:id', verifyToken, requireRole(['admin']), 
   } catch (error) {
     console.error('Error fetching SLA definition:', error);
     res.status(500).json({ success: false, error: error.message });
-  } finally {
-    if (connection) connection.release();
   }
 });
 
 // POST /api/sla/:tenantCode/definitions - Create SLA definition
 router.post('/:tenantCode/definitions', verifyToken, requireRole(['admin']), async (req, res) => {
-  let connection;
   try {
     const { tenantCode } = req.params;
     const {
@@ -323,7 +303,7 @@ router.post('/:tenantCode/definitions', verifyToken, requireRole(['admin']), asy
     }
 
     if (!resolve_target_minutes || resolve_target_minutes <= 0) {
-      return res.status(500).json({ success: false, error: 'resolve_target_minutes must be greater than 0' });
+      return res.status(400).json({ success: false, error: 'resolve_target_minutes must be greater than 0' });
     }
 
     if (near_breach_percent !== undefined && (near_breach_percent < 0 || near_breach_percent > 100)) {
@@ -334,17 +314,17 @@ router.post('/:tenantCode/definitions', verifyToken, requireRole(['admin']), asy
       return res.status(400).json({ success: false, error: 'past_breach_percent must be >= 100' });
     }
 
-    connection = await getTenantConnection(tenantCode);
+    const pool = await getTenantPool(tenantCode);
 
     // Verify business hours profile exists if provided
     if (business_hours_profile_id) {
-      const [profiles] = await connection.query('SELECT id FROM business_hours_profiles WHERE id = ?', [business_hours_profile_id]);
+      const [profiles] = await pool.query('SELECT id FROM business_hours_profiles WHERE id = ?', [business_hours_profile_id]);
       if (profiles.length === 0) {
         return res.status(400).json({ success: false, error: 'Business hours profile not found' });
       }
     }
 
-    const [result] = await connection.query(`
+    const [result] = await pool.query(`
       INSERT INTO sla_definitions
         (name, description, business_hours_profile_id, response_target_minutes, resolve_target_minutes, near_breach_percent, past_breach_percent)
       VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -365,14 +345,11 @@ router.post('/:tenantCode/definitions', verifyToken, requireRole(['admin']), asy
     }
     console.error('Error creating SLA definition:', error);
     res.status(500).json({ success: false, error: error.message });
-  } finally {
-    if (connection) connection.release();
   }
 });
 
 // PUT /api/sla/:tenantCode/definitions/:id - Update SLA definition
 router.put('/:tenantCode/definitions/:id', verifyToken, requireRole(['admin']), async (req, res) => {
-  let connection;
   try {
     const { tenantCode, id } = req.params;
     const {
@@ -381,10 +358,10 @@ router.put('/:tenantCode/definitions/:id', verifyToken, requireRole(['admin']), 
       near_breach_percent, past_breach_percent, is_active
     } = req.body;
 
-    connection = await getTenantConnection(tenantCode);
+    const pool = await getTenantPool(tenantCode);
 
     // Check exists
-    const [existing] = await connection.query('SELECT id FROM sla_definitions WHERE id = ?', [id]);
+    const [existing] = await pool.query('SELECT id FROM sla_definitions WHERE id = ?', [id]);
     if (existing.length === 0) {
       return res.status(404).json({ success: false, error: 'SLA definition not found' });
     }
@@ -404,7 +381,7 @@ router.put('/:tenantCode/definitions/:id', verifyToken, requireRole(['admin']), 
 
     // Verify business hours profile if changing
     if (business_hours_profile_id !== undefined && business_hours_profile_id !== null) {
-      const [profiles] = await connection.query('SELECT id FROM business_hours_profiles WHERE id = ?', [business_hours_profile_id]);
+      const [profiles] = await pool.query('SELECT id FROM business_hours_profiles WHERE id = ?', [business_hours_profile_id]);
       if (profiles.length === 0) {
         return res.status(400).json({ success: false, error: 'Business hours profile not found' });
       }
@@ -428,7 +405,7 @@ router.put('/:tenantCode/definitions/:id', verifyToken, requireRole(['admin']), 
     }
 
     values.push(id);
-    await connection.query(`UPDATE sla_definitions SET ${updates.join(', ')} WHERE id = ?`, values);
+    await pool.query(`UPDATE sla_definitions SET ${updates.join(', ')} WHERE id = ?`, values);
 
     res.json({ success: true, message: 'SLA definition updated' });
   } catch (error) {
@@ -437,19 +414,16 @@ router.put('/:tenantCode/definitions/:id', verifyToken, requireRole(['admin']), 
     }
     console.error('Error updating SLA definition:', error);
     res.status(500).json({ success: false, error: error.message });
-  } finally {
-    if (connection) connection.release();
   }
 });
 
 // DELETE /api/sla/:tenantCode/definitions/:id - Soft delete SLA definition
 router.delete('/:tenantCode/definitions/:id', verifyToken, requireRole(['admin']), async (req, res) => {
-  let connection;
   try {
     const { tenantCode, id } = req.params;
-    connection = await getTenantConnection(tenantCode);
+    const pool = await getTenantPool(tenantCode);
 
-    const [result] = await connection.query('UPDATE sla_definitions SET is_active = 0 WHERE id = ? AND is_active = 1', [id]);
+    const [result] = await pool.query('UPDATE sla_definitions SET is_active = 0 WHERE id = ? AND is_active = 1', [id]);
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ success: false, error: 'SLA definition not found or already deleted' });
@@ -459,8 +433,6 @@ router.delete('/:tenantCode/definitions/:id', verifyToken, requireRole(['admin']
   } catch (error) {
     console.error('Error deleting SLA definition:', error);
     res.status(500).json({ success: false, error: error.message });
-  } finally {
-    if (connection) connection.release();
   }
 });
 
