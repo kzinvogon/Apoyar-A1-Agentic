@@ -168,6 +168,12 @@ vNext-FULL-ActionsSLA:
   .modal .body{padding:20px}
   .modal .foot{padding:12px 20px;display:flex;gap:8px;justify-content:flex-end;border-top:1px solid var(--border);background:var(--table-header)}
 
+  /* Wizard Nav */
+  .wizard-nav-item{padding:12px 16px;cursor:pointer;border-bottom:1px solid var(--border);font-size:13px;transition:background .15s}
+  .wizard-nav-item:last-child{border-bottom:none}
+  .wizard-nav-item:hover{background:var(--bg)}
+  .wizard-nav-item.active{background:var(--primary);color:var(--bg);font-weight:500}
+
   /* Toggle Switch */
   .toggle-switch{position:relative;display:inline-block;width:60px;height:32px}
   .toggle-switch input{opacity:0;width:0;height:0}
@@ -280,6 +286,9 @@ vNext-FULL-ActionsSLA:
     .modal .body{padding:16px}
     .modal .foot{padding:10px 16px;flex-wrap:wrap}
     .modal .foot .btn{flex:1;min-width:120px}
+
+    /* Hide wizard nav on mobile */
+    #wizard-nav{display:none}
 
     /* Dashboard stats */
     .stat-card{text-align:center}
@@ -2892,6 +2901,21 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             <h3 class="title" style="margin:0">Admin Settings Wizard</h3>
           </div>
 
+          <div style="display:flex;gap:24px;align-items:flex-start">
+            <!-- Settings Nav Menu -->
+            <div id="wizard-nav" style="width:200px;flex-shrink:0;position:sticky;top:72px">
+              <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden">
+                <div class="wizard-nav-item active" onclick="scrollToWizardSection('admin-section-profile')">🏢 Company Profile</div>
+                <div class="wizard-nav-item" onclick="scrollToWizardSection('admin-section-email-ingest')">📧 Email Ingest</div>
+                <div class="wizard-nav-item" onclick="scrollToWizardSection('admin-section-expert-reg')">👤 Expert Registration</div>
+                <div class="wizard-nav-item" onclick="scrollToWizardSection('admin-section-support')">🎫 Support Settings</div>
+                <div class="wizard-nav-item" onclick="scrollToWizardSection('admin-section-integrations')">🔗 Integrations</div>
+                <div class="wizard-nav-item" onclick="scrollToWizardSection('admin-section-sla')">⏱️ SLA Management</div>
+              </div>
+            </div>
+
+            <!-- Settings Content -->
+            <div style="flex:1;min-width:0">
           <!-- Company Profile Section -->
           <div id="admin-section-profile" class="card p-16 mb-12">
             <div class="row space mb-12">
@@ -3030,7 +3054,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           </div>
 
           <!-- Support Settings -->
-          <div class="card p-16 mb-12">
+          <div id="admin-section-support" class="card p-16 mb-12">
             <div class="row space mb-12">
               <h4 class="subtitle" style="margin:0;font-weight:600">Support Settings</h4>
               <button class="btn primary" onclick="saveSupportSettings()">Save Settings</button>
@@ -3208,6 +3232,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             <div id="sla-message" class="subtitle" style="color:#16a34a;display:none;margin-top:12px"></div>
             <div id="sla-error" class="subtitle" style="color:#b91c1c;display:none;margin-top:12px"></div>
           </div>
+            </div><!-- End Settings Content -->
+          </div><!-- End flex container -->
         </div>
 
         <!-- Raw Variables Editor -->
@@ -5590,6 +5616,20 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       console.error('Error importing variables:', error);
       errorEl.textContent = 'Error importing variables';
       errorEl.style.display = 'block';
+    }
+  }
+
+  // Wizard Navigation
+  function scrollToWizardSection(sectionId) {
+    const section = document.getElementById(sectionId);
+    if (section) {
+      section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // Update active nav item
+      document.querySelectorAll('.wizard-nav-item').forEach(item => item.classList.remove('active'));
+      const navItems = document.querySelectorAll('.wizard-nav-item');
+      navItems.forEach(item => {
+        if (item.onclick.toString().includes(sectionId)) item.classList.add('active');
+      });
     }
   }
 
