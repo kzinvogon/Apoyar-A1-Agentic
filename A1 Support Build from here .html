@@ -3779,6 +3779,32 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   </div>
 </div>
 
+<!-- Decline Resolution Modal -->
+<div id="decline-resolution-modal" class="modal" role="dialog" aria-modal="true" style="display:none">
+  <div class="sheet" style="max-width:600px">
+    <div class="head"><span>Decline Resolution</span></div>
+    <div class="body">
+      <div class="mb-12" style="padding:12px;background:#fef3c7;border-radius:8px;color:#92400e">
+        We're sorry we didn't get it right. Please tell us what we missed so we can try again.
+      </div>
+      <div class="mb-12">
+        <div class="subtitle">Why are you declining this resolution? *</div>
+        <textarea id="decline-reason" class="input" placeholder="Please explain what was wrong or what we missed..." style="min-height:150px;resize:vertical"></textarea>
+      </div>
+      <div class="mb-12">
+        <div class="subtitle">Attachments (optional)</div>
+        <input type="file" id="decline-attachments" class="input" multiple accept="image/*,.pdf,.doc,.docx,.txt,.log" style="padding:8px"/>
+        <div class="subtitle" style="margin-top:4px;font-size:11px">Supported: Images, PDF, Word, Text, Log files</div>
+      </div>
+      <div id="decline-error" class="subtitle" style="color:#b91c1c;display:none"></div>
+    </div>
+    <div class="foot">
+      <button class="btn ghost" onclick="closeDeclineModal()">Cancel</button>
+      <button class="btn warn" onclick="submitDeclineResolution()">Submit Feedback</button>
+    </div>
+  </div>
+</div>
+
 <!-- Expert Form Modal -->
 <div id="expert-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="expert-modal-title" style="display:none">
   <div class="sheet" style="max-width:700px;max-height:90vh;overflow-y:auto">
@@ -8503,16 +8529,45 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     }
   }
 
-  async function declineResolution() {
+  function declineResolution() {
     const t = tickets.find(x => x.id === currentTicketId);
     if (!t || t.status !== 'Resolved') return alert('This ticket is not resolved yet.');
 
-    const reason = prompt('Please explain why you are declining the resolution:');
-    if (!reason || !reason.trim()) return alert('A reason is required to decline the resolution.');
+    // Reset and show modal
+    document.getElementById('decline-reason').value = '';
+    document.getElementById('decline-attachments').value = '';
+    document.getElementById('decline-error').style.display = 'none';
+    document.getElementById('decline-resolution-modal').style.display = 'flex';
+  }
+
+  function closeDeclineModal() {
+    document.getElementById('decline-resolution-modal').style.display = 'none';
+  }
+
+  async function submitDeclineResolution() {
+    const reason = document.getElementById('decline-reason').value.trim();
+    const fileInput = document.getElementById('decline-attachments');
+    const errorDiv = document.getElementById('decline-error');
+
+    if (!reason) {
+      errorDiv.textContent = 'Please provide a reason for declining the resolution.';
+      errorDiv.style.display = 'block';
+      return;
+    }
+
+    const t = tickets.find(x => x.id === currentTicketId);
+    if (!t) return;
 
     try {
       const token = localStorage.getItem('token');
       const tenantCode = window.tenant || 'apoyar';
+
+      // Build activity message with attachment info
+      let activityMsg = `Customer declined the resolution. Reason: ${reason}`;
+      if (fileInput.files.length > 0) {
+        const fileNames = Array.from(fileInput.files).map(f => f.name).join(', ');
+        activityMsg += ` [Attachments: ${fileNames}]`;
+      }
 
       const response = await fetch(`${API_BASE}/api/tickets/${tenantCode}/${currentTicketId}`, {
         method: 'PUT',
@@ -8522,21 +8577,24 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         },
         body: JSON.stringify({
           status: 'Open',
-          activity: `Customer declined the resolution. Reason: ${reason.trim()}`
+          activity: activityMsg
         })
       });
 
       const data = await response.json();
       if (data.success) {
         t.status = 'Open';
+        closeDeclineModal();
         alert('Sorry we didn\'t get it right, we will re-open and try again.');
         renderTicketDetail();
       } else {
-        alert('Error: ' + (data.error || 'Could not decline resolution'));
+        errorDiv.textContent = 'Error: ' + (data.error || 'Could not decline resolution');
+        errorDiv.style.display = 'block';
       }
     } catch (error) {
       console.error('Error declining resolution:', error);
-      alert('Error declining resolution: ' + error.message);
+      errorDiv.textContent = 'Error: ' + error.message;
+      errorDiv.style.display = 'block';
     }
   }
 
