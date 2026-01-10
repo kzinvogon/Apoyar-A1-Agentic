@@ -8529,7 +8529,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       const data = await response.json();
       if (data.success) {
         t.status = 'Open';
-        alert('Ticket reopened. The team will review your feedback.');
+        alert('Sorry we didn\'t get it right, we will re-open and try again.');
         renderTicketDetail();
       } else {
         alert('Error: ' + (data.error || 'Could not decline resolution'));
