@@ -44,7 +44,8 @@ router.get('/:tenantCode/business-hours', verifyToken, requireRole(['admin']), a
     const [profiles] = await connection.query(`
       SELECT id, name, timezone, days_of_week, start_time, end_time, is_24x7, is_active, created_at, updated_at
       FROM business_hours_profiles
-      ORDER BY is_active DESC, name
+      WHERE is_active = 1
+      ORDER BY name
     `);
 
     res.json({ success: true, profiles });
@@ -257,7 +258,8 @@ router.get('/:tenantCode/definitions', verifyToken, requireRole(['admin']), asyn
         b.name as business_hours_name
       FROM sla_definitions s
       LEFT JOIN business_hours_profiles b ON s.business_hours_profile_id = b.id
-      ORDER BY s.is_active DESC, s.name
+      WHERE s.is_active = 1
+      ORDER BY s.name
     `);
 
     res.json({ success: true, definitions });
