@@ -3373,7 +3373,11 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         <!-- Raw Variables Editor -->
         <div id="view-raw-variables" style="display:none">
           <div class="row space mb-12">
-            <div class="row"><button class="btn ghost" onclick="switchView('wizard')">← Back to Settings</button><h3 class="title" style="margin:0 0 0 8px">Raw Variables</h3></div>
+            <div class="row" style="gap:12px;align-items:center">
+              <button class="btn ghost" onclick="switchView('wizard')">← Back to Settings</button>
+              <h3 class="title" style="margin:0">Raw Variables</h3>
+              <span style="background:#fef3c7;color:#92400e;font-size:11px;font-weight:600;padding:3px 8px;border-radius:4px;text-transform:uppercase;letter-spacing:0.5px">Developer Mode</span>
+            </div>
             <div class="row" style="gap:8px">
               <button class="btn" onclick="addVariable()">+ Add Variable</button>
               <button class="btn" onclick="exportVariablesJSON()">Export JSON</button>
@@ -3381,10 +3385,13 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             </div>
           </div>
 
-          <div class="card p-16 mb-12" style="background:#eff6ff;border-left:4px solid #2563eb">
-            <div class="subtitle" style="margin:0">
-              <strong>Developer Mode:</strong> View and edit all system configuration variables. Changes take effect immediately.
-              <span style="color:#b91c1c">Use caution when modifying system variables.</span>
+          <div style="background:#fef2f2;border:1px solid #fecaca;border-left:4px solid #dc2626;border-radius:8px;padding:12px 16px;margin-bottom:16px">
+            <div style="display:flex;align-items:flex-start;gap:10px">
+              <span style="font-size:18px">⚠️</span>
+              <div>
+                <div style="font-weight:600;color:#991b1b;margin-bottom:4px">Caution: Changes apply immediately</div>
+                <div style="font-size:13px;color:#7f1d1d">Direct access to system configuration variables. Incorrect values may break functionality. Only modify if you understand the impact.</div>
+              </div>
             </div>
           </div>
 

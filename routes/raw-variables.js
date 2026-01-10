@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { getTenantConnection } = require('../config/database');
 const { verifyToken, requireRole } = require('../middleware/auth');
+const { logAudit, AUDIT_ACTIONS } = require('../utils/auditLog');
 
 // Apply authentication to all routes
 router.use(verifyToken);
@@ -88,6 +89,18 @@ router.get('/:tenantId', async (req, res) => {
         { key: 'PORT', value: process.env.PORT || '3000', category: 'environment', editable: false, deletable: false }
       ];
 
+      // Audit log: Raw Variables opened
+      const totalCount = variables.tenant_settings.length + variables.email_ingest.length +
+                        variables.company_profile.length + variables.environment.length;
+      logAudit({
+        tenantCode: tenantId,
+        user: req.user,
+        action: AUDIT_ACTIONS.RAW_VARS_OPEN,
+        entityType: 'RAW_VARIABLE',
+        details: { countReturned: totalCount },
+        req
+      });
+
       res.json({ success: true, variables });
     } finally {
       connection.release();
@@ -136,6 +149,17 @@ router.post('/:tenantId', async (req, res) => {
         [key, value || '']
       );
 
+      // Audit log: Variable created
+      logAudit({
+        tenantCode: tenantId,
+        user: req.user,
+        action: AUDIT_ACTIONS.RAW_VAR_CREATE,
+        entityType: 'RAW_VARIABLE',
+        entityId: key,
+        details: { key, value: value || '', scope: 'tenant_settings' },
+        req
+      });
+
       res.status(201).json({ success: true, message: 'Variable created successfully' });
     } finally {
       connection.release();
@@ -155,8 +179,12 @@ router.put('/:tenantId/:key', async (req, res) => {
     const connection = await getTenantConnection(tenantId);
 
     try {
+      let oldValue = null;
+      let scope = 'tenant_settings';
+
       // Handle different categories
       if (key.startsWith('email_ingest.')) {
+        scope = 'email_ingest';
         // Update email_ingest_settings
         const field = key.replace('email_ingest.', '');
         const fieldMap = {
@@ -179,6 +207,14 @@ router.put('/:tenantId/:key', async (req, res) => {
           return res.json({ success: true, message: 'Password unchanged' });
         }
 
+        // Get old value before update
+        try {
+          const [oldSettings] = await connection.query(`SELECT ${fieldMap[field]} as val FROM email_ingest_settings LIMIT 1`);
+          if (oldSettings.length > 0) {
+            oldValue = field === 'password' ? '[REDACTED]' : String(oldSettings[0].val);
+          }
+        } catch (e) { /* ignore */ }
+
         // Convert value types
         let dbValue = value;
         if (field === 'enabled' || field === 'use_ssl') {
@@ -193,6 +229,7 @@ router.put('/:tenantId/:key', async (req, res) => {
         );
 
       } else if (key.startsWith('company.')) {
+        scope = 'company_profile';
         // Update company_profile
         const field = key.replace('company.', '');
         const fieldMap = {
@@ -206,14 +243,15 @@ router.put('/:tenantId/:key', async (req, res) => {
           return res.status(400).json({ success: false, message: 'Invalid company field' });
         }
 
-        // Check if profile exists
-        const [existing] = await connection.query('SELECT id FROM company_profile LIMIT 1');
+        // Get old value and check if profile exists
+        const [existing] = await connection.query('SELECT * FROM company_profile LIMIT 1');
         if (existing.length === 0) {
           await connection.query(
             `INSERT INTO company_profile (${fieldMap[field]}) VALUES (?)`,
             [value]
           );
         } else {
+          oldValue = existing[0][fieldMap[field]] || '';
           await connection.query(
             `UPDATE company_profile SET ${fieldMap[field]} = ?`,
             [value]
@@ -223,7 +261,7 @@ router.put('/:tenantId/:key', async (req, res) => {
       } else {
         // Update tenant_settings
         const [existing] = await connection.query(
-          'SELECT id FROM tenant_settings WHERE setting_key = ?',
+          'SELECT id, setting_value FROM tenant_settings WHERE setting_key = ?',
           [key]
         );
 
@@ -234,6 +272,7 @@ router.put('/:tenantId/:key', async (req, res) => {
             [key, value]
           );
         } else {
+          oldValue = existing[0].setting_value;
           // Update existing
           await connection.query(
             'UPDATE tenant_settings SET setting_value = ? WHERE setting_key = ?',
@@ -241,6 +280,18 @@ router.put('/:tenantId/:key', async (req, res) => {
           );
         }
       }
+
+      // Audit log: Variable updated
+      const newValueForLog = key.includes('password') ? '[REDACTED]' : value;
+      logAudit({
+        tenantCode: tenantId,
+        user: req.user,
+        action: AUDIT_ACTIONS.RAW_VAR_UPDATE,
+        entityType: 'RAW_VARIABLE',
+        entityId: key,
+        details: { key, oldValue, newValue: newValueForLog, scope },
+        req
+      });
 
       res.json({ success: true, message: 'Variable updated successfully' });
     } finally {
@@ -265,6 +316,16 @@ router.delete('/:tenantId/:key', async (req, res) => {
     const connection = await getTenantConnection(tenantId);
 
     try {
+      // Get old value before deleting
+      let oldValue = null;
+      const [existing] = await connection.query(
+        'SELECT setting_value FROM tenant_settings WHERE setting_key = ?',
+        [key]
+      );
+      if (existing.length > 0) {
+        oldValue = existing[0].setting_value;
+      }
+
       const [result] = await connection.query(
         'DELETE FROM tenant_settings WHERE setting_key = ?',
         [key]
@@ -273,6 +334,17 @@ router.delete('/:tenantId/:key', async (req, res) => {
       if (result.affectedRows === 0) {
         return res.status(404).json({ success: false, message: 'Variable not found' });
       }
+
+      // Audit log: Variable deleted
+      logAudit({
+        tenantCode: tenantId,
+        user: req.user,
+        action: AUDIT_ACTIONS.RAW_VAR_DELETE,
+        entityType: 'RAW_VARIABLE',
+        entityId: key,
+        details: { key, oldValue, scope: 'tenant_settings' },
+        req
+      });
 
       res.json({ success: true, message: 'Variable deleted successfully' });
     } finally {
@@ -378,6 +450,21 @@ router.post('/:tenantId/bulk', async (req, res) => {
         }
       }
 
+      // Audit log: Bulk import
+      logAudit({
+        tenantCode: tenantId,
+        user: req.user,
+        action: AUDIT_ACTIONS.RAW_VARS_IMPORT,
+        entityType: 'RAW_VARIABLE',
+        details: {
+          keysImported: Object.keys(variables),
+          created: results.created,
+          updated: results.updated,
+          errors: results.errors.length
+        },
+        req
+      });
+
       res.json({
         success: true,
         message: `Bulk update complete: ${results.updated} updated, ${results.created} created`,
@@ -388,6 +475,45 @@ router.post('/:tenantId/bulk', async (req, res) => {
     }
   } catch (error) {
     console.error('Error bulk updating variables:', error);
+    res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
+  }
+});
+
+// Export variables as JSON (for audit logging)
+router.get('/:tenantId/export', async (req, res) => {
+  try {
+    const { tenantId } = req.params;
+    const connection = await getTenantConnection(tenantId);
+
+    try {
+      const variables = {};
+
+      // Get tenant_settings
+      try {
+        const [settings] = await connection.query(
+          'SELECT setting_key, setting_value FROM tenant_settings ORDER BY setting_key'
+        );
+        settings.forEach(s => {
+          variables[s.setting_key] = s.setting_value;
+        });
+      } catch (e) { /* ignore */ }
+
+      // Audit log: Export
+      logAudit({
+        tenantCode: tenantId,
+        user: req.user,
+        action: AUDIT_ACTIONS.RAW_VARS_EXPORT,
+        entityType: 'RAW_VARIABLE',
+        details: { countExported: Object.keys(variables).length },
+        req
+      });
+
+      res.json({ success: true, variables });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error exporting variables:', error);
     res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
   }
 });
