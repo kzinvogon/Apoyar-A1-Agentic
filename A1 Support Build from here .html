@@ -194,6 +194,12 @@ vNext-FULL-ActionsSLA:
   .wizard-nav-item:hover{background:var(--bg)}
   .wizard-nav-item.active{background:var(--primary);color:var(--bg);font-weight:500}
 
+  /* CMDB Hub Nav */
+  .cmdb-nav-item{padding:12px 16px;cursor:pointer;border-bottom:1px solid var(--border);font-size:13px;transition:background .15s}
+  .cmdb-nav-item:last-child{border-bottom:none}
+  .cmdb-nav-item:hover{background:var(--bg)}
+  .cmdb-nav-item.active{background:var(--primary);color:var(--bg);font-weight:500}
+
   /* Toggle Switch */
   .toggle-switch{position:relative;display:inline-block;width:60px;height:32px}
   .toggle-switch input{opacity:0;width:0;height:0}
@@ -700,7 +706,7 @@ vNext-FULL-ActionsSLA:
         <ion-icon name="business-outline" slot="start"></ion-icon>
         <ion-label>Manage Customers</ion-label>
       </ion-item>
-      <ion-item button onclick="ionicNav('cmdb'); closeIonicMenu();">
+      <ion-item button onclick="ionicNav('cmdb-hub'); closeIonicMenu();">
         <ion-icon name="server-outline" slot="start"></ion-icon>
         <ion-label>CMDB</ion-label>
       </ion-item>
@@ -953,9 +959,7 @@ vNext-FULL-ActionsSLA:
           <div class="navlink" data-target="knowledge-base" onclick="nav(this)">📚 Knowledge Base</div>
           <div class="navlink" data-target="experts" onclick="nav(this)">👩‍🔧 Manage Experts</div>
           <div class="navlink" data-target="customers" onclick="nav(this)">🧑‍💼 Manage Customers</div>
-          <div class="navlink" data-target="cmdb" onclick="nav(this)">🗃️ CMDB</div>
-          <div class="navlink" data-target="manage-cmdb" onclick="nav(this)">⚙️ Manage CMDB Types</div>
-          <div class="navlink" data-target="cmdb-mgmt" onclick="nav(this)">📦 CMDB Management</div>
+          <div class="navlink" data-target="cmdb-hub" onclick="nav(this)">🗃️ CMDB</div>
           <div class="navlink" data-target="analytics" onclick="nav(this)">📈 Analytics</div>
           <div class="navlink" data-target="ai-insights" onclick="nav(this)">🤖 AI Insights</div>
           <div class="navlink" data-target="ticket-rules" onclick="nav(this)">⚙️ Ticket Rules</div>
@@ -971,9 +975,7 @@ vNext-FULL-ActionsSLA:
           <div class="navlink" data-target="profile" onclick="nav(this)">👤 My Profile</div>
           <div class="navlink" data-target="tickets" onclick="nav(this)">🎫 Tickets</div>
           <div class="navlink" data-target="knowledge-base" onclick="nav(this)">📚 Knowledge Base</div>
-          <div class="navlink" data-target="cmdb" onclick="nav(this)">🗃️ CMDB</div>
-          <div class="navlink" data-target="manage-cmdb" onclick="nav(this)">⚙️ Manage CMDB Types</div>
-          <div class="navlink" data-target="cmdb-mgmt" onclick="nav(this)">📦 CMDB Management</div>
+          <div class="navlink" data-target="cmdb-hub" onclick="nav(this)">🗃️ CMDB</div>
           <div class="navlink" data-target="analytics" onclick="nav(this)">📈 Analytics</div>
           <div class="navlink" data-target="ai-insights" onclick="nav(this)">🤖 AI Insights</div>
           <div class="navlink" data-target="raise" onclick="nav(this)">📝 Raise Request</div>
@@ -988,7 +990,7 @@ vNext-FULL-ActionsSLA:
           <div class="navlink" data-target="customer-plans" onclick="nav(this)">📋 Plans & Upgrades</div>
           <div class="navlink" data-target="analytics" onclick="nav(this)">📈 Analytics</div>
           <div class="navlink" data-target="ai-insights" onclick="nav(this)">🤖 AI Insights</div>
-          <div class="navlink" data-target="cmdb" onclick="nav(this)">🗃️ My CMDB</div>
+          <div class="navlink" data-target="cmdb-hub" onclick="nav(this)">🗃️ My CMDB</div>
           <div class="navlink" data-target="raise" onclick="nav(this)">📝 Raise Request</div>
         </div>
       </aside>
@@ -2740,7 +2742,30 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           </div>
         </div>
 
-        <!-- CMDB -->
+        <!-- CMDB Hub -->
+        <div id="view-cmdb-hub" style="display:none">
+          <div class="row space mb-12">
+            <h3 class="title" style="margin:0">CMDB Hub</h3>
+          </div>
+          <div style="display:flex;gap:24px;align-items:flex-start">
+            <!-- Sub-menu -->
+            <div style="width:220px;flex-shrink:0;position:sticky;top:72px">
+              <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden">
+                <div class="cmdb-nav-item active" data-section="cmdb-section-items" onclick="showCmdbSection('cmdb-section-items')">🗂️ CMDB</div>
+                <div class="cmdb-nav-item" data-section="cmdb-section-types" onclick="showCmdbSection('cmdb-section-types')">⚙️ CMDB Types</div>
+                <div class="cmdb-nav-item" data-section="cmdb-section-management" onclick="showCmdbSection('cmdb-section-management')">🛠️ CMDB Management</div>
+              </div>
+            </div>
+            <!-- Content host -->
+            <div style="flex:1;min-width:0">
+              <div id="cmdb-section-items" class="cmdb-section"></div>
+              <div id="cmdb-section-types" class="cmdb-section" style="display:none"></div>
+              <div id="cmdb-section-management" class="cmdb-section" style="display:none"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CMDB (original - content will be moved to hub) -->
         <div id="view-cmdb" style="display:none">
           <div class="row space mb-12">
             <div class="row"><h3 class="title" style="margin:0">CMDB Items</h3></div>
@@ -4975,7 +5000,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   function nav(el){ document.querySelectorAll('.navlink').forEach(n=>n.classList.remove('active')); el.classList.add('active'); switchView(el.getAttribute('data-target')); if(el.getAttribute('data-target')==='dash') renderAllDashboards(); }
   function navTo(view){ switchView(view); }
-  function switchView(view){ currentView=view; ['dash','profile','tickets','ticket-detail','experts','expert-detail','customers','cmdb','cmdb-detail','manage-cmdb','cmdb-mgmt','wizard','raise','tenants','subscriptions','billing','plans','system','usage','customer-plans','customer-billing','analytics','ai-insights','ticket-rules','email-processing','system-control','knowledge-base','raw-variables'].forEach(n=>{ const el=document.getElementById('view-'+n); if(el) el.style.display=(n===view)?'block':'none'; }); if(view==='tickets') { loadFilterSettings('tickets'); renderList(); } if(view==='experts') { loadFilterSettings('experts'); renderExperts(); } if(view==='expert-detail') renderExpertDetail(); if(view==='customers') { loadFilterSettings('customers'); renderCustomers(); } if(view==='cmdb') { loadFilterSettings('cmdb'); renderCMDB(); } if(view==='cmdb-detail') renderCMDBDetail(); if(view==='manage-cmdb') loadManageCMDB(); if(view==='cmdb-mgmt') loadCMDBMgmt(); if(view==='raise') loadRaiseFormOptions(); if(view==='ticket-detail') renderTicketDetail(); if(view==='tenants') loadTenants(); if(view==='subscriptions') loadSubscriptions(); if(view==='billing') loadBilling(); if(view==='plans') loadPlans(); if(view==='system') loadSystemOverview(); if(view==='usage') loadUsageDashboard(); if(view==='customer-plans') loadCustomerPlans(); if(view==='customer-billing') loadCustomerBilling(); if(view==='analytics') loadAnalytics(); if(view==='ai-insights') loadAIInsights(); if(view==='ticket-rules') loadTicketRules(); if(view==='email-processing') loadEmailProcessing(); if(view==='system-control') loadSystemControlSettings(); if(view==='knowledge-base') initKnowledgeBase(); if(view==='raw-variables') loadRawVariables(); if(view==='wizard') { initWizardSection(); loadCompanyProfile(); loadEmailIngestSettings(); loadExpertRegSettings(); loadSupportSettings(); loadTeamsIntegrationStatus(); loadSLAData(); } if(view==='profile') loadProfile(); }
+  function switchView(view){ currentView=view; ['dash','profile','tickets','ticket-detail','experts','expert-detail','customers','cmdb-hub','cmdb','cmdb-detail','manage-cmdb','cmdb-mgmt','wizard','raise','tenants','subscriptions','billing','plans','system','usage','customer-plans','customer-billing','analytics','ai-insights','ticket-rules','email-processing','system-control','knowledge-base','raw-variables'].forEach(n=>{ const el=document.getElementById('view-'+n); if(el) el.style.display=(n===view)?'block':'none'; }); if(view==='tickets') { loadFilterSettings('tickets'); renderList(); } if(view==='experts') { loadFilterSettings('experts'); renderExperts(); } if(view==='expert-detail') renderExpertDetail(); if(view==='customers') { loadFilterSettings('customers'); renderCustomers(); } if(view==='cmdb-hub') initCmdbHub(); if(view==='cmdb') { loadFilterSettings('cmdb'); renderCMDB(); } if(view==='cmdb-detail') renderCMDBDetail(); if(view==='manage-cmdb') loadManageCMDB(); if(view==='cmdb-mgmt') loadCMDBMgmt(); if(view==='raise') loadRaiseFormOptions(); if(view==='ticket-detail') renderTicketDetail(); if(view==='tenants') loadTenants(); if(view==='subscriptions') loadSubscriptions(); if(view==='billing') loadBilling(); if(view==='plans') loadPlans(); if(view==='system') loadSystemOverview(); if(view==='usage') loadUsageDashboard(); if(view==='customer-plans') loadCustomerPlans(); if(view==='customer-billing') loadCustomerBilling(); if(view==='analytics') loadAnalytics(); if(view==='ai-insights') loadAIInsights(); if(view==='ticket-rules') loadTicketRules(); if(view==='email-processing') loadEmailProcessing(); if(view==='system-control') loadSystemControlSettings(); if(view==='knowledge-base') initKnowledgeBase(); if(view==='raw-variables') loadRawVariables(); if(view==='wizard') { initWizardSection(); loadCompanyProfile(); loadEmailIngestSettings(); loadExpertRegSettings(); loadSupportSettings(); loadTeamsIntegrationStatus(); loadSLAData(); } if(view==='profile') loadProfile(); }
   function configureRole(){
     const currentRole = window.role || role; // Use global role from login, fallback to local
     document.getElementById('nav-admin').style.display = (currentRole==='admin') ? 'block' : 'none';
@@ -5719,6 +5744,54 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   function initWizardSection() {
     const saved = localStorage.getItem('wizardSection') || 'admin-section-profile';
     showWizardSection(saved);
+  }
+
+  // CMDB Hub Functions
+  let cmdbHubInitialized = false;
+
+  function showCmdbSection(sectionId) {
+    document.querySelectorAll('.cmdb-section').forEach(s => s.style.display = 'none');
+    const section = document.getElementById(sectionId);
+    if (section) section.style.display = 'block';
+    document.querySelectorAll('.cmdb-nav-item').forEach(item => {
+      item.classList.toggle('active', item.dataset.section === sectionId);
+    });
+    try { localStorage.setItem('serviflow.cmdb.section', sectionId); } catch(e) {}
+
+    // Load data for the selected section
+    if (sectionId === 'cmdb-section-items') { loadFilterSettings('cmdb'); renderCMDB(); }
+    if (sectionId === 'cmdb-section-types') loadManageCMDB();
+    if (sectionId === 'cmdb-section-management') loadCMDBMgmt();
+  }
+
+  function initCmdbHub() {
+    // Move content from original views into hub sections (only once)
+    if (!cmdbHubInitialized) {
+      const itemsContent = document.getElementById('view-cmdb');
+      const typesContent = document.getElementById('view-manage-cmdb');
+      const mgmtContent = document.getElementById('view-cmdb-mgmt');
+
+      if (itemsContent) {
+        const itemsSection = document.getElementById('cmdb-section-items');
+        while (itemsContent.firstChild) itemsSection.appendChild(itemsContent.firstChild);
+      }
+      if (typesContent) {
+        const typesSection = document.getElementById('cmdb-section-types');
+        while (typesContent.firstChild) typesSection.appendChild(typesContent.firstChild);
+      }
+      if (mgmtContent) {
+        const mgmtSection = document.getElementById('cmdb-section-management');
+        while (mgmtContent.firstChild) mgmtSection.appendChild(mgmtContent.firstChild);
+      }
+      cmdbHubInitialized = true;
+    }
+
+    // Show saved or default section
+    let saved = null;
+    try { saved = localStorage.getItem('serviflow.cmdb.section'); } catch(e) {}
+    const defaultSection = 'cmdb-section-items';
+    const target = (saved && document.getElementById(saved)) ? saved : defaultSection;
+    showCmdbSection(target);
   }
 
   // Company Profile Functions
