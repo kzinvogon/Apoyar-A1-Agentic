@@ -41,7 +41,7 @@ async function runMigration(tenantCode) {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         UNIQUE KEY unique_name (name),
-        FOREIGN KEY (business_hours_profile_id) REFERENCES business_hours_profiles(id) ON DELETE SET NULL
+        FOREIGN KEY (business_hours_profile_id) REFERENCES business_hours_profiles(id) ON DELETE RESTRICT
       )
     `);
     console.log(`✅ sla_definitions table created for tenant ${tenantCode}`);

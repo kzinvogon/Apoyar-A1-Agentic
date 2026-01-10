@@ -43,6 +43,7 @@ router.get('/:tenantCode/business-hours', verifyToken, requireRole(['admin']), a
     const [profiles] = await pool.query(`
       SELECT id, name, timezone, days_of_week, start_time, end_time, is_24x7, is_active, created_at, updated_at
       FROM business_hours_profiles
+      WHERE is_active = 1
       ORDER BY name
     `);
 
@@ -196,22 +197,22 @@ router.put('/:tenantCode/business-hours/:id', verifyToken, requireRole(['admin']
   }
 });
 
-// DELETE /api/sla/:tenantCode/business-hours/:id - Delete profile
+// DELETE /api/sla/:tenantCode/business-hours/:id - Soft delete profile
 router.delete('/:tenantCode/business-hours/:id', verifyToken, requireRole(['admin']), async (req, res) => {
   try {
     const { tenantCode, id } = req.params;
     const pool = await getTenantConnection(tenantCode);
 
-    // Check if used by any SLA definitions
-    const [usedBy] = await pool.query('SELECT COUNT(*) as count FROM sla_definitions WHERE business_hours_profile_id = ?', [id]);
+    // Check if used by any active SLA definitions
+    const [usedBy] = await pool.query('SELECT COUNT(*) as count FROM sla_definitions WHERE business_hours_profile_id = ? AND is_active = 1', [id]);
     if (usedBy[0].count > 0) {
-      return res.status(400).json({ success: false, error: 'Cannot delete: This profile is used by SLA definitions' });
+      return res.status(400).json({ success: false, error: 'Cannot delete: This profile is used by active SLA definitions' });
     }
 
-    const [result] = await pool.query('DELETE FROM business_hours_profiles WHERE id = ?', [id]);
+    const [result] = await pool.query('UPDATE business_hours_profiles SET is_active = 0 WHERE id = ? AND is_active = 1', [id]);
 
     if (result.affectedRows === 0) {
-      return res.status(404).json({ success: false, error: 'Business hours profile not found' });
+      return res.status(404).json({ success: false, error: 'Business hours profile not found or already deleted' });
     }
 
     res.json({ success: true, message: 'Business hours profile deleted' });
@@ -240,6 +241,7 @@ router.get('/:tenantCode/definitions', verifyToken, requireRole(['admin']), asyn
         b.name as business_hours_name
       FROM sla_definitions s
       LEFT JOIN business_hours_profiles b ON s.business_hours_profile_id = b.id
+      WHERE s.is_active = 1
       ORDER BY s.name
     `);
 
@@ -413,18 +415,16 @@ router.put('/:tenantCode/definitions/:id', verifyToken, requireRole(['admin']), 
   }
 });
 
-// DELETE /api/sla/:tenantCode/definitions/:id - Delete SLA definition
+// DELETE /api/sla/:tenantCode/definitions/:id - Soft delete SLA definition
 router.delete('/:tenantCode/definitions/:id', verifyToken, requireRole(['admin']), async (req, res) => {
   try {
     const { tenantCode, id } = req.params;
     const pool = await getTenantConnection(tenantCode);
 
-    // TODO: Check if used by any tickets/customer_companies before deletion
-
-    const [result] = await pool.query('DELETE FROM sla_definitions WHERE id = ?', [id]);
+    const [result] = await pool.query('UPDATE sla_definitions SET is_active = 0 WHERE id = ? AND is_active = 1', [id]);
 
     if (result.affectedRows === 0) {
-      return res.status(404).json({ success: false, error: 'SLA definition not found' });
+      return res.status(404).json({ success: false, error: 'SLA definition not found or already deleted' });
     }
 
     res.json({ success: true, message: 'SLA definition deleted' });
