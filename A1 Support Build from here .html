@@ -4383,7 +4383,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           </div>
         </div>
         <div style="flex:1">
-          <label class="subtitle">Resolution Target *</label>
+          <label class="subtitle">Resolve (after pickup) target *</label>
           <div class="row" style="gap:8px">
             <input id="sla-resolve-value" class="input" type="number" min="1" value="8" style="width:80px"/>
             <select id="sla-resolve-unit" class="input" style="flex:1">
@@ -4391,6 +4391,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               <option value="hours" selected>Hours</option>
             </select>
           </div>
+          <div style="font-size:11px;color:#666;margin-top:4px">Resolution clock starts when ticket is first responded to.</div>
         </div>
       </div>
       <div id="sla-def-error" class="subtitle" style="color:#b91c1c;display:none;margin-top:8px"></div>
@@ -6882,7 +6883,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
     tbody.innerHTML = slaDefinitions.map(s => {
       const response = formatDuration(s.response_target_minutes);
-      const resolve = formatDuration(s.resolve_target_minutes);
+      const resolve = formatDuration(s.resolve_after_response_minutes || s.resolve_target_minutes);
       return `<tr style="border-bottom:1px solid var(--border)">
         <td style="padding:8px"><strong>${s.name}</strong><br><span style="color:#666;font-size:12px">${s.description || ''}</span></td>
         <td style="padding:8px">${response}</td>
@@ -7128,7 +7129,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           document.getElementById('sla-response-unit').value = 'minutes';
         }
 
-        const resMins = s.resolve_target_minutes;
+        // Use resolve_after_response_minutes if available, fallback to resolve_target_minutes
+        const resMins = s.resolve_after_response_minutes || s.resolve_target_minutes;
         if (resMins >= 60 && resMins % 60 === 0) {
           document.getElementById('sla-resolve-value').value = resMins / 60;
           document.getElementById('sla-resolve-unit').value = 'hours';
@@ -7183,7 +7185,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         document.getElementById('sla-response-value').value = respMins;
         document.getElementById('sla-response-unit').value = 'minutes';
       }
-      const resMins = s.resolve_target_minutes;
+      // Use resolve_after_response_minutes if available, fallback to resolve_target_minutes
+      const resMins = s.resolve_after_response_minutes || s.resolve_target_minutes;
       if (resMins >= 60 && resMins % 60 === 0) {
         document.getElementById('sla-resolve-value').value = resMins / 60;
         document.getElementById('sla-resolve-unit').value = 'hours';
@@ -7221,7 +7224,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
     const resValue = parseInt(document.getElementById('sla-resolve-value').value);
     const resUnit = document.getElementById('sla-resolve-unit').value;
-    const resolve_target_minutes = resUnit === 'hours' ? resValue * 60 : resValue;
+    const resolve_after_response_minutes = resUnit === 'hours' ? resValue * 60 : resValue;
 
     if (!name) {
       document.getElementById('sla-def-error').textContent = 'Name is required';
@@ -7238,7 +7241,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       const res = await fetch(url, {
         method,
         headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, description, business_hours_profile_id, response_target_minutes, resolve_target_minutes })
+        body: JSON.stringify({ name, description, business_hours_profile_id, response_target_minutes, resolve_after_response_minutes })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to save');

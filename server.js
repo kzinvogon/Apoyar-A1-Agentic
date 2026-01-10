@@ -307,6 +307,15 @@ async function startServer() {
           console.warn(`⚠️  Warning: SLA definitions migration:`, migrationError.message);
         }
 
+        // Run resolve_after_response_minutes migration
+        try {
+          const { runMigration: runResolveAfterResponseMigration } = require('./migrations/add-resolve-after-response');
+          await runResolveAfterResponseMigration('apoyar');
+          console.log('✅ Resolve after response migration completed');
+        } catch (migrationError) {
+          console.warn(`⚠️  Warning: Resolve after response migration:`, migrationError.message);
+        }
+
         // Start email processing for apoyar tenant
         try {
           await startEmailProcessing('apoyar');
