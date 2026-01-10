@@ -72,7 +72,7 @@ async function getTenantConnection(tenantCode) {
         password: tenant.database_password || process.env.MYSQLPASSWORD || process.env.MYSQL_PASSWORD,
         database: tenant.database_name,
         waitForConnections: true,
-        connectionLimit: 5,
+        connectionLimit: 20,
         queueLimit: 0
       };
 
