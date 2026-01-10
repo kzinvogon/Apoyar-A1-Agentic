@@ -1,6 +1,6 @@
 /**
  * Notifications API Routes
- * Read-only admin access to SLA notifications
+ * Admin access to SLA notifications
  */
 
 const express = require('express');
@@ -112,6 +112,117 @@ router.get('/:tenantCode', verifyToken, requireRole(['admin']), async (req, res)
 
   } catch (error) {
     console.error('Error fetching notifications:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  } finally {
+    if (connection) connection.release();
+  }
+});
+
+/**
+ * PATCH /api/notifications/:tenantCode/:id/deliver
+ * Mark a single notification as delivered
+ */
+router.patch('/:tenantCode/:id/deliver', verifyToken, requireRole(['admin']), async (req, res) => {
+  const { tenantCode, id } = req.params;
+  const notificationId = parseInt(id, 10);
+
+  if (isNaN(notificationId)) {
+    return res.status(400).json({ success: false, message: 'Invalid notification ID' });
+  }
+
+  let connection;
+  try {
+    connection = await getTenantConnection(tenantCode);
+
+    // Check if notification exists
+    const [existing] = await connection.query(
+      'SELECT id, delivered_at FROM notifications WHERE id = ?',
+      [notificationId]
+    );
+
+    if (existing.length === 0) {
+      return res.status(404).json({ success: false, message: 'Notification not found' });
+    }
+
+    // If already delivered, return idempotent success
+    if (existing[0].delivered_at) {
+      return res.json({
+        success: true,
+        message: 'Already delivered',
+        id: notificationId,
+        delivered_at: existing[0].delivered_at
+      });
+    }
+
+    // Mark as delivered
+    await connection.query(
+      'UPDATE notifications SET delivered_at = NOW() WHERE id = ?',
+      [notificationId]
+    );
+
+    // Get the updated timestamp
+    const [updated] = await connection.query(
+      'SELECT delivered_at FROM notifications WHERE id = ?',
+      [notificationId]
+    );
+
+    res.json({
+      success: true,
+      id: notificationId,
+      delivered_at: updated[0].delivered_at
+    });
+
+  } catch (error) {
+    console.error('Error marking notification delivered:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  } finally {
+    if (connection) connection.release();
+  }
+});
+
+/**
+ * PATCH /api/notifications/:tenantCode/deliver-bulk
+ * Mark multiple notifications as delivered by IDs
+ * Body: { ids: [1, 2, 3] }
+ */
+router.patch('/:tenantCode/deliver-bulk', verifyToken, requireRole(['admin']), async (req, res) => {
+  const { tenantCode } = req.params;
+  const { ids } = req.body;
+
+  // Validate ids array
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({ success: false, message: 'ids must be a non-empty array' });
+  }
+
+  // Parse and validate all IDs
+  const parsedIds = ids.map(id => parseInt(id, 10)).filter(id => !isNaN(id));
+  if (parsedIds.length === 0) {
+    return res.status(400).json({ success: false, message: 'No valid IDs provided' });
+  }
+
+  // Limit bulk operations
+  if (parsedIds.length > 100) {
+    return res.status(400).json({ success: false, message: 'Maximum 100 IDs per bulk operation' });
+  }
+
+  let connection;
+  try {
+    connection = await getTenantConnection(tenantCode);
+
+    // Update all matching notifications that haven't been delivered yet
+    const placeholders = parsedIds.map(() => '?').join(',');
+    const [result] = await connection.query(
+      `UPDATE notifications SET delivered_at = NOW() WHERE id IN (${placeholders}) AND delivered_at IS NULL`,
+      parsedIds
+    );
+
+    res.json({
+      success: true,
+      updated_count: result.affectedRows
+    });
+
+  } catch (error) {
+    console.error('Error bulk marking notifications delivered:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   } finally {
     if (connection) connection.release();
