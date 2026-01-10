@@ -143,7 +143,7 @@ const validateTicketCreate = [
     .isLength({ min: 10, max: 5000 }).withMessage('Description must be between 10 and 5000 characters'),
   body('priority')
     .optional()
-    .isIn(['Low', 'Normal', 'High', 'Critical']).withMessage('Priority must be Low, Normal, High, or Critical'),
+    .isIn(['Low', 'Normal', 'High', 'Critical', 'low', 'normal', 'medium', 'high', 'critical']).withMessage('Priority must be Low, Normal, High, or Critical'),
   body('customer_id')
     .optional()
     .isInt({ min: 1 }).withMessage('Customer ID must be a positive integer'),
@@ -171,7 +171,7 @@ const validateTicketUpdate = [
     .isInt({ min: 1 }).withMessage('Assignee ID must be a positive integer'),
   body('priority')
     .optional()
-    .isIn(['Low', 'Normal', 'High', 'Critical']).withMessage('Priority must be Low, Normal, High, or Critical'),
+    .isIn(['Low', 'Normal', 'High', 'Critical', 'low', 'normal', 'medium', 'high', 'critical']).withMessage('Priority must be Low, Normal, High, or Critical'),
   body('comment')
     .optional()
     .trim()
