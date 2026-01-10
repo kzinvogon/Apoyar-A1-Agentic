@@ -653,7 +653,7 @@ router.get('/:tenantId/export/csv', readOperationsLimiter, validateTicketGet, as
 router.post('/:tenantId', writeOperationsLimiter, validateTicketCreate, async (req, res) => {
   try {
     const { tenantId } = req.params;
-    const { title, description, priority, customer_id, cmdb_item_id, ci_id, due_date } = req.body;
+    const { title, description, priority, customer_id, cmdb_item_id, ci_id, due_date, sla_definition_id } = req.body;
     const tenantCode = tenantId.toLowerCase().replace(/[^a-z0-9]/g, '_');
     const connection = await getTenantConnection(tenantCode);
 
@@ -668,8 +668,22 @@ router.post('/:tenantId', writeOperationsLimiter, validateTicketCreate, async (r
       };
       const mappedPriority = priorityMap[(priority || 'medium').toLowerCase()] || 'medium';
 
-      // Get default SLA and compute deadlines
-      const sla = await getDefaultSLA(connection);
+      // Get SLA - use specified SLA if provided, otherwise get default
+      let sla = null;
+      if (sla_definition_id) {
+        const [slaRows] = await connection.query(
+          `SELECT s.*, b.timezone, b.days_of_week, b.start_time, b.end_time, b.is_24x7
+           FROM sla_definitions s
+           LEFT JOIN business_hours_profiles b ON s.business_hours_profile_id = b.id
+           WHERE s.id = ? AND s.is_active = 1`,
+          [sla_definition_id]
+        );
+        if (slaRows.length > 0) sla = slaRows[0];
+      }
+      if (!sla) {
+        sla = await getDefaultSLA(connection);
+      }
+
       let slaFields = {
         sla_definition_id: null,
         sla_applied_at: null,
