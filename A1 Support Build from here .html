@@ -3797,17 +3797,28 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             </div>
           </div>
 
+          <!-- Bulk action bar -->
+          <div id="notif-bulk-bar" class="card p-12 mb-12" style="display:none;background:var(--bg-alt)">
+            <div class="row" style="gap:12px;align-items:center">
+              <span id="notif-selected-count" style="font-weight:500">0 selected</span>
+              <button class="btn primary" onclick="deliverSelectedNotifications()">Mark Selected Delivered</button>
+              <button class="btn ghost" onclick="clearNotifSelection()">Clear Selection</button>
+            </div>
+          </div>
+
           <div class="card p-0">
             <div id="notif-loading" style="text-align:center;padding:40px;color:var(--muted)">Loading notifications...</div>
             <table id="notif-table" class="table" style="display:none;width:100%">
               <thead>
                 <tr style="border-bottom:1px solid var(--border)">
+                  <th style="padding:8px;width:40px"><input type="checkbox" id="notif-select-all" onchange="toggleNotifSelectAll(this.checked)"></th>
                   <th style="text-align:left;padding:8px">Time</th>
                   <th style="text-align:left;padding:8px">Severity</th>
                   <th style="text-align:left;padding:8px">Type</th>
                   <th style="text-align:left;padding:8px">Message</th>
                   <th style="text-align:left;padding:8px">Ticket</th>
                   <th style="text-align:left;padding:8px">Delivered</th>
+                  <th style="text-align:left;padding:8px">Actions</th>
                 </tr>
               </thead>
               <tbody id="notif-body"></tbody>
@@ -5775,8 +5786,13 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   // =============================================
   let notifCurrentPage = 1;
   const notifPageSize = 50;
+  let notifCache = []; // Cache notifications for in-memory updates
+  let notifSelectedIds = new Set(); // Track selected notification IDs
 
   async function loadNotifications(page = 1) {
+    // Reset selection on page change
+    notifSelectedIds.clear();
+    updateNotifBulkBar();
     notifCurrentPage = page;
     const loading = document.getElementById('notif-loading');
     const table = document.getElementById('notif-table');
@@ -5845,23 +5861,30 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const empty = document.getElementById('notif-empty');
     const paginationEl = document.getElementById('notif-pagination');
 
+    // Cache notifications for in-memory updates
+    notifCache = notifications || [];
+
     if (!notifications || notifications.length === 0) {
       empty.style.display = 'block';
+      document.getElementById('notif-select-all').checked = false;
       return;
     }
 
     body.innerHTML = notifications.map(n => `
-      <tr style="border-bottom:1px solid var(--border)">
+      <tr id="notif-row-${n.id}" style="border-bottom:1px solid var(--border)">
+        <td style="padding:8px"><input type="checkbox" class="notif-checkbox" data-id="${n.id}" onchange="toggleNotifSelection(${n.id}, this.checked)" ${notifSelectedIds.has(n.id) ? 'checked' : ''}></td>
         <td style="padding:8px;font-size:13px;white-space:nowrap">${formatNotifDate(n.created_at)}</td>
         <td style="padding:8px">${getSeverityBadge(n.severity)}</td>
         <td style="padding:8px;font-size:13px">${formatNotifType(n.type)}</td>
         <td style="padding:8px;font-size:13px">${escapeHtml(n.message)}</td>
         <td style="padding:8px"><button class="btn btn-sm ghost" onclick="openNotifTicket(${n.ticket_id})">Open #${n.ticket_id}</button></td>
-        <td style="padding:8px">${n.delivered_at ? '<span class="badge badge-green">Yes</span>' : '<span class="badge badge-gray">No</span>'}</td>
+        <td style="padding:8px">${getDeliveredCell(n)}</td>
+        <td style="padding:8px">${getNotifActionButton(n)}</td>
       </tr>
     `).join('');
 
     table.style.display = 'table';
+    document.getElementById('notif-select-all').checked = false;
 
     // Update pagination
     const totalPages = Math.ceil(total / limit);
@@ -5898,6 +5921,148 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     document.getElementById('notif-filter-delivered').value = '';
     document.getElementById('notif-filter-range').value = '';
     loadNotifications();
+  }
+
+  function getDeliveredCell(n) {
+    if (n.delivered_at) {
+      const d = new Date(n.delivered_at);
+      const tooltip = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      return `<span class="badge badge-green" title="${tooltip}">Delivered</span>`;
+    }
+    return '<span class="badge badge-gray">Pending</span>';
+  }
+
+  function getNotifActionButton(n) {
+    if (n.delivered_at) {
+      return `<button class="btn btn-sm ghost" disabled style="opacity:0.5">Delivered</button>`;
+    }
+    return `<button class="btn btn-sm primary" onclick="deliverNotification(${n.id})">Mark Delivered</button>`;
+  }
+
+  function toggleNotifSelection(id, checked) {
+    if (checked) {
+      notifSelectedIds.add(id);
+    } else {
+      notifSelectedIds.delete(id);
+    }
+    updateNotifBulkBar();
+  }
+
+  function toggleNotifSelectAll(checked) {
+    const checkboxes = document.querySelectorAll('.notif-checkbox');
+    checkboxes.forEach(cb => {
+      const id = parseInt(cb.dataset.id, 10);
+      cb.checked = checked;
+      if (checked) {
+        notifSelectedIds.add(id);
+      } else {
+        notifSelectedIds.delete(id);
+      }
+    });
+    updateNotifBulkBar();
+  }
+
+  function clearNotifSelection() {
+    notifSelectedIds.clear();
+    document.getElementById('notif-select-all').checked = false;
+    document.querySelectorAll('.notif-checkbox').forEach(cb => cb.checked = false);
+    updateNotifBulkBar();
+  }
+
+  function updateNotifBulkBar() {
+    const bar = document.getElementById('notif-bulk-bar');
+    const count = notifSelectedIds.size;
+    document.getElementById('notif-selected-count').textContent = count + ' selected';
+    bar.style.display = count > 0 ? 'block' : 'none';
+  }
+
+  async function deliverNotification(id) {
+    try {
+      const token = localStorage.getItem('token');
+      const tenantCode = window.tenant || 'apoyar';
+
+      const response = await fetch(`${API_BASE}/api/notifications/${tenantCode}/${id}/deliver`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Update in-memory cache
+        const notif = notifCache.find(n => n.id === id);
+        if (notif) {
+          notif.delivered_at = data.delivered_at || new Date().toISOString();
+        }
+        // Re-render with updated cache
+        renderNotifications(notifCache, notifCache.length, notifPageSize, (notifCurrentPage - 1) * notifPageSize);
+        showNotifToast('Marked delivered (1)');
+      } else {
+        alert('Failed to mark delivered: ' + (data.message || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error marking notification delivered:', error);
+      alert('Error marking notification delivered');
+    }
+  }
+
+  async function deliverSelectedNotifications() {
+    const ids = Array.from(notifSelectedIds);
+    if (ids.length === 0) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const tenantCode = window.tenant || 'apoyar';
+
+      const response = await fetch(`${API_BASE}/api/notifications/${tenantCode}/deliver-bulk`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ ids })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        const now = new Date().toISOString();
+        // Update in-memory cache for all selected
+        ids.forEach(id => {
+          const notif = notifCache.find(n => n.id === id);
+          if (notif && !notif.delivered_at) {
+            notif.delivered_at = now;
+          }
+        });
+        // Clear selection and re-render
+        notifSelectedIds.clear();
+        renderNotifications(notifCache, notifCache.length, notifPageSize, (notifCurrentPage - 1) * notifPageSize);
+        updateNotifBulkBar();
+        showNotifToast(`Marked delivered (${data.updated_count})`);
+      } else {
+        alert('Failed to mark delivered: ' + (data.message || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error marking notifications delivered:', error);
+      alert('Error marking notifications delivered');
+    }
+  }
+
+  function showNotifToast(message) {
+    // Create toast element
+    let toast = document.getElementById('notif-toast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'notif-toast';
+      toast.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#10b981;color:white;padding:12px 20px;border-radius:8px;font-weight:500;z-index:9999;opacity:0;transition:opacity 0.3s';
+      document.body.appendChild(toast);
+    }
+    toast.textContent = message;
+    toast.style.opacity = '1';
+    setTimeout(() => { toast.style.opacity = '0'; }, 3000);
   }
 
   function openNotifTicket(ticketId) {
