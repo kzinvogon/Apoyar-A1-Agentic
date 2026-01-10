@@ -47,6 +47,7 @@ const aiSuggestionsRoutes = require('./routes/ai-suggestions');
 const knowledgeBaseRoutes = require('./routes/knowledge-base');
 const rawVariablesRoutes = require('./routes/raw-variables');
 const integrationsTeamsRoutes = require('./routes/integrations-teams');
+const slaRoutes = require('./routes/sla');
 
 // Import email processor service
 const { startEmailProcessing } = require('./services/email-processor');
@@ -88,6 +89,7 @@ app.use('/api/ai', aiSuggestionsRoutes);
 app.use('/api/kb', knowledgeBaseRoutes);
 app.use('/api/raw-variables', rawVariablesRoutes);
 app.use('/api/integrations', integrationsTeamsRoutes);
+app.use('/api/sla', slaRoutes);
 
 // Public routes (no authentication required) - Must be before authenticated routes
 app.use('/ticket', publicTicketRoutes);
@@ -292,6 +294,15 @@ async function startServer() {
           console.log('✅ Teams user preferences migration completed');
         } catch (migrationError) {
           console.warn(`⚠️  Warning: Teams user preferences migration:`, migrationError.message);
+        }
+
+        // Run SLA definitions migration
+        try {
+          const { runMigration: runSLAMigration } = require('./migrations/add-sla-definitions');
+          await runSLAMigration('apoyar');
+          console.log('✅ SLA definitions migration completed');
+        } catch (migrationError) {
+          console.warn(`⚠️  Warning: SLA definitions migration:`, migrationError.message);
         }
 
         // Start email processing for apoyar tenant
