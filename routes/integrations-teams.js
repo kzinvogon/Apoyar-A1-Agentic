@@ -201,52 +201,58 @@ router.get('/teams/callback', async (req, res) => {
     }
 
     // Create or update the mapping
-    const masterConn = await getMasterConnection();
+    let masterConn;
+    try {
+      masterConn = await getMasterConnection();
 
-    // Check if mapping already exists
-    const [existing] = await masterConn.query(
-      'SELECT id FROM teams_tenant_mappings WHERE teams_tenant_id = ?',
-      [teamsTenantId]
-    );
-
-    if (existing.length > 0) {
-      // Update existing mapping
-      await masterConn.query(
-        `UPDATE teams_tenant_mappings
-         SET tenant_code = ?, teams_tenant_name = ?, is_active = TRUE, updated_at = NOW()
-         WHERE teams_tenant_id = ?`,
-        [tenantCode, teamsTenantName, teamsTenantId]
+      // Check if mapping already exists
+      const [existing] = await masterConn.query(
+        'SELECT id FROM teams_tenant_mappings WHERE teams_tenant_id = ?',
+        [teamsTenantId]
       );
-    } else {
-      // Insert new mapping
-      await masterConn.query(
-        `INSERT INTO teams_tenant_mappings (teams_tenant_id, teams_tenant_name, tenant_code)
-         VALUES (?, ?, ?)`,
-        [teamsTenantId, teamsTenantName, tenantCode]
-      );
-    }
 
-    // Also add email domain mapping if we have the email
-    if (userEmail) {
-      const emailDomain = userEmail.split('@')[1]?.toLowerCase();
-      if (emailDomain) {
-        try {
-          await masterConn.query(
-            `INSERT INTO teams_email_domain_mappings (email_domain, tenant_code)
-             VALUES (?, ?)
-             ON DUPLICATE KEY UPDATE tenant_code = ?, is_active = TRUE`,
-            [emailDomain, tenantCode, tenantCode]
-          );
-        } catch (e) {
-          // Domain might already be mapped to different tenant
-          console.log('[Teams Integration] Email domain mapping skipped:', e.message);
+      if (existing.length > 0) {
+        // Update existing mapping
+        await masterConn.query(
+          `UPDATE teams_tenant_mappings
+           SET tenant_code = ?, teams_tenant_name = ?, is_active = TRUE, updated_at = NOW()
+           WHERE teams_tenant_id = ?`,
+          [tenantCode, teamsTenantName, teamsTenantId]
+        );
+      } else {
+        // Insert new mapping
+        await masterConn.query(
+          `INSERT INTO teams_tenant_mappings (teams_tenant_id, teams_tenant_name, tenant_code)
+           VALUES (?, ?, ?)`,
+          [teamsTenantId, teamsTenantName, tenantCode]
+        );
+      }
+
+      // Also add email domain mapping if we have the email
+      if (userEmail) {
+        const emailDomain = userEmail.split('@')[1]?.toLowerCase();
+        if (emailDomain) {
+          try {
+            await masterConn.query(
+              `INSERT INTO teams_email_domain_mappings (email_domain, tenant_code)
+               VALUES (?, ?)
+               ON DUPLICATE KEY UPDATE tenant_code = ?, is_active = TRUE`,
+              [emailDomain, tenantCode, tenantCode]
+            );
+          } catch (e) {
+            // Domain might already be mapped to different tenant
+            console.log('[Teams Integration] Email domain mapping skipped:', e.message);
+          }
         }
       }
+    } finally {
+      if (masterConn) masterConn.release();
     }
 
     // Log the connection in tenant database
+    let tenantConn;
     try {
-      const tenantConn = await getTenantConnection(tenantCode);
+      tenantConn = await getTenantConnection(tenantCode);
       await tenantConn.query(
         `INSERT INTO audit_log (user_id, action, entity_type, entity_id, details, created_at)
          VALUES (?, 'teams_connected', 'integration', 0, ?, NOW())`,
@@ -258,6 +264,8 @@ router.get('/teams/callback', async (req, res) => {
       );
     } catch (e) {
       // Audit log is optional
+    } finally {
+      if (tenantConn) tenantConn.release();
     }
 
     console.log(`[Teams Integration] Connected: ${tenantCode} -> ${teamsTenantId} (${teamsTenantName})`);
@@ -277,9 +285,10 @@ router.get('/teams/callback', async (req, res) => {
  */
 router.delete('/:tenantCode/teams/disconnect', async (req, res) => {
   const { tenantCode } = req.params;
+  let masterConn;
 
   try {
-    const masterConn = await getMasterConnection();
+    masterConn = await getMasterConnection();
 
     // Soft delete the mapping
     await masterConn.query(
@@ -297,6 +306,8 @@ router.delete('/:tenantCode/teams/disconnect', async (req, res) => {
   } catch (error) {
     console.error('[Teams Integration] Disconnect error:', error);
     res.status(500).json({ error: 'Failed to disconnect Teams integration' });
+  } finally {
+    if (masterConn) masterConn.release();
   }
 });
 
@@ -313,9 +324,10 @@ router.post('/:tenantCode/teams/email-domain', async (req, res) => {
   }
 
   const domain = email_domain.toLowerCase().replace('@', '');
+  let masterConn;
 
   try {
-    const masterConn = await getMasterConnection();
+    masterConn = await getMasterConnection();
 
     await masterConn.query(
       `INSERT INTO teams_email_domain_mappings (email_domain, tenant_code)
@@ -328,6 +340,8 @@ router.post('/:tenantCode/teams/email-domain', async (req, res) => {
   } catch (error) {
     console.error('[Teams Integration] Add domain error:', error);
     res.status(500).json({ error: 'Failed to add email domain' });
+  } finally {
+    if (masterConn) masterConn.release();
   }
 });
 
@@ -337,9 +351,10 @@ router.post('/:tenantCode/teams/email-domain', async (req, res) => {
  */
 router.delete('/:tenantCode/teams/email-domain/:domain', async (req, res) => {
   const { tenantCode, domain } = req.params;
+  let masterConn;
 
   try {
-    const masterConn = await getMasterConnection();
+    masterConn = await getMasterConnection();
 
     await masterConn.query(
       'DELETE FROM teams_email_domain_mappings WHERE tenant_code = ? AND email_domain = ?',
@@ -350,6 +365,8 @@ router.delete('/:tenantCode/teams/email-domain/:domain', async (req, res) => {
   } catch (error) {
     console.error('[Teams Integration] Remove domain error:', error);
     res.status(500).json({ error: 'Failed to remove email domain' });
+  } finally {
+    if (masterConn) masterConn.release();
   }
 });
 
@@ -359,10 +376,11 @@ router.delete('/:tenantCode/teams/email-domain/:domain', async (req, res) => {
  */
 router.get('/:tenantCode/teams/manifest', async (req, res) => {
   const { tenantCode } = req.params;
+  let masterConn;
 
   // Check if tenant is connected
   try {
-    const masterConn = await getMasterConnection();
+    masterConn = await getMasterConnection();
     const [mappings] = await masterConn.query(
       'SELECT * FROM teams_tenant_mappings WHERE tenant_code = ? AND is_active = TRUE',
       [tenantCode]
@@ -391,6 +409,8 @@ router.get('/:tenantCode/teams/manifest', async (req, res) => {
   } catch (error) {
     console.error('[Teams Integration] Manifest error:', error);
     res.status(500).json({ error: 'Failed to get manifest info' });
+  } finally {
+    if (masterConn) masterConn.release();
   }
 });
 
