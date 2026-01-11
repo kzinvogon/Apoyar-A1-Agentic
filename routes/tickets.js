@@ -672,11 +672,12 @@ router.post('/:tenantId', writeOperationsLimiter, validateTicketCreate, async (r
       const mappedPriority = priorityMap[(priority || 'medium').toLowerCase()] || 'medium';
 
       // Resolve applicable SLA using priority-based selector
+      // Priority: ticket override → customer → cmdb → default
       const { slaId, source: slaSource } = await resolveApplicableSLA({
         tenantCode,
         ticketPayload: {
           sla_definition_id,
-          customer_id,
+          requester_id: customer_id,  // customer_id from request = requester_id in DB
           cmdb_item_id: cmdb_item_id || ci_id
         }
       });
