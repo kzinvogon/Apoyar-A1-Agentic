@@ -809,11 +809,36 @@ Provide JSON suggestions for efficient ticket handling.`
         });
       });
 
-      // Trend 3: SLA breach risk (two-phase: response and resolve)
-      // Check response SLA risk (tickets awaiting first response)
+      // Trend 3: SLA status (two-phase: response and resolve)
+      // 3a. Already breached response SLA (past deadline, no response yet)
+      const [responseBreached] = await connection.query(`
+        SELECT
+          COUNT(*) as count,
+          GROUP_CONCAT(id) as ticket_ids
+        FROM tickets
+        WHERE status NOT IN ('resolved', 'closed')
+        AND sla_definition_id IS NOT NULL
+        AND first_responded_at IS NULL
+        AND response_due_at IS NOT NULL
+        AND response_due_at < NOW()
+      `);
+
+      if (responseBreached[0].count > 0) {
+        const ticketIds = responseBreached[0].ticket_ids ? responseBreached[0].ticket_ids.split(',').map(id => parseInt(id)).filter(id => !isNaN(id) && id !== null) : [];
+        insights.push({
+          type: 'alert',
+          title: 'Response SLA Breached',
+          description: `${responseBreached[0].count} ticket(s) have missed their response SLA deadline and still need first response.`,
+          severity: 'critical',
+          affected_tickets: ticketIds,
+          metrics: { count: responseBreached[0].count, phase: 'response', state: 'breached' }
+        });
+      }
+
+      // 3b. Response SLA at risk (within 2 hours of deadline)
       const [responseRisk] = await connection.query(`
         SELECT
-          COUNT(*) as at_risk_count,
+          COUNT(*) as count,
           GROUP_CONCAT(id) as ticket_ids
         FROM tickets
         WHERE status NOT IN ('resolved', 'closed')
@@ -823,22 +848,47 @@ Provide JSON suggestions for efficient ticket handling.`
         AND response_due_at BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 2 HOUR)
       `);
 
-      if (responseRisk[0].at_risk_count > 0) {
+      if (responseRisk[0].count > 0) {
         const ticketIds = responseRisk[0].ticket_ids ? responseRisk[0].ticket_ids.split(',').map(id => parseInt(id)).filter(id => !isNaN(id) && id !== null) : [];
         insights.push({
           type: 'alert',
-          title: 'Response SLA Breach Risk',
-          description: `${responseRisk[0].at_risk_count} ticket(s) need first response within 2 hours to avoid SLA breach.`,
-          severity: 'critical',
+          title: 'Response SLA At Risk',
+          description: `${responseRisk[0].count} ticket(s) need first response within 2 hours to avoid SLA breach.`,
+          severity: 'warning',
           affected_tickets: ticketIds,
-          metrics: { at_risk_count: responseRisk[0].at_risk_count, phase: 'response' }
+          metrics: { count: responseRisk[0].count, phase: 'response', state: 'at_risk' }
         });
       }
 
-      // Check resolution SLA risk (tickets in progress)
+      // 3c. Already breached resolution SLA (past deadline, not resolved)
+      const [resolveBreached] = await connection.query(`
+        SELECT
+          COUNT(*) as count,
+          GROUP_CONCAT(id) as ticket_ids
+        FROM tickets
+        WHERE status NOT IN ('resolved', 'closed')
+        AND sla_definition_id IS NOT NULL
+        AND first_responded_at IS NOT NULL
+        AND resolve_due_at IS NOT NULL
+        AND resolve_due_at < NOW()
+      `);
+
+      if (resolveBreached[0].count > 0) {
+        const ticketIds = resolveBreached[0].ticket_ids ? resolveBreached[0].ticket_ids.split(',').map(id => parseInt(id)).filter(id => !isNaN(id) && id !== null) : [];
+        insights.push({
+          type: 'alert',
+          title: 'Resolution SLA Breached',
+          description: `${resolveBreached[0].count} ticket(s) have missed their resolution SLA deadline and still need to be resolved.`,
+          severity: 'critical',
+          affected_tickets: ticketIds,
+          metrics: { count: resolveBreached[0].count, phase: 'resolve', state: 'breached' }
+        });
+      }
+
+      // 3d. Resolution SLA at risk (within 2 hours of deadline)
       const [resolveRisk] = await connection.query(`
         SELECT
-          COUNT(*) as at_risk_count,
+          COUNT(*) as count,
           GROUP_CONCAT(id) as ticket_ids
         FROM tickets
         WHERE status NOT IN ('resolved', 'closed')
@@ -848,15 +898,15 @@ Provide JSON suggestions for efficient ticket handling.`
         AND resolve_due_at BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 2 HOUR)
       `);
 
-      if (resolveRisk[0].at_risk_count > 0) {
+      if (resolveRisk[0].count > 0) {
         const ticketIds = resolveRisk[0].ticket_ids ? resolveRisk[0].ticket_ids.split(',').map(id => parseInt(id)).filter(id => !isNaN(id) && id !== null) : [];
         insights.push({
           type: 'alert',
-          title: 'Resolution SLA Breach Risk',
-          description: `${resolveRisk[0].at_risk_count} ticket(s) need resolution within 2 hours to avoid SLA breach.`,
-          severity: 'critical',
+          title: 'Resolution SLA At Risk',
+          description: `${resolveRisk[0].count} ticket(s) need resolution within 2 hours to avoid SLA breach.`,
+          severity: 'warning',
           affected_tickets: ticketIds,
-          metrics: { at_risk_count: resolveRisk[0].at_risk_count, phase: 'resolve' }
+          metrics: { count: resolveRisk[0].count, phase: 'resolve', state: 'at_risk' }
         });
       }
 

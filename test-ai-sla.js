@@ -215,11 +215,20 @@ function testDetectTrendsUsesNewSLAColumns() {
     aiServiceCode.includes('first_responded_at IS NOT NULL');
   assert(checksFirstResponded, 'Checks first_responded_at for SLA phase detection');
 
-  // Verify separate alerts for response and resolve phases
-  const hasResponseAlert = aiServiceCode.includes('Response SLA Breach Risk');
-  const hasResolveAlert = aiServiceCode.includes('Resolution SLA Breach Risk');
-  assert(hasResponseAlert, 'Has separate Response SLA Breach Risk alert');
-  assert(hasResolveAlert, 'Has separate Resolution SLA Breach Risk alert');
+  // Verify separate alerts for breached and at-risk states
+  const hasResponseBreached = aiServiceCode.includes('Response SLA Breached');
+  const hasResponseAtRisk = aiServiceCode.includes('Response SLA At Risk');
+  const hasResolveBreached = aiServiceCode.includes('Resolution SLA Breached');
+  const hasResolveAtRisk = aiServiceCode.includes('Resolution SLA At Risk');
+  assert(hasResponseBreached, 'Has Response SLA Breached alert (already past deadline)');
+  assert(hasResponseAtRisk, 'Has Response SLA At Risk alert (within 2 hours)');
+  assert(hasResolveBreached, 'Has Resolution SLA Breached alert (already past deadline)');
+  assert(hasResolveAtRisk, 'Has Resolution SLA At Risk alert (within 2 hours)');
+
+  // Verify breached queries check for past deadline (< NOW())
+  const checksBreachedPast = aiServiceCode.includes('response_due_at < NOW()') &&
+    aiServiceCode.includes('resolve_due_at < NOW()');
+  assert(checksBreachedPast, 'Breached queries check for past deadline (< NOW())');
 
   console.log('\n  Test 3 PASSED\n');
 }
