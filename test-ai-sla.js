@@ -196,6 +196,10 @@ function testDetectTrendsUsesNewSLAColumns() {
     aiServiceCode.includes('sla_deadline BETWEEN');
   assert(!usesOldColumn, 'Does NOT use old sla_deadline column');
 
+  // Verify it requires sla_definition_id to be set (only report tickets with SLA)
+  const requiresSlaDefinition = aiServiceCode.includes('sla_definition_id IS NOT NULL');
+  assert(requiresSlaDefinition, 'Requires sla_definition_id IS NOT NULL (only tickets with SLA)');
+
   // Verify it uses new response_due_at column
   const usesResponseDue = aiServiceCode.includes('response_due_at IS NOT NULL') ||
     aiServiceCode.includes('response_due_at BETWEEN');
