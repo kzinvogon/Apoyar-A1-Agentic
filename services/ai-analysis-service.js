@@ -1,4 +1,5 @@
 const { getTenantConnection } = require('../config/database');
+const { buildSLAFacts } = require('./sla-calculator');
 
 /**
  * AI Email Analysis Service
@@ -193,17 +194,24 @@ Respond with valid JSON only, no markdown formatting.`
   async getTicketSuggestions(ticketId) {
     const connection = await getTenantConnection(this.tenantCode);
     try {
-      // Get ticket details
+      // Get ticket details with SLA definition
       const [tickets] = await connection.query(`
         SELECT t.*,
                u.full_name as requester_name,
                u.email as requester_email,
                c.company_name,
-               a.full_name as assignee_name
+               a.full_name as assignee_name,
+               s.name as sla_name,
+               s.response_target_minutes, s.resolve_after_response_minutes,
+               s.resolve_target_minutes, s.near_breach_percent,
+               s.business_hours_profile_id,
+               b.timezone, b.days_of_week, b.start_time, b.end_time, b.is_24x7
         FROM tickets t
         LEFT JOIN users u ON t.requester_id = u.id
         LEFT JOIN customers c ON u.id = c.user_id
         LEFT JOIN users a ON t.assignee_id = a.id
+        LEFT JOIN sla_definitions s ON t.sla_definition_id = s.id
+        LEFT JOIN business_hours_profiles b ON s.business_hours_profile_id = b.id
         WHERE t.id = ?
       `, [ticketId]);
 
@@ -212,6 +220,9 @@ Respond with valid JSON only, no markdown formatting.`
       }
 
       const ticket = tickets[0];
+
+      // Build SLA facts for AI context
+      const slaFacts = buildSLAFacts(ticket, ticket.sla_definition_id ? ticket : null);
 
       // Get ticket activity/comments
       const [activities] = await connection.query(`
@@ -252,6 +263,7 @@ Respond with valid JSON only, no markdown formatting.`
         currentStatus: ticket.status,
         currentPriority: ticket.priority,
         currentAssignee: ticket.assignee_name,
+        slaFacts: slaFacts,
         activityHistory: activities.map(a => ({
           type: a.activity_type,
           description: a.description,
@@ -310,7 +322,35 @@ Respond with valid JSON only, no markdown formatting.`
       `[${a.type}] ${a.user}: ${a.description?.substring(0, 100) || 'N/A'}`
     ).join('\n') || 'No activity yet';
 
+    // Format SLA facts for prompt
+    const slaFacts = emailData.slaFacts;
+    const slaContext = slaFacts ? `
+SLA Status:
+- SLA: ${slaFacts.sla_name || 'None'} (source: ${slaFacts.sla_source})
+- Phase: ${slaFacts.phase}
+- Timezone: ${slaFacts.timezone}
+- Outside business hours: ${slaFacts.outside_business_hours ? 'Yes' : 'No'}
+- Response: ${slaFacts.response.state} (${slaFacts.response.percent_used}% used${slaFacts.response.remaining_minutes !== null ? ', ' + slaFacts.response.remaining_minutes + ' mins remaining' : ''})
+- Resolve: ${slaFacts.resolve.state} (${slaFacts.resolve.percent_used}% used${slaFacts.resolve.remaining_minutes !== null ? ', ' + slaFacts.resolve.remaining_minutes + ' mins remaining' : ''})
+` : 'SLA Status: No SLA assigned';
+
     const systemPrompt = `You are an expert IT support assistant helping agents triage and resolve tickets efficiently.
+
+## SLA Rules (MUST follow these strictly):
+1. NEVER recommend changing the SLA. SLA is auto-computed by the system and locked.
+2. When reporting SLA status, use ONLY the sla_facts provided. Never infer or guess.
+3. For time remaining, report in business hours (e.g., "2 hours of business time remaining").
+4. If outside_business_hours is true, note that "SLA timers are paused until business hours resume."
+5. SLA phase meanings:
+   - "awaiting_response": Ticket needs first response
+   - "in_progress": Responded, working toward resolution
+   - "resolved": Ticket is resolved
+6. SLA states:
+   - "on_track": Within SLA targets
+   - "near_breach": Approaching deadline (urgent attention needed)
+   - "breached": Deadline exceeded (escalation may be needed)
+   - "met": Target was met successfully
+   - "pending": Not yet applicable (e.g., resolve clock before response)
 
 Provide actionable suggestions in valid JSON format:
 {
@@ -318,7 +358,8 @@ Provide actionable suggestions in valid JSON format:
     "summary": "Brief 1-2 sentence summary of the issue",
     "urgency": "critical|high|medium|low",
     "complexity": "simple|moderate|complex",
-    "estimatedTime": "Time estimate to resolve"
+    "estimatedTime": "Time estimate to resolve",
+    "slaStatus": "Brief SLA status from sla_facts"
   },
   "suggestedActions": [
     {
@@ -339,12 +380,13 @@ Provide actionable suggestions in valid JSON format:
   "draftResponse": "Suggested response to send to customer",
   "nextSteps": ["Recommended step 1", "Recommended step 2"],
   "knowledgeHints": ["Relevant KB article suggestion 1"],
-  "warnings": ["Any concerns or things to watch out for"]
+  "warnings": ["Any concerns or things to watch out for, including SLA warnings"]
 }
 
 Provide 3-5 actionable suggestions ordered by confidence/relevance.
 For assign actions, include assignee_id from the expert list.
-For respond actions, include a professional draft response.`;
+For respond actions, include a professional draft response.
+If SLA is near_breach or breached, include a warning and prioritize actions that help meet SLA.`;
 
     const response = await anthropic.messages.create({
       model: this.model || 'claude-3-haiku-20240307',
@@ -359,7 +401,7 @@ Status: ${emailData.currentStatus}
 Priority: ${emailData.currentPriority}
 Assignee: ${emailData.currentAssignee || 'Unassigned'}
 Customer: ${emailData.customerName} (${emailData.companyName})
-
+${slaContext}
 Description:
 ${emailData.body}
 
@@ -390,6 +432,30 @@ Provide JSON suggestions for efficient ticket handling.`
     const text = `${emailData.subject} ${emailData.body}`.toLowerCase();
 
     const suggestions = [];
+    const warnings = [];
+
+    // Check SLA status and add warnings
+    const slaFacts = emailData.slaFacts;
+    let slaStatus = 'No SLA';
+    if (slaFacts) {
+      if (slaFacts.response.state === 'breached') {
+        warnings.push('Response SLA BREACHED - immediate escalation recommended');
+        slaStatus = 'Response SLA breached';
+      } else if (slaFacts.response.state === 'near_breach') {
+        warnings.push(`Response SLA at risk - ${slaFacts.response.remaining_minutes} business minutes remaining`);
+        slaStatus = 'Response SLA at risk';
+      } else if (slaFacts.resolve.state === 'breached') {
+        warnings.push('Resolution SLA BREACHED - escalation needed');
+        slaStatus = 'Resolution SLA breached';
+      } else if (slaFacts.resolve.state === 'near_breach') {
+        warnings.push(`Resolution SLA at risk - ${slaFacts.resolve.remaining_minutes} business minutes remaining`);
+        slaStatus = 'Resolution SLA at risk';
+      } else if (slaFacts.outside_business_hours) {
+        slaStatus = `${slaFacts.sla_name} - SLA timers paused (outside business hours)`;
+      } else {
+        slaStatus = `${slaFacts.sla_name} - ${slaFacts.response.state}`;
+      }
+    }
 
     // Suggest priority based on keywords
     if (/(critical|emergency|down|outage|urgent)/i.test(text)) {
@@ -452,7 +518,8 @@ Provide JSON suggestions for efficient ticket handling.`
         summary: `Ticket about ${suggestedCategory.toLowerCase()} issue`,
         urgency: /(critical|emergency|down)/i.test(text) ? 'high' : 'medium',
         complexity: 'moderate',
-        estimatedTime: '1-2 hours'
+        estimatedTime: '1-2 hours',
+        slaStatus: slaStatus
       },
       suggestedActions: suggestions,
       draftResponse: `Thank you for reaching out. We understand you're experiencing an issue with ${suggestedCategory.toLowerCase()}. Our team is reviewing your request and will respond shortly.`,
@@ -462,7 +529,7 @@ Provide JSON suggestions for efficient ticket handling.`
         'Send acknowledgment to customer'
       ],
       knowledgeHints: [],
-      warnings: []
+      warnings: warnings
     };
   }
 
@@ -742,26 +809,52 @@ Provide JSON suggestions for efficient ticket handling.`
         });
       });
 
-      // Trend 3: SLA breach risk
-      const [slaRisk] = await connection.query(`
+      // Trend 3: SLA breach risk (two-phase: response and resolve)
+      // Check response SLA risk (tickets awaiting first response)
+      const [responseRisk] = await connection.query(`
         SELECT
           COUNT(*) as at_risk_count,
           GROUP_CONCAT(id) as ticket_ids
         FROM tickets
         WHERE status NOT IN ('resolved', 'closed')
-        AND sla_deadline IS NOT NULL
-        AND sla_deadline BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 2 HOUR)
+        AND first_responded_at IS NULL
+        AND response_due_at IS NOT NULL
+        AND response_due_at BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 2 HOUR)
       `);
 
-      if (slaRisk[0].at_risk_count > 0) {
-        const ticketIds = slaRisk[0].ticket_ids ? slaRisk[0].ticket_ids.split(',').map(id => parseInt(id)).filter(id => !isNaN(id) && id !== null) : [];
+      if (responseRisk[0].at_risk_count > 0) {
+        const ticketIds = responseRisk[0].ticket_ids ? responseRisk[0].ticket_ids.split(',').map(id => parseInt(id)).filter(id => !isNaN(id) && id !== null) : [];
         insights.push({
           type: 'alert',
-          title: 'SLA Breach Risk',
-          description: `${slaRisk[0].at_risk_count} ticket(s) will breach SLA within 2 hours if not resolved.`,
+          title: 'Response SLA Breach Risk',
+          description: `${responseRisk[0].at_risk_count} ticket(s) need first response within 2 hours to avoid SLA breach.`,
           severity: 'critical',
           affected_tickets: ticketIds,
-          metrics: { at_risk_count: slaRisk[0].at_risk_count }
+          metrics: { at_risk_count: responseRisk[0].at_risk_count, phase: 'response' }
+        });
+      }
+
+      // Check resolution SLA risk (tickets in progress)
+      const [resolveRisk] = await connection.query(`
+        SELECT
+          COUNT(*) as at_risk_count,
+          GROUP_CONCAT(id) as ticket_ids
+        FROM tickets
+        WHERE status NOT IN ('resolved', 'closed')
+        AND first_responded_at IS NOT NULL
+        AND resolve_due_at IS NOT NULL
+        AND resolve_due_at BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 2 HOUR)
+      `);
+
+      if (resolveRisk[0].at_risk_count > 0) {
+        const ticketIds = resolveRisk[0].ticket_ids ? resolveRisk[0].ticket_ids.split(',').map(id => parseInt(id)).filter(id => !isNaN(id) && id !== null) : [];
+        insights.push({
+          type: 'alert',
+          title: 'Resolution SLA Breach Risk',
+          description: `${resolveRisk[0].at_risk_count} ticket(s) need resolution within 2 hours to avoid SLA breach.`,
+          severity: 'critical',
+          affected_tickets: ticketIds,
+          metrics: { at_risk_count: resolveRisk[0].at_risk_count, phase: 'resolve' }
         });
       }
 
