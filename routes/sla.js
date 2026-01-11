@@ -475,4 +475,183 @@ router.delete('/:tenantCode/definitions/:id', verifyToken, requireRole(['admin']
   }
 });
 
+// ============================================
+// CATEGORY SLA MAPPINGS
+// ============================================
+
+// GET /api/sla/:tenantCode/category-mappings - List all category mappings
+router.get('/:tenantCode/category-mappings', verifyToken, requireRole(['admin']), async (req, res) => {
+  let connection;
+  try {
+    const { tenantCode } = req.params;
+    connection = await getTenantConnection(tenantCode);
+
+    const [mappings] = await connection.query(`
+      SELECT m.id, m.category, m.sla_definition_id, m.is_active, m.created_at, m.updated_at,
+             s.name as sla_name
+      FROM category_sla_mappings m
+      LEFT JOIN sla_definitions s ON m.sla_definition_id = s.id
+      ORDER BY m.category
+    `);
+
+    res.json({ success: true, mappings });
+  } catch (error) {
+    console.error('Error fetching category mappings:', error);
+    res.status(500).json({ success: false, error: error.message });
+  } finally {
+    if (connection) connection.release();
+  }
+});
+
+// GET /api/sla/:tenantCode/category-mappings/:id - Get single mapping
+router.get('/:tenantCode/category-mappings/:id', verifyToken, requireRole(['admin']), async (req, res) => {
+  let connection;
+  try {
+    const { tenantCode, id } = req.params;
+    connection = await getTenantConnection(tenantCode);
+
+    const [mappings] = await connection.query(`
+      SELECT m.id, m.category, m.sla_definition_id, m.is_active, m.created_at, m.updated_at,
+             s.name as sla_name
+      FROM category_sla_mappings m
+      LEFT JOIN sla_definitions s ON m.sla_definition_id = s.id
+      WHERE m.id = ?
+    `, [id]);
+
+    if (mappings.length === 0) {
+      return res.status(404).json({ success: false, error: 'Category mapping not found' });
+    }
+
+    res.json({ success: true, mapping: mappings[0] });
+  } catch (error) {
+    console.error('Error fetching category mapping:', error);
+    res.status(500).json({ success: false, error: error.message });
+  } finally {
+    if (connection) connection.release();
+  }
+});
+
+// POST /api/sla/:tenantCode/category-mappings - Create category mapping
+router.post('/:tenantCode/category-mappings', verifyToken, requireRole(['admin']), async (req, res) => {
+  let connection;
+  try {
+    const { tenantCode } = req.params;
+    const { category, sla_definition_id } = req.body;
+
+    // Validation
+    if (!category || category.trim().length === 0) {
+      return res.status(400).json({ success: false, error: 'Category is required' });
+    }
+    if (category.trim().length > 50) {
+      return res.status(400).json({ success: false, error: 'Category must be 50 characters or less' });
+    }
+    if (!sla_definition_id) {
+      return res.status(400).json({ success: false, error: 'SLA definition is required' });
+    }
+
+    connection = await getTenantConnection(tenantCode);
+
+    // Verify SLA definition exists
+    const [slas] = await connection.query('SELECT id FROM sla_definitions WHERE id = ? AND is_active = 1', [sla_definition_id]);
+    if (slas.length === 0) {
+      return res.status(400).json({ success: false, error: 'SLA definition not found or inactive' });
+    }
+
+    const [result] = await connection.query(`
+      INSERT INTO category_sla_mappings (category, sla_definition_id)
+      VALUES (?, ?)
+    `, [category.trim(), sla_definition_id]);
+
+    res.json({ success: true, id: result.insertId, message: 'Category mapping created' });
+  } catch (error) {
+    if (error.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ success: false, error: 'A mapping for this category already exists' });
+    }
+    console.error('Error creating category mapping:', error);
+    res.status(500).json({ success: false, error: error.message });
+  } finally {
+    if (connection) connection.release();
+  }
+});
+
+// PUT /api/sla/:tenantCode/category-mappings/:id - Update category mapping
+router.put('/:tenantCode/category-mappings/:id', verifyToken, requireRole(['admin']), async (req, res) => {
+  let connection;
+  try {
+    const { tenantCode, id } = req.params;
+    const { category, sla_definition_id, is_active } = req.body;
+
+    connection = await getTenantConnection(tenantCode);
+
+    // Check exists
+    const [existing] = await connection.query('SELECT id FROM category_sla_mappings WHERE id = ?', [id]);
+    if (existing.length === 0) {
+      return res.status(404).json({ success: false, error: 'Category mapping not found' });
+    }
+
+    // Validation
+    if (category !== undefined && category.trim().length === 0) {
+      return res.status(400).json({ success: false, error: 'Category cannot be empty' });
+    }
+    if (category !== undefined && category.trim().length > 50) {
+      return res.status(400).json({ success: false, error: 'Category must be 50 characters or less' });
+    }
+
+    // Verify SLA definition if changing
+    if (sla_definition_id !== undefined) {
+      const [slas] = await connection.query('SELECT id FROM sla_definitions WHERE id = ? AND is_active = 1', [sla_definition_id]);
+      if (slas.length === 0) {
+        return res.status(400).json({ success: false, error: 'SLA definition not found or inactive' });
+      }
+    }
+
+    // Build update query
+    const updates = [];
+    const values = [];
+
+    if (category !== undefined) { updates.push('category = ?'); values.push(category.trim()); }
+    if (sla_definition_id !== undefined) { updates.push('sla_definition_id = ?'); values.push(sla_definition_id); }
+    if (is_active !== undefined) { updates.push('is_active = ?'); values.push(is_active); }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ success: false, error: 'No fields to update' });
+    }
+
+    values.push(id);
+    await connection.query(`UPDATE category_sla_mappings SET ${updates.join(', ')} WHERE id = ?`, values);
+
+    res.json({ success: true, message: 'Category mapping updated' });
+  } catch (error) {
+    if (error.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ success: false, error: 'A mapping for this category already exists' });
+    }
+    console.error('Error updating category mapping:', error);
+    res.status(500).json({ success: false, error: error.message });
+  } finally {
+    if (connection) connection.release();
+  }
+});
+
+// DELETE /api/sla/:tenantCode/category-mappings/:id - Hard delete category mapping
+router.delete('/:tenantCode/category-mappings/:id', verifyToken, requireRole(['admin']), async (req, res) => {
+  let connection;
+  try {
+    const { tenantCode, id } = req.params;
+    connection = await getTenantConnection(tenantCode);
+
+    const [result] = await connection.query('DELETE FROM category_sla_mappings WHERE id = ?', [id]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, error: 'Category mapping not found' });
+    }
+
+    res.json({ success: true, message: 'Category mapping deleted' });
+  } catch (error) {
+    console.error('Error deleting category mapping:', error);
+    res.status(500).json({ success: false, error: error.message });
+  } finally {
+    if (connection) connection.release();
+  }
+});
+
 module.exports = router;
