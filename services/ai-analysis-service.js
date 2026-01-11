@@ -817,6 +817,7 @@ Provide JSON suggestions for efficient ticket handling.`
           GROUP_CONCAT(id) as ticket_ids
         FROM tickets
         WHERE status NOT IN ('resolved', 'closed')
+        AND sla_definition_id IS NOT NULL
         AND first_responded_at IS NULL
         AND response_due_at IS NOT NULL
         AND response_due_at BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 2 HOUR)
@@ -841,6 +842,7 @@ Provide JSON suggestions for efficient ticket handling.`
           GROUP_CONCAT(id) as ticket_ids
         FROM tickets
         WHERE status NOT IN ('resolved', 'closed')
+        AND sla_definition_id IS NOT NULL
         AND first_responded_at IS NOT NULL
         AND resolve_due_at IS NOT NULL
         AND resolve_due_at BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 2 HOUR)
