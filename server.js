@@ -68,8 +68,16 @@ app.use(express.urlencoded({ extended: true }));
 // Apply global rate limiting to all API routes
 app.use('/api', apiLimiter);
 
-// Serve static files from the current directory
-app.use(express.static(__dirname));
+// Serve static files from the current directory with no-cache for HTML
+app.use(express.static(__dirname, {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
+  }
+}));
 
 // API Routes
 app.use('/api/auth', authRoutes);
