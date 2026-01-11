@@ -4787,13 +4787,14 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           customer: window.tenant || 'apoyar',
           due: t.due_date || t.sla_deadline,
           desc: t.description,
+          sla_status: t.sla_status || null, // New two-phase SLA status
           sla: {
             paused: false,
             createdAt: t.created_at,
             startedAt: t.created_at
           }
         }));
-        
+
         console.log('Loaded', tickets.length, 'tickets from API');
       }
     } catch (error) {
@@ -5360,6 +5361,61 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   // ---- SLA Utilities ----
   function parseDueEndOfDay(dueStr) { if(!dueStr) return null; const a=dueStr.split('-'); if(a.length!==3) return null; return new Date(Number(a[0]), Number(a[1])-1, Number(a[2]), 23,59,59,999); }
   function getSLAState(t) {
+    // Use new two-phase SLA model if available
+    if (t.sla_status) {
+      const s = t.sla_status;
+      const phase = s.sla_phase;
+
+      // Determine which phase to show (response or resolve)
+      let activePhase = s.response;
+      let phaseLabel = 'Response';
+      if (phase === 'in_progress' || phase === 'resolved') {
+        activePhase = s.resolve;
+        phaseLabel = 'Resolve';
+      }
+
+      // Map state to CSS class
+      let cls = 'ok';
+      if (activePhase.state === 'breached') cls = 'danger';
+      else if (activePhase.state === 'near_breach') cls = 'warn';
+      else if (activePhase.state === 'met') cls = 'ok';
+
+      // Build label based on state
+      let label = '—';
+      if (activePhase.state === 'breached') {
+        label = `${phaseLabel} Breached`;
+      } else if (activePhase.state === 'near_breach') {
+        label = `${phaseLabel} At Risk`;
+      } else if (activePhase.state === 'on_track' && activePhase.due_at) {
+        const due = new Date(activePhase.due_at);
+        const now = new Date();
+        const remainingMs = due - now;
+        if (remainingMs > 0) {
+          const hours = Math.floor(remainingMs / 3.6e6);
+          const mins = Math.floor((remainingMs % 3.6e6) / 6e4);
+          label = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+        } else {
+          label = `${phaseLabel} Breached`;
+          cls = 'danger';
+        }
+      } else if (activePhase.state === 'met') {
+        label = `${phaseLabel} Met`;
+      } else if (activePhase.state === 'pending') {
+        label = 'Awaiting Response';
+      } else if (activePhase.state === 'no_sla') {
+        label = '—';
+        cls = '';
+      }
+
+      // Add paused indicator if outside business hours
+      if (s.outside_business_hours && activePhase.state !== 'met' && activePhase.state !== 'no_sla') {
+        label += ' ⏸';
+      }
+
+      return { cls, label, pct: activePhase.percent_elapsed || 0 };
+    }
+
+    // Fallback to old logic if no sla_status
     const now = new Date();
     const due = parseDueEndOfDay(t.due);
     if(!due) return {cls:'', label:'—', pct:0};
