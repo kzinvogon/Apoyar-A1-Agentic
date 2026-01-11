@@ -2,7 +2,8 @@
  * Migration: Add category_sla_mappings table
  *
  * Maps ticket category strings to SLA definitions.
- * Category matching is case-insensitive in application code.
+ * Categories are stored normalized (lowercase, trimmed) for deterministic exact matching.
+ * No partial/regex matches in v1 - exact match only.
  */
 
 const { getTenantConnection } = require('../config/database');

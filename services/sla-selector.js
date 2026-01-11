@@ -120,17 +120,19 @@ async function getCustomerSLA(connection, requesterId) {
 }
 
 /**
- * Get SLA from category mapping (case-insensitive)
+ * Get SLA from category mapping (exact match, categories stored lowercase)
  */
 async function getCategorySLA(connection, category) {
   try {
+    // Normalize input to lowercase for exact match against stored lowercase categories
+    const normalizedCategory = category.trim().toLowerCase();
     const [rows] = await connection.query(`
       SELECT sla_definition_id
       FROM category_sla_mappings
-      WHERE LOWER(category) = LOWER(?)
+      WHERE category = ?
         AND is_active = 1
       LIMIT 1
-    `, [category]);
+    `, [normalizedCategory]);
 
     if (rows.length > 0 && rows[0].sla_definition_id) {
       // Validate the SLA is still active

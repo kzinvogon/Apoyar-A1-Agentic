@@ -557,10 +557,13 @@ router.post('/:tenantCode/category-mappings', verifyToken, requireRole(['admin']
       return res.status(400).json({ success: false, error: 'SLA definition not found or inactive' });
     }
 
+    // Normalize category to lowercase for deterministic matching
+    const normalizedCategory = category.trim().toLowerCase();
+
     const [result] = await connection.query(`
       INSERT INTO category_sla_mappings (category, sla_definition_id)
       VALUES (?, ?)
-    `, [category.trim(), sla_definition_id]);
+    `, [normalizedCategory, sla_definition_id]);
 
     res.json({ success: true, id: result.insertId, message: 'Category mapping created' });
   } catch (error) {
@@ -609,7 +612,7 @@ router.put('/:tenantCode/category-mappings/:id', verifyToken, requireRole(['admi
     const updates = [];
     const values = [];
 
-    if (category !== undefined) { updates.push('category = ?'); values.push(category.trim()); }
+    if (category !== undefined) { updates.push('category = ?'); values.push(category.trim().toLowerCase()); }
     if (sla_definition_id !== undefined) { updates.push('sla_definition_id = ?'); values.push(sla_definition_id); }
     if (is_active !== undefined) { updates.push('is_active = ?'); values.push(is_active); }
 
