@@ -28,6 +28,9 @@ const {
   computeSLAStatus
 } = require('../services/sla-calculator');
 
+// SLA selector service
+const { resolveApplicableSLA } = require('../services/sla-selector');
+
 // ========== PUBLIC ROUTES (NO AUTH) ==========
 // These routes must come BEFORE the verifyToken middleware
 
@@ -668,24 +671,32 @@ router.post('/:tenantId', writeOperationsLimiter, validateTicketCreate, async (r
       };
       const mappedPriority = priorityMap[(priority || 'medium').toLowerCase()] || 'medium';
 
-      // Get SLA - use specified SLA if provided, otherwise get default
+      // Resolve applicable SLA using priority-based selector
+      const { slaId, source: slaSource } = await resolveApplicableSLA({
+        tenantCode,
+        ticketPayload: {
+          sla_definition_id,
+          customer_id,
+          cmdb_item_id: cmdb_item_id || ci_id
+        }
+      });
+
+      // Fetch full SLA definition with business hours for deadline calculation
       let sla = null;
-      if (sla_definition_id) {
+      if (slaId) {
         const [slaRows] = await connection.query(
           `SELECT s.*, b.timezone, b.days_of_week, b.start_time, b.end_time, b.is_24x7
            FROM sla_definitions s
            LEFT JOIN business_hours_profiles b ON s.business_hours_profile_id = b.id
            WHERE s.id = ? AND s.is_active = 1`,
-          [sla_definition_id]
+          [slaId]
         );
         if (slaRows.length > 0) sla = slaRows[0];
-      }
-      if (!sla) {
-        sla = await getDefaultSLA(connection);
       }
 
       let slaFields = {
         sla_definition_id: null,
+        sla_source: null,
         sla_applied_at: null,
         response_due_at: null,
         resolve_due_at: null
@@ -696,6 +707,7 @@ router.post('/:tenantId', writeOperationsLimiter, validateTicketCreate, async (r
         const deadlines = computeInitialDeadlines(sla, now);
         slaFields = {
           sla_definition_id: sla.id,
+          sla_source: slaSource,
           sla_applied_at: now,
           response_due_at: deadlines.response_due_at,
           resolve_due_at: deadlines.resolve_due_at
@@ -704,10 +716,10 @@ router.post('/:tenantId', writeOperationsLimiter, validateTicketCreate, async (r
 
       const [result] = await connection.query(
         `INSERT INTO tickets (title, description, priority, requester_id, cmdb_item_id, sla_deadline, category,
-                              sla_definition_id, sla_applied_at, response_due_at, resolve_due_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                              sla_definition_id, sla_source, sla_applied_at, response_due_at, resolve_due_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [title, description, mappedPriority, customer_id, cmdb_item_id || null, due_date || null, 'General',
-         slaFields.sla_definition_id, slaFields.sla_applied_at, slaFields.response_due_at, slaFields.resolve_due_at]
+         slaFields.sla_definition_id, slaFields.sla_source, slaFields.sla_applied_at, slaFields.response_due_at, slaFields.resolve_due_at]
       );
 
       const ticketId = result.insertId;
