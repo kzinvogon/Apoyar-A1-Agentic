@@ -508,6 +508,9 @@ router.get('/:tenantId', readOperationsLimiter, validateTicketGet, async (req, r
 
       const [tickets] = await connection.query(query, params);
 
+      // Enrich tickets with computed SLA status
+      await enrichTicketsWithSLAStatus(tickets, connection);
+
       res.json({ success: true, tickets });
     } finally {
       connection.release();
