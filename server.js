@@ -354,6 +354,15 @@ async function startServer() {
           console.warn(`⚠️  Warning: Ticket SLA source migration:`, migrationError.message);
         }
 
+        // Run category SLA mappings migration
+        try {
+          const { runMigration: runCategorySLAMigration } = require('./migrations/add-category-sla-mappings');
+          await runCategorySLAMigration('apoyar');
+          console.log('✅ Category SLA mappings migration completed');
+        } catch (migrationError) {
+          console.warn(`⚠️  Warning: Category SLA mappings migration:`, migrationError.message);
+        }
+
         // Start email processing for apoyar tenant
         try {
           await startEmailProcessing('apoyar');
