@@ -485,6 +485,75 @@ function computeSLAStatus(ticket, slaDef = null) {
   };
 }
 
+/**
+ * Calculate remaining business minutes until a deadline
+ * @param {Date} dueAt - Deadline
+ * @param {Object} profile - Business hours profile
+ * @returns {number} - Remaining minutes (negative if overdue)
+ */
+function remainingBusinessMinutes(dueAt, profile) {
+  if (!dueAt) return null;
+  const now = new Date();
+  const due = new Date(dueAt);
+
+  if (now > due) {
+    // Overdue - return negative elapsed time
+    if (profile && !profile.is_24x7) {
+      return -elapsedBusinessMinutes(due, now, profile);
+    }
+    return -Math.round((now - due) / 60000);
+  }
+
+  if (profile && !profile.is_24x7) {
+    return elapsedBusinessMinutes(now, due, profile);
+  }
+  return Math.round((due - now) / 60000);
+}
+
+/**
+ * Build SLA facts object for AI context
+ * Uses computeSLAStatus output and adds remaining_minutes and timezone
+ * @param {Object} ticket - Ticket with SLA fields (including sla_source)
+ * @param {Object} slaDef - SLA definition (optional, with business hours)
+ * @returns {Object} sla_facts for AI prompts
+ */
+function buildSLAFacts(ticket, slaDef = null) {
+  const status = computeSLAStatus(ticket, slaDef);
+  const profile = slaDef ? buildProfile(slaDef) : null;
+
+  // Determine timezone
+  const timezone = profile?.timezone || 'UTC';
+
+  // Calculate remaining minutes for response and resolve
+  const responseRemaining = status.response.state !== 'met' && status.response.state !== 'no_sla'
+    ? remainingBusinessMinutes(status.response.due_at, profile)
+    : null;
+
+  const resolveRemaining = status.resolve.state !== 'met' && status.resolve.state !== 'pending' && status.resolve.state !== 'no_sla'
+    ? remainingBusinessMinutes(status.resolve.due_at, profile)
+    : null;
+
+  return {
+    sla_name: status.sla_name,
+    sla_source: ticket.sla_source || 'unknown',
+    timezone,
+    outside_business_hours: status.outside_business_hours,
+    phase: status.sla_phase,
+    response: {
+      state: status.response.state,
+      percent_used: status.response.percent_elapsed,
+      due_at: status.response.due_at,
+      remaining_minutes: responseRemaining
+    },
+    resolve: {
+      state: status.resolve.state,
+      percent_used: status.resolve.percent_elapsed,
+      due_at: status.resolve.due_at,
+      remaining_minutes: resolveRemaining
+    }
+  };
+}
+
 module.exports = {
   // Core functions
   getDefaultSLA,
@@ -493,9 +562,11 @@ module.exports = {
   calculateResponseState,
   calculateResolveState,
   computeSLAStatus,
+  buildSLAFacts,
   // Business hours utilities (for testing)
   addBusinessMinutes,
   elapsedBusinessMinutes,
+  remainingBusinessMinutes,
   isWithinBusinessHours,
   getNextBusinessStart,
   parseDaysOfWeek,
