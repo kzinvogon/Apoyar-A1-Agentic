@@ -336,13 +336,22 @@ async function startServer() {
           console.warn(`⚠️  Warning: SLA notification fields migration:`, migrationError.message);
         }
 
-        // Run SLA source fields migration
+        // Run SLA source fields migration (customer_companies, cmdb_items)
         try {
           const { runMigration: runSLASourceFieldsMigration } = require('./migrations/add-sla-source-fields');
           await runSLASourceFieldsMigration('apoyar');
           console.log('✅ SLA source fields migration completed');
         } catch (migrationError) {
           console.warn(`⚠️  Warning: SLA source fields migration:`, migrationError.message);
+        }
+
+        // Run ticket sla_source migration
+        try {
+          const { runMigration: runTicketSLASourceMigration } = require('./migrations/add-ticket-sla-source');
+          await runTicketSLASourceMigration('apoyar');
+          console.log('✅ Ticket SLA source migration completed');
+        } catch (migrationError) {
+          console.warn(`⚠️  Warning: Ticket SLA source migration:`, migrationError.message);
         }
 
         // Start email processing for apoyar tenant
