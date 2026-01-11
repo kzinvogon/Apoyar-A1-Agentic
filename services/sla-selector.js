@@ -2,7 +2,7 @@
  * SLA Selector Service
  *
  * Resolves which SLA definition should apply to a ticket based on
- * priority order: ticket override → customer → service → cmdb → default
+ * priority order: ticket override → customer → cmdb → category (reserved) → default
  */
 
 const { getTenantConnection } = require('../config/database');
@@ -10,19 +10,24 @@ const { getTenantConnection } = require('../config/database');
 /**
  * Resolve the applicable SLA for a ticket
  *
+ * Priority order:
+ * 1) Ticket override (explicit sla_definition_id)
+ * 2) Customer/Contract SLA (via requester → customer_company)
+ * 3) CMDB item SLA
+ * 4) Category SLA (reserved, no-op)
+ * 5) Default SLA
+ *
  * @param {Object} options
  * @param {string} options.tenantCode - Tenant code for database connection
- * @param {number} [options.ticketId] - Existing ticket ID (for re-application)
  * @param {Object} options.ticketPayload - Ticket data containing potential SLA sources
  * @param {number} [options.ticketPayload.sla_definition_id] - Explicit SLA override
- * @param {number} [options.ticketPayload.customer_id] - Customer/requester user ID
- * @param {number} [options.ticketPayload.service_id] - Service ID (future use)
- * @param {number} [options.ticketPayload.category_id] - Category ID (future use)
+ * @param {number} [options.ticketPayload.requester_id] - Requester user ID (for customer lookup)
  * @param {number} [options.ticketPayload.cmdb_item_id] - CMDB item ID
+ * @param {string} [options.ticketPayload.category] - Category string (reserved)
  *
  * @returns {Promise<{slaId: number|null, source: string}>}
  */
-async function resolveApplicableSLA({ tenantCode, ticketId, ticketPayload = {} }) {
+async function resolveApplicableSLA({ tenantCode, ticketPayload = {} }) {
   let connection;
 
   try {
@@ -37,23 +42,15 @@ async function resolveApplicableSLA({ tenantCode, ticketId, ticketPayload = {} }
       // If invalid SLA ID provided, fall through to other sources
     }
 
-    // 2) Customer's company SLA
-    if (ticketPayload.customer_id) {
-      const slaId = await getCustomerSLA(connection, ticketPayload.customer_id);
+    // 2) Customer/Contract SLA via requester chain
+    if (ticketPayload.requester_id) {
+      const slaId = await getCustomerSLA(connection, ticketPayload.requester_id);
       if (slaId) {
         return { slaId, source: 'customer' };
       }
     }
 
-    // 3) Service/Category SLA (future - no services table yet)
-    if (ticketPayload.service_id || ticketPayload.category_id) {
-      const slaId = await getServiceSLA(connection, ticketPayload.service_id, ticketPayload.category_id);
-      if (slaId) {
-        return { slaId, source: 'service' };
-      }
-    }
-
-    // 4) CMDB Item SLA
+    // 3) CMDB Item SLA
     if (ticketPayload.cmdb_item_id) {
       const slaId = await getCMDBItemSLA(connection, ticketPayload.cmdb_item_id);
       if (slaId) {
@@ -61,13 +58,16 @@ async function resolveApplicableSLA({ tenantCode, ticketId, ticketPayload = {} }
       }
     }
 
+    // 4) Category SLA (reserved - no-op for now)
+    // tickets.category is a string only; no lookup table exists
+    // Return null to fall through to default
+
     // 5) Default SLA - lowest priority
     const defaultSlaId = await getDefaultSLAId(connection);
     return { slaId: defaultSlaId, source: 'default' };
 
   } catch (error) {
     console.error('[SLA_SELECTOR] Error resolving SLA:', error.message);
-    // On error, return null to let caller handle gracefully
     return { slaId: null, source: 'error' };
   } finally {
     if (connection) connection.release();
@@ -91,19 +91,18 @@ async function validateSLAExists(connection, slaId) {
 }
 
 /**
- * Get SLA from customer's company
- * Lookup: customer_id → customers.customer_company_id → customer_companies.sla_definition_id
+ * Get SLA from customer's company via requester chain
+ * Lookup: requester_id → customers.user_id → customer_companies.sla_definition_id
  */
-async function getCustomerSLA(connection, customerId) {
+async function getCustomerSLA(connection, requesterId) {
   try {
     const [rows] = await connection.query(`
       SELECT cc.sla_definition_id
       FROM customers c
-      JOIN customer_companies cc ON c.customer_company_id = cc.id
+      JOIN customer_companies cc ON cc.id = c.customer_company_id
       WHERE c.user_id = ?
-        AND cc.sla_definition_id IS NOT NULL
-        AND cc.is_active = 1
-    `, [customerId]);
+      LIMIT 1
+    `, [requesterId]);
 
     if (rows.length > 0 && rows[0].sla_definition_id) {
       // Validate the SLA is still active
@@ -117,16 +116,6 @@ async function getCustomerSLA(connection, customerId) {
 }
 
 /**
- * Get SLA from service/category
- * Placeholder - services table doesn't exist yet
- */
-async function getServiceSLA(connection, serviceId, categoryId) {
-  // TODO: Implement when services/categories table with sla_definition_id exists
-  // For now, return null to fall through to next source
-  return null;
-}
-
-/**
  * Get SLA from CMDB item
  */
 async function getCMDBItemSLA(connection, cmdbItemId) {
@@ -135,8 +124,6 @@ async function getCMDBItemSLA(connection, cmdbItemId) {
       SELECT sla_definition_id
       FROM cmdb_items
       WHERE id = ?
-        AND sla_definition_id IS NOT NULL
-        AND status = 'active'
     `, [cmdbItemId]);
 
     if (rows.length > 0 && rows[0].sla_definition_id) {
