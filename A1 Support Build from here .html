@@ -3372,6 +3372,30 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               </table>
             </div>
 
+            <!-- Category SLA Mappings -->
+            <div style="border:1px solid var(--border);border-radius:8px;padding:16px">
+              <div class="row space mb-12">
+                <div>
+                  <div style="font-weight:600">Category SLA Mappings</div>
+                  <div class="subtitle" style="color:#666;font-size:12px">Assign SLAs to ticket categories</div>
+                </div>
+                <button class="btn primary" onclick="openCategoryMappingModal()">+ Add Mapping</button>
+              </div>
+              <table style="width:100%;border-collapse:collapse" id="category-mappings-table">
+                <thead>
+                  <tr style="border-bottom:1px solid var(--border);background:#f9fafb">
+                    <th style="text-align:left;padding:8px">Category</th>
+                    <th style="text-align:left;padding:8px">SLA Definition</th>
+                    <th style="text-align:left;padding:8px">Status</th>
+                    <th style="text-align:right;padding:8px">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="category-mappings-tbody">
+                  <tr><td colspan="4" style="padding:16px;text-align:center;color:#666">Loading...</td></tr>
+                </tbody>
+              </table>
+            </div>
+
             <div id="sla-message" class="subtitle" style="color:#16a34a;display:none;margin-top:12px"></div>
             <div id="sla-error" class="subtitle" style="color:#b91c1c;display:none;margin-top:12px"></div>
           </div>
@@ -4497,6 +4521,38 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   </div>
 </div>
 
+<!-- Category SLA Mapping Modal -->
+<div id="category-mapping-modal" class="modal" role="dialog" aria-modal="true" style="display:none;align-items:flex-start;padding-top:10vh">
+  <div class="sheet" style="max-width:450px;max-height:80vh;overflow:auto">
+    <div class="head"><span id="category-mapping-modal-title">Add Category Mapping</span></div>
+    <div class="body">
+      <input type="hidden" id="cat-map-edit-id">
+      <div class="mb-12">
+        <label class="subtitle">Category *</label>
+        <input id="cat-map-category" class="input" placeholder="e.g., Network" maxlength="50"/>
+        <div style="font-size:11px;color:#666;margin-top:4px">Category name (case-insensitive matching)</div>
+      </div>
+      <div class="mb-12">
+        <label class="subtitle">SLA Definition *</label>
+        <select id="cat-map-sla" class="input">
+          <option value="">-- Select SLA --</option>
+        </select>
+      </div>
+      <div class="mb-12">
+        <label class="row" style="gap:8px;cursor:pointer">
+          <input type="checkbox" id="cat-map-active" checked>
+          <span class="subtitle" style="margin:0">Active</span>
+        </label>
+      </div>
+      <div id="cat-map-error" class="subtitle" style="color:#b91c1c;display:none;margin-top:8px"></div>
+    </div>
+    <div class="foot">
+      <button class="btn ghost" onclick="closeCategoryMappingModal()">Cancel</button>
+      <button class="btn primary" onclick="saveCategoryMapping()">Save</button>
+    </div>
+  </div>
+</div>
+
 <script>
   // API Base URL - use current origin for deployed version, localhost for development
   const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
@@ -4523,7 +4579,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     }
 
     // Move modals to document.body to escape Ionic transform containers
-    ['sla-definition-modal', 'business-hours-modal'].forEach(id => {
+    ['sla-definition-modal', 'business-hours-modal', 'category-mapping-modal'].forEach(id => {
       const modal = document.getElementById(id);
       if (modal && modal.parentNode !== document.body) document.body.appendChild(modal);
     });
@@ -7232,6 +7288,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         renderSLADefinitionsTable();
         populateBusinessHoursDropdown();
       }
+
+      // Load category mappings (after SLA definitions loaded for dropdown)
+      await loadCategoryMappings();
     } catch (error) {
       console.error('Error loading SLA data:', error);
     }
@@ -7657,6 +7716,181 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to delete');
       loadSLAData();
+    } catch (error) {
+      alert(error.message);
+    }
+  }
+
+  // ============================================
+  // Category SLA Mapping Functions
+  // ============================================
+  let categoryMappings = [];
+
+  async function loadCategoryMappings() {
+    const tenantCode = window.tenant || currentUser?.tenantCode || 'apoyar';
+    const token = localStorage.getItem('token');
+
+    try {
+      const res = await fetch(`${API_BASE}/api/sla/${tenantCode}/category-mappings`, {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        categoryMappings = data.mappings || [];
+        renderCategoryMappingsTable();
+      }
+    } catch (error) {
+      console.error('Error loading category mappings:', error);
+    }
+  }
+
+  function renderCategoryMappingsTable() {
+    const tbody = document.getElementById('category-mappings-tbody');
+    if (!tbody) return;
+
+    if (categoryMappings.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" style="padding:16px;text-align:center;color:#666">No category mappings defined</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = categoryMappings.map(m => {
+      const statusBadge = m.is_active
+        ? '<span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:4px;font-size:11px">Active</span>'
+        : '<span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:4px;font-size:11px">Inactive</span>';
+      return `<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:8px"><strong>${m.category}</strong></td>
+        <td style="padding:8px">${m.sla_name || 'Unknown SLA'}</td>
+        <td style="padding:8px">${statusBadge}</td>
+        <td style="padding:8px;text-align:right">
+          <button type="button" class="btn btn-sm" onclick="event.preventDefault();event.stopPropagation();editCategoryMapping(${m.id},this)">Edit</button>
+          <button type="button" class="btn btn-sm" style="color:#b91c1c" onclick="event.preventDefault();event.stopPropagation();deleteCategoryMapping(${m.id})">Delete</button>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  function populateCategoryMappingSLADropdown() {
+    const select = document.getElementById('cat-map-sla');
+    if (!select) return;
+    select.innerHTML = '<option value="">-- Select SLA --</option>' +
+      slaDefinitions.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+  }
+
+  function openCategoryMappingModal(id = null) {
+    document.getElementById('cat-map-edit-id').value = id || '';
+    document.getElementById('category-mapping-modal-title').textContent = id ? 'Edit Category Mapping' : 'Add Category Mapping';
+    document.getElementById('cat-map-error').style.display = 'none';
+    populateCategoryMappingSLADropdown();
+
+    if (id) {
+      const m = categoryMappings.find(x => x.id == id);
+      if (m) {
+        document.getElementById('cat-map-category').value = m.category;
+        document.getElementById('cat-map-sla').value = m.sla_definition_id;
+        document.getElementById('cat-map-active').checked = m.is_active;
+      }
+    } else {
+      document.getElementById('cat-map-category').value = '';
+      document.getElementById('cat-map-sla').value = '';
+      document.getElementById('cat-map-active').checked = true;
+    }
+
+    document.getElementById('category-mapping-modal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeCategoryMappingModal() {
+    const modal = document.getElementById('category-mapping-modal');
+    const sheet = modal.querySelector('.sheet');
+    sheet.classList.remove('popover', 'compact');
+    sheet.style.top = '';
+    sheet.style.left = '';
+    modal.style.display = 'none';
+    modal.style.background = '';
+    document.body.style.overflow = '';
+    if (modal._popoverCleanup) { modal._popoverCleanup(); modal._popoverCleanup = null; }
+  }
+
+  function editCategoryMapping(id, anchorEl) {
+    document.getElementById('cat-map-edit-id').value = id || '';
+    document.getElementById('category-mapping-modal-title').textContent = 'Edit Category Mapping';
+    document.getElementById('cat-map-error').style.display = 'none';
+    populateCategoryMappingSLADropdown();
+
+    const m = categoryMappings.find(x => x.id == id);
+    if (m) {
+      document.getElementById('cat-map-category').value = m.category;
+      document.getElementById('cat-map-sla').value = m.sla_definition_id;
+      document.getElementById('cat-map-active').checked = m.is_active;
+    }
+
+    const modal = document.getElementById('category-mapping-modal');
+    const sheet = modal.querySelector('.sheet');
+
+    if (anchorEl) {
+      modal.style.display = 'block';
+      modal.style.background = 'transparent';
+      sheet.classList.add('popover', 'compact');
+      positionPopover(sheet, anchorEl);
+      bindPopoverClose(modal, sheet, closeCategoryMappingModal);
+    } else {
+      openCategoryMappingModal(id);
+    }
+  }
+
+  async function saveCategoryMapping() {
+    const id = document.getElementById('cat-map-edit-id').value;
+    const category = document.getElementById('cat-map-category').value.trim();
+    const sla_definition_id = document.getElementById('cat-map-sla').value;
+    const is_active = document.getElementById('cat-map-active').checked;
+
+    if (!category) {
+      document.getElementById('cat-map-error').textContent = 'Category is required';
+      document.getElementById('cat-map-error').style.display = 'block';
+      return;
+    }
+    if (!sla_definition_id) {
+      document.getElementById('cat-map-error').textContent = 'SLA Definition is required';
+      document.getElementById('cat-map-error').style.display = 'block';
+      return;
+    }
+
+    const tenantCode = window.tenant || currentUser?.tenantCode || 'apoyar';
+    const token = localStorage.getItem('token');
+    const url = id
+      ? `${API_BASE}/api/sla/${tenantCode}/category-mappings/${id}`
+      : `${API_BASE}/api/sla/${tenantCode}/category-mappings`;
+    const method = id ? 'PUT' : 'POST';
+
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ category, sla_definition_id: parseInt(sla_definition_id), is_active })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to save');
+      closeCategoryMappingModal();
+      loadCategoryMappings();
+    } catch (error) {
+      document.getElementById('cat-map-error').textContent = error.message;
+      document.getElementById('cat-map-error').style.display = 'block';
+    }
+  }
+
+  async function deleteCategoryMapping(id) {
+    if (!confirm('Delete this category mapping?')) return;
+    const tenantCode = window.tenant || currentUser?.tenantCode || 'apoyar';
+    const token = localStorage.getItem('token');
+
+    try {
+      const res = await fetch(`${API_BASE}/api/sla/${tenantCode}/category-mappings/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to delete');
+      loadCategoryMappings();
     } catch (error) {
       alert(error.message);
     }
