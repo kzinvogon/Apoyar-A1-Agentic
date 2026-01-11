@@ -656,7 +656,7 @@ router.get('/:tenantId/export/csv', readOperationsLimiter, validateTicketGet, as
 router.post('/:tenantId', writeOperationsLimiter, validateTicketCreate, async (req, res) => {
   try {
     const { tenantId } = req.params;
-    const { title, description, priority, customer_id, cmdb_item_id, ci_id, due_date, sla_definition_id } = req.body;
+    const { title, description, priority, customer_id, cmdb_item_id, ci_id, due_date, sla_definition_id, category } = req.body;
     const tenantCode = tenantId.toLowerCase().replace(/[^a-z0-9]/g, '_');
     const connection = await getTenantConnection(tenantCode);
 
@@ -672,12 +672,13 @@ router.post('/:tenantId', writeOperationsLimiter, validateTicketCreate, async (r
       const mappedPriority = priorityMap[(priority || 'medium').toLowerCase()] || 'medium';
 
       // Resolve applicable SLA using priority-based selector
-      // Priority: ticket override → customer → cmdb → default
+      // Priority: ticket override → customer → category → cmdb → default
       const { slaId, source: slaSource } = await resolveApplicableSLA({
         tenantCode,
         ticketPayload: {
           sla_definition_id,
           requester_id: customer_id,  // customer_id from request = requester_id in DB
+          category,
           cmdb_item_id: cmdb_item_id || ci_id
         }
       });
@@ -719,7 +720,7 @@ router.post('/:tenantId', writeOperationsLimiter, validateTicketCreate, async (r
         `INSERT INTO tickets (title, description, priority, requester_id, cmdb_item_id, sla_deadline, category,
                               sla_definition_id, sla_source, sla_applied_at, response_due_at, resolve_due_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [title, description, mappedPriority, customer_id, cmdb_item_id || null, due_date || null, 'General',
+        [title, description, mappedPriority, customer_id, cmdb_item_id || null, due_date || null, category || 'General',
          slaFields.sla_definition_id, slaFields.sla_source, slaFields.sla_applied_at, slaFields.response_due_at, slaFields.resolve_due_at]
       );
 
