@@ -3672,6 +3672,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               <div class="mb-12"><label class="subtitle">Priority (optional)</label>
                 <select id="rq-priority" class="input"><option value="">—</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="critical">Critical</option></select>
               </div>
+              <div class="mb-12 sla-override-field" style="display:none"><label class="subtitle">SLA Override (optional)</label>
+                <select id="rq-sla" class="input"><option value="">— Use default SLA —</option></select>
+              </div>
               <div class="mb-12"><label class="subtitle">Link to CMDB Item (optional)</label><select id="rq-item" class="input"></select></div>
               <div class="mb-12"><label class="subtitle">Link to CI (optional)</label><select id="rq-ci" class="input"></select></div>
               <div class="mb-12"><label class="subtitle">Attachment (placeholder)</label><input class="input" placeholder="Choose file… (not uploaded in demo)"/></div>
@@ -14079,27 +14082,50 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   function showCreateCITypeForm(){ alert('To add a new CI Type, select an Item Type first and click "Add CI Type" button.'); }
 
   // ---- Raise Request ----
-  async function loadRaiseFormOptions(){ 
-    const sItem=document.getElementById('rq-item'); 
-    const sCI=document.getElementById('rq-ci'); 
-    if(!sItem||!sCI) return; 
-    
+  async function loadRaiseFormOptions(){
+    const sItem=document.getElementById('rq-item');
+    const sCI=document.getElementById('rq-ci');
+    if(!sItem||!sCI) return;
+
     // Show customer field for experts/admins ONLY
     const customerField = document.getElementById('rq-customer-field');
     const currentRole = window.role || role;
-    
+
     if (currentRole === 'expert' || currentRole === 'admin') {
       customerField.style.display = 'block';
       await loadCustomersForRaiseRequest();
+      // Show SLA override field for admin/expert
+      document.querySelectorAll('.sla-override-field').forEach(el => el.style.display = 'block');
+      await loadSLAOptionsForRaiseRequest();
     } else {
-      // Customer role - hide the customer selector completely
+      // Customer role - hide the customer selector and SLA override completely
       customerField.style.display = 'none';
+      document.querySelectorAll('.sla-override-field').forEach(el => el.style.display = 'none');
     }
-    
-    const relevant=CMDB_ITEMS.filter(i => currentRole!=='customer' || !tenant || i.customer===tenant); 
-    sItem.innerHTML = '<option value=\"\">—</option>' + relevant.map(i => `<option value="${i.cmdb_id}">${i.name}</option>`).join(''); 
-    sCI.innerHTML = '<option value=\"\">—</option>'; 
-    sItem.onchange = () => { const id = sItem.value; const cies = CIS_BY_ITEM[id] || []; sCI.innerHTML = '<option value=\"\">—</option>' + cies.map(ci => `<option value="${ci.ci_id}">${ci.name}</option>`).join(''); }; 
+
+    const relevant=CMDB_ITEMS.filter(i => currentRole!=='customer' || !tenant || i.customer===tenant);
+    sItem.innerHTML = '<option value=\"\">—</option>' + relevant.map(i => `<option value="${i.cmdb_id}">${i.name}</option>`).join('');
+    sCI.innerHTML = '<option value=\"\">—</option>';
+    sItem.onchange = () => { const id = sItem.value; const cies = CIS_BY_ITEM[id] || []; sCI.innerHTML = '<option value=\"\">—</option>' + cies.map(ci => `<option value="${ci.ci_id}">${ci.name}</option>`).join(''); };
+  }
+
+  async function loadSLAOptionsForRaiseRequest() {
+    try {
+      const token = localStorage.getItem('token');
+      const tenantCode = window.tenant || tenant || 'apoyar';
+      const res = await fetch(`${API_BASE}/api/sla/${tenantCode}/definitions`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (!data.success || !data.definitions) return;
+
+      const select = document.getElementById('rq-sla');
+      if (!select) return;
+      select.innerHTML = '<option value="">— Use default SLA —</option>' +
+        data.definitions.map(sla => `<option value="${sla.id}">${sla.name}</option>`).join('');
+    } catch (err) {
+      console.error('Error loading SLA options:', err);
+    }
   }
   
   async function loadCustomersForRaiseRequest() {
@@ -14151,12 +14177,13 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       console.error('Error loading CMDB items:', err);
     }
   }
-  async function submitRequest(){ 
-    const title=document.getElementById('rq-title').value.trim(); 
-    const desc=document.getElementById('rq-desc').value.trim(); 
-    const priority=document.getElementById('rq-priority').value || 'Normal'; 
-    const itemId=document.getElementById('rq-item').value; 
-    const ciId=document.getElementById('rq-ci').value; 
+  async function submitRequest(){
+    const title=document.getElementById('rq-title').value.trim();
+    const desc=document.getElementById('rq-desc').value.trim();
+    const priority=document.getElementById('rq-priority').value || 'Normal';
+    const itemId=document.getElementById('rq-item').value;
+    const ciId=document.getElementById('rq-ci').value;
+    const slaId=document.getElementById('rq-sla')?.value;
     if (!title || !desc) { startChat('assist', {title, desc, priority, itemId, ciId}); return; }
     
     // Get customer ID - either from selection (expert/admin) or current user (customer)
@@ -14195,6 +14222,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           description: desc,
           priority: priority || undefined,
           customer_id: customerId,
+          ...(slaId && { sla_definition_id: parseInt(slaId) }),
           ...(itemId && { cmdb_item_id: parseInt(itemId) }),
           ...(ciId && { ci_id: parseInt(ciId) })
         })
@@ -14210,6 +14238,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         document.getElementById('rq-priority').value='';
         document.getElementById('rq-item').value='';
         document.getElementById('rq-ci').value='';
+        if (document.getElementById('rq-sla')) document.getElementById('rq-sla').value='';
       } else {
         // Show detailed validation errors if available
         let errorMessage = data.message || 'Failed to submit request';
