@@ -11097,7 +11097,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   }
 
   // ---- Status transitions ----
-  const TRANSITIONS = { 'Open': ['In Progress','Pending','Resolved'], 'In Progress': ['Pending','Resolved'], 'Pending': ['In Progress','Resolved'], 'Resolved': [] };
+  // First item is "Next status" default for linear triage flow: Open → In Progress → Resolved
+  const TRANSITIONS = { 'Open': ['In Progress','Pending','Resolved'], 'In Progress': ['Resolved','Pending'], 'Pending': ['In Progress','Resolved'], 'Resolved': ['Closed'], 'Closed': [] };
   function advanceStatus(){ const t=tickets.find(x=>x.id===currentTicketId); if(!t) return; const opts = TRANSITIONS[t.status] || []; if(!opts.length) return alert('No further transitions.'); const next = opts[0]; if(next==='Resolved') { openCompletion('resolve'); } else { setStatus(next); } }
   function setResolved(){ openCompletion('resolve'); }
   async function setStatus(newStatus, comment=null, silent=false){
