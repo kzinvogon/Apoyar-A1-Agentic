@@ -2292,10 +2292,15 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
                 <div class="subtitle" id="td-sla-text" style="margin-top:6px"></div>
               </div>
             </div>
-            <div class="card p-16">
-              <div class="subtitle"><strong>Activity</strong></div>
-              <div id="td-activity" class="mb-12" style="max-height:240px;overflow:auto"></div>
-              <div class="row">
+            <div class="card p-16" style="background:#fafafa;border-color:#e5e7eb">
+              <div class="row space" style="cursor:pointer" onclick="toggleActivityPanel()">
+                <div class="subtitle" style="color:#6b7280"><strong>Activity</strong></div>
+                <span id="activity-toggle-icon" style="color:#9ca3af;font-size:12px">▶ Show</span>
+              </div>
+              <div id="td-activity-wrapper" style="display:none">
+                <div id="td-activity" class="mb-12 mt-12" style="max-height:200px;overflow:auto"></div>
+              </div>
+              <div class="row mt-12">
                 <input id="td-note" class="input" placeholder="Add an internal note…"/>
                 <button class="btn" onclick="addNote()">Add</button>
               </div>
@@ -5636,6 +5641,18 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   function scrollToSLASection() {
     const slaSection = document.querySelector('#td-sla-name')?.parentElement;
     if (slaSection) slaSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  function toggleActivityPanel() {
+    const wrapper = document.getElementById('td-activity-wrapper');
+    const icon = document.getElementById('activity-toggle-icon');
+    if (wrapper.style.display === 'none') {
+      wrapper.style.display = 'block';
+      icon.textContent = '▼ Hide';
+    } else {
+      wrapper.style.display = 'none';
+      icon.textContent = '▶ Show';
+    }
   }
 
   // System source badge helper
