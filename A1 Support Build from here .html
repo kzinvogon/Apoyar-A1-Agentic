@@ -1031,6 +1031,7 @@ vNext-FULL-ActionsSLA:
           <div class="navlink" data-target="ai-insights" onclick="nav(this)">🤖 AI Insights</div>
           <div class="navlink" data-target="usage" onclick="nav(this)">📊 Usage & Limits</div>
           <div class="navlink" data-target="raise" onclick="nav(this)">📝 Raise Request</div>
+          <div class="navlink" data-target="notifications" onclick="nav(this)">🔔 Notifications <span id="notif-badge-admin" style="display:none;background:#ef4444;color:white;padding:1px 6px;border-radius:10px;font-size:11px;margin-left:4px"></span></div>
           <div id="adminMenuOriginalPoint"></div>
           <div id="adminMenuGroup" style="display:none">
             <div class="navlink" data-target="ticket-rules" onclick="nav(this)">⚙️ Ticket Rules</div>
@@ -1047,7 +1048,6 @@ vNext-FULL-ActionsSLA:
             </div>
             <div class="navlink" data-target="system-control" onclick="nav(this)">🔧 System Control</div>
             <div class="navlink" data-target="audit-log" onclick="nav(this)">📋 Audit Log</div>
-            <div class="navlink" data-target="notifications" onclick="nav(this)">🔔 Notifications</div>
             <div class="navlink" data-target="raw-variables" onclick="openRawVariablesSecure(this)">⚙️ Raw Variables</div>
           </div>
         </div>
@@ -1068,6 +1068,7 @@ vNext-FULL-ActionsSLA:
           <div class="navlink" data-target="analytics" onclick="nav(this)">📈 Analytics</div>
           <div class="navlink" data-target="ai-insights" onclick="nav(this)">🤖 AI Insights</div>
           <div class="navlink" data-target="raise" onclick="nav(this)">📝 Raise Request</div>
+          <div class="navlink" data-target="notifications" onclick="nav(this)">🔔 Notifications <span id="notif-badge-expert" style="display:none;background:#ef4444;color:white;padding:1px 6px;border-radius:10px;font-size:11px;margin-left:4px"></span></div>
         </div>
         <div id="nav-customer" style="display:none">
           <div class="subtitle">Customer Portal</div>
@@ -5403,6 +5404,11 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
     // Initialize Admin Mode
     initAdminMode();
+
+    // Load notification badge for admin/expert roles
+    if (currentRole === 'admin' || currentRole === 'expert') {
+      loadNotificationBadge();
+    }
   }
 
   // ---- SLA Utilities ----
@@ -6048,6 +6054,33 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   let notifCache = []; // Cache notifications for in-memory updates
   let notifSelectedIds = new Set(); // Track selected notification IDs
 
+  // Load unread notification count and update badges
+  async function loadNotificationBadge() {
+    try {
+      const token = localStorage.getItem('token');
+      const tenantCode = window.tenant || 'apoyar';
+      const response = await fetch(`${API_BASE}/api/notifications/${tenantCode}?delivered=false&limit=1`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (data.success) {
+        const count = data.total || 0;
+        const badgeAdmin = document.getElementById('notif-badge-admin');
+        const badgeExpert = document.getElementById('notif-badge-expert');
+        if (count > 0) {
+          const text = count > 99 ? '99+' : count;
+          if (badgeAdmin) { badgeAdmin.textContent = text; badgeAdmin.style.display = 'inline'; }
+          if (badgeExpert) { badgeExpert.textContent = text; badgeExpert.style.display = 'inline'; }
+        } else {
+          if (badgeAdmin) badgeAdmin.style.display = 'none';
+          if (badgeExpert) badgeExpert.style.display = 'none';
+        }
+      }
+    } catch (e) {
+      console.error('Error loading notification badge:', e);
+    }
+  }
+
   async function loadNotifications(page = 1) {
     // Reset selection on page change
     notifSelectedIds.clear();
@@ -6301,6 +6334,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         renderNotifications(notifCache, notifCache.length, notifPageSize, (notifCurrentPage - 1) * notifPageSize);
         updateNotifBulkBar();
         showNotifToast(`Marked delivered (${data.updated_count})`);
+        // Refresh badge count
+        loadNotificationBadge();
       } else {
         alert('Failed to mark delivered: ' + (data.message || 'Unknown error'));
       }
