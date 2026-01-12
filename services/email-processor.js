@@ -262,6 +262,31 @@ class EmailProcessor {
   }
 
   /**
+   * Get system senders allowlist from tenant settings
+   * Returns array of exact email addresses to treat as system sources (highest priority)
+   */
+  async getSystemSenders(connection) {
+    try {
+      const [settings] = await connection.query(
+        'SELECT setting_value FROM tenant_settings WHERE setting_key = ?',
+        ['system_senders']
+      );
+      if (settings.length > 0 && settings[0].setting_value) {
+        try {
+          return JSON.parse(settings[0].setting_value).map(s => s.toLowerCase());
+        } catch (e) {
+          // If not valid JSON, treat as comma-separated list
+          return settings[0].setting_value.split(',').map(s => s.trim().toLowerCase());
+        }
+      }
+      return [];
+    } catch (error) {
+      console.error('Error getting system senders:', error);
+      return [];
+    }
+  }
+
+  /**
    * Get system domains from tenant settings
    * Returns array of domains to treat as system/monitoring sources
    */
@@ -291,18 +316,21 @@ class EmailProcessor {
    * Returns { isSystemSource: boolean, reason: string|null }
    *
    * Reasons:
-   * - 'tenant_domain': Email is from the tenant's own domain
-   * - 'system_domains_setting': Email matches admin-configured system domains
+   * - 'system_senders_allowlist': Exact email match in admin-configured allowlist (highest priority)
+   * - 'system_domains_setting': Email domain matches admin-configured system domains
    * - 'monitoring_pattern_strong': Known monitoring system (nagios, zabbix, etc.)
    * - 'monitoring_pattern_weak': Generic pattern (noreply, alerts) + alert subject match
    * - null: Not a system source
    */
-  classifySystemSource(fromEmail, displayName, subject, tenantDomain, systemDomains) {
-    const domain = fromEmail.split('@')[1]?.toLowerCase();
+  classifySystemSource(fromEmail, displayName, subject, systemSenders, systemDomains) {
+    const emailLower = fromEmail.toLowerCase();
+    const domain = emailLower.split('@')[1];
 
-    // Check 1: Tenant's own domain
-    if (tenantDomain && domain === tenantDomain.toLowerCase()) {
-      return { isSystemSource: true, reason: 'tenant_domain' };
+    // Check 1: Admin-configured system senders allowlist (exact email match, highest priority)
+    if (systemSenders && systemSenders.length > 0) {
+      if (systemSenders.includes(emailLower)) {
+        return { isSystemSource: true, reason: 'system_senders_allowlist' };
+      }
     }
 
     // Check 2: Admin-configured system domains
@@ -359,7 +387,7 @@ class EmailProcessor {
    * @deprecated Use classifySystemSource instead
    */
   isMonitoringSource(fromEmail, displayName) {
-    const result = this.classifySystemSource(fromEmail, displayName, '', null, []);
+    const result = this.classifySystemSource(fromEmail, displayName, '', [], []);
     return result.isSystemSource;
   }
 
@@ -637,7 +665,7 @@ class EmailProcessor {
       // Check if this is from a monitoring/integration system
       // Uses safer heuristics with strong/weak pattern matching
       // ============================================
-      const tenantDomain = await this.getTenantDomain(connection);
+      const systemSenders = await this.getSystemSenders(connection);
       const systemDomains = await this.getSystemDomains(connection);
 
       // Classify the source with reason
@@ -645,7 +673,7 @@ class EmailProcessor {
         fromEmail,
         displayName,
         email.subject,
-        tenantDomain,
+        systemSenders,
         systemDomains
       );
 
@@ -901,7 +929,7 @@ class EmailProcessor {
     let sourceInfo;
     if (sourceMetadata.sourceType === 'system') {
       const reasonMap = {
-        'tenant_domain': 'sender is from tenant domain',
+        'system_senders_allowlist': 'sender in system_senders allowlist',
         'system_domains_setting': 'sender domain in system_domains setting',
         'monitoring_pattern_strong': 'known monitoring system pattern',
         'monitoring_pattern_weak': 'generic noreply + alert subject'
