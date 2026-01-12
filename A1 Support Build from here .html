@@ -2169,25 +2169,20 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
         <!-- Ticket Detail -->
         <div id="view-ticket-detail" style="display:none">
-          <!-- Navigation Row -->
-          <div class="row space mb-8">
-            <div class="row" style="gap:8px;align-items:center">
-              <button class="btn ghost" onclick="switchView('tickets')" title="Back to list (Esc)">← Back</button>
-              <div id="ticket-nav-buttons" class="row" style="gap:4px;display:none">
-                <button id="btn-prev-ticket" class="btn ghost" onclick="navigateToPrevTicket()" title="Previous ticket ([)" disabled>← Prev</button>
-                <button id="btn-next-ticket" class="btn ghost" onclick="navigateToNextTicket()" title="Next ticket (])">Next →</button>
-              </div>
+          <!-- Row 1: Back | Ticket ID | Nav -->
+          <div class="row mb-8" style="justify-content:space-between;align-items:center">
+            <button class="btn ghost" onclick="switchView('tickets')" title="Back to list (Esc)">← Back to tickets</button>
+            <span style="font-size:18px;font-weight:600">Ticket <span id="td-id"></span></span>
+            <div id="ticket-nav-buttons" class="row" style="gap:4px;display:none">
+              <button id="btn-prev-ticket" class="btn ghost" onclick="navigateToPrevTicket()" title="Previous ticket ([)" disabled>← Prev</button>
+              <button id="btn-next-ticket" class="btn ghost" onclick="navigateToNextTicket()" title="Next ticket (])">Next →</button>
             </div>
-            <div class="row" style="gap:8px;align-items:center">
-              <span style="font-size:18px;font-weight:600">Ticket <span id="td-id"></span></span>
-            </div>
+            <div id="ticket-nav-placeholder" style="width:140px"></div>
           </div>
-          <!-- Title Row -->
-          <div class="mb-8">
-            <h2 id="td-title-display" style="margin:0;font-size:20px;font-weight:600;color:var(--fg)"></h2>
-          </div>
-          <!-- Metadata Row -->
-          <div class="row wrap mb-12" style="gap:12px;align-items:center">
+          <!-- Row 2: Title -->
+          <h2 id="td-title-display" style="margin:0 0 8px 0;font-size:20px;font-weight:600;color:var(--fg)"></h2>
+          <!-- Row 3: Metadata -->
+          <div class="row wrap mb-12" style="gap:10px;align-items:center">
             <span id="td-meta-customer" style="font-size:13px;color:var(--muted)"></span>
             <span id="td-meta-priority" class="badge"></span>
             <span id="td-meta-status" class="badge"></span>
@@ -10511,16 +10506,19 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   // Ticket navigation functions
   function updateTicketNavigation() {
     const navButtons = document.getElementById('ticket-nav-buttons');
+    const navPlaceholder = document.getElementById('ticket-nav-placeholder');
     const prevBtn = document.getElementById('btn-prev-ticket');
     const nextBtn = document.getElementById('btn-next-ticket');
     const navList = window.ticketNavList || [];
 
     if (navList.length <= 1) {
       navButtons.style.display = 'none';
+      navPlaceholder.style.display = 'block';
       return;
     }
 
     navButtons.style.display = 'flex';
+    navPlaceholder.style.display = 'none';
     const currentIndex = navList.indexOf(currentTicketId);
 
     prevBtn.disabled = currentIndex <= 0;
