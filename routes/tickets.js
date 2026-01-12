@@ -1319,6 +1319,48 @@ router.post('/:tenantId/bulk-action', writeOperationsLimiter, requireRole(['expe
   }
 });
 
+// Bulk delete tickets (permanently remove from database)
+router.post('/:tenantId/bulk-delete', writeOperationsLimiter, requireRole(['admin']), async (req, res) => {
+  try {
+    const { tenantId } = req.params;
+    const { ticket_ids } = req.body;
+
+    if (!ticket_ids || !Array.isArray(ticket_ids) || ticket_ids.length === 0) {
+      return res.status(400).json({ success: false, message: 'No tickets selected' });
+    }
+
+    const tenantCode = tenantId.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    const connection = await getTenantConnection(tenantCode);
+
+    try {
+      // Delete ticket activity first (foreign key constraint)
+      const placeholders = ticket_ids.map(() => '?').join(',');
+      await connection.query(
+        `DELETE FROM ticket_activity WHERE ticket_id IN (${placeholders})`,
+        ticket_ids
+      );
+
+      // Delete tickets
+      const [result] = await connection.query(
+        `DELETE FROM tickets WHERE id IN (${placeholders})`,
+        ticket_ids
+      );
+
+      res.json({
+        success: true,
+        message: `Deleted ${result.affectedRows} tickets`,
+        deleted: result.affectedRows,
+        total: ticket_ids.length
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error in bulk delete:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
 /**
  * Helper: Enrich ticket object with computed SLA status
  * @param {Object} ticket - Ticket row from database
