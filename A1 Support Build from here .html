@@ -63,7 +63,7 @@ vNext-FULL-ActionsSLA:
 
   *{box-sizing:border-box}
   /* Override Ionic's body styles that break scrolling */
-  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);padding-top:56px;transition:background .2s,color .2s;position:static !important;overflow-y:auto !important;height:auto !important;max-height:none !important}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);padding-top:56px;transition:background .2s,color .2s;position:static !important;overflow-y:auto !important;overflow-x:hidden;height:auto !important;max-height:none !important}
 
   /* Clean Top Navigation */
   .topnav{position:fixed;top:0;left:0;right:0;height:56px;background:var(--topnav-bg);border-bottom:1px solid var(--border);z-index:100;display:flex;align-items:center;padding:0 24px;transition:background .2s,border-color .2s}
@@ -4189,7 +4189,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 </div>
 
 <!-- Bulk Action Modal -->
-<div id="bulk-action-modal" role="dialog" aria-modal="true" aria-labelledby="bulk-action-title" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center">
+<div id="bulk-action-modal" role="dialog" aria-modal="true" aria-labelledby="bulk-action-title" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center">
   <div class="sheet" style="max-width:500px">
     <div class="head"><span id="bulk-action-title">Bulk Action</span></div>
     <div class="body">
