@@ -2156,7 +2156,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               <button class="btn" onclick="openBulkActionDialog('resolve')">Resolve Selected</button>
               <button class="btn ghost" onclick="clearBulkSelection()">Clear Selection</button>
             </div>
-            <table id="tickets-table"><thead><tr><th style="width:40px"><input type="checkbox" id="select-all-tickets" onchange="toggleSelectAllTickets()" title="Select All"></th><th style="width:120px;cursor:pointer" onclick="sortTicketsBy('id')">ID ⇅</th><th style="cursor:pointer" onclick="sortTicketsBy('title')">Title ⇅</th><th style="width:140px">Date/Time</th><th style="width:120px;cursor:pointer" onclick="sortTicketsBy('priority')">Priority ⇅</th><th style="width:140px;cursor:pointer" onclick="sortTicketsBy('status')">Status ⇅</th><th style="width:180px">Assignee</th><th style="width:160px">Customer</th><th style="width:220px;cursor:pointer" onclick="sortTicketsBy('sla')">SLA ⇅</th></tr></thead><tbody id="list-body"></tbody></table>
+            <table id="tickets-table"><thead><tr><th style="width:40px"><input type="checkbox" id="select-all-tickets" onchange="toggleSelectAllTickets()" title="Select All"></th><th style="width:120px;cursor:pointer" onclick="sortTicketsBy('id')">ID ⇅</th><th style="cursor:pointer" onclick="sortTicketsBy('title')">Title ⇅</th><th style="width:140px">Date/Time</th><th style="width:120px;cursor:pointer" onclick="sortTicketsBy('priority')">Priority ⇅</th><th style="width:140px;cursor:pointer" onclick="sortTicketsBy('status')">Status ⇅</th><th style="width:180px">Assignee</th><th style="width:160px">Customer</th><th style="width:120px;cursor:pointer" onclick="sortTicketsBy('sla')">SLA ⇅</th></tr></thead><tbody id="list-body"></tbody></table>
           </div>
         </div>
 
@@ -5397,78 +5397,137 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   // ---- SLA Utilities ----
   function parseDueEndOfDay(dueStr) { if(!dueStr) return null; const a=dueStr.split('-'); if(a.length!==3) return null; return new Date(Number(a[0]), Number(a[1])-1, Number(a[2]), 23,59,59,999); }
   function getSLAState(t) {
+    // Resolved tickets get special handling
+    if (t.status === 'Resolved' || t.status === 'Closed') {
+      return { cls: 'resolved', label: '✓', pct: 100, isResolved: true, tooltip: 'Ticket resolved' };
+    }
+
     // Use new two-phase SLA model if available
     if (t.sla_status) {
       const s = t.sla_status;
       const phase = s.sla_phase;
 
-      // Determine which phase to show (response or resolve)
-      let activePhase = s.response;
-      let phaseLabel = 'Response';
-      if (phase === 'in_progress' || phase === 'resolved') {
-        activePhase = s.resolve;
-        phaseLabel = 'Resolve';
+      // No SLA applied
+      if (!s.response && !s.resolve) {
+        return { cls: '', label: '—', pct: 0, tooltip: 'No SLA policy applied' };
       }
 
-      // Map state to CSS class
-      let cls = 'ok';
-      if (activePhase.state === 'breached') cls = 'danger';
-      else if (activePhase.state === 'near_breach') cls = 'warn';
-      else if (activePhase.state === 'met') cls = 'ok';
+      // Determine which phase to show (response or resolve)
+      let activePhase = s.response;
+      let phaseCode = 'R'; // Response
+      let phaseName = 'Response';
+      if (phase === 'in_progress' || phase === 'resolved') {
+        activePhase = s.resolve;
+        phaseCode = 'D'; // Delivery/Resolve
+        phaseName = 'Resolve';
+      }
 
-      // Build label based on state
+      if (!activePhase) {
+        return { cls: '', label: '—', pct: 0, tooltip: 'No SLA data' };
+      }
+
+      // Build tooltip parts
+      const slaName = s.sla_name || 'SLA';
+      const slaSource = s.sla_source || 'default';
+      const dueAt = activePhase.due_at ? new Date(activePhase.due_at) : null;
+      const outsideBH = s.outside_business_hours;
+
+      // Map state to CSS class and compact label
+      let cls = 'ok';
       let label = '—';
+      let tooltipStatus = '';
+
       if (activePhase.state === 'breached') {
-        label = `${phaseLabel} Breached`;
+        cls = 'danger';
+        label = `${phaseCode} ✖`;
+        // Calculate breach duration
+        if (dueAt) {
+          const breachMs = Date.now() - dueAt.getTime();
+          const breachHrs = Math.floor(breachMs / 3.6e6);
+          const breachMins = Math.floor((breachMs % 3.6e6) / 6e4);
+          tooltipStatus = breachHrs > 0 ? `Breached ${breachHrs}h ${breachMins}m ago` : `Breached ${breachMins}m ago`;
+        } else {
+          tooltipStatus = 'Breached';
+        }
       } else if (activePhase.state === 'near_breach') {
-        label = `${phaseLabel} At Risk`;
-      } else if (activePhase.state === 'on_track' && activePhase.due_at) {
-        const due = new Date(activePhase.due_at);
+        cls = 'warn';
+        label = `${phaseCode} !`;
+        tooltipStatus = 'At risk';
+      } else if (activePhase.state === 'on_track' && dueAt) {
         const now = new Date();
-        const remainingMs = due - now;
+        const remainingMs = dueAt - now;
         if (remainingMs > 0) {
           const hours = Math.floor(remainingMs / 3.6e6);
           const mins = Math.floor((remainingMs % 3.6e6) / 6e4);
-          label = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+          const days = Math.floor(hours / 24);
+          if (days > 0) {
+            label = `${phaseCode} ${days}d`;
+          } else if (hours > 0) {
+            label = `${phaseCode} ${hours}h`;
+          } else {
+            label = `${phaseCode} ${mins}m`;
+          }
+          tooltipStatus = 'On track';
         } else {
-          label = `${phaseLabel} Breached`;
+          label = `${phaseCode} ✖`;
           cls = 'danger';
+          tooltipStatus = 'Breached';
         }
       } else if (activePhase.state === 'met') {
-        label = `${phaseLabel} Met`;
+        cls = 'ok';
+        label = '✓';
+        tooltipStatus = `${phaseName} met`;
       } else if (activePhase.state === 'pending') {
-        label = 'Awaiting Response';
+        label = `${phaseCode} …`;
+        tooltipStatus = 'Awaiting response';
       } else if (activePhase.state === 'no_sla') {
-        label = '—';
-        cls = '';
+        return { cls: '', label: '—', pct: 0, tooltip: 'No SLA policy applied' };
       }
 
-      // Add paused indicator if outside business hours
-      if (s.outside_business_hours && activePhase.state !== 'met' && activePhase.state !== 'no_sla') {
-        label += ' ⏸';
+      // Build full tooltip
+      let tooltip = `${slaName}\nSource: ${slaSource}\nPhase: ${phaseName}`;
+      if (dueAt) {
+        tooltip += `\nDue: ${dueAt.toLocaleString()}`;
+      }
+      if (tooltipStatus) {
+        tooltip += `\nStatus: ${tooltipStatus}`;
+      }
+      if (outsideBH) {
+        tooltip += `\n\nSLA paused (outside business hours)`;
       }
 
-      return { cls, label, pct: activePhase.percent_elapsed || 0 };
+      return { cls, label, pct: activePhase.percent_elapsed || 0, tooltip, outsideBH };
     }
 
     // Fallback to old logic if no sla_status
     const now = new Date();
     const due = parseDueEndOfDay(t.due);
-    if(!due) return {cls:'', label:'—', pct:0};
-    const base = new Date(t.sla.startedAt || t.sla.createdAt || now);
+    if(!due) return {cls:'', label:'—', pct:0, tooltip: 'No SLA deadline'};
+    const base = new Date(t.sla?.startedAt || t.sla?.createdAt || now);
     const totalMs = due - base;
     let elapsedMs = now - base;
-    if (t.sla.paused && t.sla.pausedAt) { elapsedMs = new Date(t.sla.pausedAt) - base; }
+    if (t.sla?.paused && t.sla?.pausedAt) { elapsedMs = new Date(t.sla.pausedAt) - base; }
     const pct = Math.max(0, Math.min(100, Math.round((elapsedMs/totalMs)*100)));
     const remainingMs = due - now;
     const late = remainingMs < 0;
     const hours = Math.floor(Math.abs(remainingMs) / 3.6e6);
     const mins = Math.floor((Math.abs(remainingMs) % 3.6e6) / 6e4);
-    const label = late ? `Overdue by ${hours}h ${mins}m` : `Due in ${hours}h ${mins}m`;
     let cls = 'ok'; if (late || pct >= 100) cls = 'danger'; else if (pct >= 70) cls = 'warn';
-    return {cls, label, pct: isFinite(pct) ? pct : 0};
+    const label = late ? `D ✖` : (hours > 0 ? `D ${hours}h` : `D ${mins}m`);
+    const tooltip = late ? `Overdue by ${hours}h ${mins}m\nDue: ${due.toLocaleString()}` : `Due in ${hours}h ${mins}m\nDue: ${due.toLocaleString()}`;
+    return {cls, label, pct: isFinite(pct) ? pct : 0, tooltip};
   }
-  function slaBadgeHTML(state){ return `<span class="badge sla ${state.cls}">${state.label}</span>`; }
+
+  function slaBadgeHTML(state) {
+    if (!state.cls && state.label === '—') {
+      return `<span class="badge sla" style="color:#9ca3af;background:#f9fafb;border-color:#e5e7eb" title="${state.tooltip || 'No SLA'}">—</span>`;
+    }
+    if (state.isResolved) {
+      return `<span class="badge sla" style="color:#6b7280;background:#f3f4f6;border-color:#d1d5db" title="${state.tooltip || 'Resolved'}">✓</span>`;
+    }
+    const clockIcon = state.outsideBH ? ' <span style="color:#9ca3af;font-size:9px" title="SLA paused">⏱</span>' : '';
+    return `<span class="badge sla ${state.cls}" title="${(state.tooltip || '').replace(/"/g, '&quot;')}">${state.label}</span>${clockIcon}`;
+  }
 
   // System source badge helper
   function systemSourceBadgeHTML(ticket, compact = true) {
