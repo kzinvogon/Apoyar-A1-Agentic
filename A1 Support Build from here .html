@@ -10158,8 +10158,6 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         return;
       }
 
-      alert('DEBUG: All elements found, opening modal...');
-
       // Reset state
       noteInput.value = '';
       errorDiv.style.display = 'none';
@@ -10178,7 +10176,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           title.textContent = 'Assign Selected Tickets';
           summary.innerHTML = `You are about to <strong>assign</strong> ${selectedTicketIds.size} ${ticketWord} to an expert.`;
           assigneeRow.style.display = 'block';
-          loadBulkActionExperts(); // Don't await - load in background
+          loadBulkActionExperts();
           break;
         case 'resolve':
           title.textContent = 'Resolve Selected Tickets';
@@ -10187,10 +10185,20 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           break;
       }
 
+      // Show modal
       modal.style.display = 'flex';
+
+      // DEBUG: Check modal visibility
+      const computedStyle = window.getComputedStyle(modal);
+      alert('DEBUG FINAL: modal.style.display=' + modal.style.display +
+            ', computed display=' + computedStyle.display +
+            ', computed visibility=' + computedStyle.visibility +
+            ', computed opacity=' + computedStyle.opacity +
+            ', computed zIndex=' + computedStyle.zIndex +
+            ', modal.offsetWidth=' + modal.offsetWidth +
+            ', modal.offsetHeight=' + modal.offsetHeight);
     } catch (error) {
-      console.error('Error opening bulk action dialog:', error);
-      alert('Error opening dialog: ' + error.message);
+      alert('DEBUG CATCH: Error=' + error.message + '\nStack=' + error.stack);
     }
   }
 
