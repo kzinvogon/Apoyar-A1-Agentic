@@ -2169,16 +2169,38 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
         <!-- Ticket Detail -->
         <div id="view-ticket-detail" style="display:none">
+          <!-- Navigation Row -->
+          <div class="row space mb-8">
+            <div class="row" style="gap:8px;align-items:center">
+              <button class="btn ghost" onclick="switchView('tickets')" title="Back to list (Esc)">← Back</button>
+              <div id="ticket-nav-buttons" class="row" style="gap:4px;display:none">
+                <button id="btn-prev-ticket" class="btn ghost" onclick="navigateToPrevTicket()" title="Previous ticket ([)" disabled>← Prev</button>
+                <button id="btn-next-ticket" class="btn ghost" onclick="navigateToNextTicket()" title="Next ticket (])">Next →</button>
+              </div>
+            </div>
+            <div class="row" style="gap:8px;align-items:center">
+              <span style="font-size:18px;font-weight:600">Ticket <span id="td-id"></span></span>
+            </div>
+          </div>
+          <!-- Title Row -->
+          <div class="mb-8">
+            <h2 id="td-title-display" style="margin:0;font-size:20px;font-weight:600;color:var(--fg)"></h2>
+          </div>
+          <!-- Metadata Row -->
+          <div class="row wrap mb-12" style="gap:12px;align-items:center">
+            <span id="td-meta-customer" style="font-size:13px;color:var(--muted)"></span>
+            <span id="td-meta-priority" class="badge"></span>
+            <span id="td-meta-status" class="badge"></span>
+            <span id="td-meta-sla"></span>
+          </div>
+          <!-- Actions Row -->
           <div class="row space mb-12">
-            <div class="row"><button class="btn ghost" onclick="switchView('tickets')">← Back</button><h3 class="title" style="margin:0 0 0 8px">Ticket <span id="td-id"></span></h3></div>
             <!-- Expert/Admin Actions -->
-            <div id="expert-actions" class="row wrap">
+            <div id="expert-actions" class="row wrap" style="gap:8px">
               <button id="btn-self-assign" class="btn success" onclick="selfAssignTicket()" style="display:none">👋 Self Assign</button>
               <button id="btn-next" class="btn primary" onclick="advanceStatus()">Next status</button>
               <button id="btn-resolve" class="btn" onclick="openCompletion('resolve')">Resolve</button>
               <button id="btn-reassign" class="btn" onclick="openCompletion('reassign')">Reassign</button>
-              <button id="btn-pause-sla" class="btn warn" onclick="pauseSLA()">Pause SLA</button>
-              <button id="btn-resume-sla" class="btn" onclick="resumeSLA()">Resume SLA</button>
               <button id="btn-ai-assist" class="btn ai-btn" onclick="loadAISuggestions()">AI Assist</button>
             </div>
             <!-- Customer Actions -->
@@ -9910,6 +9932,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         // Apply sorting
         filteredTickets = applySorting(filteredTickets);
 
+        // Store ticket navigation list for prev/next in detail view
+        window.ticketNavList = filteredTickets.map(t => t.id);
+
         // Update ticket count
         const countDiv = document.getElementById('ticket-count');
         if (countDiv) {
@@ -10482,6 +10507,63 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   }
 
   function openTicket(id){ currentTicketId=id; switchView('ticket-detail'); }
+
+  // Ticket navigation functions
+  function updateTicketNavigation() {
+    const navButtons = document.getElementById('ticket-nav-buttons');
+    const prevBtn = document.getElementById('btn-prev-ticket');
+    const nextBtn = document.getElementById('btn-next-ticket');
+    const navList = window.ticketNavList || [];
+
+    if (navList.length <= 1) {
+      navButtons.style.display = 'none';
+      return;
+    }
+
+    navButtons.style.display = 'flex';
+    const currentIndex = navList.indexOf(currentTicketId);
+
+    prevBtn.disabled = currentIndex <= 0;
+    nextBtn.disabled = currentIndex >= navList.length - 1 || currentIndex === -1;
+  }
+
+  function navigateToPrevTicket() {
+    const navList = window.ticketNavList || [];
+    const currentIndex = navList.indexOf(currentTicketId);
+    if (currentIndex > 0) {
+      openTicket(navList[currentIndex - 1]);
+    }
+  }
+
+  function navigateToNextTicket() {
+    const navList = window.ticketNavList || [];
+    const currentIndex = navList.indexOf(currentTicketId);
+    if (currentIndex >= 0 && currentIndex < navList.length - 1) {
+      openTicket(navList[currentIndex + 1]);
+    }
+  }
+
+  // Keyboard shortcuts for ticket navigation
+  document.addEventListener('keydown', (e) => {
+    // Only handle shortcuts when ticket detail view is visible
+    if (currentView !== 'ticket-detail') return;
+
+    // Don't trigger if user is typing in an input/textarea
+    const tag = document.activeElement?.tagName?.toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+
+    if (e.key === '[') {
+      e.preventDefault();
+      navigateToPrevTicket();
+    } else if (e.key === ']') {
+      e.preventDefault();
+      navigateToNextTicket();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      switchView('tickets');
+    }
+  });
+
   async function renderTicketDetail(){
     const t=tickets.find(x=>x.id===currentTicketId);
     if(!t) return;
@@ -10526,6 +10608,25 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           sla_status: ticket.sla_status
         });
 
+        // Update header metadata
+        document.getElementById('td-title-display').textContent = ticket.title || '';
+        document.getElementById('td-meta-customer').textContent = ticket.requester_name ? `Customer: ${ticket.requester_name}` : '';
+        const priorityColors = { critical: '#dc2626', high: '#f59e0b', medium: '#3b82f6', low: '#6b7280' };
+        const priorityEl = document.getElementById('td-meta-priority');
+        priorityEl.textContent = (ticket.priority || 'medium').charAt(0).toUpperCase() + (ticket.priority || 'medium').slice(1);
+        priorityEl.style.background = priorityColors[ticket.priority] || priorityColors.medium;
+        priorityEl.style.color = 'white';
+        const statusColors = { Open: '#3b82f6', 'In Progress': '#f59e0b', Pending: '#8b5cf6', Resolved: '#10b981', Closed: '#6b7280' };
+        const statusEl = document.getElementById('td-meta-status');
+        statusEl.textContent = ticket.status || 'Open';
+        statusEl.style.background = statusColors[ticket.status] || statusColors.Open;
+        statusEl.style.color = 'white';
+        const slaState = getSLAState(t);
+        document.getElementById('td-meta-sla').innerHTML = slaBadgeHTML(slaState);
+
+        // Update navigation buttons
+        updateTicketNavigation();
+
         // Render activities from backend
         const act=document.getElementById('td-activity');
         act.innerHTML='';
@@ -10560,6 +10661,25 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       document.getElementById('td-customer').value = t.customer || '';
       document.getElementById('td-item').value = t.itemId || '';
       document.getElementById('td-ci').value = t.ciId || '';
+
+      // Update header metadata (fallback)
+      document.getElementById('td-title-display').textContent = t.title || '';
+      document.getElementById('td-meta-customer').textContent = t.customer ? `Customer: ${t.customer}` : '';
+      const priorityColors = { critical: '#dc2626', high: '#f59e0b', medium: '#3b82f6', low: '#6b7280' };
+      const priorityEl = document.getElementById('td-meta-priority');
+      priorityEl.textContent = (t.priority || 'medium').charAt(0).toUpperCase() + (t.priority || 'medium').slice(1);
+      priorityEl.style.background = priorityColors[t.priority] || priorityColors.medium;
+      priorityEl.style.color = 'white';
+      const statusColors = { Open: '#3b82f6', 'In Progress': '#f59e0b', Pending: '#8b5cf6', Resolved: '#10b981', Closed: '#6b7280' };
+      const statusEl = document.getElementById('td-meta-status');
+      statusEl.textContent = t.status || 'Open';
+      statusEl.style.background = statusColors[t.status] || statusColors.Open;
+      statusEl.style.color = 'white';
+      const slaState = getSLAState(t);
+      document.getElementById('td-meta-sla').innerHTML = slaBadgeHTML(slaState);
+
+      // Update navigation buttons
+      updateTicketNavigation();
 
       const act=document.getElementById('td-activity');
       act.innerHTML='';
@@ -11033,10 +11153,6 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       alert('Failed to update ticket status. Please try again.');
     }
   }
-
-  // SLA pause/resume
-  function pauseSLA(){ const t=tickets.find(x=>x.id===currentTicketId); if(!t) return; if(t.sla.paused) return; t.sla.paused=true; t.sla.pausedAt=new Date().toISOString(); const act=document.getElementById('td-activity'); const div=document.createElement('div'); div.className='card p-12 mb-8'; div.innerHTML=`<strong>SLA Bot</strong>: SLA paused`; act.appendChild(div); updateTicketSLA(); }
-  function resumeSLA(){ const t=tickets.find(x=>x.id===currentTicketId); if(!t) return; if(!t.sla.paused) return; const pausedDur = new Date().getTime() - new Date(t.sla.pausedAt).getTime(); const newStart = new Date(new Date(t.sla.startedAt).getTime() + pausedDur); t.sla.startedAt = newStart.toISOString(); t.sla.paused=false; t.sla.pausedAt=null; const act=document.getElementById('td-activity'); const div=document.createElement('div'); div.className='card p-12 mb-8'; div.innerHTML=`<strong>SLA Bot</strong>: SLA resumed`; act.appendChild(div); updateTicketSLA(); }
 
   // ---- Customer Resolution Actions ----
   async function acceptResolution() {
