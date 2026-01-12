@@ -10124,6 +10124,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   function openBulkActionDialog(action) {
     try {
+      // DEBUG: Show what's selected
+      alert('DEBUG: Selected tickets = ' + Array.from(selectedTicketIds).join(', ') + ' (count: ' + selectedTicketIds.size + ')');
+
       if (selectedTicketIds.size === 0) {
         alert('Please select at least one ticket');
         return;
