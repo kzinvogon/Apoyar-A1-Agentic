@@ -97,24 +97,55 @@ async function validateSLAExists(connection, slaId) {
 /**
  * Get SLA from customer's company via requester chain
  * Lookup: requester_id → customers.user_id → customer_companies.sla_definition_id
+ * Fallback: If sla_definition_id not set, try to match sla_level text to SLA definition name
  */
 async function getCustomerSLA(connection, requesterId) {
   try {
     const [rows] = await connection.query(`
-      SELECT cc.sla_definition_id
+      SELECT cc.sla_definition_id, cc.sla_level
       FROM customers c
       JOIN customer_companies cc ON cc.id = c.customer_company_id
       WHERE c.user_id = ?
       LIMIT 1
     `, [requesterId]);
 
-    if (rows.length > 0 && rows[0].sla_definition_id) {
-      // Validate the SLA is still active
-      return await validateSLAExists(connection, rows[0].sla_definition_id);
+    if (rows.length > 0) {
+      // First try explicit sla_definition_id
+      if (rows[0].sla_definition_id) {
+        const validId = await validateSLAExists(connection, rows[0].sla_definition_id);
+        if (validId) return validId;
+      }
+
+      // Fallback: Try to match sla_level text to SLA definition name
+      if (rows[0].sla_level) {
+        const slaId = await getSLAByName(connection, rows[0].sla_level);
+        if (slaId) return slaId;
+      }
     }
     return null;
   } catch (error) {
     console.error('[SLA_SELECTOR] Error getting customer SLA:', error.message);
+    return null;
+  }
+}
+
+/**
+ * Get SLA definition by name (case-insensitive partial match)
+ */
+async function getSLAByName(connection, slaName) {
+  try {
+    const [rows] = await connection.query(`
+      SELECT id FROM sla_definitions
+      WHERE LOWER(name) LIKE CONCAT('%', LOWER(?), '%')
+        AND is_active = 1
+      ORDER BY
+        CASE WHEN LOWER(name) = LOWER(?) THEN 0 ELSE 1 END,
+        id ASC
+      LIMIT 1
+    `, [slaName, slaName]);
+    return rows.length > 0 ? rows[0].id : null;
+  } catch (error) {
+    console.error('[SLA_SELECTOR] Error getting SLA by name:', error.message);
     return null;
   }
 }
