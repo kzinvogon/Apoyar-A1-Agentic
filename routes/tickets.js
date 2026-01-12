@@ -1238,12 +1238,13 @@ router.post('/:tenantId/bulk-action', writeOperationsLimiter, requireRole(['expe
       let failed = 0;
 
       // Determine the new status and activity type based on action
+      // Note: activity_type must be a valid ENUM value (created, updated, resolved, commented, etc.)
       let newStatus, activityType, activityDescription;
       switch (action) {
         case 'close':
           newStatus = 'closed';
-          activityType = 'closed';
-          activityDescription = `Bulk closed: ${comment}`;
+          activityType = 'updated';  // Use 'updated' as 'closed' may not be valid ENUM
+          activityDescription = `Status changed to Closed (bulk action): ${comment}`;
           break;
         case 'resolve':
           newStatus = 'Resolved';
@@ -1252,14 +1253,14 @@ router.post('/:tenantId/bulk-action', writeOperationsLimiter, requireRole(['expe
           break;
         case 'assign':
           newStatus = 'in_progress';
-          activityType = 'assigned';
+          activityType = 'updated';  // Use 'updated' as 'assigned' may not be valid ENUM
           // Get assignee name
           const [assigneeResult] = await connection.query(
             'SELECT full_name, username FROM users WHERE id = ?',
             [assignee_id]
           );
           const assigneeName = assigneeResult[0]?.full_name || assigneeResult[0]?.username || 'Unknown';
-          activityDescription = `Bulk assigned to ${assigneeName}: ${comment}`;
+          activityDescription = `Assigned to ${assigneeName} (bulk action): ${comment}`;
           break;
       }
 
@@ -1299,7 +1300,8 @@ router.post('/:tenantId/bulk-action', writeOperationsLimiter, requireRole(['expe
 
           processed++;
         } catch (ticketError) {
-          console.error(`Error processing ticket ${ticketId}:`, ticketError);
+          console.error(`Error processing ticket ${ticketId} for ${action}:`, ticketError.message);
+          console.error(`  SQL Error Code: ${ticketError.code}, SQL State: ${ticketError.sqlState}`);
           failed++;
         }
       }
