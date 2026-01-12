@@ -3158,41 +3158,41 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             <div id="email-ingest-message" class="subtitle" style="color:#16a34a;display:none;margin-top:8px"></div>
             <div id="email-ingest-error" class="subtitle" style="color:#b91c1c;display:none;margin-top:8px"></div>
 
-            <!-- System Domains Section -->
+            <!-- System Senders Section -->
             <div style="margin-top:24px;padding-top:24px;border-top:1px solid #e5e7eb">
               <div class="row space mb-12">
-                <h4 class="subtitle" style="margin:0;font-weight:600">System/Monitoring Domains</h4>
-                <button class="btn primary" onclick="saveSystemDomains()">Save Domains</button>
+                <h4 class="subtitle" style="margin:0;font-weight:600">System / Monitoring Senders</h4>
+                <button class="btn primary" onclick="saveSystemSenders()">Save Senders</button>
               </div>
 
               <div class="subtitle mb-12" style="background:#fef3c7;padding:12px;border-radius:4px;border-left:4px solid #f59e0b">
-                <strong>Purpose:</strong> Emails from these domains will be treated as system/monitoring sources.
+                <strong>Purpose:</strong> Emails from these addresses will be treated as system/monitoring sources.
                 Tickets will be created under the "System" user instead of auto-creating customer accounts.
-                This prevents fake customer companies from monitoring alerts (e.g., Nagios, PRTG, Datadog).
+                Use this when monitoring systems share your normal corporate email domain.
               </div>
 
               <div class="mb-12">
-                <label class="subtitle">Add Domain</label>
+                <label class="subtitle">Add Sender Email</label>
                 <div class="row" style="gap:8px">
-                  <input id="system-domain-input" class="input" placeholder="e.g., alerts.monitoring.com" style="flex:1"/>
-                  <button class="btn" onclick="addSystemDomain()">+ Add</button>
+                  <input id="system-sender-input" class="input" placeholder="e.g., alerts@yourcompany.com" style="flex:1"/>
+                  <button class="btn" onclick="addSystemSender()">+ Add</button>
                 </div>
               </div>
 
-              <div id="system-domains-list" class="mb-12">
-                <label class="subtitle">Current System Domains</label>
-                <div id="system-domains-items" style="margin-top:8px">
-                  <div class="subtitle" style="color:#666;font-style:italic">No system domains configured</div>
+              <div id="system-senders-list" class="mb-12">
+                <label class="subtitle">Current System Senders</label>
+                <div id="system-senders-items" style="margin-top:8px">
+                  <div class="subtitle" style="color:#666;font-style:italic">No system senders configured</div>
                 </div>
               </div>
 
               <div class="subtitle" style="color:#666;font-size:12px;margin-top:8px">
-                <strong>Note:</strong> Built-in detection already handles common monitoring systems (Nagios, Zabbix, Datadog, etc.)
-                and noreply addresses with alert subjects. Use this list for custom domains specific to your environment.
+                <strong>Note:</strong> Built-in detection already handles common monitoring systems (Nagios, Zabbix, Datadog, etc.).
+                Use this list for exact sender addresses, especially when monitoring uses your main domain.
               </div>
 
-              <div id="system-domains-message" class="subtitle" style="color:#16a34a;display:none;margin-top:8px"></div>
-              <div id="system-domains-error" class="subtitle" style="color:#b91c1c;display:none;margin-top:8px"></div>
+              <div id="system-senders-message" class="subtitle" style="color:#16a34a;display:none;margin-top:8px"></div>
+              <div id="system-senders-error" class="subtitle" style="color:#b91c1c;display:none;margin-top:8px"></div>
             </div>
           </div>
 
@@ -5345,7 +5345,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   function nav(el){ document.querySelectorAll('.navlink').forEach(n=>n.classList.remove('active')); el.classList.add('active'); switchView(el.getAttribute('data-target')); if(el.getAttribute('data-target')==='dash') renderAllDashboards(); }
   function navTo(view){ switchView(view); }
-  function switchView(view){ currentView=view; ['dash','profile','tickets','ticket-detail','experts','expert-detail','customers','cmdb-hub','cmdb','cmdb-detail','manage-cmdb','cmdb-mgmt','wizard','raise','tenants','subscriptions','billing','plans','system','usage','customer-plans','customer-billing','analytics','ai-insights','ticket-rules','email-processing','system-control','knowledge-base','raw-variables','audit-log','notifications'].forEach(n=>{ const el=document.getElementById('view-'+n); if(el) el.style.display=(n===view)?'block':'none'; }); if(view==='tickets') { loadFilterSettings('tickets'); renderList(); } if(view==='experts') { loadFilterSettings('experts'); renderExperts(); } if(view==='expert-detail') renderExpertDetail(); if(view==='customers') { loadFilterSettings('customers'); renderCustomers(); } if(view==='cmdb-hub') initCmdbHub(); if(view==='cmdb') { loadFilterSettings('cmdb'); renderCMDB(); } if(view==='cmdb-detail') renderCMDBDetail(); if(view==='manage-cmdb') loadManageCMDB(); if(view==='cmdb-mgmt') loadCMDBMgmt(); if(view==='raise') loadRaiseFormOptions(); if(view==='ticket-detail') renderTicketDetail(); if(view==='tenants') loadTenants(); if(view==='subscriptions') loadSubscriptions(); if(view==='billing') loadBilling(); if(view==='plans') loadPlans(); if(view==='system') loadSystemOverview(); if(view==='usage') loadUsageDashboard(); if(view==='customer-plans') loadCustomerPlans(); if(view==='customer-billing') loadCustomerBilling(); if(view==='analytics') loadAnalytics(); if(view==='ai-insights') loadAIInsights(); if(view==='ticket-rules') loadTicketRules(); if(view==='email-processing') loadEmailProcessing(); if(view==='system-control') loadSystemControlSettings(); if(view==='knowledge-base') initKnowledgeBase(); if(view==='raw-variables') loadRawVariables(); if(view==='audit-log') { loadAuditActions(); loadAuditLog(); } if(view==='notifications') loadNotifications(); if(view==='wizard') { initWizardSection(); loadCompanyProfile(); loadEmailIngestSettings(); loadSystemDomains(); loadExpertRegSettings(); loadSupportSettings(); loadTeamsIntegrationStatus(); loadSLAData(); } if(view==='profile') loadProfile(); }
+  function switchView(view){ currentView=view; ['dash','profile','tickets','ticket-detail','experts','expert-detail','customers','cmdb-hub','cmdb','cmdb-detail','manage-cmdb','cmdb-mgmt','wizard','raise','tenants','subscriptions','billing','plans','system','usage','customer-plans','customer-billing','analytics','ai-insights','ticket-rules','email-processing','system-control','knowledge-base','raw-variables','audit-log','notifications'].forEach(n=>{ const el=document.getElementById('view-'+n); if(el) el.style.display=(n===view)?'block':'none'; }); if(view==='tickets') { loadFilterSettings('tickets'); renderList(); } if(view==='experts') { loadFilterSettings('experts'); renderExperts(); } if(view==='expert-detail') renderExpertDetail(); if(view==='customers') { loadFilterSettings('customers'); renderCustomers(); } if(view==='cmdb-hub') initCmdbHub(); if(view==='cmdb') { loadFilterSettings('cmdb'); renderCMDB(); } if(view==='cmdb-detail') renderCMDBDetail(); if(view==='manage-cmdb') loadManageCMDB(); if(view==='cmdb-mgmt') loadCMDBMgmt(); if(view==='raise') loadRaiseFormOptions(); if(view==='ticket-detail') renderTicketDetail(); if(view==='tenants') loadTenants(); if(view==='subscriptions') loadSubscriptions(); if(view==='billing') loadBilling(); if(view==='plans') loadPlans(); if(view==='system') loadSystemOverview(); if(view==='usage') loadUsageDashboard(); if(view==='customer-plans') loadCustomerPlans(); if(view==='customer-billing') loadCustomerBilling(); if(view==='analytics') loadAnalytics(); if(view==='ai-insights') loadAIInsights(); if(view==='ticket-rules') loadTicketRules(); if(view==='email-processing') loadEmailProcessing(); if(view==='system-control') loadSystemControlSettings(); if(view==='knowledge-base') initKnowledgeBase(); if(view==='raw-variables') loadRawVariables(); if(view==='audit-log') { loadAuditActions(); loadAuditLog(); } if(view==='notifications') loadNotifications(); if(view==='wizard') { initWizardSection(); loadCompanyProfile(); loadEmailIngestSettings(); loadSystemSenders(); loadExpertRegSettings(); loadSupportSettings(); loadTeamsIntegrationStatus(); loadSLAData(); } if(view==='profile') loadProfile(); }
   function configureRole(){
     const currentRole = window.role || role; // Use global role from login, fallback to local
     document.getElementById('nav-admin').style.display = (currentRole==='admin') ? 'block' : 'none';
@@ -5476,7 +5476,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     if (!ticket.is_system_source && !ticket.source_metadata) return '';
 
     const reasonLabels = {
-      'tenant_domain': 'tenant domain',
+      'system_senders_allowlist': 'system senders list',
       'system_domains_setting': 'system domain list',
       'monitoring_pattern_strong': 'monitoring pattern',
       'monitoring_pattern_weak': 'noreply + alert'
@@ -8209,10 +8209,10 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     document.getElementById('email-ingest-error').style.display = 'none';
   }
 
-  // ========== System Domains Management ==========
-  let systemDomains = [];
+  // ========== System Senders Management ==========
+  let systemSenders = [];
 
-  async function loadSystemDomains() {
+  async function loadSystemSenders() {
     try {
       const tenantCode = window.tenant || currentUser?.tenantCode || 'apoyar';
       const response = await fetch(`${window.location.protocol}//${window.location.host}/api/tickets/settings/${tenantCode}`, {
@@ -8222,74 +8222,74 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       if (!response.ok) return;
 
       const data = await response.json();
-      if (data.success && data.settings && data.settings.system_domains) {
+      if (data.success && data.settings && data.settings.system_senders) {
         try {
-          systemDomains = JSON.parse(data.settings.system_domains);
-          if (!Array.isArray(systemDomains)) systemDomains = [];
+          systemSenders = JSON.parse(data.settings.system_senders);
+          if (!Array.isArray(systemSenders)) systemSenders = [];
         } catch (e) {
           // If not JSON, try comma-separated
-          systemDomains = data.settings.system_domains.split(',').map(d => d.trim()).filter(d => d);
+          systemSenders = data.settings.system_senders.split(',').map(s => s.trim()).filter(s => s);
         }
       } else {
-        systemDomains = [];
+        systemSenders = [];
       }
-      renderSystemDomains();
+      renderSystemSenders();
     } catch (error) {
-      console.error('Error loading system domains:', error);
-      systemDomains = [];
-      renderSystemDomains();
+      console.error('Error loading system senders:', error);
+      systemSenders = [];
+      renderSystemSenders();
     }
   }
 
-  function renderSystemDomains() {
-    const container = document.getElementById('system-domains-items');
+  function renderSystemSenders() {
+    const container = document.getElementById('system-senders-items');
     if (!container) return;
 
-    if (systemDomains.length === 0) {
-      container.innerHTML = '<div class="subtitle" style="color:#666;font-style:italic">No system domains configured</div>';
+    if (systemSenders.length === 0) {
+      container.innerHTML = '<div class="subtitle" style="color:#666;font-style:italic">No system senders configured</div>';
       return;
     }
 
-    container.innerHTML = systemDomains.map((domain, idx) => `
+    container.innerHTML = systemSenders.map((sender, idx) => `
       <div class="row" style="background:#f3f4f6;padding:8px 12px;border-radius:4px;margin-bottom:4px;justify-content:space-between;align-items:center">
-        <span style="font-family:monospace">${domain}</span>
-        <button class="btn" style="padding:4px 8px;font-size:12px" onclick="removeSystemDomain(${idx})">Remove</button>
+        <span style="font-family:monospace">${sender}</span>
+        <button class="btn" style="padding:4px 8px;font-size:12px" onclick="removeSystemSender(${idx})">Remove</button>
       </div>
     `).join('');
   }
 
-  function addSystemDomain() {
-    const input = document.getElementById('system-domain-input');
-    const domain = input.value.trim().toLowerCase();
+  function addSystemSender() {
+    const input = document.getElementById('system-sender-input');
+    const sender = input.value.trim().toLowerCase();
 
-    if (!domain) {
-      showSystemDomainsError('Please enter a domain');
+    if (!sender) {
+      showSystemSendersError('Please enter an email address');
       return;
     }
 
-    // Basic domain validation
-    if (!/^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$/.test(domain)) {
-      showSystemDomainsError('Please enter a valid domain (e.g., alerts.monitoring.com)');
+    // Basic email validation
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sender)) {
+      showSystemSendersError('Please enter a valid email address (e.g., alerts@yourcompany.com)');
       return;
     }
 
-    if (systemDomains.includes(domain)) {
-      showSystemDomainsError('Domain already in list');
+    if (systemSenders.includes(sender)) {
+      showSystemSendersError('Email already in list');
       return;
     }
 
-    systemDomains.push(domain);
+    systemSenders.push(sender);
     input.value = '';
-    renderSystemDomains();
-    hideSystemDomainsMessages();
+    renderSystemSenders();
+    hideSystemSendersMessages();
   }
 
-  function removeSystemDomain(idx) {
-    systemDomains.splice(idx, 1);
-    renderSystemDomains();
+  function removeSystemSender(idx) {
+    systemSenders.splice(idx, 1);
+    renderSystemSenders();
   }
 
-  async function saveSystemDomains() {
+  async function saveSystemSenders() {
     try {
       const tenantCode = window.tenant || currentUser?.tenantCode || 'apoyar';
       const response = await fetch(`${window.location.protocol}//${window.location.host}/api/tickets/settings/${tenantCode}`, {
@@ -8299,47 +8299,47 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           'Authorization': 'Bearer ' + localStorage.getItem('token')
         },
         body: JSON.stringify({
-          key: 'system_domains',
-          value: JSON.stringify(systemDomains)
+          key: 'system_senders',
+          value: JSON.stringify(systemSenders)
         })
       });
 
       const data = await response.json();
 
       if (response.status === 403) {
-        showSystemDomainsError('Admin access required to save settings');
+        showSystemSendersError('Admin access required to save settings');
         return;
       }
 
       if (data.success) {
-        showSystemDomainsMessage('System domains saved successfully');
-        setTimeout(hideSystemDomainsMessages, 3000);
+        showSystemSendersMessage('System senders saved successfully');
+        setTimeout(hideSystemSendersMessages, 3000);
       } else {
-        showSystemDomainsError(data.message || 'Error saving system domains');
+        showSystemSendersError(data.message || 'Error saving system senders');
       }
     } catch (error) {
-      console.error('Error saving system domains:', error);
-      showSystemDomainsError('Error saving system domains');
+      console.error('Error saving system senders:', error);
+      showSystemSendersError('Error saving system senders');
     }
   }
 
-  function showSystemDomainsMessage(message) {
-    const msgEl = document.getElementById('system-domains-message');
-    const errEl = document.getElementById('system-domains-error');
+  function showSystemSendersMessage(message) {
+    const msgEl = document.getElementById('system-senders-message');
+    const errEl = document.getElementById('system-senders-error');
     if (errEl) errEl.style.display = 'none';
     if (msgEl) { msgEl.textContent = message; msgEl.style.display = 'block'; }
   }
 
-  function showSystemDomainsError(message) {
-    const msgEl = document.getElementById('system-domains-message');
-    const errEl = document.getElementById('system-domains-error');
+  function showSystemSendersError(message) {
+    const msgEl = document.getElementById('system-senders-message');
+    const errEl = document.getElementById('system-senders-error');
     if (msgEl) msgEl.style.display = 'none';
     if (errEl) { errEl.textContent = message; errEl.style.display = 'block'; }
   }
 
-  function hideSystemDomainsMessages() {
-    const msgEl = document.getElementById('system-domains-message');
-    const errEl = document.getElementById('system-domains-error');
+  function hideSystemSendersMessages() {
+    const msgEl = document.getElementById('system-senders-message');
+    const errEl = document.getElementById('system-senders-error');
     if (msgEl) msgEl.style.display = 'none';
     if (errEl) errEl.style.display = 'none';
   }
