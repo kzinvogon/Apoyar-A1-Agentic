@@ -10142,11 +10142,23 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       const progressDiv = document.getElementById('bulk-action-progress');
       const submitBtn = document.getElementById('bulk-action-submit-btn');
 
-      if (!modal || !title || !summary || !noteInput || !errorDiv || !progressDiv || !submitBtn) {
-        console.error('Bulk action modal elements not found');
-        alert('Error: Could not open dialog. Please refresh the page.');
+      // DEBUG: Check which elements are missing
+      const missing = [];
+      if (!modal) missing.push('modal');
+      if (!title) missing.push('title');
+      if (!summary) missing.push('summary');
+      if (!noteInput) missing.push('noteInput');
+      if (!errorDiv) missing.push('errorDiv');
+      if (!progressDiv) missing.push('progressDiv');
+      if (!submitBtn) missing.push('submitBtn');
+      if (!assigneeRow) missing.push('assigneeRow');
+
+      if (missing.length > 0) {
+        alert('DEBUG: Missing elements: ' + missing.join(', '));
         return;
       }
+
+      alert('DEBUG: All elements found, opening modal...');
 
       // Reset state
       noteInput.value = '';
