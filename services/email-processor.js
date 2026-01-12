@@ -917,6 +917,9 @@ class EmailProcessor {
       [ticketId, requesterId, 'created', sourceInfo]
     );
 
+    // Execute ticket processing rules (fire-and-forget)
+    this.executeTicketRules(ticketId);
+
     return ticketId;
   }
 
@@ -932,6 +935,25 @@ class EmailProcessor {
     } catch (error) {
       // Don't throw - AI analysis is non-critical
       console.error(`AI analysis error for ticket #${ticketId}:`, error.message);
+    }
+  }
+
+  /**
+   * Execute ticket processing rules (async, non-blocking)
+   */
+  async executeTicketRules(ticketId) {
+    try {
+      const { TicketRulesService } = require('./ticket-rules-service');
+      const rulesService = new TicketRulesService(this.tenantCode);
+
+      const results = await rulesService.executeAllRulesOnTicket(ticketId);
+      if (results.length > 0) {
+        console.log(`[TicketRules] Executed ${results.length} rule(s) on ticket #${ticketId}:`,
+          results.map(r => `${r.rule_name}: ${r.result}`).join(', '));
+      }
+    } catch (error) {
+      // Don't throw - rule execution is non-critical
+      console.error(`[TicketRules] Error executing rules on ticket #${ticketId}:`, error.message);
     }
   }
 

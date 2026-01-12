@@ -31,6 +31,23 @@ const {
 // SLA selector service
 const { resolveApplicableSLA } = require('../services/sla-selector');
 
+// Ticket rules service
+const { TicketRulesService } = require('../services/ticket-rules-service');
+
+// Fire-and-forget ticket rules execution
+async function triggerTicketRulesAsync(tenantCode, ticketId) {
+  try {
+    const rulesService = new TicketRulesService(tenantCode);
+    const results = await rulesService.executeAllRulesOnTicket(ticketId);
+    if (results.length > 0) {
+      console.log(`[TicketRules] Executed ${results.length} rule(s) on ticket #${ticketId}:`,
+        results.map(r => `${r.rule_name}: ${r.result}`).join(', '));
+    }
+  } catch (error) {
+    console.error(`[TicketRules] Error executing rules on ticket #${ticketId}:`, error.message);
+  }
+}
+
 // ========== PUBLIC ROUTES (NO AUTH) ==========
 // These routes must come BEFORE the verifyToken middleware
 
@@ -770,6 +787,9 @@ router.post('/:tenantId', writeOperationsLimiter, validateTicketCreate, async (r
       if (description && description.trim().length > 10) {
         triggerAutoLink(tenantCode, ticketId, req.user.userId);
       }
+
+      // Execute ticket processing rules (fire-and-forget)
+      triggerTicketRulesAsync(tenantCode, ticketId);
 
       // Enrich with SLA status
       await enrichTicketWithSLAStatus(tickets[0], connection);
