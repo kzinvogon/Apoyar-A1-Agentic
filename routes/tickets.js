@@ -1236,6 +1236,7 @@ router.post('/:tenantId/bulk-action', writeOperationsLimiter, requireRole(['expe
     try {
       let processed = 0;
       let failed = 0;
+      const errors = [];  // Track error details
 
       // Determine the new status and activity type based on action
       // Note: activity_type must be a valid ENUM value (created, updated, resolved, commented, etc.)
@@ -1302,6 +1303,7 @@ router.post('/:tenantId/bulk-action', writeOperationsLimiter, requireRole(['expe
         } catch (ticketError) {
           console.error(`Error processing ticket ${ticketId} for ${action}:`, ticketError.message);
           console.error(`  SQL Error Code: ${ticketError.code}, SQL State: ${ticketError.sqlState}`);
+          errors.push({ ticketId, error: ticketError.message, code: ticketError.code });
           failed++;
         }
       }
@@ -1311,7 +1313,8 @@ router.post('/:tenantId/bulk-action', writeOperationsLimiter, requireRole(['expe
         message: `Bulk ${action} completed`,
         processed,
         failed,
-        total: ticket_ids.length
+        total: ticket_ids.length,
+        errors: errors.length > 0 ? errors : undefined
       });
     } finally {
       connection.release();
