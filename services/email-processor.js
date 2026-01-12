@@ -287,19 +287,80 @@ class EmailProcessor {
   }
 
   /**
-   * Check if sender appears to be a monitoring/integration system
-   * Based on email patterns and sender name
+   * Classify if sender is a system/monitoring source
+   * Returns { isSystemSource: boolean, reason: string|null }
+   *
+   * Reasons:
+   * - 'tenant_domain': Email is from the tenant's own domain
+   * - 'system_domains_setting': Email matches admin-configured system domains
+   * - 'monitoring_pattern_strong': Known monitoring system (nagios, zabbix, etc.)
+   * - 'monitoring_pattern_weak': Generic pattern (noreply, alerts) + alert subject match
+   * - null: Not a system source
    */
-  isMonitoringSource(fromEmail, displayName) {
-    const monitoringPatterns = [
+  classifySystemSource(fromEmail, displayName, subject, tenantDomain, systemDomains) {
+    const domain = fromEmail.split('@')[1]?.toLowerCase();
+
+    // Check 1: Tenant's own domain
+    if (tenantDomain && domain === tenantDomain.toLowerCase()) {
+      return { isSystemSource: true, reason: 'tenant_domain' };
+    }
+
+    // Check 2: Admin-configured system domains
+    if (systemDomains && systemDomains.length > 0) {
+      const matchedDomain = systemDomains.find(sd => domain === sd.toLowerCase());
+      if (matchedDomain) {
+        return { isSystemSource: true, reason: 'system_domains_setting' };
+      }
+    }
+
+    // Strong monitoring patterns - these alone are enough to classify as system
+    const strongPatterns = [
       'nagios', 'zabbix', 'prtg', 'datadog', 'prometheus', 'alertmanager',
-      'pagerduty', 'opsgenie', 'servicenow', 'monitoring', 'alerts',
-      'noreply', 'no-reply', 'donotreply', 'do-not-reply', 'mailer-daemon',
-      'postmaster', 'icinga', 'checkmk', 'sensu', 'newrelic', 'splunk'
+      'pagerduty', 'opsgenie', 'servicenow', 'icinga', 'checkmk', 'sensu',
+      'newrelic', 'splunk', 'dynatrace', 'grafana', 'pingdom', 'uptime',
+      'mailer-daemon', 'postmaster'
+    ];
+
+    // Weak patterns - only match if subject also looks like an alert
+    const weakPatterns = [
+      'noreply', 'no-reply', 'donotreply', 'do-not-reply',
+      'alerts', 'monitoring', 'monitor', 'notification', 'notify'
+    ];
+
+    // Alert subject patterns
+    const alertSubjectPatterns = [
+      'CRITICAL', 'WARNING', 'OK', 'PROBLEM', 'RECOVERY', 'ALERT',
+      'TRIGGER', 'HOST DOWN', 'SERVICE DOWN', 'DOWN:', 'UP:',
+      '[FIRING]', '[RESOLVED]', 'DEGRADED', 'OUTAGE'
     ];
 
     const checkString = (fromEmail + ' ' + (displayName || '')).toLowerCase();
-    return monitoringPatterns.some(pattern => checkString.includes(pattern));
+    const subjectUpper = (subject || '').toUpperCase();
+
+    // Check 3: Strong monitoring pattern match
+    if (strongPatterns.some(pattern => checkString.includes(pattern))) {
+      return { isSystemSource: true, reason: 'monitoring_pattern_strong' };
+    }
+
+    // Check 4: Weak pattern + alert subject match
+    const hasWeakPattern = weakPatterns.some(pattern => checkString.includes(pattern));
+    const hasAlertSubject = alertSubjectPatterns.some(pattern => subjectUpper.includes(pattern));
+
+    if (hasWeakPattern && hasAlertSubject) {
+      return { isSystemSource: true, reason: 'monitoring_pattern_weak' };
+    }
+
+    // Not a system source
+    return { isSystemSource: false, reason: null };
+  }
+
+  /**
+   * Legacy method for backward compatibility
+   * @deprecated Use classifySystemSource instead
+   */
+  isMonitoringSource(fromEmail, displayName) {
+    const result = this.classifySystemSource(fromEmail, displayName, '', null, []);
+    return result.isSystemSource;
   }
 
   /**
@@ -574,26 +635,35 @@ class EmailProcessor {
       // ============================================
       // SYSTEM SOURCE DETECTION
       // Check if this is from a monitoring/integration system
+      // Uses safer heuristics with strong/weak pattern matching
       // ============================================
       const tenantDomain = await this.getTenantDomain(connection);
       const systemDomains = await this.getSystemDomains(connection);
-      const isFromTenantDomain = tenantDomain && domain.toLowerCase() === tenantDomain.toLowerCase();
-      const isFromSystemDomain = systemDomains.some(sd => domain.toLowerCase() === sd.toLowerCase());
-      const looksLikeMonitoring = this.isMonitoringSource(fromEmail, displayName);
 
-      const isSystemSource = isFromTenantDomain || isFromSystemDomain || looksLikeMonitoring;
+      // Classify the source with reason
+      const classification = this.classifySystemSource(
+        fromEmail,
+        displayName,
+        email.subject,
+        tenantDomain,
+        systemDomains
+      );
 
-      if (isSystemSource) {
-        console.log(`🤖 System source detected: tenant=${isFromTenantDomain}, systemDomain=${isFromSystemDomain}, monitoring=${looksLikeMonitoring}`);
+      if (classification.isSystemSource) {
+        console.log(`🤖 System source detected: reason=${classification.reason}, email=${fromEmail}`);
 
         // Use System user for system-sourced tickets
         const systemUserId = await this.getOrCreateSystemUser(connection);
+
+        // Determine if this is a monitoring source (for skipping confirmation email)
+        const isMonitoringType = ['monitoring_pattern_strong', 'monitoring_pattern_weak'].includes(classification.reason);
 
         // Create ticket with System user as requester, no customer company
         const ticketId = await this.createTicketFromEmail(connection, email, systemUserId, {
           sourceType: 'system',
           sourceEmail: fromEmail,
-          createdVia: looksLikeMonitoring ? 'monitoring' : 'email'
+          classificationReason: classification.reason,
+          createdVia: isMonitoringType ? 'monitoring' : 'email'
         });
 
         // AI Analysis to try to detect customer/CMDB from content
@@ -602,17 +672,18 @@ class EmailProcessor {
         });
 
         // Don't send confirmation email to monitoring systems
-        if (!looksLikeMonitoring) {
+        if (!isMonitoringType) {
           await this.sendTicketConfirmation(fromEmail, ticketId, email.subject);
         }
 
-        console.log(`✅ Created ticket #${ticketId} from system source (no auto-customer)`);
+        console.log(`✅ Created ticket #${ticketId} from system source [${classification.reason}] (no auto-customer)`);
 
         return {
           success: true,
           ticketId,
           customerId: null,
           sourceType: 'system',
+          classificationReason: classification.reason,
           wasNewCustomer: false
         };
       }
@@ -806,10 +877,20 @@ class EmailProcessor {
 
     const ticketId = result.insertId;
 
-    // Log activity with source information
-    const sourceInfo = sourceMetadata.sourceType === 'system'
-      ? `Ticket created from system/monitoring email: ${email.from} (no customer auto-assigned)`
-      : `Ticket created from email: ${email.from}`;
+    // Log activity with source information including classification reason
+    let sourceInfo;
+    if (sourceMetadata.sourceType === 'system') {
+      const reasonMap = {
+        'tenant_domain': 'sender is from tenant domain',
+        'system_domains_setting': 'sender domain in system_domains setting',
+        'monitoring_pattern_strong': 'known monitoring system pattern',
+        'monitoring_pattern_weak': 'generic noreply + alert subject'
+      };
+      const reasonText = reasonMap[sourceMetadata.classificationReason] || sourceMetadata.classificationReason;
+      sourceInfo = `Ticket created from system source: ${email.from} [Reason: ${reasonText}] (no customer auto-assigned)`;
+    } else {
+      sourceInfo = `Ticket created from email: ${email.from}`;
+    }
 
     await connection.query(
       'INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description) VALUES (?, ?, ?, ?)',
