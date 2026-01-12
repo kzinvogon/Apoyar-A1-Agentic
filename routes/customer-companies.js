@@ -81,6 +81,8 @@ router.get('/', requireRole(['admin', 'expert']), readOperationsLimiter, async (
           cc.contact_phone,
           cc.address,
           cc.sla_level,
+          cc.sla_definition_id,
+          sd.name as sla_name,
           cc.is_active,
           cc.notes,
           cc.created_at,
@@ -92,6 +94,7 @@ router.get('/', requireRole(['admin', 'expert']), readOperationsLimiter, async (
            WHERE c.customer_company_id = cc.id AND cu.is_active = TRUE) as team_member_count
         FROM customer_companies cc
         LEFT JOIN users u ON cc.admin_user_id = u.id
+        LEFT JOIN sla_definitions sd ON cc.sla_definition_id = sd.id
         WHERE cc.is_active = TRUE
         ORDER BY cc.company_name ASC
       `);
@@ -125,6 +128,8 @@ router.get('/:id', requireRole(['admin', 'expert']), readOperationsLimiter, asyn
           cc.contact_phone,
           cc.address,
           cc.sla_level,
+          cc.sla_definition_id,
+          sd.name as sla_name,
           cc.is_active,
           cc.notes,
           cc.created_at,
@@ -133,6 +138,7 @@ router.get('/:id', requireRole(['admin', 'expert']), readOperationsLimiter, asyn
           u.username as admin_username
         FROM customer_companies cc
         LEFT JOIN users u ON cc.admin_user_id = u.id
+        LEFT JOIN sla_definitions sd ON cc.sla_definition_id = sd.id
         WHERE cc.id = ?
       `, [id]);
 
@@ -182,6 +188,7 @@ router.post('/', requireRole(['admin', 'expert']), writeOperationsLimiter, valid
       contact_phone,
       address,
       sla_level,
+      sla_definition_id,
       notes
     } = req.body;
 
@@ -224,9 +231,9 @@ router.post('/', requireRole(['admin', 'expert']), writeOperationsLimiter, valid
 
       // Create customer company
       const [companyResult] = await connection.query(
-        `INSERT INTO customer_companies (company_name, company_domain, admin_user_id, admin_email, contact_phone, address, sla_level, notes)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [company_name, normalizedDomain, adminUserId, adminEmail, contact_phone || null, address || null, sla_level || 'basic', notes || null]
+        `INSERT INTO customer_companies (company_name, company_domain, admin_user_id, admin_email, contact_phone, address, sla_level, sla_definition_id, notes)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [company_name, normalizedDomain, adminUserId, adminEmail, contact_phone || null, address || null, sla_level || 'basic', sla_definition_id || null, notes || null]
       );
 
       const companyId = companyResult.insertId;
@@ -300,6 +307,7 @@ router.put('/:id', requireRole(['admin', 'expert']), writeOperationsLimiter, val
       contact_phone,
       address,
       sla_level,
+      sla_definition_id,
       notes,
       is_active
     } = req.body;
@@ -336,6 +344,10 @@ router.put('/:id', requireRole(['admin', 'expert']), writeOperationsLimiter, val
       if (sla_level !== undefined) {
         updates.push('sla_level = ?');
         values.push(sla_level);
+      }
+      if (sla_definition_id !== undefined) {
+        updates.push('sla_definition_id = ?');
+        values.push(sla_definition_id || null);
       }
       if (notes !== undefined) {
         updates.push('notes = ?');
