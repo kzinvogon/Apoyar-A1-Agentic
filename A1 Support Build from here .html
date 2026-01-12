@@ -9682,7 +9682,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           created: t.created_at,
           sla_deadline: t.sla_deadline,
           sla_status: t.sla_status || null,
-          cmdb_item_name: t.cmdb_item_name
+          cmdb_item_name: t.cmdb_item_name,
+          is_system_source: t.is_system_source ? true : false
         }));
 
         // Populate assignee filter dropdown
@@ -9723,7 +9724,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             const sla = getSLAState(t);
             const dateTime = formatDateTime(t.created);
             const isSelected = selectedTicketIds.has(t.id);
-            tr.innerHTML = `<td onclick="event.stopPropagation()"><input type="checkbox" class="ticket-checkbox" data-ticket-id="${t.id}" ${isSelected ? 'checked' : ''} onchange="onTicketCheckboxChange(${t.id}, this.checked)"></td><td onclick="openTicket(${t.id})">#${t.id}</td><td onclick="openTicket(${t.id})">${t.title}</td><td onclick="openTicket(${t.id})">${dateTime}</td><td onclick="openTicket(${t.id})">${t.priority||'—'}</td><td onclick="openTicket(${t.id})">${t.status}</td><td onclick="openTicket(${t.id})">${t.assignee||'—'}</td><td onclick="openTicket(${t.id})">${t.customer}</td><td onclick="openTicket(${t.id})">${slaBadgeHTML(sla)}</td>`;
+            const systemBadge = t.is_system_source ? '<span style="background:#7c3aed;color:white;padding:1px 6px;border-radius:4px;font-size:10px;margin-left:4px" title="Created from monitoring/system source">SYS</span>' : '';
+            tr.innerHTML = `<td onclick="event.stopPropagation()"><input type="checkbox" class="ticket-checkbox" data-ticket-id="${t.id}" ${isSelected ? 'checked' : ''} onchange="onTicketCheckboxChange(${t.id}, this.checked)"></td><td onclick="openTicket(${t.id})">#${t.id}${systemBadge}</td><td onclick="openTicket(${t.id})">${t.title}</td><td onclick="openTicket(${t.id})">${dateTime}</td><td onclick="openTicket(${t.id})">${t.priority||'—'}</td><td onclick="openTicket(${t.id})">${t.status}</td><td onclick="openTicket(${t.id})">${t.assignee||'—'}</td><td onclick="openTicket(${t.id})">${t.customer}</td><td onclick="openTicket(${t.id})">${slaBadgeHTML(sla)}</td>`;
             if (isSelected) tr.style.backgroundColor = '#e0f2fe';
             tb.appendChild(tr);
           });
@@ -10265,7 +10267,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         const ticket = data.ticket;
 
         // Update form fields with latest data
-        document.getElementById('td-id').textContent = '#' + ticket.id;
+        const systemBadgeHTML = t.is_system_source ? ' <span style="background:#7c3aed;color:white;padding:2px 8px;border-radius:4px;font-size:11px" title="Created from monitoring/system source">SYSTEM SOURCE</span>' : '';
+        document.getElementById('td-id').innerHTML = '#' + ticket.id + systemBadgeHTML;
         document.getElementById('td-title').value = ticket.title || '';
         document.getElementById('td-desc').value = ticket.description || '';
         document.getElementById('td-priority').value = ticket.priority || 'medium';
@@ -10310,7 +10313,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     } catch (error) {
       console.error('Error loading ticket details:', error);
       // Fall back to local data
-      document.getElementById('td-id').textContent = '#'+t.id;
+      const fallbackSystemBadge = t.is_system_source ? ' <span style="background:#7c3aed;color:white;padding:2px 8px;border-radius:4px;font-size:11px" title="Created from monitoring/system source">SYSTEM SOURCE</span>' : '';
+      document.getElementById('td-id').innerHTML = '#'+t.id + fallbackSystemBadge;
       document.getElementById('td-title').value = t.title || '';
       document.getElementById('td-desc').value = t.desc || '';
       document.getElementById('td-priority').value = t.priority || 'Normal';
