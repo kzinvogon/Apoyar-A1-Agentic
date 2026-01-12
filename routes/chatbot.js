@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { getTenantConnection } = require('../config/database');
 const { verifyToken } = require('../middleware/auth');
+const { TicketRulesService } = require('../services/ticket-rules-service');
 
 // Apply verifyToken middleware to all chatbot routes
 router.use(verifyToken);
@@ -77,6 +78,14 @@ router.post('/:tenantId/chat/create-ticket', async (req, res) => {
          VALUES (?, ?, ?, ?)`,
         [ticketId, req.user.userId, 'created', `Ticket created via chatbot by ${req.user.username}`]
       );
+
+      // Execute ticket processing rules (fire-and-forget)
+      const rulesService = new TicketRulesService(tenantCode);
+      rulesService.executeAllRulesOnTicket(ticketId).then(results => {
+        if (results.length > 0) {
+          console.log(`[TicketRules] Executed ${results.length} rule(s) on chatbot ticket #${ticketId}`);
+        }
+      }).catch(err => console.error(`[TicketRules] Error on ticket #${ticketId}:`, err.message));
 
       // Get the created ticket
       const [tickets] = await connection.query(
