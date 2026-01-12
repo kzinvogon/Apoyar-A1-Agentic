@@ -1405,5 +1405,73 @@ async function enrichTicketsWithSLAStatus(tickets, connection = null) {
   return Promise.all(tickets.map(t => enrichTicketWithSLAStatus(t, connection)));
 }
 
+// Re-apply SLA to a single ticket or all tickets without SLA
+router.post('/:tenantId/reapply-sla', writeOperationsLimiter, requireRole(['admin']), async (req, res) => {
+  try {
+    const { tenantId } = req.params;
+    const { ticketId, applyToAll } = req.body;
+    const tenantCode = tenantId;
+    const connection = await getTenantConnection(tenantCode);
+
+    try {
+      let ticketsToUpdate = [];
+
+      if (ticketId) {
+        // Single ticket
+        const [tickets] = await connection.query(
+          'SELECT id, requester_id, category, cmdb_item_id, sla_definition_id FROM tickets WHERE id = ?',
+          [ticketId]
+        );
+        if (tickets.length === 0) {
+          return res.status(404).json({ success: false, message: 'Ticket not found' });
+        }
+        ticketsToUpdate = tickets;
+      } else if (applyToAll) {
+        // All tickets without SLA
+        const [tickets] = await connection.query(
+          'SELECT id, requester_id, category, cmdb_item_id, sla_definition_id FROM tickets WHERE sla_definition_id IS NULL'
+        );
+        ticketsToUpdate = tickets;
+      } else {
+        return res.status(400).json({ success: false, message: 'Provide ticketId or set applyToAll: true' });
+      }
+
+      const results = [];
+      for (const ticket of ticketsToUpdate) {
+        const { slaId, source } = await resolveApplicableSLA({
+          tenantCode,
+          ticketPayload: {
+            requester_id: ticket.requester_id,
+            category: ticket.category,
+            cmdb_item_id: ticket.cmdb_item_id
+          }
+        });
+
+        if (slaId && slaId !== ticket.sla_definition_id) {
+          await connection.query(
+            'UPDATE tickets SET sla_definition_id = ? WHERE id = ?',
+            [slaId, ticket.id]
+          );
+          results.push({ ticketId: ticket.id, slaId, source, updated: true });
+        } else {
+          results.push({ ticketId: ticket.id, slaId: ticket.sla_definition_id, source: source || 'unchanged', updated: false });
+        }
+      }
+
+      const updatedCount = results.filter(r => r.updated).length;
+      res.json({
+        success: true,
+        message: `Updated ${updatedCount} of ${ticketsToUpdate.length} tickets`,
+        results
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error re-applying SLA:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
 module.exports = router;
 
