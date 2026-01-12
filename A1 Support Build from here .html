@@ -2142,6 +2142,12 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
                   <option value="sla">SLA (Urgent First)</option>
                 </select>
               </div>
+              <div style="min-width:180px;display:flex;align-items:flex-end;padding-bottom:6px">
+                <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;user-select:none">
+                  <input type="checkbox" id="ticket-filter-system" onchange="renderList(); saveFilterSettings('tickets')" checked>
+                  <span>Include system tickets</span>
+                </label>
+              </div>
             </div>
             <div class="row" style="margin-top:12px">
               <div id="ticket-count" class="subtitle">Showing 0 tickets</div>
@@ -5269,6 +5275,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       settings.assignee = document.getElementById('ticket-filter-assignee')?.value || '';
       settings.customer = document.getElementById('ticket-filter-customer')?.value || '';
       settings.sort = document.getElementById('ticket-sort')?.value || '';
+      settings.includeSystem = document.getElementById('ticket-filter-system')?.checked !== false;
     } else if (viewName === 'experts') {
       settings.search = document.getElementById('expert-search')?.value || '';
     } else if (viewName === 'customers') {
@@ -5316,6 +5323,10 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         if (settings.sort !== undefined) {
           const elem = document.getElementById('ticket-sort');
           if (elem) elem.value = settings.sort;
+        }
+        if (settings.includeSystem !== undefined) {
+          const elem = document.getElementById('ticket-filter-system');
+          if (elem) elem.checked = settings.includeSystem;
         }
       } else if (viewName === 'experts') {
         if (settings.search !== undefined) {
@@ -5545,14 +5556,24 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       reason = reasonLabels[ticket.source_metadata.reason] || ticket.source_metadata.reason;
     }
 
+    // Check if ticket is closed/resolved for faded styling
+    const isClosed = ticket.status === 'Resolved' || ticket.status === 'Closed';
+
     if (compact) {
-      // Short badge for list view
-      const title = reason ? `Source: Monitoring (${reason})` : 'Source: Monitoring';
-      return `<span style="background:#7c3aed;color:white;padding:1px 6px;border-radius:4px;font-size:10px;margin-left:4px;cursor:help" title="${title}">MON</span>`;
+      // Short badge for list view - faded if closed
+      const bgColor = isClosed ? '#c4b5fd' : '#7c3aed';
+      const textColor = isClosed ? '#6b7280' : 'white';
+      const title = isClosed
+        ? (reason ? `Monitoring alert (closed) - ${reason}` : 'Monitoring alert (closed)')
+        : (reason ? `Source: Monitoring (${reason})` : 'Source: Monitoring');
+      return `<span style="background:${bgColor};color:${textColor};padding:1px 6px;border-radius:4px;font-size:10px;margin-left:4px;cursor:help" title="${title}">MON</span>`;
     } else {
-      // Detailed badge for detail view
+      // Detailed badge for detail view - faded if closed
+      const bgColor = isClosed ? '#c4b5fd' : '#7c3aed';
+      const textColor = isClosed ? '#6b7280' : 'white';
       const reasonText = reason ? ` (${reason})` : '';
-      return `<span style="background:#7c3aed;color:white;padding:2px 10px;border-radius:4px;font-size:11px;margin-left:8px" title="Ticket created from monitoring/system email source">Source: Monitoring${reasonText}</span>`;
+      const closedSuffix = isClosed ? ' - Closed' : '';
+      return `<span style="background:${bgColor};color:${textColor};padding:2px 10px;border-radius:4px;font-size:11px;margin-left:8px" title="Ticket created from monitoring/system email source${closedSuffix}">Source: Monitoring${reasonText}</span>`;
     }
   }
 
@@ -9958,8 +9979,14 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const assigneeFilter = document.getElementById('ticket-filter-assignee')?.value || '';
     const companyFilter = document.getElementById('ticket-filter-company')?.value || '';
     const customerFilter = document.getElementById('ticket-filter-customer')?.value || '';
+    const includeSystem = document.getElementById('ticket-filter-system')?.checked !== false;
 
     const result = ticketList.filter(t => {
+      // System ticket filter
+      if (!includeSystem && (t.is_system_source || t.source_metadata)) {
+        return false;
+      }
+
       // Insight ticket filter (from AI Insights dashboard)
       if (window.insightTicketFilter && window.insightTicketFilter.length > 0) {
         // Convert both to numbers for comparison to handle string/number mismatch
