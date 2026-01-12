@@ -10124,11 +10124,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   function openBulkActionDialog(action) {
     try {
-      console.log('[BulkAction] Opening dialog for action:', action);
-      console.log('[BulkAction] Selected ticket IDs:', Array.from(selectedTicketIds));
-
       if (selectedTicketIds.size === 0) {
-        console.log('[BulkAction] No tickets selected, showing alert');
         alert('Please select at least one ticket');
         return;
       }
@@ -10177,16 +10173,13 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       }
 
       modal.style.display = 'flex';
-      console.log('[BulkAction] Modal opened successfully');
     } catch (error) {
-      console.error('[BulkAction] Error opening dialog:', error);
+      console.error('Error opening bulk action dialog:', error);
       alert('Error opening dialog: ' + error.message);
     }
   }
 
   function closeBulkActionDialog() {
-    console.log('[BulkAction] Closing dialog');
-    console.trace('[BulkAction] Close called from:');
     const modal = document.getElementById('bulk-action-modal');
     modal.style.display = 'none';
     currentBulkAction = null;
@@ -10219,8 +10212,6 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   }
 
   async function submitBulkAction() {
-    console.log('[BulkAction] Submit called, action:', currentBulkAction);
-
     const noteInput = document.getElementById('bulk-action-note');
     const errorDiv = document.getElementById('bulk-action-error');
     const progressDiv = document.getElementById('bulk-action-progress');
@@ -10229,7 +10220,6 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const submitBtn = document.getElementById('bulk-action-submit-btn');
 
     const note = noteInput.value.trim();
-    console.log('[BulkAction] Note:', note);
     if (!note) {
       errorDiv.textContent = 'Please enter an action note';
       errorDiv.style.display = 'block';
