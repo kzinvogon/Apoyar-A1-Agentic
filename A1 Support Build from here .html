@@ -10256,9 +10256,20 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       const data = await response.json();
 
       if (data.success) {
-        completed = data.processed || total;
+        // Use explicit check for processed count (0 is valid)
+        completed = typeof data.processed === 'number' ? data.processed : total;
         failed = data.failed || 0;
         progressBar.style.width = '100%';
+
+        // Handle case where all tickets failed
+        if (completed === 0 && failed > 0) {
+          errorDiv.textContent = `All ${failed} ticket(s) failed to ${currentBulkAction}. They may not exist or already be in the target state.`;
+          errorDiv.style.display = 'block';
+          progressDiv.style.display = 'none';
+          submitBtn.disabled = false;
+          return;
+        }
+
         progressText.textContent = `${completed} of ${total} completed` + (failed > 0 ? `, ${failed} failed` : '');
 
         // Close dialog after short delay and refresh
@@ -10266,7 +10277,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           closeBulkActionDialog();
           clearBulkSelection();
           renderList();
-          alert(`Bulk action completed: ${completed} ticket${completed > 1 ? 's' : ''} ${currentBulkAction === 'close' ? 'closed' : currentBulkAction === 'assign' ? 'assigned' : 'resolved'}`);
+          const actionWord = currentBulkAction === 'close' ? 'closed' : currentBulkAction === 'assign' ? 'assigned' : 'resolved';
+          alert(`Bulk action completed: ${completed} ticket${completed !== 1 ? 's' : ''} ${actionWord}` + (failed > 0 ? ` (${failed} failed)` : ''));
         }, 500);
       } else {
         errorDiv.textContent = data.message || 'Bulk action failed';
