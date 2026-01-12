@@ -190,13 +190,13 @@ class TicketRulesService {
 
     const searchValue = `%${searchPattern}%`;
     const queryParams = rule.search_in === 'both'
-      ? [searchValue, searchValue, this.tenantCode]
-      : [searchValue, this.tenantCode];
+      ? [searchValue, searchValue]
+      : [searchValue];
 
     const [tickets] = await connection.query(
       `SELECT id, title, description, status, priority, created_at
        FROM tickets
-       WHERE ${searchCondition} AND tenant_code = ?
+       WHERE ${searchCondition}
        ORDER BY created_at DESC
        LIMIT 100`,
       queryParams
@@ -323,8 +323,8 @@ class TicketRulesService {
     const connection = await getTenantConnection(this.tenantCode);
 
     await connection.query(
-      `DELETE FROM tickets WHERE id = ? AND tenant_code = ?`,
-      [ticketId, this.tenantCode]
+      `DELETE FROM tickets WHERE id = ?`,
+      [ticketId]
     );
 
     return { message: `Ticket #${ticketId} deleted` };
@@ -338,8 +338,8 @@ class TicketRulesService {
        SET assignee_id = ?,
            status = CASE WHEN status = 'Open' THEN 'In Progress' ELSE status END,
            updated_at = NOW()
-       WHERE id = ? AND tenant_code = ?`,
-      [params.expert_id, ticketId, this.tenantCode]
+       WHERE id = ?`,
+      [params.expert_id, ticketId]
     );
 
     return {
@@ -353,8 +353,8 @@ class TicketRulesService {
 
     // Get source ticket details
     const [sourceTickets] = await connection.query(
-      `SELECT * FROM tickets WHERE id = ? AND tenant_code = ?`,
-      [sourceTicketId, this.tenantCode]
+      `SELECT * FROM tickets WHERE id = ?`,
+      [sourceTicketId]
     );
 
     if (sourceTickets.length === 0) {
@@ -366,10 +366,9 @@ class TicketRulesService {
     // Create new ticket for target customer
     const [result] = await connection.query(
       `INSERT INTO tickets
-       (tenant_code, title, description, priority, status, requester_id, created_at)
-       VALUES (?, ?, ?, ?, 'Open', ?, NOW())`,
+       (title, description, priority, status, requester_id, created_at)
+       VALUES (?, ?, ?, 'Open', ?, NOW())`,
       [
-        this.tenantCode,
         `[Forwarded] ${sourceTicket.title}`,
         `Forwarded from ticket #${sourceTicketId}:\n\n${sourceTicket.description}`,
         sourceTicket.priority,
@@ -390,8 +389,8 @@ class TicketRulesService {
     await connection.query(
       `UPDATE tickets
        SET priority = ?, updated_at = NOW()
-       WHERE id = ? AND tenant_code = ?`,
-      [params.priority, ticketId, this.tenantCode]
+       WHERE id = ?`,
+      [params.priority, ticketId]
     );
 
     return {
@@ -406,8 +405,8 @@ class TicketRulesService {
     await connection.query(
       `UPDATE tickets
        SET status = ?, updated_at = NOW()
-       WHERE id = ? AND tenant_code = ?`,
-      [params.status, ticketId, this.tenantCode]
+       WHERE id = ?`,
+      [params.status, ticketId]
     );
 
     return {
@@ -421,8 +420,8 @@ class TicketRulesService {
 
     // Get current tags
     const [tickets] = await connection.query(
-      `SELECT tags FROM tickets WHERE id = ? AND tenant_code = ?`,
-      [ticketId, this.tenantCode]
+      `SELECT tags FROM tickets WHERE id = ?`,
+      [ticketId]
     );
 
     if (tickets.length === 0) {
@@ -439,8 +438,8 @@ class TicketRulesService {
     await connection.query(
       `UPDATE tickets
        SET tags = ?, updated_at = NOW()
-       WHERE id = ? AND tenant_code = ?`,
-      [currentTags.join(','), ticketId, this.tenantCode]
+       WHERE id = ?`,
+      [currentTags.join(','), ticketId]
     );
 
     return {
