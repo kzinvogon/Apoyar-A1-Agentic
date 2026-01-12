@@ -2191,12 +2191,17 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           <!-- Actions Row -->
           <div class="row space mb-12">
             <!-- Expert/Admin Actions -->
-            <div id="expert-actions" class="row wrap" style="gap:8px">
+            <div id="expert-actions" class="row wrap" style="gap:8px;align-items:center">
               <button id="btn-self-assign" class="btn success" onclick="selfAssignTicket()" style="display:none">👋 Self Assign</button>
+              <!-- Primary -->
               <button id="btn-next" class="btn primary" onclick="advanceStatus()">Next status</button>
-              <button id="btn-resolve" class="btn" onclick="openCompletion('resolve')">Resolve</button>
-              <button id="btn-reassign" class="btn" onclick="openCompletion('reassign')">Reassign</button>
+              <!-- Secondary -->
+              <button id="btn-reassign" class="btn ghost" onclick="openCompletion('reassign')">Reassign</button>
               <button id="btn-ai-assist" class="btn ai-btn" onclick="loadAISuggestions()">AI Assist</button>
+              <!-- Separator -->
+              <span style="width:1px;height:24px;background:#e5e7eb;margin:0 4px"></span>
+              <!-- Terminal -->
+              <button id="btn-resolve" class="btn danger" onclick="openCompletion('resolve')">Resolve</button>
             </div>
             <!-- Customer Actions -->
             <div id="customer-actions" class="row wrap" style="display:none">
@@ -5495,8 +5500,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       // Outside business hours - special handling
       if (outsideBH && activePhase.state !== 'breached' && activePhase.state !== 'met') {
         const nextWindow = getNextBusinessWindow();
-        const tooltip = `${phaseName} SLA paused\nOutside business hours\nNext window: ${nextWindow}\n\n${slaName} (${slaSource})`;
-        return { cls: 'paused', label: '⏸', subtext: `Next: ${nextWindow}`, pct: activePhase.percent_elapsed || 0, tooltip, outsideBH: true, sortPriority: 3 };
+        const tooltip = `${phaseName} SLA paused\nOutside business hours\nResumes: ${nextWindow}\n\n${slaName} (${slaSource})`;
+        return { cls: 'paused', label: `⏸ Paused · resumes ${nextWindow}`, pct: activePhase.percent_elapsed || 0, tooltip, outsideBH: true, sortPriority: 3 };
       }
 
       let cls = 'ok';
@@ -5588,27 +5593,37 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     return {cls, label, subtext, pct: isFinite(pct) ? pct : 0, tooltip, sortPriority};
   }
 
-  function slaBadgeHTML(state) {
+  function slaBadgeHTML(state, clickable = false) {
     const tooltipAttr = (state.tooltip || '').replace(/"/g, '&quot;');
+    const clickStyle = clickable ? 'cursor:pointer' : '';
+    const clickAttr = clickable ? 'onclick="scrollToSLASection()"' : '';
+
+    // Emphasis styles for urgent states
+    const dangerEmphasis = 'font-weight:600;box-shadow:0 0 0 2px rgba(220,38,38,0.3)';
+    const warnEmphasis = 'font-weight:600;box-shadow:0 0 0 2px rgba(245,158,11,0.3)';
 
     // No SLA
     if (!state.cls && state.label === '—') {
-      return `<span class="badge sla" style="color:#9ca3af;background:#f9fafb;border-color:#e5e7eb" title="${tooltipAttr}">—</span>`;
+      return `<span class="badge sla" style="color:#9ca3af;background:#f9fafb;border-color:#e5e7eb;${clickStyle}" ${clickAttr} title="${tooltipAttr}">—</span>`;
     }
 
     // Resolved ticket or Met SLA (muted style)
     if (state.isResolved || state.cls === 'muted') {
-      return `<span class="badge sla" style="color:#6b7280;background:#f3f4f6;border-color:#d1d5db" title="${tooltipAttr}">${state.label}</span>`;
+      return `<span class="badge sla" style="color:#6b7280;background:#f3f4f6;border-color:#d1d5db;${clickStyle}" ${clickAttr} title="${tooltipAttr}">${state.label}</span>`;
     }
 
-    // Build badge - paused gets muted style, others use their class
+    // Build badge with emphasis for danger/warn states
+    let badgeStyle = clickStyle;
+    if (state.cls === 'danger') badgeStyle += `;${dangerEmphasis}`;
+    else if (state.cls === 'warn') badgeStyle += `;${warnEmphasis}`;
+
     const badge = state.cls === 'paused'
-      ? `<span class="badge sla" style="color:#6b7280;background:#f3f4f6;border-color:#d1d5db">${state.label}</span>`
-      : `<span class="badge sla ${state.cls}">${state.label}</span>`;
+      ? `<span class="badge sla" style="color:#6b7280;background:#f3f4f6;border-color:#d1d5db;${clickStyle}" ${clickAttr}>${state.label}</span>`
+      : `<span class="badge sla ${state.cls}" style="${badgeStyle}" ${clickAttr}>${state.label}</span>`;
 
     // If there's subtext, wrap in flex container (compact layout)
     if (state.subtext) {
-      return `<div style="display:flex;flex-direction:column;gap:1px;line-height:1.2" title="${tooltipAttr}">
+      return `<div style="display:flex;flex-direction:column;gap:1px;line-height:1.2;${clickStyle}" ${clickAttr} title="${tooltipAttr}">
         ${badge}
         <span style="font-size:9px;color:#9ca3af;white-space:nowrap">${state.subtext}</span>
       </div>`;
@@ -5616,6 +5631,11 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
     // No subtext, return badge with tooltip
     return `<span title="${tooltipAttr}">${badge}</span>`;
+  }
+
+  function scrollToSLASection() {
+    const slaSection = document.querySelector('#td-sla-name')?.parentElement;
+    if (slaSection) slaSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
   // System source badge helper
@@ -10620,7 +10640,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         statusEl.style.background = statusColors[ticket.status] || statusColors.Open;
         statusEl.style.color = 'white';
         const slaState = getSLAState(t);
-        document.getElementById('td-meta-sla').innerHTML = slaBadgeHTML(slaState);
+        document.getElementById('td-meta-sla').innerHTML = slaBadgeHTML(slaState, true);
 
         // Update navigation buttons
         updateTicketNavigation();
@@ -10674,7 +10694,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       statusEl.style.background = statusColors[t.status] || statusColors.Open;
       statusEl.style.color = 'white';
       const slaState = getSLAState(t);
-      document.getElementById('td-meta-sla').innerHTML = slaBadgeHTML(slaState);
+      document.getElementById('td-meta-sla').innerHTML = slaBadgeHTML(slaState, true);
 
       // Update navigation buttons
       updateTicketNavigation();
