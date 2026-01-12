@@ -5495,10 +5495,10 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         if (dueAt) {
           const exceededMs = Date.now() - dueAt.getTime();
           const exceededStr = formatDuration(exceededMs);
-          subtext = `Exceeded ${exceededStr}`;
-          tooltipLines = [`${phaseName} SLA breached`, `Due: ${formatDueDate(dueAt)}`, `Exceeded by: ${exceededStr}`];
+          subtext = `+${exceededStr}`;
+          tooltipLines = [`${phaseName} SLA (${phaseCode}) — Breached`, `Due: ${formatDueDate(dueAt)}`, `Exceeded by: ${exceededStr}`];
         } else {
-          tooltipLines = [`${phaseName} SLA breached`];
+          tooltipLines = [`${phaseName} SLA (${phaseCode}) — Breached`];
         }
       } else if (activePhase.state === 'near_breach') {
         cls = 'warn';
@@ -5508,9 +5508,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           const remainingMs = dueAt - Date.now();
           const remainingStr = formatDuration(remainingMs);
           subtext = `${remainingStr} left`;
-          tooltipLines = [`${phaseName} SLA at risk`, `Due: ${formatDueDate(dueAt)}`, `Remaining: ${remainingStr}`];
+          tooltipLines = [`${phaseName} SLA (${phaseCode}) — At Risk`, `Due: ${formatDueDate(dueAt)}`, `Remaining: ${remainingStr}`];
         } else {
-          tooltipLines = [`${phaseName} SLA at risk`];
+          tooltipLines = [`${phaseName} SLA (${phaseCode}) — At Risk`];
         }
       } else if (activePhase.state === 'on_track' && dueAt) {
         const now = Date.now();
@@ -5519,26 +5519,26 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           const remainingStr = formatDuration(remainingMs);
           label = `${phaseCode} ${remainingStr}`;
           // No subtext for on-track
-          tooltipLines = [`${phaseName} SLA on track`, `Due: ${formatDueDate(dueAt)}`, `Remaining: ${remainingStr}`];
+          tooltipLines = [`${phaseName} SLA (${phaseCode}) — On Track`, `Due: ${formatDueDate(dueAt)}`, `Remaining: ${remainingStr}`];
           sortPriority = 2;
         } else {
           // Just breached
           cls = 'danger';
           label = `${phaseCode} ✖`;
           const exceededStr = formatDuration(Math.abs(remainingMs));
-          subtext = `Exceeded ${exceededStr}`;
-          tooltipLines = [`${phaseName} SLA breached`, `Due: ${formatDueDate(dueAt)}`, `Exceeded by: ${exceededStr}`];
+          subtext = `+${exceededStr}`;
+          tooltipLines = [`${phaseName} SLA (${phaseCode}) — Breached`, `Due: ${formatDueDate(dueAt)}`, `Exceeded by: ${exceededStr}`];
           sortPriority = 0;
         }
       } else if (activePhase.state === 'met') {
         cls = 'muted';
         label = '✓';
         // No subtext for met
-        tooltipLines = [`${phaseName} SLA met`];
+        tooltipLines = [`${phaseName} SLA (${phaseCode}) — Met`];
         sortPriority = 4;
       } else if (activePhase.state === 'pending') {
         label = `${phaseCode} ...`;
-        tooltipLines = ['Awaiting first response'];
+        tooltipLines = [`${phaseName} SLA (${phaseCode}) — Pending`];
         sortPriority = 2;
       } else if (activePhase.state === 'no_sla') {
         return { cls: '', label: '—', pct: 0, tooltip: 'No SLA policy applied', sortPriority: 5 };
@@ -5566,8 +5566,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     if (late || pct >= 100) { cls = 'danger'; sortPriority = 0; }
     else if (pct >= 70) { cls = 'warn'; sortPriority = 1; }
     const label = late ? 'D ✖' : `D ${formatDuration(remainingMs)}`;
-    const subtext = late ? `Exceeded ${formatDuration(Math.abs(remainingMs))}` : '';
-    const tooltip = late ? `Resolve SLA breached\nDue: ${formatDueDate(due)}\nExceeded by: ${formatDuration(Math.abs(remainingMs))}` : `Resolve SLA on track\nDue: ${formatDueDate(due)}\nRemaining: ${formatDuration(remainingMs)}`;
+    const subtext = late ? `+${formatDuration(Math.abs(remainingMs))}` : '';
+    const tooltip = late ? `Resolve SLA (D) — Breached\nDue: ${formatDueDate(due)}\nExceeded by: ${formatDuration(Math.abs(remainingMs))}` : `Resolve SLA (D) — On Track\nDue: ${formatDueDate(due)}\nRemaining: ${formatDuration(remainingMs)}`;
     return {cls, label, subtext, pct: isFinite(pct) ? pct : 0, tooltip, sortPriority};
   }
 
