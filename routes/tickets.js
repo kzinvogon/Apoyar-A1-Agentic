@@ -430,6 +430,7 @@ router.get('/:tenantId', readOperationsLimiter, validateTicketGet, async (req, r
         SELECT t.*,
                u1.full_name as assignee_name,
                u2.full_name as requester_name,
+               (u2.username = 'system' OR u2.email = 'system@tenant.local') as is_system_source,
                ci.asset_name as cmdb_item_name,
                c.customer_company_id,
                cc.company_name as company_name,
