@@ -141,6 +141,14 @@ vNext-FULL-ActionsSLA:
   .admin-mode-toggle .slider:before{content:"";position:absolute;height:14px;width:14px;left:2px;bottom:2px;background:#fff;border-radius:50%;transition:.2s}
   .admin-mode-toggle .switch input:checked+.slider{background:var(--primary)}
   .admin-mode-toggle .switch input:checked+.slider:before{transform:translateX(14px)}
+  /* Admin-only sections in ticket detail */
+  .admin-section{position:relative;background:var(--card-hover);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:12px}
+  .admin-section::before{content:'Admin';position:absolute;top:-8px;left:12px;background:var(--card);padding:0 6px;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:500}
+  .admin-section.collapsed{display:none}
+  .admin-only-inline.hidden,.admin-only-btn.hidden{display:none!important}
+  .admin-section-card{position:relative}
+  .admin-section-card::before{content:'Admin';position:absolute;top:8px;right:12px;background:var(--card-hover);padding:2px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:500;border-radius:4px}
+  .admin-section-card.collapsed{display:none}
   .btn{appearance:none;border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-weight:500;font-size:13px;cursor:pointer;background:var(--card);color:var(--ink);transition:all .15s ease}
   .btn:hover{background:var(--card-hover)}
   .btn.primary{background:var(--primary);color:var(--bg);border-color:var(--primary)}
@@ -2169,15 +2177,21 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
         <!-- Ticket Detail -->
         <div id="view-ticket-detail" style="display:none">
-          <!-- Row 1: Back | Ticket ID | Nav -->
+          <!-- Row 1: Back | Ticket ID | Nav + Admin Toggle -->
           <div class="row mb-8" style="justify-content:space-between;align-items:center">
             <button class="btn ghost" onclick="switchView('tickets')" title="Back to list (Esc)">← Back to tickets</button>
             <span style="font-size:18px;font-weight:600">Ticket <span id="td-id"></span></span>
-            <div id="ticket-nav-buttons" class="row" style="gap:4px;display:none">
-              <button id="btn-prev-ticket" class="btn ghost" onclick="navigateToPrevTicket()" title="Previous ticket ([)" disabled>← Prev</button>
-              <button id="btn-next-ticket" class="btn ghost" onclick="navigateToNextTicket()" title="Next ticket (])">Next →</button>
+            <div class="row" style="gap:8px;align-items:center">
+              <div id="ticket-nav-buttons" class="row" style="gap:4px;display:none">
+                <button id="btn-prev-ticket" class="btn ghost" onclick="navigateToPrevTicket()" title="Previous ticket ([)" disabled>← Prev</button>
+                <button id="btn-next-ticket" class="btn ghost" onclick="navigateToNextTicket()" title="Next ticket (])">Next →</button>
+              </div>
+              <div id="ticket-nav-placeholder" style="width:140px"></div>
+              <!-- Admin View Toggle (admin only) -->
+              <button id="btn-admin-view-toggle" class="btn ghost" onclick="toggleAdminView()" style="display:none;font-size:12px;padding:4px 10px" title="Toggle admin details">
+                <span id="admin-view-icon">👁</span> Admin View
+              </button>
             </div>
-            <div id="ticket-nav-placeholder" style="width:140px"></div>
           </div>
           <!-- Row 2: Title -->
           <h2 id="td-title-display" style="margin:0 0 8px 0;font-size:20px;font-weight:600;color:var(--fg)"></h2>
@@ -2187,6 +2201,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             <span id="td-meta-priority" class="badge"></span>
             <span id="td-meta-status" class="badge"></span>
             <span id="td-meta-sla"></span>
+            <!-- System source badge (admin only) -->
+            <span id="td-system-source-badge" class="admin-only-inline" style="display:none"></span>
           </div>
           <!-- Actions Row -->
           <div class="row space mb-12">
@@ -2195,8 +2211,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               <button id="btn-self-assign" class="btn success" onclick="selfAssignTicket()" style="display:none">👋 Self Assign</button>
               <!-- Primary -->
               <button id="btn-next" class="btn primary" onclick="advanceStatus()">Next status</button>
-              <!-- Secondary -->
-              <button id="btn-reassign" class="btn ghost" onclick="openCompletion('reassign')">Reassign</button>
+              <!-- Secondary (Reassign is admin-only) -->
+              <button id="btn-reassign" class="btn ghost admin-only-btn" onclick="openCompletion('reassign')">Reassign</button>
               <button id="btn-ai-assist" class="btn ai-btn" onclick="loadAISuggestions()">AI Assist</button>
               <!-- Separator -->
               <span style="width:1px;height:24px;background:#e5e7eb;margin:0 4px"></span>
@@ -2264,26 +2280,30 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
                 <div style="flex:1"><div class="subtitle">Priority</div><select id="td-priority" class="input"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="critical">Critical</option></select></div>
                 <div style="flex:1"><div class="subtitle">Status</div><select id="td-status" class="input" disabled><option>Open</option><option>In Progress</option><option>Pending</option><option>Resolved</option></select></div>
               </div>
-              <div id="assignee-row" class="row mb-12">
-                <div style="flex:1">
-                  <div class="subtitle">Assignee</div>
-                  <div style="display: flex; gap: 8px;">
-                    <select id="td-assignee" class="input" style="flex: 1;">
-                      <option value="">-- Select Expert --</option>
-                    </select>
-                    <button onclick="assignTicket()" class="btn btn-primary" style="white-space: nowrap;">Assign</button>
+              <!-- Admin-only: Assignment & Customer fields -->
+              <div id="admin-section-assignment" class="admin-section">
+                <div id="assignee-row" class="row mb-12">
+                  <div style="flex:1">
+                    <div class="subtitle">Assignee</div>
+                    <div style="display: flex; gap: 8px;">
+                      <select id="td-assignee" class="input" style="flex: 1;">
+                        <option value="">-- Select Expert --</option>
+                      </select>
+                      <button onclick="assignTicket()" class="btn btn-primary" style="white-space: nowrap;">Assign</button>
+                    </div>
                   </div>
+                  <div style="flex:1"><div class="subtitle">Due</div><input id="td-due" class="input"/></div>
                 </div>
-                <div style="flex:1"><div class="subtitle">Due</div><input id="td-due" class="input"/></div>
+                <div class="row mb-12">
+                  <div style="flex:1"><div class="subtitle">Customer</div><input id="td-customer" class="input" disabled/></div>
+                  <div style="flex:1"><div class="subtitle">Linked Item</div><input id="td-item" class="input" placeholder="(optional)"/></div>
+                </div>
+                <div class="mb-12"><div class="subtitle">Linked CI</div><input id="td-ci" class="input" placeholder="(optional)"/></div>
               </div>
-              <div class="row mb-12">
-                <div style="flex:1"><div class="subtitle">Customer</div><input id="td-customer" class="input" disabled/></div>
-                <div style="flex:1"><div class="subtitle">Linked Item</div><input id="td-item" class="input" placeholder="(optional)"/></div>
-              </div>
-              <div class="mb-12"><div class="subtitle">Linked CI</div><input id="td-ci" class="input" placeholder="(optional)"/></div>
 
-              <div class="mb-12">
-                <div class="subtitle">SLA</div>
+              <!-- Admin-only: SLA Details -->
+              <div id="admin-section-sla" class="admin-section">
+                <div class="subtitle">SLA Details</div>
                 <div id="td-sla-name" style="font-weight:600;margin-bottom:4px"></div>
                 <div class="row wrap" style="align-items:center;gap:8px">
                   <span id="td-sla-badge" class="badge sla">—</span>
@@ -2307,8 +2327,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             </div>
           </div>
 
-          <!-- Related CMDB Items Section -->
-          <div class="card p-16 mt-16" id="cmdb-relations-section">
+          <!-- Related CMDB Items Section (Admin Only) -->
+          <div class="card p-16 mt-16 admin-section-card" id="cmdb-relations-section">
             <div class="row space mb-12">
               <div class="row" style="gap:8px">
                 <strong>Related CMDB Items</strong>
@@ -2411,8 +2431,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             </div>
           </div>
 
-          <!-- Knowledge Base Suggestions Section -->
-          <div class="card p-16 mt-16" id="kb-suggestions-section">
+          <!-- Knowledge Base Suggestions Section (Admin Only) -->
+          <div class="card p-16 mt-16 admin-section-card" id="kb-suggestions-section">
             <div class="row space mb-12">
               <div class="row" style="gap:8px">
                 <strong>📚 Suggested KB Articles</strong>
@@ -5653,6 +5673,50 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       wrapper.style.display = 'none';
       icon.textContent = '▶ Show';
     }
+  }
+
+  // Admin View toggle for ticket detail
+  function toggleAdminView() {
+    const isOn = sessionStorage.getItem('adminViewEnabled') === 'true';
+    const newState = !isOn;
+    sessionStorage.setItem('adminViewEnabled', newState.toString());
+    applyAdminViewState(newState);
+  }
+
+  function applyAdminViewState(enabled) {
+    // Update toggle button appearance
+    const toggleBtn = document.getElementById('btn-admin-view-toggle');
+    const icon = document.getElementById('admin-view-icon');
+    if (toggleBtn) {
+      toggleBtn.classList.toggle('primary', enabled);
+      toggleBtn.classList.toggle('ghost', !enabled);
+      if (icon) icon.textContent = enabled ? '👁' : '👁‍🗨';
+    }
+
+    // Toggle admin-section visibility
+    document.querySelectorAll('.admin-section').forEach(el => {
+      el.classList.toggle('collapsed', !enabled);
+    });
+
+    // Toggle admin-section-card visibility
+    document.querySelectorAll('.admin-section-card').forEach(el => {
+      el.classList.toggle('collapsed', !enabled);
+    });
+
+    // Toggle admin-only inline elements
+    document.querySelectorAll('.admin-only-inline').forEach(el => {
+      el.classList.toggle('hidden', !enabled);
+    });
+
+    // Toggle admin-only buttons
+    document.querySelectorAll('.admin-only-btn').forEach(el => {
+      el.classList.toggle('hidden', !enabled);
+    });
+  }
+
+  function isUserAdmin() {
+    const currentRole = window.role || localStorage.getItem('role') || 'expert';
+    return currentRole === 'admin' || currentRole === 'super_admin';
   }
 
   // System source badge helper
@@ -10662,6 +10726,18 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         // Update navigation buttons
         updateTicketNavigation();
 
+        // Admin view toggle - show for admins, apply saved state
+        const adminToggleBtn = document.getElementById('btn-admin-view-toggle');
+        if (isUserAdmin()) {
+          adminToggleBtn.style.display = 'block';
+          const adminViewEnabled = sessionStorage.getItem('adminViewEnabled') === 'true';
+          applyAdminViewState(adminViewEnabled);
+        } else {
+          adminToggleBtn.style.display = 'none';
+          // Non-admins (experts) see expert view by default - admin sections hidden
+          applyAdminViewState(false);
+        }
+
         // Render activities from backend
         const act=document.getElementById('td-activity');
         act.innerHTML='';
@@ -10716,6 +10792,17 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       // Update navigation buttons
       updateTicketNavigation();
 
+      // Admin view toggle (fallback)
+      const adminToggleBtn = document.getElementById('btn-admin-view-toggle');
+      if (isUserAdmin()) {
+        adminToggleBtn.style.display = 'block';
+        const adminViewEnabled = sessionStorage.getItem('adminViewEnabled') === 'true';
+        applyAdminViewState(adminViewEnabled);
+      } else {
+        adminToggleBtn.style.display = 'none';
+        applyAdminViewState(false);
+      }
+
       const act=document.getElementById('td-activity');
       act.innerHTML='';
       const div=document.createElement('div');
@@ -10745,21 +10832,187 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     // Expert/Admin actions - hide for customers
     document.getElementById('expert-actions').style.display = isCustomer ? 'none' : 'flex';
 
-    // Assignee row - hide for customers
-    document.getElementById('assignee-row').style.display = isCustomer ? 'none' : 'flex';
-
     // Customer actions - show for customers
     document.getElementById('customer-actions').style.display = isCustomer ? 'flex' : 'none';
 
     // Accept/Decline buttons - only show when ticket is Resolved
     document.getElementById('btn-accept-resolution').style.display = isResolved ? 'inline-block' : 'none';
     document.getElementById('btn-decline-resolution').style.display = isResolved ? 'inline-block' : 'none';
+
+    // Customer view - extensive read-only mode
+    if (isCustomer) {
+      applyCustomerViewRestrictions();
+    } else {
+      removeCustomerViewRestrictions();
+    }
+  }
+
+  function applyCustomerViewRestrictions() {
+    // Hide admin sections entirely for customers
+    document.querySelectorAll('.admin-section').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('.admin-section-card').forEach(el => el.style.display = 'none');
+
+    // Hide admin toggle button
+    const adminToggleBtn = document.getElementById('btn-admin-view-toggle');
+    if (adminToggleBtn) adminToggleBtn.style.display = 'none';
+
+    // Make title read-only
+    const titleInput = document.getElementById('td-title');
+    if (titleInput) {
+      titleInput.disabled = true;
+      titleInput.style.background = 'var(--card-hover)';
+    }
+
+    // Make description read-only
+    const descInput = document.getElementById('td-desc');
+    if (descInput) {
+      descInput.disabled = true;
+      descInput.style.background = 'var(--card-hover)';
+    }
+
+    // Make priority read-only
+    const prioritySelect = document.getElementById('td-priority');
+    if (prioritySelect) {
+      prioritySelect.disabled = true;
+      prioritySelect.style.background = 'var(--card-hover)';
+    }
+
+    // Hide AI panel for customers
+    const aiPanel = document.getElementById('ai-panel');
+    if (aiPanel) aiPanel.style.display = 'none';
+
+    // Update note input placeholder for customers (public reply)
+    const noteInput = document.getElementById('td-note');
+    if (noteInput) {
+      noteInput.placeholder = 'Add a reply…';
+    }
+
+    // Simplify SLA display for customers
+    simplifyCustomerSLADisplay();
+  }
+
+  function removeCustomerViewRestrictions() {
+    // Re-enable title
+    const titleInput = document.getElementById('td-title');
+    if (titleInput) {
+      titleInput.disabled = false;
+      titleInput.style.background = '';
+    }
+
+    // Re-enable description
+    const descInput = document.getElementById('td-desc');
+    if (descInput) {
+      descInput.disabled = false;
+      descInput.style.background = '';
+    }
+
+    // Re-enable priority
+    const prioritySelect = document.getElementById('td-priority');
+    if (prioritySelect) {
+      prioritySelect.disabled = false;
+      prioritySelect.style.background = '';
+    }
+
+    // Restore note input placeholder
+    const noteInput = document.getElementById('td-note');
+    if (noteInput) {
+      noteInput.placeholder = 'Add an internal note…';
+    }
+  }
+
+  function simplifyCustomerSLADisplay() {
+    // For customers, show simplified SLA text
+    const slaText = document.getElementById('td-sla-text');
+    if (!slaText) return;
+
+    const t = tickets.find(x => x.id === currentTicketId);
+    if (!t) return;
+
+    // Build customer-friendly SLA text
+    let customerSlaText = '';
+
+    if (t.sla_response_deadline) {
+      const respDeadline = new Date(t.sla_response_deadline);
+      if (respDeadline > new Date()) {
+        customerSlaText += `Response expected by: ${respDeadline.toLocaleDateString()} ${respDeadline.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+      }
+    }
+
+    if (t.sla_deadline) {
+      const resDeadline = new Date(t.sla_deadline);
+      if (customerSlaText) customerSlaText += '<br>';
+      customerSlaText += `Target resolution by: ${resDeadline.toLocaleDateString()} ${resDeadline.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+    }
+
+    if (!customerSlaText) {
+      customerSlaText = 'We will respond as soon as possible.';
+    }
+
+    slaText.innerHTML = customerSlaText;
+
+    // Hide SLA progress bar and technical badge for customers
+    const slaProgressContainer = document.getElementById('td-sla-progress-container');
+    if (slaProgressContainer) slaProgressContainer.style.display = 'none';
+
+    const slaBadge = document.getElementById('td-sla-badge');
+    if (slaBadge) slaBadge.style.display = 'none';
+
+    const slaName = document.getElementById('td-sla-name');
+    if (slaName) slaName.style.display = 'none';
   }
 
   function focusCommentBox() {
     const noteInput = document.getElementById('td-note');
     noteInput.focus();
     noteInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  // Add note/comment to ticket
+  async function addNote() {
+    const noteInput = document.getElementById('td-note');
+    const comment = noteInput.value.trim();
+
+    if (!comment) {
+      alert('Please enter a comment');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const tenantCode = window.tenant || 'apoyar';
+      const currentRole = window.role || role;
+      const isCustomer = currentRole === 'customer';
+
+      const response = await fetch(`${API_BASE}/api/tickets/${tenantCode}/${currentTicketId}/comment`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          comment: comment,
+          is_public: isCustomer ? true : false // Internal notes for staff by default
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        noteInput.value = '';
+        // Reload ticket details to show new activity
+        await renderTicketDetail();
+        // Expand activity panel to show new comment
+        const wrapper = document.getElementById('td-activity-wrapper');
+        if (wrapper && wrapper.style.display === 'none') {
+          toggleActivityPanel();
+        }
+      } else {
+        alert(data.message || 'Failed to add comment');
+      }
+    } catch (error) {
+      console.error('Error adding comment:', error);
+      alert('Error adding comment. Please try again.');
+    }
   }
 
   // ---- Assignment functions ----
