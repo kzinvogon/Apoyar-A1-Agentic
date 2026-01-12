@@ -15835,10 +15835,12 @@ async function saveRule(event) {
   const ruleId = document.getElementById('rule-id').value;
 
   // Gather form data
+  const enabledCheckbox = document.getElementById('rule-enabled');
+  console.log('Saving rule - enabled checkbox checked:', enabledCheckbox.checked);
   const ruleData = {
     rule_name: document.getElementById('rule-name').value,
     description: document.getElementById('rule-description').value || null,
-    enabled: document.getElementById('rule-enabled').checked,
+    enabled: enabledCheckbox.checked,
     search_in: document.getElementById('rule-search-in').value,
     search_text: document.getElementById('rule-search-text').value,
     case_sensitive: document.getElementById('rule-case-sensitive').checked,
@@ -15937,7 +15939,9 @@ async function editRule(ruleId) {
       document.getElementById('rule-id').value = rule.id;
       document.getElementById('rule-name').value = rule.rule_name;
       document.getElementById('rule-description').value = rule.description || '';
+      console.log('Loading rule - enabled value from API:', rule.enabled, typeof rule.enabled);
       document.getElementById('rule-enabled').checked = rule.enabled;
+      console.log('Checkbox checked state after setting:', document.getElementById('rule-enabled').checked);
       document.getElementById('rule-search-in').value = rule.search_in;
       document.getElementById('rule-search-text').value = rule.search_text;
       document.getElementById('rule-case-sensitive').checked = rule.case_sensitive;
