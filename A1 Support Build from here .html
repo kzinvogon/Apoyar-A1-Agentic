@@ -63,7 +63,7 @@ vNext-FULL-ActionsSLA:
 
   *{box-sizing:border-box}
   /* Override Ionic's body styles that break scrolling */
-  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);padding-top:56px;transition:background .2s,color .2s;position:static !important;overflow-y:auto !important;overflow-x:hidden;height:auto !important;max-height:none !important}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);padding-top:56px;transition:background .2s,color .2s;position:static !important;overflow-y:auto !important;height:auto !important;max-height:none !important}
 
   /* Clean Top Navigation */
   .topnav{position:fixed;top:0;left:0;right:0;height:56px;background:var(--topnav-bg);border-bottom:1px solid var(--border);z-index:100;display:flex;align-items:center;padding:0 24px;transition:background .2s,border-color .2s}
@@ -117,7 +117,7 @@ vNext-FULL-ActionsSLA:
 .ai-trend-card.info{border-left-color:#48bb78;background:rgba(72,187,120,0.1)}
 .ai-category-badge{background:rgba(255,255,255,0.15);padding:6px 12px;border-radius:20px;font-size:12px;display:inline-flex;align-items:center;gap:6px}
   /* Clean Sidebar Layout */
-  .two-col{display:grid;grid-template-columns:220px 1fr;gap:24px;max-width:1400px;margin:0 auto;padding:0 24px}
+  .two-col{display:grid;grid-template-columns:220px 1fr;gap:24px}
   .leftnav{position:sticky;top:76px;height:fit-content}
   .leftnav .subtitle{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:0 0 8px 12px;font-weight:500}
   .navlink{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;margin-bottom:2px;cursor:pointer;font-size:14px;font-weight:400;color:var(--muted);transition:all .15s ease}
@@ -4189,7 +4189,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 </div>
 
 <!-- Bulk Action Modal -->
-<div id="bulk-action-modal" role="dialog" aria-modal="true" aria-labelledby="bulk-action-title" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center">
+<div id="bulk-action-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="bulk-action-title" style="display:none">
   <div class="sheet" style="max-width:500px">
     <div class="head"><span id="bulk-action-title">Bulk Action</span></div>
     <div class="body">
@@ -10172,10 +10172,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           break;
       }
 
-      // Show modal and scroll to top to ensure visibility
+      // Show modal
       modal.style.display = 'flex';
-      window.scrollTo(0, 0);
-      document.body.style.overflow = 'hidden'; // Prevent background scroll
     } catch (error) {
       console.error('Error opening bulk action dialog:', error);
       alert('Error opening dialog: ' + error.message);
@@ -10185,7 +10183,6 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   function closeBulkActionDialog() {
     const modal = document.getElementById('bulk-action-modal');
     modal.style.display = 'none';
-    document.body.style.overflow = ''; // Restore scroll
     currentBulkAction = null;
   }
 
