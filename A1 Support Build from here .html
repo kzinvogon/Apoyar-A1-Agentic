@@ -4189,7 +4189,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 </div>
 
 <!-- Bulk Action Modal -->
-<div id="bulk-action-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="bulk-action-title" style="display:none">
+<div id="bulk-action-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="bulk-action-title" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;height:100vh;overflow:auto">
   <div class="sheet" style="max-width:500px">
     <div class="head"><span id="bulk-action-title">Bulk Action</span></div>
     <div class="body">
@@ -10124,9 +10124,6 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   function openBulkActionDialog(action) {
     try {
-      // DEBUG: Show what's selected
-      alert('DEBUG: Selected tickets = ' + Array.from(selectedTicketIds).join(', ') + ' (count: ' + selectedTicketIds.size + ')');
-
       if (selectedTicketIds.size === 0) {
         alert('Please select at least one ticket');
         return;
@@ -10142,19 +10139,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       const progressDiv = document.getElementById('bulk-action-progress');
       const submitBtn = document.getElementById('bulk-action-submit-btn');
 
-      // DEBUG: Check which elements are missing
-      const missing = [];
-      if (!modal) missing.push('modal');
-      if (!title) missing.push('title');
-      if (!summary) missing.push('summary');
-      if (!noteInput) missing.push('noteInput');
-      if (!errorDiv) missing.push('errorDiv');
-      if (!progressDiv) missing.push('progressDiv');
-      if (!submitBtn) missing.push('submitBtn');
-      if (!assigneeRow) missing.push('assigneeRow');
-
-      if (missing.length > 0) {
-        alert('DEBUG: Missing elements: ' + missing.join(', '));
+      if (!modal || !title || !summary || !noteInput || !errorDiv || !progressDiv || !submitBtn) {
+        console.error('Bulk action modal elements not found');
+        alert('Error: Could not open dialog. Please refresh the page.');
         return;
       }
 
@@ -10187,18 +10174,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
       // Show modal
       modal.style.display = 'flex';
-
-      // DEBUG: Check modal visibility
-      const computedStyle = window.getComputedStyle(modal);
-      alert('DEBUG FINAL: modal.style.display=' + modal.style.display +
-            ', computed display=' + computedStyle.display +
-            ', computed visibility=' + computedStyle.visibility +
-            ', computed opacity=' + computedStyle.opacity +
-            ', computed zIndex=' + computedStyle.zIndex +
-            ', modal.offsetWidth=' + modal.offsetWidth +
-            ', modal.offsetHeight=' + modal.offsetHeight);
     } catch (error) {
-      alert('DEBUG CATCH: Error=' + error.message + '\nStack=' + error.stack);
+      console.error('Error opening bulk action dialog:', error);
+      alert('Error opening dialog: ' + error.message);
     }
   }
 
