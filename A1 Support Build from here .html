@@ -10122,50 +10122,61 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     updateBulkActionsBar();
   }
 
-  async function openBulkActionDialog(action) {
-    if (selectedTicketIds.size === 0) {
-      alert('Please select at least one ticket');
-      return;
+  function openBulkActionDialog(action) {
+    try {
+      if (selectedTicketIds.size === 0) {
+        alert('Please select at least one ticket');
+        return;
+      }
+
+      currentBulkAction = action;
+      const modal = document.getElementById('bulk-action-modal');
+      const title = document.getElementById('bulk-action-title');
+      const summary = document.getElementById('bulk-action-summary');
+      const assigneeRow = document.getElementById('bulk-action-assignee-row');
+      const noteInput = document.getElementById('bulk-action-note');
+      const errorDiv = document.getElementById('bulk-action-error');
+      const progressDiv = document.getElementById('bulk-action-progress');
+      const submitBtn = document.getElementById('bulk-action-submit-btn');
+
+      if (!modal || !title || !summary || !noteInput || !errorDiv || !progressDiv || !submitBtn) {
+        console.error('Bulk action modal elements not found');
+        alert('Error: Could not open dialog. Please refresh the page.');
+        return;
+      }
+
+      // Reset state
+      noteInput.value = '';
+      errorDiv.style.display = 'none';
+      progressDiv.style.display = 'none';
+      submitBtn.disabled = false;
+
+      // Set title and summary based on action
+      const ticketWord = selectedTicketIds.size > 1 ? 'tickets' : 'ticket';
+      switch (action) {
+        case 'close':
+          title.textContent = 'Close Selected Tickets';
+          summary.innerHTML = `You are about to <strong>close</strong> ${selectedTicketIds.size} ${ticketWord}.`;
+          assigneeRow.style.display = 'none';
+          break;
+        case 'assign':
+          title.textContent = 'Assign Selected Tickets';
+          summary.innerHTML = `You are about to <strong>assign</strong> ${selectedTicketIds.size} ${ticketWord} to an expert.`;
+          assigneeRow.style.display = 'block';
+          loadBulkActionExperts(); // Don't await - load in background
+          break;
+        case 'resolve':
+          title.textContent = 'Resolve Selected Tickets';
+          summary.innerHTML = `You are about to <strong>resolve</strong> ${selectedTicketIds.size} ${ticketWord}.`;
+          assigneeRow.style.display = 'none';
+          break;
+      }
+
+      modal.style.display = 'flex';
+    } catch (error) {
+      console.error('Error opening bulk action dialog:', error);
+      alert('Error opening dialog: ' + error.message);
     }
-
-    currentBulkAction = action;
-    const modal = document.getElementById('bulk-action-modal');
-    const title = document.getElementById('bulk-action-title');
-    const summary = document.getElementById('bulk-action-summary');
-    const assigneeRow = document.getElementById('bulk-action-assignee-row');
-    const noteInput = document.getElementById('bulk-action-note');
-    const errorDiv = document.getElementById('bulk-action-error');
-    const progressDiv = document.getElementById('bulk-action-progress');
-    const submitBtn = document.getElementById('bulk-action-submit-btn');
-
-    // Reset state
-    noteInput.value = '';
-    errorDiv.style.display = 'none';
-    progressDiv.style.display = 'none';
-    submitBtn.disabled = false;
-
-    // Set title and summary based on action
-    const ticketWord = selectedTicketIds.size > 1 ? 'tickets' : 'ticket';
-    switch (action) {
-      case 'close':
-        title.textContent = 'Close Selected Tickets';
-        summary.innerHTML = `You are about to <strong>close</strong> ${selectedTicketIds.size} ${ticketWord}.`;
-        assigneeRow.style.display = 'none';
-        break;
-      case 'assign':
-        title.textContent = 'Assign Selected Tickets';
-        summary.innerHTML = `You are about to <strong>assign</strong> ${selectedTicketIds.size} ${ticketWord} to an expert.`;
-        assigneeRow.style.display = 'block';
-        await loadBulkActionExperts();
-        break;
-      case 'resolve':
-        title.textContent = 'Resolve Selected Tickets';
-        summary.innerHTML = `You are about to <strong>resolve</strong> ${selectedTicketIds.size} ${ticketWord}.`;
-        assigneeRow.style.display = 'none';
-        break;
-    }
-
-    modal.style.display = 'flex';
   }
 
   function closeBulkActionDialog() {
