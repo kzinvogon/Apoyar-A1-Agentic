@@ -2163,7 +2163,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               <button class="btn" onclick="openBulkActionDialog('resolve')">Resolve Selected</button>
               <button class="btn ghost" onclick="clearBulkSelection()">Clear Selection</button>
             </div>
-            <table id="tickets-table"><thead><tr><th style="width:40px"><input type="checkbox" id="select-all-tickets" onchange="toggleSelectAllTickets()" title="Select All"></th><th style="width:120px;cursor:pointer" onclick="sortTicketsBy('id')">ID ⇅</th><th style="cursor:pointer" onclick="sortTicketsBy('title')">Title ⇅</th><th style="width:140px">Date/Time</th><th style="width:120px;cursor:pointer" onclick="sortTicketsBy('priority')">Priority ⇅</th><th style="width:140px;cursor:pointer" onclick="sortTicketsBy('status')">Status ⇅</th><th style="width:180px">Assignee</th><th style="width:160px">Customer</th><th style="width:160px;cursor:pointer" onclick="sortTicketsBy('sla')">SLA ⇅</th></tr></thead><tbody id="list-body"></tbody></table>
+            <table id="tickets-table"><thead><tr><th style="width:40px"><input type="checkbox" id="select-all-tickets" onchange="toggleSelectAllTickets()" title="Select All"></th><th style="width:120px;cursor:pointer" onclick="sortTicketsBy('id')">ID ⇅</th><th style="cursor:pointer" onclick="sortTicketsBy('title')">Title ⇅</th><th style="width:140px">Date/Time</th><th style="width:120px;cursor:pointer" onclick="sortTicketsBy('priority')">Priority ⇅</th><th style="width:140px;cursor:pointer" onclick="sortTicketsBy('status')">Status ⇅</th><th style="width:180px">Assignee</th><th style="width:160px">Customer</th><th style="width:120px;cursor:pointer" onclick="sortTicketsBy('sla')">SLA ⇅</th></tr></thead><tbody id="list-body"></tbody></table>
           </div>
         </div>
 
@@ -5459,9 +5459,11 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       // Determine which phase to show (response or resolve)
       let activePhase = s.response;
       let phaseName = 'Response';
+      let phaseCode = 'R';
       if (phase === 'in_progress' || phase === 'resolved') {
         activePhase = s.resolve;
         phaseName = 'Resolve';
+        phaseCode = 'D';
       }
 
       if (!activePhase) {
@@ -5477,7 +5479,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       if (outsideBH && activePhase.state !== 'breached' && activePhase.state !== 'met') {
         const nextWindow = getNextBusinessWindow();
         const tooltip = `${phaseName} SLA paused\nOutside business hours\nNext window: ${nextWindow}\n\n${slaName} (${slaSource})`;
-        return { cls: 'paused', label: '⏸ SLA Paused', subtext: `Next: ${nextWindow}`, pct: activePhase.percent_elapsed || 0, tooltip, outsideBH: true, sortPriority: 3 };
+        return { cls: 'paused', label: '⏸', subtext: `Next: ${nextWindow}`, pct: activePhase.percent_elapsed || 0, tooltip, outsideBH: true, sortPriority: 3 };
       }
 
       let cls = 'ok';
@@ -5488,24 +5490,24 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
       if (activePhase.state === 'breached') {
         cls = 'danger';
-        label = `${phaseName} Breached`;
+        label = `${phaseCode} ✖`;
         sortPriority = 0; // Highest priority
         if (dueAt) {
           const exceededMs = Date.now() - dueAt.getTime();
           const exceededStr = formatDuration(exceededMs);
-          subtext = `Exceeded by ${exceededStr}`;
+          subtext = `Exceeded ${exceededStr}`;
           tooltipLines = [`${phaseName} SLA breached`, `Due: ${formatDueDate(dueAt)}`, `Exceeded by: ${exceededStr}`];
         } else {
           tooltipLines = [`${phaseName} SLA breached`];
         }
       } else if (activePhase.state === 'near_breach') {
         cls = 'warn';
-        label = `${phaseName} At Risk`;
+        label = `${phaseCode} !`;
         sortPriority = 1; // Second priority
         if (dueAt) {
           const remainingMs = dueAt - Date.now();
           const remainingStr = formatDuration(remainingMs);
-          subtext = `${remainingStr} remaining`;
+          subtext = `${remainingStr} left`;
           tooltipLines = [`${phaseName} SLA at risk`, `Due: ${formatDueDate(dueAt)}`, `Remaining: ${remainingStr}`];
         } else {
           tooltipLines = [`${phaseName} SLA at risk`];
@@ -5515,26 +5517,27 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         const remainingMs = dueAt.getTime() - now;
         if (remainingMs > 0) {
           const remainingStr = formatDuration(remainingMs);
-          label = `⏱ ${remainingStr}`;
-          subtext = `${phaseName} due ${formatDueDate(dueAt)}`;
+          label = `${phaseCode} ${remainingStr}`;
+          // No subtext for on-track
           tooltipLines = [`${phaseName} SLA on track`, `Due: ${formatDueDate(dueAt)}`, `Remaining: ${remainingStr}`];
           sortPriority = 2;
         } else {
           // Just breached
           cls = 'danger';
-          label = `${phaseName} Breached`;
+          label = `${phaseCode} ✖`;
           const exceededStr = formatDuration(Math.abs(remainingMs));
-          subtext = `Exceeded by ${exceededStr}`;
+          subtext = `Exceeded ${exceededStr}`;
           tooltipLines = [`${phaseName} SLA breached`, `Due: ${formatDueDate(dueAt)}`, `Exceeded by: ${exceededStr}`];
           sortPriority = 0;
         }
       } else if (activePhase.state === 'met') {
-        cls = 'ok';
-        label = `${phaseName} Met ✓`;
+        cls = 'muted';
+        label = '✓';
+        // No subtext for met
         tooltipLines = [`${phaseName} SLA met`];
         sortPriority = 4;
       } else if (activePhase.state === 'pending') {
-        label = 'Awaiting Response';
+        label = `${phaseCode} ...`;
         tooltipLines = ['Awaiting first response'];
         sortPriority = 2;
       } else if (activePhase.state === 'no_sla') {
@@ -5562,8 +5565,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     let cls = 'ok', sortPriority = 2;
     if (late || pct >= 100) { cls = 'danger'; sortPriority = 0; }
     else if (pct >= 70) { cls = 'warn'; sortPriority = 1; }
-    const label = late ? 'Resolve Breached' : `⏱ ${formatDuration(remainingMs)}`;
-    const subtext = late ? `Exceeded by ${formatDuration(Math.abs(remainingMs))}` : `Due ${formatDueDate(due)}`;
+    const label = late ? 'D ✖' : `D ${formatDuration(remainingMs)}`;
+    const subtext = late ? `Exceeded ${formatDuration(Math.abs(remainingMs))}` : '';
     const tooltip = late ? `Resolve SLA breached\nDue: ${formatDueDate(due)}\nExceeded by: ${formatDuration(Math.abs(remainingMs))}` : `Resolve SLA on track\nDue: ${formatDueDate(due)}\nRemaining: ${formatDuration(remainingMs)}`;
     return {cls, label, subtext, pct: isFinite(pct) ? pct : 0, tooltip, sortPriority};
   }
@@ -5576,21 +5579,21 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       return `<span class="badge sla" style="color:#9ca3af;background:#f9fafb;border-color:#e5e7eb" title="${tooltipAttr}">—</span>`;
     }
 
-    // Resolved ticket
-    if (state.isResolved) {
-      return `<span class="badge sla" style="color:#6b7280;background:#f3f4f6;border-color:#d1d5db" title="${tooltipAttr}">✓</span>`;
+    // Resolved ticket or Met SLA (muted style)
+    if (state.isResolved || state.cls === 'muted') {
+      return `<span class="badge sla" style="color:#6b7280;background:#f3f4f6;border-color:#d1d5db" title="${tooltipAttr}">${state.label}</span>`;
     }
 
-    // Build badge with optional subtext
+    // Build badge - paused gets muted style, others use their class
     const badge = state.cls === 'paused'
       ? `<span class="badge sla" style="color:#6b7280;background:#f3f4f6;border-color:#d1d5db">${state.label}</span>`
       : `<span class="badge sla ${state.cls}">${state.label}</span>`;
 
-    // If there's subtext, wrap in flex container
+    // If there's subtext, wrap in flex container (compact layout)
     if (state.subtext) {
-      return `<div style="display:flex;flex-direction:column;gap:2px" title="${tooltipAttr}">
+      return `<div style="display:flex;flex-direction:column;gap:1px;line-height:1.2" title="${tooltipAttr}">
         ${badge}
-        <span style="font-size:10px;color:#9ca3af;white-space:nowrap">${state.subtext}</span>
+        <span style="font-size:9px;color:#9ca3af;white-space:nowrap">${state.subtext}</span>
       </div>`;
     }
 
