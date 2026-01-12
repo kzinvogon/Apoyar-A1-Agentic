@@ -545,12 +545,13 @@ router.get('/:tenantId/:ticketId', readOperationsLimiter, validateTicketGet, asy
     const { tenantId, ticketId } = req.params;
     const tenantCode = tenantId.toLowerCase().replace(/[^a-z0-9]/g, '_');
     const connection = await getTenantConnection(tenantCode);
-    
+
     try {
       const [tickets] = await connection.query(
         `SELECT t.*,
                 u1.full_name as assignee_name,
                 u2.full_name as requester_name,
+                u2.customer_company_id as requester_company_id,
                 ci.asset_name as cmdb_item_name
          FROM tickets t
          LEFT JOIN users u1 ON t.assignee_id = u1.id
@@ -559,25 +560,55 @@ router.get('/:tenantId/:ticketId', readOperationsLimiter, validateTicketGet, asy
          WHERE t.id = ?`,
         [ticketId]
       );
-      
+
       if (tickets.length === 0) {
         return res.status(404).json({ success: false, message: 'Ticket not found' });
       }
-      
-      // Get ticket activity/actions
-      const [activities] = await connection.query(
-        `SELECT ta.*, u.username as user_name, u.full_name as user_full_name
-         FROM ticket_activity ta
-         LEFT JOIN users u ON ta.user_id = u.id
-         WHERE ta.ticket_id = ?
-         ORDER BY ta.created_at DESC`,
-        [ticketId]
-      );
+
+      const ticket = tickets[0];
+
+      // Customer permission check - customers can only see their own tickets or company tickets
+      if (req.user.role === 'customer') {
+        const isOwnTicket = ticket.requester_id === req.user.userId;
+        const isSameCompany = req.user.customerCompanyId &&
+                             ticket.requester_company_id === req.user.customerCompanyId;
+
+        if (!isOwnTicket && !isSameCompany) {
+          return res.status(403).json({ success: false, message: 'Access denied' });
+        }
+      }
+
+      // Get ticket activity/actions - filter for customers
+      let activityQuery = `
+        SELECT ta.*, u.username as user_name, u.full_name as user_full_name, u.role as user_role
+        FROM ticket_activity ta
+        LEFT JOIN users u ON ta.user_id = u.id
+        WHERE ta.ticket_id = ?`;
+
+      // For customers, filter out internal notes
+      // Customers see: created, resolved, closed, their own comments, and public replies from staff
+      if (req.user.role === 'customer') {
+        activityQuery += ` AND (
+          ta.activity_type IN ('created', 'resolved', 'closed')
+          OR (ta.activity_type = 'comment' AND ta.user_id = ?)
+          OR (ta.activity_type = 'comment' AND ta.description LIKE 'Public reply%')
+          OR (ta.activity_type = 'comment' AND ta.description LIKE 'Customer reply%')
+          OR (ta.activity_type = 'updated' AND ta.description LIKE '%status%')
+        )`;
+      }
+
+      activityQuery += ` ORDER BY ta.created_at DESC`;
+
+      const activityParams = req.user.role === 'customer'
+        ? [ticketId, req.user.userId]
+        : [ticketId];
+
+      const [activities] = await connection.query(activityQuery, activityParams);
 
       // Enrich with SLA status
-      await enrichTicketWithSLAStatus(tickets[0], connection);
+      await enrichTicketWithSLAStatus(ticket, connection);
 
-      res.json({ success: true, ticket: tickets[0], activities });
+      res.json({ success: true, ticket, activities });
     } finally {
       connection.release();
     }
@@ -1223,6 +1254,86 @@ router.put('/:tenantId/:ticketId', writeOperationsLimiter, validateTicketUpdate,
     }
   } catch (error) {
     console.error('Error updating ticket:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// Add comment/note to ticket
+router.post('/:tenantId/:ticketId/comment', writeOperationsLimiter, async (req, res) => {
+  try {
+    const { tenantId, ticketId } = req.params;
+    const { comment, is_public } = req.body;
+    const tenantCode = tenantId.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    const connection = await getTenantConnection(tenantCode);
+
+    try {
+      // Validate comment
+      if (!comment || comment.trim().length === 0) {
+        return res.status(400).json({ success: false, message: 'Comment cannot be empty' });
+      }
+
+      // Get ticket to verify it exists and check permissions
+      const [tickets] = await connection.query(
+        `SELECT t.*, u.customer_company_id as requester_company_id
+         FROM tickets t
+         LEFT JOIN users u ON t.requester_id = u.id
+         WHERE t.id = ?`,
+        [ticketId]
+      );
+
+      if (tickets.length === 0) {
+        return res.status(404).json({ success: false, message: 'Ticket not found' });
+      }
+
+      const ticket = tickets[0];
+
+      // Customer permission check
+      if (req.user.role === 'customer') {
+        const isOwnTicket = ticket.requester_id === req.user.userId;
+        const isSameCompany = req.user.customerCompanyId &&
+                             ticket.requester_company_id === req.user.customerCompanyId;
+
+        if (!isOwnTicket && !isSameCompany) {
+          return res.status(403).json({ success: false, message: 'Access denied' });
+        }
+      }
+
+      // Get user info for activity description
+      const [userInfo] = await connection.query(
+        'SELECT full_name FROM users WHERE id = ?',
+        [req.user.userId]
+      );
+      const userName = userInfo[0]?.full_name || req.user.username;
+
+      // Determine if this is an internal note or public comment
+      // Customers always add public comments; staff can specify
+      const isCustomer = req.user.role === 'customer';
+      const isInternal = isCustomer ? false : (is_public === false);
+
+      // Create activity description
+      const activityDescription = isInternal
+        ? `Internal note by ${userName}: ${comment}`
+        : `${isCustomer ? 'Customer reply' : 'Public reply'} by ${userName}: ${comment}`;
+
+      // Insert activity
+      await connection.query(
+        `INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
+         VALUES (?, ?, ?, ?)`,
+        [ticketId, req.user.userId, 'comment', activityDescription]
+      );
+
+      // Update ticket's updated_at
+      await connection.query(
+        'UPDATE tickets SET updated_at = NOW() WHERE id = ?',
+        [ticketId]
+      );
+
+      res.json({ success: true, message: 'Comment added successfully' });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error adding comment:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
