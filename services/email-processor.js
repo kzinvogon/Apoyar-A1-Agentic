@@ -869,10 +869,30 @@ class EmailProcessor {
     const slaHours = priority === 'high' ? 4 : priority === 'low' ? 48 : 24;
     const slaDeadline = new Date(Date.now() + slaHours * 60 * 60 * 1000);
 
-    // Create ticket
+    // Build source metadata JSON for system-sourced tickets
+    let sourceMetadataJson = null;
+    if (sourceMetadata.sourceType === 'system') {
+      sourceMetadataJson = JSON.stringify({
+        type: 'monitoring',
+        reason: sourceMetadata.classificationReason,
+        source_email: sourceMetadata.sourceEmail,
+        created_via: sourceMetadata.createdVia
+      });
+    }
+
+    // Ensure source_metadata column exists (idempotent)
+    try {
+      await connection.query(`
+        ALTER TABLE tickets ADD COLUMN IF NOT EXISTS source_metadata JSON DEFAULT NULL
+      `);
+    } catch (e) {
+      // Column may already exist or ALTER not supported - ignore
+    }
+
+    // Create ticket with source metadata
     const [result] = await connection.query(
-      'INSERT INTO tickets (title, description, status, priority, category, requester_id, sla_deadline) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [title, description, 'open', priority, 'Email', requesterId, slaDeadline]
+      'INSERT INTO tickets (title, description, status, priority, category, requester_id, sla_deadline, source_metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [title, description, 'open', priority, 'Email', requesterId, slaDeadline, sourceMetadataJson]
     );
 
     const ticketId = result.insertId;
