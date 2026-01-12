@@ -1277,8 +1277,11 @@ router.post('/:tenantId/bulk-action', writeOperationsLimiter, requireRole(['expe
               [newStatus, req.user.userId, comment, ticketId]
             );
             // Fire-and-forget: Auto-generate KB article from resolved ticket
-            autoGenerateKBArticle(tenantCode, parseInt(ticketId), { userId: req.user.userId })
-              .catch(err => console.error(`KB article generation failed for ticket #${ticketId}:`, err.message));
+            // Skip KB generation for large bulk operations (>10 tickets) to prevent system overload
+            if (ticket_ids.length <= 10) {
+              autoGenerateKBArticle(tenantCode, parseInt(ticketId), { userId: req.user.userId })
+                .catch(err => console.error(`KB article generation failed for ticket #${ticketId}:`, err.message));
+            }
           } else {
             await connection.query(
               `UPDATE tickets SET status = ?, updated_at = NOW() WHERE id = ?`,
