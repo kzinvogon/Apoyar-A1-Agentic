@@ -144,7 +144,8 @@
       "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjcsInVzZXJuYW1lIjoiYWRtaW4iLCJyb2xlIjoiYWRtaW4iLCJ0ZW5hbnRDb2RlIjoiYXBveWFyIiwidXNlclR5cGUiOiJ0ZW5hbnQiLCJpYXQiOjE3NjgxNDU2ODAsImV4cCI6MTc2ODIzMjA4MH0.PDTuzQHs0ydAmSU_k3wgFZNZZ5DtRpINnxMBD6AXLSw\")",
       "Bash(__NEW_LINE__ echo \"=== Railway Test 1: Default SLA ===\")",
       "Bash(__NEW_LINE__ echo \"=== Railway Test 2: Explicit SLA Override \\(Critical 24x7 = 123\\) ===\")",
-      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjcsInVzZXJuYW1lIjoiYWRtaW4iLCJyb2xlIjoiYWRtaW4iLCJ0ZW5hbnRDb2RlIjoiYXBveWFyIiwidXNlclR5cGUiOiJ0ZW5hbnQiLCJpYXQiOjE3NjgxNDU2ODAsImV4cCI6MTc2ODIzMjA4MH0.PDTuzQHs0ydAmSU_k3wgFZNZZ5DtRpINnxMBD6AXLSw\" curl -s -H \"Authorization: Bearer $TOKEN\" \"https://web-production-11114.up.railway.app/api/tickets/apoyar/1978\")"
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjcsInVzZXJuYW1lIjoiYWRtaW4iLCJyb2xlIjoiYWRtaW4iLCJ0ZW5hbnRDb2RlIjoiYXBveWFyIiwidXNlclR5cGUiOiJ0ZW5hbnQiLCJpYXQiOjE3NjgxNDU2ODAsImV4cCI6MTc2ODIzMjA4MH0.PDTuzQHs0ydAmSU_k3wgFZNZZ5DtRpINnxMBD6AXLSw\" curl -s -H \"Authorization: Bearer $TOKEN\" \"https://web-production-11114.up.railway.app/api/tickets/apoyar/1978\")",
+      "Bash(bash:*)"
     ],
     "deny": [],
     "ask": []
