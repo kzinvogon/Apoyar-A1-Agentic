@@ -688,6 +688,9 @@ router.post('/tenant/forgot-password', passwordChangeLimiter, async (req, res) =
       const resetLink = `${baseUrl}/reset-password.html?token=${resetToken}&tenant=${tenant_code}`;
 
       try {
+        // Determine email type based on user role (customers vs experts)
+        const emailType = user.role === 'customer' ? 'customers' : 'experts';
+
         await sendEmail(tenant_code, {
           to: email,
           subject: 'Password Reset Request - A1 Support',
@@ -700,10 +703,12 @@ router.post('/tenant/forgot-password', passwordChangeLimiter, async (req, res) =
             <p>If you didn't request this, please ignore this email.</p>
             <br>
             <p>Best regards,<br>A1 Support Team</p>
-          `
+          `,
+          emailType: emailType,
+          skipUserCheck: true // User explicitly requested password reset
         });
 
-        console.log(`Password reset email sent to ${email}`);
+        console.log(`Password reset email sent to ${email} (type: ${emailType})`);
       } catch (emailError) {
         console.error('Error sending password reset email:', emailError);
         // Still return success to prevent email enumeration
