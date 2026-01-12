@@ -228,6 +228,81 @@ class EmailProcessor {
   }
 
   /**
+   * Get or create System user for system-sourced tickets
+   * Returns the user ID of the System user
+   */
+  async getOrCreateSystemUser(connection) {
+    try {
+      // Check if System user already exists
+      const [existing] = await connection.query(
+        'SELECT id FROM users WHERE username = ? OR email = ?',
+        ['system', 'system@tenant.local']
+      );
+
+      if (existing.length > 0) {
+        return existing[0].id;
+      }
+
+      // Create System user with random password (never used for login)
+      const randomPassword = crypto.randomBytes(32).toString('hex');
+      const passwordHash = await bcrypt.hash(randomPassword, 10);
+
+      const [result] = await connection.query(
+        `INSERT INTO users (username, email, password_hash, full_name, role, is_active)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        ['system', 'system@tenant.local', passwordHash, 'System', 'customer', true]
+      );
+
+      console.log(`✅ Created System user for tenant ${this.tenantCode} (ID: ${result.insertId})`);
+      return result.insertId;
+    } catch (error) {
+      console.error('Error getting/creating System user:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get system domains from tenant settings
+   * Returns array of domains to treat as system/monitoring sources
+   */
+  async getSystemDomains(connection) {
+    try {
+      const [settings] = await connection.query(
+        'SELECT setting_value FROM tenant_settings WHERE setting_key = ?',
+        ['system_domains']
+      );
+      if (settings.length > 0 && settings[0].setting_value) {
+        try {
+          return JSON.parse(settings[0].setting_value);
+        } catch (e) {
+          // If not valid JSON, treat as comma-separated list
+          return settings[0].setting_value.split(',').map(d => d.trim().toLowerCase());
+        }
+      }
+      return [];
+    } catch (error) {
+      console.error('Error getting system domains:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Check if sender appears to be a monitoring/integration system
+   * Based on email patterns and sender name
+   */
+  isMonitoringSource(fromEmail, displayName) {
+    const monitoringPatterns = [
+      'nagios', 'zabbix', 'prtg', 'datadog', 'prometheus', 'alertmanager',
+      'pagerduty', 'opsgenie', 'servicenow', 'monitoring', 'alerts',
+      'noreply', 'no-reply', 'donotreply', 'do-not-reply', 'mailer-daemon',
+      'postmaster', 'icinga', 'checkmk', 'sensu', 'newrelic', 'splunk'
+    ];
+
+    const checkString = (fromEmail + ' ' + (displayName || '')).toLowerCase();
+    return monitoringPatterns.some(pattern => checkString.includes(pattern));
+  }
+
+  /**
    * Check if email subject matches expert registration pattern
    */
   isExpertRequestEmail(subject) {
@@ -464,11 +539,13 @@ class EmailProcessor {
    */
   async processEmail(connection, email) {
     try {
-      // Extract email address from "Name <email@domain.com>" format
+      // Extract email address and display name from "Name <email@domain.com>" format
       let fromEmail = email.from.toLowerCase().trim();
-      const emailMatch = fromEmail.match(/<(.+?)>/);
+      let displayName = '';
+      const emailMatch = fromEmail.match(/^([^<]*)<(.+?)>/);
       if (emailMatch) {
-        fromEmail = emailMatch[1];
+        displayName = emailMatch[1].trim();
+        fromEmail = emailMatch[2];
       }
 
       const domain = fromEmail.split('@')[1];
@@ -478,7 +555,7 @@ class EmailProcessor {
         return { success: false, reason: 'invalid_email_format' };
       }
 
-      console.log(`Processing email from: ${fromEmail}, domain: ${domain}`);
+      console.log(`Processing email from: ${fromEmail}, domain: ${domain}, displayName: ${displayName}`);
 
       // Check if this is a "Register_Expert" expert registration request
       if (this.isExpertRequestEmail(email.subject)) {
@@ -493,6 +570,56 @@ class EmailProcessor {
           // Continue with normal ticket processing if domain doesn't match
         }
       }
+
+      // ============================================
+      // SYSTEM SOURCE DETECTION
+      // Check if this is from a monitoring/integration system
+      // ============================================
+      const tenantDomain = await this.getTenantDomain(connection);
+      const systemDomains = await this.getSystemDomains(connection);
+      const isFromTenantDomain = tenantDomain && domain.toLowerCase() === tenantDomain.toLowerCase();
+      const isFromSystemDomain = systemDomains.some(sd => domain.toLowerCase() === sd.toLowerCase());
+      const looksLikeMonitoring = this.isMonitoringSource(fromEmail, displayName);
+
+      const isSystemSource = isFromTenantDomain || isFromSystemDomain || looksLikeMonitoring;
+
+      if (isSystemSource) {
+        console.log(`🤖 System source detected: tenant=${isFromTenantDomain}, systemDomain=${isFromSystemDomain}, monitoring=${looksLikeMonitoring}`);
+
+        // Use System user for system-sourced tickets
+        const systemUserId = await this.getOrCreateSystemUser(connection);
+
+        // Create ticket with System user as requester, no customer company
+        const ticketId = await this.createTicketFromEmail(connection, email, systemUserId, {
+          sourceType: 'system',
+          sourceEmail: fromEmail,
+          createdVia: looksLikeMonitoring ? 'monitoring' : 'email'
+        });
+
+        // AI Analysis to try to detect customer/CMDB from content
+        this.runAIAnalysis(ticketId, email).catch(err => {
+          console.error(`AI analysis failed for ticket #${ticketId}:`, err.message);
+        });
+
+        // Don't send confirmation email to monitoring systems
+        if (!looksLikeMonitoring) {
+          await this.sendTicketConfirmation(fromEmail, ticketId, email.subject);
+        }
+
+        console.log(`✅ Created ticket #${ticketId} from system source (no auto-customer)`);
+
+        return {
+          success: true,
+          ticketId,
+          customerId: null,
+          sourceType: 'system',
+          wasNewCustomer: false
+        };
+      }
+
+      // ============================================
+      // REGULAR CUSTOMER EMAIL PROCESSING
+      // ============================================
 
       // Step 1: Check if domain exists in customer profiles
       const [domainCustomers] = await connection.query(
@@ -530,7 +657,11 @@ class EmailProcessor {
       }
 
       // Step 3: Create ticket from email
-      const ticketId = await this.createTicketFromEmail(connection, email, userId);
+      const ticketId = await this.createTicketFromEmail(connection, email, userId, {
+        sourceType: 'customer',
+        sourceEmail: fromEmail,
+        createdVia: 'email'
+      });
 
       // Step 4: AI Analysis (async, non-blocking)
       this.runAIAnalysis(ticketId, email).catch(err => {
@@ -546,6 +677,7 @@ class EmailProcessor {
         success: true,
         ticketId,
         customerId,
+        sourceType: 'customer',
         wasNewCustomer: existingUsers.length === 0
       };
 
@@ -640,8 +772,12 @@ class EmailProcessor {
 
   /**
    * Create ticket from email content
+   * @param {Object} connection - Database connection
+   * @param {Object} email - Email data (from, subject, body)
+   * @param {number} requesterId - User ID of requester
+   * @param {Object} sourceMetadata - Optional source info {sourceType, sourceEmail, createdVia}
    */
-  async createTicketFromEmail(connection, email, requesterId) {
+  async createTicketFromEmail(connection, email, requesterId, sourceMetadata = {}) {
     const title = email.subject || 'Email Request';
     const description = email.body || '(No content)';
 
@@ -670,10 +806,14 @@ class EmailProcessor {
 
     const ticketId = result.insertId;
 
-    // Log activity
+    // Log activity with source information
+    const sourceInfo = sourceMetadata.sourceType === 'system'
+      ? `Ticket created from system/monitoring email: ${email.from} (no customer auto-assigned)`
+      : `Ticket created from email: ${email.from}`;
+
     await connection.query(
       'INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description) VALUES (?, ?, ?, ?)',
-      [ticketId, requesterId, 'created', `Ticket created from email: ${email.from}`]
+      [ticketId, requesterId, 'created', sourceInfo]
     );
 
     return ticketId;
