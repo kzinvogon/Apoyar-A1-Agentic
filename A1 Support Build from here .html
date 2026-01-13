@@ -4779,6 +4779,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   let CIS_BY_ITEM = {}; // Will be loaded from API
 
   // Load CMDB items from API
+  let cmdbItemsLoaded = false; // Track if we've attempted to load CMDB items
+
   async function loadCMDBItemsFromAPI() {
     const tenantCode = window.tenant || 'apoyar';
     const token = localStorage.getItem('token');
@@ -4789,6 +4791,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
+      cmdbItemsLoaded = true; // Mark as loaded regardless of result
       if (data.success && data.items) {
         CMDB_ITEMS = data.items.map(item => ({
           cmdb_id: item.cmdb_id,
@@ -4803,10 +4806,12 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           status: item.status,
           ci_count: item.ci_count || 0
         }));
-        renderCMDB();
       }
+      renderCMDB();
     } catch (err) {
       console.error('Error loading CMDB items:', err);
+      cmdbItemsLoaded = true; // Mark as loaded even on error
+      renderCMDB(); // Show empty state on error
     }
   }
 
@@ -14715,11 +14720,20 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const empty = document.getElementById('cmdb-empty');
 
     if(CMDB_ITEMS.length===0){
-      if(loading) loading.style.display='block';
-      if(table) table.style.display='none';
-      if(empty) empty.style.display='none';
-      loadCMDBItemsFromAPI();
-      return;
+      if (!cmdbItemsLoaded) {
+        // First load - show loading and fetch from API
+        if(loading) loading.style.display='block';
+        if(table) table.style.display='none';
+        if(empty) empty.style.display='none';
+        loadCMDBItemsFromAPI();
+        return;
+      } else {
+        // Already loaded but empty - show empty state
+        if(loading) loading.style.display='none';
+        if(table) table.style.display='none';
+        if(empty) empty.style.display='block';
+        return;
+      }
     }
 
     // Populate customer dropdown
