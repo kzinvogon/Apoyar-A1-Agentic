@@ -645,7 +645,18 @@ router.post('/tenant/forgot-password', passwordChangeLimiter, async (req, res) =
       return res.status(400).json({ success: false, message: 'Tenant code and email are required' });
     }
 
-    const connection = await getTenantConnection(tenant_code);
+    // Validate tenant code format and get connection
+    let connection;
+    try {
+      connection = await getTenantConnection(tenant_code);
+    } catch (tenantError) {
+      console.error('Invalid tenant code in forgot-password:', tenant_code, tenantError.message);
+      // Return generic success to prevent tenant enumeration
+      return res.json({
+        success: true,
+        message: 'If this email exists, you will receive password reset instructions shortly.'
+      });
+    }
 
     try {
       // Find user by email
@@ -746,7 +757,17 @@ router.post('/tenant/reset-password-with-token', passwordChangeLimiter, async (r
       });
     }
 
-    const connection = await getTenantConnection(tenant_code);
+    // Validate tenant code and get connection
+    let connection;
+    try {
+      connection = await getTenantConnection(tenant_code);
+    } catch (tenantError) {
+      console.error('Invalid tenant code in reset-password-with-token:', tenant_code, tenantError.message);
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid tenant code'
+      });
+    }
 
     try {
       // Find user by reset token
