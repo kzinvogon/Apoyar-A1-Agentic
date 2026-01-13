@@ -569,9 +569,21 @@ router.get('/:tenantId/:ticketId', readOperationsLimiter, validateTicketGet, asy
 
       // Customer permission check - customers can only see their own tickets or company tickets
       if (req.user.role === 'customer') {
-        const isOwnTicket = ticket.requester_id === req.user.userId;
-        const isSameCompany = req.user.customerCompanyId &&
-                             ticket.requester_company_id === req.user.customerCompanyId;
+        // Use == for type coercion (userId might be string from JWT, requester_id is number from DB)
+        const isOwnTicket = ticket.requester_id == req.user.userId;
+
+        // If not own ticket, check company membership
+        let isSameCompany = false;
+        if (!isOwnTicket && ticket.requester_company_id) {
+          // Look up customer's company from database
+          const [customerInfo] = await connection.query(
+            `SELECT c.customer_company_id FROM customers c WHERE c.user_id = ?`,
+            [req.user.userId]
+          );
+          if (customerInfo.length > 0 && customerInfo[0].customer_company_id) {
+            isSameCompany = ticket.requester_company_id == customerInfo[0].customer_company_id;
+          }
+        }
 
         if (!isOwnTicket && !isSameCompany) {
           return res.status(403).json({ success: false, message: 'Access denied' });
