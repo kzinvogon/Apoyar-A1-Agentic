@@ -10692,7 +10692,12 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
       const data = await response.json();
 
-      if (data.success && data.ticket) {
+      if (!data.success) {
+        // API returned an error - throw to trigger fallback
+        throw new Error(data.message || 'Failed to load ticket');
+      }
+
+      if (data.ticket) {
         const ticket = data.ticket;
 
         // Update form fields with latest data
