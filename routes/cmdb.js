@@ -176,8 +176,28 @@ router.get('/:tenantCode/items', async (req, res) => {
       const conditions = [];
       const params = [];
 
-      // Filter by customer name
-      if (customer_name) {
+      // Customer role filtering - customers can only see their own company's CMDB items
+      if (req.user.role === 'customer') {
+        // Get customer's company name
+        const [customerInfo] = await connection.query(
+          `SELECT cc.company_name
+           FROM customers c
+           JOIN customer_companies cc ON c.customer_company_id = cc.id
+           WHERE c.user_id = ?`,
+          [req.user.userId]
+        );
+
+        if (customerInfo.length > 0 && customerInfo[0].company_name) {
+          conditions.push('ci.customer_name = ?');
+          params.push(customerInfo[0].company_name);
+        } else {
+          // Customer has no company - return empty results
+          return res.json({ success: true, items: [] });
+        }
+      }
+
+      // Filter by customer name (for non-customers, this is an optional filter)
+      if (customer_name && req.user.role !== 'customer') {
         conditions.push('ci.customer_name = ?');
         params.push(customer_name);
       }
