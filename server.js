@@ -375,6 +375,24 @@ async function startServer() {
           console.warn(`⚠️  Warning: Category SLA mappings migration:`, migrationError.message);
         }
 
+        // Run tenant settings migration
+        try {
+          const { migrate: runTenantSettingsMigration } = require('./migrations/add-tenant-settings');
+          await runTenantSettingsMigration('apoyar');
+          console.log('✅ Tenant settings migration completed');
+        } catch (migrationError) {
+          console.warn(`⚠️  Warning: Tenant settings migration:`, migrationError.message);
+        }
+
+        // Run customer SLA override migration
+        try {
+          const { migrate: runCustomerSLAOverrideMigration } = require('./migrations/add-customer-sla-override');
+          await runCustomerSLAOverrideMigration('apoyar');
+          console.log('✅ Customer SLA override migration completed');
+        } catch (migrationError) {
+          console.warn(`⚠️  Warning: Customer SLA override migration:`, migrationError.message);
+        }
+
         // Start email processing for apoyar tenant
         try {
           await startEmailProcessing('apoyar');
