@@ -11,7 +11,7 @@ const router = express.Router();
 const { getTenantConnection } = require('../config/database');
 const { verifyToken } = require('../middleware/auth');
 const { body, param, validationResult } = require('express-validator');
-const bcrypt = require('bcryptjs');
+const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 
 // Apply verifyToken middleware to all routes
