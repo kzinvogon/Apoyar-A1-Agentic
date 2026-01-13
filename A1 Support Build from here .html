@@ -10664,8 +10664,13 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   });
 
   async function renderTicketDetail(){
-    const t=tickets.find(x=>x.id===currentTicketId);
-    if(!t) return;
+    let t=tickets.find(x=>x.id===currentTicketId);
+
+    // If ticket not in local array, create a placeholder (will be populated from API)
+    if(!t) {
+      t = { id: currentTicketId, title: '', status: 'Open', priority: 'medium' };
+      tickets.push(t);
+    }
 
     // Load ticket details from backend to get latest data and activities
     try {
