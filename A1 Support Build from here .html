@@ -1342,7 +1342,20 @@ vNext-FULL-ActionsSLA:
               </div>
             </div>
           </div>
-          
+
+          <div class="card p-16" style="margin-top:16px">
+            <h4>Email Preferences</h4>
+            <div style="margin-top:16px">
+              <label style="display:flex;align-items:center;gap:12px;cursor:pointer">
+                <input type="checkbox" id="profile-receive-email-updates" style="width:18px;height:18px">
+                <span>
+                  <strong>Receive Email Updates</strong>
+                  <div class="subtitle" style="margin-top:4px">If disabled, you won't receive email notifications about ticket updates.</div>
+                </span>
+              </label>
+            </div>
+          </div>
+
           <div class="card p-16" style="margin-top:16px">
             <h4>Account Information</h4>
             <div class="grid2" style="gap:16px;margin-top:16px">
@@ -14676,16 +14689,17 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       document.getElementById('profile-fullname').value=profile.full_name||''; 
       document.getElementById('profile-email').value=profile.email||''; 
       document.getElementById('profile-phone').value=profile.phone||''; 
-      document.getElementById('profile-department').value=profile.department||''; 
-      document.getElementById('profile-created').value=profile.created_at?new Date(profile.created_at).toLocaleString():''; 
-      document.getElementById('profile-updated').value=profile.updated_at?new Date(profile.updated_at).toLocaleString():''; 
-    }catch(err){ alert('Error loading profile: '+err.message); } 
+      document.getElementById('profile-department').value=profile.department||'';
+      document.getElementById('profile-receive-email-updates').checked = profile.receive_email_updates == 1;
+      document.getElementById('profile-created').value=profile.created_at?new Date(profile.created_at).toLocaleString():'';
+      document.getElementById('profile-updated').value=profile.updated_at?new Date(profile.updated_at).toLocaleString():'';
+    }catch(err){ alert('Error loading profile: '+err.message); }
   }
   async function saveProfile(){ 
     try{ 
       const token=localStorage.getItem('token'); 
       if(!token){ alert('Session expired'); window.location.reload(); return; } 
-      const profileData={ full_name:document.getElementById('profile-fullname').value, email:document.getElementById('profile-email').value, phone:document.getElementById('profile-phone').value, department:document.getElementById('profile-department').value }; 
+      const profileData={ full_name:document.getElementById('profile-fullname').value, email:document.getElementById('profile-email').value, phone:document.getElementById('profile-phone').value, department:document.getElementById('profile-department').value, receive_email_updates:document.getElementById('profile-receive-email-updates').checked }; 
       const res=await fetch(`${API_BASE}/api/auth/profile`,{method:'PUT',headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify(profileData)}); 
       const data=await res.json(); 
       if(!data.success){ alert('Failed to update profile: '+data.message); return; } 
