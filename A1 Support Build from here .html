@@ -1083,9 +1083,11 @@ vNext-FULL-ActionsSLA:
           <div class="navlink" data-target="dash" onclick="nav(this)">🏠 My Dashboard</div>
           <div class="navlink" data-target="profile" onclick="nav(this)">👤 My Profile</div>
           <div class="navlink" data-target="tickets" onclick="nav(this)">🎫 My Requests</div>
+          <div class="navlink" data-target="my-company" onclick="nav(this)">🏢 My Company</div>
+          <div class="navlink" id="nav-company-admin" data-target="company-admin" onclick="nav(this)" style="display:none">👥 Company Admin</div>
           <div class="navlink" data-target="usage" onclick="nav(this)">📊 Usage & Limits</div>
-          <div class="navlink" data-target="customer-billing" onclick="nav(this)">💰 Billing</div>
-          <div class="navlink" data-target="customer-plans" onclick="nav(this)">📋 Plans & Upgrades</div>
+          <div class="navlink" id="nav-customer-billing" data-target="customer-billing" onclick="nav(this)" style="display:none">💰 Billing</div>
+          <div class="navlink" id="nav-customer-plans" data-target="customer-plans" onclick="nav(this)" style="display:none">📋 Plans & Upgrades</div>
           <div class="navlink" data-target="analytics" onclick="nav(this)">📈 Analytics</div>
           <div class="nav-group" id="nav-cmdb-group-customer">
             <div class="navlink" onclick="toggleNavGroup('nav-cmdb-group-customer')">🗃️ My CMDB <span class="chev">▸</span></div>
@@ -1837,6 +1839,139 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           </div>
         </div>
 
+        <!-- My Company (Customer View) -->
+        <div id="view-my-company" style="display:none">
+          <div class="row space mb-12">
+            <div class="row"><button class="btn ghost" onclick="switchView('dash')">← Back</button><h3 class="title" style="margin:0 0 0 8px">My Company</h3></div>
+            <button class="btn" onclick="loadMyCompany()">🔄 Refresh</button>
+          </div>
+
+          <!-- Company Info -->
+          <div class="card p-16 mb-16">
+            <h4>Company Information</h4>
+            <div class="grid2">
+              <div>
+                <div class="form-group">
+                  <label>Company Name</label>
+                  <div id="my-company-name" class="subtitle">Loading...</div>
+                </div>
+                <div class="form-group">
+                  <label>Domain</label>
+                  <div id="my-company-domain" class="subtitle">-</div>
+                </div>
+                <div class="form-group">
+                  <label>Phone</label>
+                  <div id="my-company-phone" class="subtitle">-</div>
+                </div>
+              </div>
+              <div>
+                <div class="form-group">
+                  <label>Address</label>
+                  <div id="my-company-address" class="subtitle">-</div>
+                </div>
+                <div class="form-group">
+                  <label>Service Level Agreement</label>
+                  <div id="my-company-sla" class="subtitle">Default SLA</div>
+                </div>
+                <div class="form-group">
+                  <label>Total Users</label>
+                  <div id="my-company-user-count" class="subtitle">0</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Company Users List (Read Only) -->
+          <div class="card p-16">
+            <h4>Users in Your Company</h4>
+            <div class="subtitle mb-12">Contact your company admin if you need user changes</div>
+            <table id="my-company-users-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="my-company-users-body">
+                <tr><td colspan="4" class="subtitle">Loading users...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Company Admin (Company Admin View) -->
+        <div id="view-company-admin" style="display:none">
+          <div class="row space mb-12">
+            <div class="row"><button class="btn ghost" onclick="switchView('dash')">← Back</button><h3 class="title" style="margin:0 0 0 8px">Company Admin</h3></div>
+            <div class="row">
+              <button class="btn" onclick="loadCompanyAdminUsers()">🔄 Refresh</button>
+              <button class="btn primary" onclick="showInviteUserModal()">+ Invite User</button>
+            </div>
+          </div>
+
+          <!-- Company Admin Stats -->
+          <div class="grid3 mb-16">
+            <div class="card p-16">
+              <div class="subtitle">Total Users</div>
+              <div id="company-admin-total-users" style="font-size:28px;font-weight:800">0</div>
+            </div>
+            <div class="card p-16">
+              <div class="subtitle">Active Users</div>
+              <div id="company-admin-active-users" style="font-size:28px;font-weight:800">0</div>
+            </div>
+            <div class="card p-16">
+              <div class="subtitle">Disabled Users</div>
+              <div id="company-admin-disabled-users" style="font-size:28px;font-weight:800">0</div>
+            </div>
+          </div>
+
+          <!-- User Management Table -->
+          <div class="card p-16">
+            <h4>Manage Company Users</h4>
+            <table id="company-admin-users-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Job Title</th>
+                  <th>Role</th>
+                  <th>Status</th>
+                  <th>Last Login</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="company-admin-users-body">
+                <tr><td colspan="7" class="subtitle">Loading users...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Invite User Modal -->
+        <div id="invite-user-modal" class="modal" style="display:none">
+          <div class="modal-content" style="max-width:500px">
+            <h3>Invite New User</h3>
+            <div class="form-group">
+              <label>Email Address *</label>
+              <input type="email" id="invite-user-email" placeholder="user@example.com">
+            </div>
+            <div class="form-group">
+              <label>Full Name</label>
+              <input type="text" id="invite-user-name" placeholder="John Smith">
+            </div>
+            <div class="form-group">
+              <label>Job Title</label>
+              <input type="text" id="invite-user-title" placeholder="IT Manager">
+            </div>
+            <div class="row" style="margin-top:16px">
+              <button class="btn primary" onclick="inviteCompanyUser()">Send Invite</button>
+              <button class="btn ghost" onclick="hideInviteUserModal()">Cancel</button>
+            </div>
+          </div>
+        </div>
+
         <!-- Analytics Dashboard -->
         <div id="view-analytics" style="display:none">
           <div class="row space mb-12">
@@ -1846,7 +1981,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               <button class="btn" onclick="exportAnalyticsToCSV()">📊 Export CSV</button>
             </div>
           </div>
-          
+
           <!-- Analytics Summary -->
           <div class="grid4 mb-16">
             <div class="card p-16">
@@ -5422,7 +5557,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   function nav(el){ document.querySelectorAll('.navlink').forEach(n=>n.classList.remove('active')); el.classList.add('active'); switchView(el.getAttribute('data-target')); if(el.getAttribute('data-target')==='dash') renderAllDashboards(); }
   function navTo(view){ switchView(view); }
-  function switchView(view){ currentView=view; ['dash','profile','tickets','ticket-detail','experts','expert-detail','customers','cmdb-hub','cmdb','cmdb-detail','manage-cmdb','cmdb-mgmt','wizard','raise','tenants','subscriptions','billing','plans','system','usage','customer-plans','customer-billing','analytics','ai-insights','ticket-rules','email-processing','system-control','knowledge-base','raw-variables','audit-log','notifications'].forEach(n=>{ const el=document.getElementById('view-'+n); if(el) el.style.display=(n===view)?'block':'none'; }); if(view==='tickets') { loadFilterSettings('tickets'); renderList(); } if(view==='experts') { loadFilterSettings('experts'); renderExperts(); } if(view==='expert-detail') renderExpertDetail(); if(view==='customers') { loadFilterSettings('customers'); renderCustomers(); } if(view==='cmdb-hub') initCmdbHub(); if(view==='cmdb') { loadFilterSettings('cmdb'); renderCMDB(); } if(view==='cmdb-detail') renderCMDBDetail(); if(view==='manage-cmdb') loadManageCMDB(); if(view==='cmdb-mgmt') loadCMDBMgmt(); if(view==='raise') loadRaiseFormOptions(); if(view==='ticket-detail') renderTicketDetail(); if(view==='tenants') loadTenants(); if(view==='subscriptions') loadSubscriptions(); if(view==='billing') loadBilling(); if(view==='plans') loadPlans(); if(view==='system') loadSystemOverview(); if(view==='usage') loadUsageDashboard(); if(view==='customer-plans') loadCustomerPlans(); if(view==='customer-billing') loadCustomerBilling(); if(view==='analytics') loadAnalytics(); if(view==='ai-insights') loadAIInsights(); if(view==='ticket-rules') loadTicketRules(); if(view==='email-processing') loadEmailProcessing(); if(view==='system-control') loadSystemControlSettings(); if(view==='knowledge-base') initKnowledgeBase(); if(view==='raw-variables') loadRawVariables(); if(view==='audit-log') { loadAuditActions(); loadAuditLog(); } if(view==='notifications') loadNotifications(); if(view==='wizard') { initWizardSection(); loadCompanyProfile(); loadEmailIngestSettings(); loadSystemSenders(); loadExpertRegSettings(); loadSupportSettings(); loadTeamsIntegrationStatus(); loadSLAData(); } if(view==='profile') loadProfile(); }
+  function switchView(view){ currentView=view; ['dash','profile','tickets','ticket-detail','experts','expert-detail','customers','cmdb-hub','cmdb','cmdb-detail','manage-cmdb','cmdb-mgmt','wizard','raise','tenants','subscriptions','billing','plans','system','usage','customer-plans','customer-billing','my-company','company-admin','analytics','ai-insights','ticket-rules','email-processing','system-control','knowledge-base','raw-variables','audit-log','notifications'].forEach(n=>{ const el=document.getElementById('view-'+n); if(el) el.style.display=(n===view)?'block':'none'; }); if(view==='tickets') { loadFilterSettings('tickets'); renderList(); } if(view==='experts') { loadFilterSettings('experts'); renderExperts(); } if(view==='expert-detail') renderExpertDetail(); if(view==='customers') { loadFilterSettings('customers'); renderCustomers(); } if(view==='cmdb-hub') initCmdbHub(); if(view==='cmdb') { loadFilterSettings('cmdb'); renderCMDB(); } if(view==='cmdb-detail') renderCMDBDetail(); if(view==='manage-cmdb') loadManageCMDB(); if(view==='cmdb-mgmt') loadCMDBMgmt(); if(view==='raise') loadRaiseFormOptions(); if(view==='ticket-detail') renderTicketDetail(); if(view==='tenants') loadTenants(); if(view==='subscriptions') loadSubscriptions(); if(view==='billing') loadBilling(); if(view==='plans') loadPlans(); if(view==='system') loadSystemOverview(); if(view==='usage') loadUsageDashboard(); if(view==='customer-plans') loadCustomerPlans(); if(view==='customer-billing') loadCustomerBilling(); if(view==='my-company') loadMyCompany(); if(view==='company-admin') loadCompanyAdminUsers(); if(view==='analytics') loadAnalytics(); if(view==='ai-insights') loadAIInsights(); if(view==='ticket-rules') loadTicketRules(); if(view==='email-processing') loadEmailProcessing(); if(view==='system-control') loadSystemControlSettings(); if(view==='knowledge-base') initKnowledgeBase(); if(view==='raw-variables') loadRawVariables(); if(view==='audit-log') { loadAuditActions(); loadAuditLog(); } if(view==='notifications') loadNotifications(); if(view==='wizard') { initWizardSection(); loadCompanyProfile(); loadEmailIngestSettings(); loadSystemSenders(); loadExpertRegSettings(); loadSupportSettings(); loadTeamsIntegrationStatus(); loadSLAData(); } if(view==='profile') loadProfile(); }
   function configureRole(){
     const currentRole = window.role || role; // Use global role from login, fallback to local
     document.getElementById('nav-admin').style.display = (currentRole==='admin') ? 'block' : 'none';
@@ -5474,6 +5609,19 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     // Load notification badge for admin/expert roles
     if (currentRole === 'admin' || currentRole === 'expert') {
       loadNotificationBadge();
+    }
+
+    // Configure customer-specific nav items
+    if (currentRole === 'customer') {
+      // Show Company Admin link only if user is a company admin
+      const companyAdminNav = document.getElementById('nav-company-admin');
+      if (companyAdminNav) {
+        const isCompanyAdmin = window.currentUser && window.currentUser.isCompanyAdmin;
+        companyAdminNav.style.display = isCompanyAdmin ? 'block' : 'none';
+      }
+
+      // Load tenant settings for conditional nav display
+      loadTenantSettingsForNav();
     }
   }
 
@@ -8936,7 +9084,256 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   function refreshCustomerPlans() {
     loadCustomerPlans();
   }
-  
+
+  // ---- Tenant Settings & Company Management Functions ----
+
+  // Load tenant settings and configure nav visibility
+  async function loadTenantSettingsForNav() {
+    try {
+      const tenantCode = window.tenant || localStorage.getItem('tenantCode') || 'apoyar';
+      const response = await fetch(`${API_BASE}/api/tenant-settings/${tenantCode}/settings`, {
+        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        window.tenantSettings = {};
+
+        // Convert settings array to object
+        if (data.settings) {
+          data.settings.forEach(s => {
+            let value = s.setting_value;
+            if (s.setting_type === 'boolean') value = value === 'true';
+            else if (s.setting_type === 'number') value = Number(value);
+            else if (s.setting_type === 'json') value = JSON.parse(value || '{}');
+            window.tenantSettings[s.setting_key] = value;
+          });
+        }
+
+        // Show/hide billing nav items based on tenant settings
+        const billingNav = document.getElementById('nav-customer-billing');
+        const plansNav = document.getElementById('nav-customer-plans');
+        const billingEnabled = window.tenantSettings.customer_billing_enabled === true;
+
+        if (billingNav) billingNav.style.display = billingEnabled ? 'block' : 'none';
+        if (plansNav) plansNav.style.display = billingEnabled ? 'block' : 'none';
+      }
+    } catch (error) {
+      console.error('Error loading tenant settings:', error);
+    }
+  }
+
+  // ---- My Company View ----
+  async function loadMyCompany() {
+    try {
+      const tenantCode = window.tenant || localStorage.getItem('tenantCode') || 'apoyar';
+      const response = await fetch(`${API_BASE}/api/company-admin/${tenantCode}/my-company`, {
+        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to load company info');
+      }
+
+      const data = await response.json();
+      const company = data.company;
+
+      // Populate company info
+      document.getElementById('my-company-name').textContent = company.name || '-';
+      document.getElementById('my-company-domain').textContent = company.domain || '-';
+      document.getElementById('my-company-phone').textContent = company.phone || '-';
+      document.getElementById('my-company-address').textContent = company.address || '-';
+      document.getElementById('my-company-sla').textContent = company.sla || 'Default SLA';
+      document.getElementById('my-company-user-count').textContent = company.userCount || 0;
+
+      // If user is a company admin, load full user list
+      if (company.isAdmin) {
+        loadMyCompanyUsers();
+      } else {
+        // Show limited user list info
+        document.getElementById('my-company-users-body').innerHTML =
+          `<tr><td colspan="4" class="subtitle">You have ${company.userCount} users in your company</td></tr>`;
+      }
+
+    } catch (error) {
+      console.error('Error loading company:', error);
+      document.getElementById('my-company-name').textContent = 'Error loading company';
+    }
+  }
+
+  // Load users for My Company view (read-only list)
+  async function loadMyCompanyUsers() {
+    try {
+      const tenantCode = window.tenant || localStorage.getItem('tenantCode') || 'apoyar';
+      const response = await fetch(`${API_BASE}/api/company-admin/${tenantCode}/my-company/users`, {
+        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to load users');
+      }
+
+      const data = await response.json();
+      const tbody = document.getElementById('my-company-users-body');
+
+      if (data.users.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="subtitle">No users found</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = data.users.map(u => `
+        <tr>
+          <td>${u.fullName || u.username}</td>
+          <td>${u.email}</td>
+          <td>${u.isCompanyAdmin ? '<span style="color:#16a34a">Admin</span>' : 'User'}</td>
+          <td><span class="${u.isActive ? 'badge-sla-ok' : 'badge-sla-breached'}">${u.isActive ? 'Active' : 'Disabled'}</span></td>
+        </tr>
+      `).join('');
+
+    } catch (error) {
+      console.error('Error loading company users:', error);
+      document.getElementById('my-company-users-body').innerHTML =
+        '<tr><td colspan="4" class="subtitle">Error loading users</td></tr>';
+    }
+  }
+
+  // ---- Company Admin View ----
+  async function loadCompanyAdminUsers() {
+    try {
+      const tenantCode = window.tenant || localStorage.getItem('tenantCode') || 'apoyar';
+      const response = await fetch(`${API_BASE}/api/company-admin/${tenantCode}/my-company/users`, {
+        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.message || 'Failed to load users');
+      }
+
+      const data = await response.json();
+      const users = data.users;
+
+      // Update stats
+      const activeCount = users.filter(u => u.isActive).length;
+      const disabledCount = users.filter(u => !u.isActive).length;
+      document.getElementById('company-admin-total-users').textContent = users.length;
+      document.getElementById('company-admin-active-users').textContent = activeCount;
+      document.getElementById('company-admin-disabled-users').textContent = disabledCount;
+
+      // Render table
+      const tbody = document.getElementById('company-admin-users-body');
+
+      if (users.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="subtitle">No users found</td></tr>';
+        return;
+      }
+
+      const currentUserId = window.currentUser?.id;
+
+      tbody.innerHTML = users.map(u => {
+        const isCurrentUser = u.id === currentUserId;
+        const lastLogin = u.lastLogin ? new Date(u.lastLogin).toLocaleDateString() : 'Never';
+        const canToggle = !isCurrentUser && !u.isCompanyAdmin;
+
+        return `
+          <tr>
+            <td>${u.fullName || u.username}</td>
+            <td>${u.email}</td>
+            <td>${u.jobTitle || '-'}</td>
+            <td>${u.isCompanyAdmin ? '<span style="color:#16a34a;font-weight:600">Admin</span>' : 'User'}</td>
+            <td><span class="${u.isActive ? 'badge-sla-ok' : 'badge-sla-breached'}">${u.isActive ? 'Active' : 'Disabled'}</span></td>
+            <td>${lastLogin}</td>
+            <td>
+              ${canToggle ? `<button class="btn ghost" onclick="toggleCompanyUser(${u.id})">${u.isActive ? 'Disable' : 'Enable'}</button>` : '<span class="subtitle">-</span>'}
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+    } catch (error) {
+      console.error('Error loading company admin users:', error);
+      document.getElementById('company-admin-users-body').innerHTML =
+        `<tr><td colspan="7" class="subtitle">Error: ${error.message}</td></tr>`;
+    }
+  }
+
+  // Toggle user enable/disable
+  async function toggleCompanyUser(userId) {
+    try {
+      const tenantCode = window.tenant || localStorage.getItem('tenantCode') || 'apoyar';
+      const response = await fetch(`${API_BASE}/api/company-admin/${tenantCode}/my-company/users/${userId}/toggle`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': 'Bearer ' + localStorage.getItem('token'),
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to toggle user');
+      }
+
+      showToast(data.message, 'success');
+      loadCompanyAdminUsers(); // Refresh the list
+
+    } catch (error) {
+      console.error('Error toggling user:', error);
+      showToast(error.message, 'error');
+    }
+  }
+
+  // Invite user modal controls
+  function showInviteUserModal() {
+    document.getElementById('invite-user-email').value = '';
+    document.getElementById('invite-user-name').value = '';
+    document.getElementById('invite-user-title').value = '';
+    document.getElementById('invite-user-modal').style.display = 'flex';
+  }
+
+  function hideInviteUserModal() {
+    document.getElementById('invite-user-modal').style.display = 'none';
+  }
+
+  // Send invite to new user
+  async function inviteCompanyUser() {
+    const email = document.getElementById('invite-user-email').value.trim();
+    const fullName = document.getElementById('invite-user-name').value.trim();
+    const jobTitle = document.getElementById('invite-user-title').value.trim();
+
+    if (!email) {
+      showToast('Email is required', 'error');
+      return;
+    }
+
+    try {
+      const tenantCode = window.tenant || localStorage.getItem('tenantCode') || 'apoyar';
+      const response = await fetch(`${API_BASE}/api/company-admin/${tenantCode}/my-company/invite`, {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + localStorage.getItem('token'),
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email, fullName, jobTitle })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to invite user');
+      }
+
+      hideInviteUserModal();
+      showToast(`User invited successfully! Temporary password: ${data.user.tempPassword}`, 'success');
+      loadCompanyAdminUsers(); // Refresh the list
+
+    } catch (error) {
+      console.error('Error inviting user:', error);
+      showToast(error.message, 'error');
+    }
+  }
+
   // Customer Billing Functions
   async function loadCustomerBilling() {
     try {

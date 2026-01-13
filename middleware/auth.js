@@ -77,8 +77,12 @@ async function authenticateTenantUser(tenantCode, username, password) {
   try {
     const connection = await getTenantConnection(tenantCode);
     try {
+      // Join with customers table to get is_company_admin for customer users
       const [rows] = await connection.query(
-        'SELECT * FROM users WHERE username = ? AND is_active = TRUE',
+        `SELECT u.*, c.is_company_admin, c.customer_company_id
+         FROM users u
+         LEFT JOIN customers c ON c.user_id = u.id
+         WHERE u.username = ? AND u.is_active = TRUE`,
         [username]
       );
 
@@ -116,7 +120,8 @@ async function authenticateTenantUser(tenantCode, username, password) {
             username: user.username,
             email: user.email,
             fullName: user.full_name,
-            tenantCode: tenantCode
+            tenantCode: tenantCode,
+            isCompanyAdmin: user.is_company_admin === 1
           },
           resetToken
         };
@@ -150,7 +155,8 @@ async function authenticateTenantUser(tenantCode, username, password) {
           email: user.email,
           fullName: user.full_name,
           role: user.role,
-          tenantCode: tenantCode
+          tenantCode: tenantCode,
+          isCompanyAdmin: user.is_company_admin === 1
         },
         token
       };

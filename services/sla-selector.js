@@ -2,7 +2,7 @@
  * SLA Selector Service
  *
  * Resolves which SLA definition should apply to a ticket based on
- * priority order: ticket override → customer → category → cmdb → default
+ * priority order: ticket → user → company → category → cmdb → default
  */
 
 const { getTenantConnection } = require('../config/database');
@@ -12,10 +12,11 @@ const { getTenantConnection } = require('../config/database');
  *
  * Priority order:
  * 1) Ticket override (explicit sla_definition_id)
- * 2) Customer/Contract SLA (via requester → customer_company)
- * 3) Category SLA (via category_sla_mappings)
- * 4) CMDB item SLA
- * 5) Default SLA
+ * 2) User override (customers.sla_override_id - enhanced SLA for specific users)
+ * 3) Company SLA (customer_companies.sla_definition_id)
+ * 4) Category SLA (via category_sla_mappings)
+ * 5) CMDB item SLA
+ * 6) Default SLA
  *
  * @param {Object} options
  * @param {string} options.tenantCode - Tenant code for database connection
@@ -42,15 +43,23 @@ async function resolveApplicableSLA({ tenantCode, ticketPayload = {} }) {
       // If invalid SLA ID provided, fall through to other sources
     }
 
-    // 2) Customer/Contract SLA via requester chain
+    // 2) User SLA override (enhanced SLA for specific users)
     if (ticketPayload.requester_id) {
-      const slaId = await getCustomerSLA(connection, ticketPayload.requester_id);
-      if (slaId) {
-        return { slaId, source: 'customer' };
+      const userSlaId = await getUserSLA(connection, ticketPayload.requester_id);
+      if (userSlaId) {
+        return { slaId: userSlaId, source: 'user' };
       }
     }
 
-    // 3) Category SLA via category_sla_mappings
+    // 3) Company SLA via requester chain
+    if (ticketPayload.requester_id) {
+      const slaId = await getCompanySLA(connection, ticketPayload.requester_id);
+      if (slaId) {
+        return { slaId, source: 'company' };
+      }
+    }
+
+    // 4) Category SLA via category_sla_mappings
     if (ticketPayload.category) {
       const slaId = await getCategorySLA(connection, ticketPayload.category);
       if (slaId) {
@@ -58,7 +67,7 @@ async function resolveApplicableSLA({ tenantCode, ticketPayload = {} }) {
       }
     }
 
-    // 4) CMDB Item SLA
+    // 5) CMDB Item SLA
     if (ticketPayload.cmdb_item_id) {
       const slaId = await getCMDBItemSLA(connection, ticketPayload.cmdb_item_id);
       if (slaId) {
@@ -66,7 +75,7 @@ async function resolveApplicableSLA({ tenantCode, ticketPayload = {} }) {
       }
     }
 
-    // 5) Default SLA - lowest priority
+    // 6) Default SLA - lowest priority
     const defaultSlaId = await getDefaultSLAId(connection);
     return { slaId: defaultSlaId, source: 'default' };
 
@@ -95,11 +104,35 @@ async function validateSLAExists(connection, slaId) {
 }
 
 /**
+ * Get user-level SLA override (enhanced SLA for specific users)
+ * Lookup: requester_id → customers.sla_override_id
+ */
+async function getUserSLA(connection, requesterId) {
+  try {
+    const [rows] = await connection.query(`
+      SELECT sla_override_id
+      FROM customers
+      WHERE user_id = ? AND sla_override_id IS NOT NULL
+      LIMIT 1
+    `, [requesterId]);
+
+    if (rows.length > 0 && rows[0].sla_override_id) {
+      // Validate the SLA is still active
+      return await validateSLAExists(connection, rows[0].sla_override_id);
+    }
+    return null;
+  } catch (error) {
+    console.error('[SLA_SELECTOR] Error getting user SLA override:', error.message);
+    return null;
+  }
+}
+
+/**
  * Get SLA from customer's company via requester chain
  * Lookup: requester_id → customers.user_id → customer_companies.sla_definition_id
  * Fallback: If sla_definition_id not set, try to match sla_level text to SLA definition name
  */
-async function getCustomerSLA(connection, requesterId) {
+async function getCompanySLA(connection, requesterId) {
   try {
     const [rows] = await connection.query(`
       SELECT cc.sla_definition_id, cc.sla_level
@@ -124,7 +157,7 @@ async function getCustomerSLA(connection, requesterId) {
     }
     return null;
   } catch (error) {
-    console.error('[SLA_SELECTOR] Error getting customer SLA:', error.message);
+    console.error('[SLA_SELECTOR] Error getting company SLA:', error.message);
     return null;
   }
 }

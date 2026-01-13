@@ -50,6 +50,8 @@ const integrationsTeamsRoutes = require('./routes/integrations-teams');
 const slaRoutes = require('./routes/sla');
 const adminRoutes = require('./routes/admin');
 const notificationsRoutes = require('./routes/notifications');
+const tenantSettingsRoutes = require('./routes/tenant-settings');
+const companyAdminRoutes = require('./routes/company-admin');
 
 // Import email processor service
 const { startEmailProcessing } = require('./services/email-processor');
@@ -102,6 +104,8 @@ app.use('/api/integrations', integrationsTeamsRoutes);
 app.use('/api/sla', slaRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', notificationsRoutes);
+app.use('/api/tenant-settings', tenantSettingsRoutes);
+app.use('/api/company-admin', companyAdminRoutes);
 
 // Public routes (no authentication required) - Must be before authenticated routes
 app.use('/ticket', publicTicketRoutes);
