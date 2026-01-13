@@ -38,19 +38,20 @@ async function isEmailSendingEnabled(tenantCode, emailType = null) {
 }
 
 // Helper function to check if email notifications are enabled for a specific user
+// Uses the receive_email_updates column (default ON for normal users, OFF for system users)
 async function isUserEmailNotificationsEnabled(tenantCode, userEmail) {
   try {
     const connection = await getTenantConnection(tenantCode);
     try {
       const [users] = await connection.query(
-        'SELECT email_notifications_enabled FROM users WHERE email = ?',
+        'SELECT receive_email_updates FROM users WHERE email = ?',
         [userEmail]
       );
-      // Default to enabled if user not found or column is null
+      // Default to enabled if user not found
       if (users.length === 0) return true;
       // If column doesn't exist or is null, default to enabled
-      if (users[0].email_notifications_enabled === undefined || users[0].email_notifications_enabled === null) return true;
-      return users[0].email_notifications_enabled === 1;
+      if (users[0].receive_email_updates === undefined || users[0].receive_email_updates === null) return true;
+      return users[0].receive_email_updates === 1;
     } finally {
       connection.release();
     }

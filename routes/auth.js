@@ -447,7 +447,7 @@ router.get('/profile', async (req, res) => {
         const connection = await getTenantConnection(decoded.tenantCode);
         try {
           const [rows] = await connection.query(
-            'SELECT id, username, email, full_name, role, phone, department, created_at, updated_at FROM users WHERE id = ?',
+            'SELECT id, username, email, full_name, role, phone, department, receive_email_updates, created_at, updated_at FROM users WHERE id = ?',
             [decoded.userId]
           );
 
@@ -489,7 +489,7 @@ router.get('/profile', async (req, res) => {
 router.put('/profile', validateProfileUpdate, async (req, res) => {
   try {
     const token = req.headers.authorization?.replace('Bearer ', '');
-    const { full_name, email, phone, department } = req.body;
+    const { full_name, email, phone, department, receive_email_updates } = req.body;
 
     if (!token) {
       return res.status(401).json({ success: false, message: 'Token required' });
@@ -526,7 +526,13 @@ router.put('/profile', validateProfileUpdate, async (req, res) => {
             updates.push('department = ?');
             values.push(department);
           }
-          
+
+          // Handle receive_email_updates preference (coerce to 0/1)
+          if (receive_email_updates !== undefined) {
+            updates.push('receive_email_updates = ?');
+            values.push(receive_email_updates ? 1 : 0);
+          }
+
           if (updates.length === 0) {
             return res.status(400).json({ success: false, message: 'No fields to update' });
           }
@@ -541,9 +547,21 @@ router.put('/profile', validateProfileUpdate, async (req, res) => {
 
           // Get updated profile
           const [rows] = await connection.query(
-            'SELECT id, username, email, full_name, role, phone, department, created_at, updated_at FROM users WHERE id = ?',
+            'SELECT id, username, email, full_name, role, phone, department, receive_email_updates, created_at, updated_at FROM users WHERE id = ?',
             [decoded.userId]
           );
+
+          // Log preference change to audit (best-effort, don't block save)
+          if (receive_email_updates !== undefined) {
+            try {
+              await connection.query(`
+                INSERT INTO audit_log (user_id, action, entity_type, entity_id, details)
+                VALUES (?, 'EMAIL_PREFERENCE_CHANGED', 'users', ?, ?)
+              `, [decoded.userId, decoded.userId, JSON.stringify({ receive_email_updates: receive_email_updates ? 1 : 0 })]);
+            } catch (auditErr) {
+              console.error('Could not log email preference change:', auditErr.message);
+            }
+          }
 
           res.json({ success: true, message: 'Profile updated successfully', profile: rows[0] });
         } finally {
