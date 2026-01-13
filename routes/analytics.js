@@ -16,6 +16,12 @@ router.get('/:tenantId', async (req, res) => {
     const connection = await getTenantConnection(tenantCode);
 
     try {
+      // Customer role filtering - customers only see their own ticket stats
+      const isCustomer = req.user.role === 'customer';
+      const customerFilter = isCustomer ? 'AND requester_id = ?' : '';
+      const customerFilterWithT = isCustomer ? 'AND t.requester_id = ?' : '';
+      const customerParams = isCustomer ? [req.user.userId] : [];
+
       // Ticket statistics
       const [ticketStats] = await connection.query(
         `SELECT
@@ -25,41 +31,45 @@ router.get('/:tenantId', async (req, res) => {
           SUM(CASE WHEN status = 'resolved' THEN 1 ELSE 0 END) as resolved_count,
           SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) as closed_count
          FROM tickets
-         WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)`,
-        [parseInt(period)]
+         WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? DAY) ${customerFilter}`,
+        [parseInt(period), ...customerParams]
       );
 
       // Ticket priority breakdown
       const [priorityStats] = await connection.query(
         `SELECT priority, COUNT(*) as count
          FROM tickets
-         WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+         WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? DAY) ${customerFilter}
          GROUP BY priority`,
-        [parseInt(period)]
+        [parseInt(period), ...customerParams]
       );
 
       // Ticket category breakdown
       const [categoryStats] = await connection.query(
         `SELECT category, COUNT(*) as count
          FROM tickets
-         WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+         WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? DAY) ${customerFilter}
          GROUP BY category
          ORDER BY count DESC
          LIMIT 10`,
-        [parseInt(period)]
+        [parseInt(period), ...customerParams]
       );
 
-      // Top ticket creators
-      const [topRequesters] = await connection.query(
-        `SELECT u.full_name, u.username, COUNT(t.id) as ticket_count
-         FROM tickets t
-         JOIN users u ON t.requester_id = u.id
-         WHERE t.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
-         GROUP BY t.requester_id, u.full_name, u.username
-         ORDER BY ticket_count DESC
-         LIMIT 10`,
-        [parseInt(period)]
-      );
+      // Top ticket creators - skip for customers (only shows their own data anyway)
+      let topRequesters = [];
+      if (!isCustomer) {
+        const [requesters] = await connection.query(
+          `SELECT u.full_name, u.username, COUNT(t.id) as ticket_count
+           FROM tickets t
+           JOIN users u ON t.requester_id = u.id
+           WHERE t.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+           GROUP BY t.requester_id, u.full_name, u.username
+           ORDER BY ticket_count DESC
+           LIMIT 10`,
+          [parseInt(period)]
+        );
+        topRequesters = requesters;
+      }
 
       // SLA compliance (using status and sla_deadline since resolved_at doesn't exist)
       const [slaStats] = await connection.query(
@@ -70,24 +80,28 @@ router.get('/:tenantId', async (req, res) => {
           SUM(CASE WHEN status NOT IN ('resolved', 'closed') AND NOW() > sla_deadline THEN 1 ELSE 0 END) as breached_sla
          FROM tickets
          WHERE sla_deadline IS NOT NULL
-         AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)`,
-        [parseInt(period)]
+         AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY) ${customerFilter}`,
+        [parseInt(period), ...customerParams]
       );
 
-      // Assignee workload
-      const [assigneeWorkload] = await connection.query(
-        `SELECT u.full_name, u.username,
-          COUNT(t.id) as assigned_tickets,
-          SUM(CASE WHEN t.status IN ('open', 'in_progress') THEN 1 ELSE 0 END) as active_tickets
-         FROM tickets t
-         LEFT JOIN users u ON t.assignee_id = u.id
-         WHERE t.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
-         AND t.assignee_id IS NOT NULL
-         GROUP BY t.assignee_id, u.full_name, u.username
-         ORDER BY assigned_tickets DESC
-         LIMIT 10`,
-        [parseInt(period)]
-      );
+      // Assignee workload - skip for customers
+      let assigneeWorkload = [];
+      if (!isCustomer) {
+        const [workload] = await connection.query(
+          `SELECT u.full_name, u.username,
+            COUNT(t.id) as assigned_tickets,
+            SUM(CASE WHEN t.status IN ('open', 'in_progress') THEN 1 ELSE 0 END) as active_tickets
+           FROM tickets t
+           LEFT JOIN users u ON t.assignee_id = u.id
+           WHERE t.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+           AND t.assignee_id IS NOT NULL
+           GROUP BY t.assignee_id, u.full_name, u.username
+           ORDER BY assigned_tickets DESC
+           LIMIT 10`,
+          [parseInt(period)]
+        );
+        assigneeWorkload = workload;
+      }
 
       // Trend data - tickets per day
       const [trendData] = await connection.query(
@@ -95,10 +109,10 @@ router.get('/:tenantId', async (req, res) => {
           COUNT(*) as created,
           SUM(CASE WHEN status = 'resolved' OR status = 'closed' THEN 1 ELSE 0 END) as resolved
          FROM tickets
-         WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+         WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? DAY) ${customerFilter}
          GROUP BY DATE(created_at)
          ORDER BY date ASC`,
-        [parseInt(period)]
+        [parseInt(period), ...customerParams]
       );
 
       const analytics = {

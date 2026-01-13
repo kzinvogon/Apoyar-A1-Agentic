@@ -1087,7 +1087,6 @@ vNext-FULL-ActionsSLA:
           <div class="navlink" data-target="customer-billing" onclick="nav(this)">💰 Billing</div>
           <div class="navlink" data-target="customer-plans" onclick="nav(this)">📋 Plans & Upgrades</div>
           <div class="navlink" data-target="analytics" onclick="nav(this)">📈 Analytics</div>
-          <div class="navlink" data-target="ai-insights" onclick="nav(this)">🤖 AI Insights</div>
           <div class="nav-group" id="nav-cmdb-group-customer">
             <div class="navlink" onclick="toggleNavGroup('nav-cmdb-group-customer')">🗃️ My CMDB <span class="chev">▸</span></div>
             <div class="nav-subitems">
@@ -5110,10 +5109,12 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         localStorage.setItem('currentUser', JSON.stringify(data.user));
         localStorage.setItem('username', data.user.username);
 
-        // Set global variables
+        // Set global variables (both window and local)
         window.currentUser = data.user;
         window.role = data.user.role;
-        window.tenant = data.user.tenantCode || (role === 'customer' ? 'apoyar' : null);
+        role = data.user.role; // Update the global role variable too
+        window.tenant = data.user.tenantCode || (data.user.role === 'customer' ? 'apoyar' : null);
+        tenant = window.tenant; // Also update global tenant variable
         window.isMasterAdmin = data.user.role === 'super_admin';
         
         // Update UI
@@ -15703,6 +15704,14 @@ let aiInsightsData = null;
 let aiInsightsLoading = false;
 
 async function loadAIInsights() {
+  // Check if user is a customer - AI Insights is not available for customers
+  const currentRole = window.role || role;
+  if (currentRole === 'customer') {
+    document.getElementById('ai-insights-list').innerHTML =
+      '<div class="subtitle" style="text-align:center;padding:40px;color:var(--muted)">AI Insights is not available for customer accounts. Please view your Analytics dashboard for ticket statistics.</div>';
+    return;
+  }
+
   // Prevent multiple simultaneous requests
   if (aiInsightsLoading) {
     console.log('AI Insights already loading, skipping duplicate request');
