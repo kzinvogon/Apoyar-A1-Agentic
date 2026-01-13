@@ -736,7 +736,7 @@ router.post('/:tenantId', writeOperationsLimiter, validateTicketCreate, async (r
       const mappedPriority = priorityMap[(priority || 'medium').toLowerCase()] || 'medium';
 
       // Resolve applicable SLA using priority-based selector
-      // Priority: ticket override → customer → category → cmdb → default
+      // Priority: ticket → user → company → category → cmdb → default
       const { slaId, source: slaSource } = await resolveApplicableSLA({
         tenantCode,
         ticketPayload: {
@@ -796,6 +796,41 @@ router.post('/:tenantId', writeOperationsLimiter, validateTicketCreate, async (r
          VALUES (?, ?, ?, ?)`,
         [ticketId, req.user.userId, 'created', `Ticket created by ${req.user.username}`]
       );
+
+      // Log SLA uplift audit event if user SLA override was used
+      if (slaSource === 'user' && slaFields.sla_definition_id) {
+        try {
+          // Check tenant setting for enhanced SLA billing mode
+          const [settings] = await connection.query(
+            `SELECT setting_value FROM tenant_settings WHERE setting_key = 'enhanced_sla_billing_mode'`
+          );
+          const billingMode = settings.length > 0 ? settings[0].setting_value : 'none';
+
+          if (billingMode === 'report_only' || billingMode === 'chargeback') {
+            // Get customer's company ID for audit details
+            const [customerInfo] = await connection.query(
+              `SELECT customer_company_id FROM customers WHERE user_id = ?`,
+              [customer_id]
+            );
+            const companyId = customerInfo.length > 0 ? customerInfo[0].customer_company_id : null;
+
+            await connection.query(
+              `INSERT INTO audit_log (user_id, action, entity_type, entity_id, details)
+               VALUES (?, 'SLA_UPLIFT_USED', 'ticket', ?, ?)`,
+              [customer_id, ticketId, JSON.stringify({
+                sla_id: slaFields.sla_definition_id,
+                sla_name: sla?.name || 'Unknown',
+                company_id: companyId,
+                billing_mode: billingMode,
+                timestamp: new Date().toISOString()
+              })]
+            );
+          }
+        } catch (auditErr) {
+          console.error('SLA uplift audit log error:', auditErr.message);
+          // Don't fail ticket creation if audit fails
+        }
+      }
 
       // Get the created ticket
       const [tickets] = await connection.query(

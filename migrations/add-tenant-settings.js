@@ -27,6 +27,26 @@ async function migrate(tenantCode) {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
 
+    // Check if setting_type column exists, add if not
+    const [columns] = await connection.query(`SHOW COLUMNS FROM tenant_settings LIKE 'setting_type'`);
+    if (columns.length === 0) {
+      console.log(`[${tenantCode}] Adding setting_type column...`);
+      await connection.query(`
+        ALTER TABLE tenant_settings
+        ADD COLUMN setting_type ENUM('boolean', 'string', 'number', 'json') DEFAULT 'string' AFTER setting_value
+      `);
+    }
+
+    // Check if description column exists, add if not
+    const [descCols] = await connection.query(`SHOW COLUMNS FROM tenant_settings LIKE 'description'`);
+    if (descCols.length === 0) {
+      console.log(`[${tenantCode}] Adding description column...`);
+      await connection.query(`
+        ALTER TABLE tenant_settings
+        ADD COLUMN description TEXT AFTER setting_type
+      `);
+    }
+
     console.log(`[${tenantCode}] Inserting default settings...`);
 
     // Insert default settings (ignore if already exists)
