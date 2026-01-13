@@ -5257,12 +5257,10 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         localStorage.setItem('currentUser', JSON.stringify(data.user));
         localStorage.setItem('username', data.user.username);
 
-        // Set global variables (both window and local)
+        // Set global variables
         window.currentUser = data.user;
         window.role = data.user.role;
-        role = data.user.role; // Update the global role variable too
         window.tenant = data.user.tenantCode || (data.user.role === 'customer' ? 'apoyar' : null);
-        tenant = window.tenant; // Also update global tenant variable
         window.isMasterAdmin = data.user.role === 'super_admin';
         
         // Update UI
