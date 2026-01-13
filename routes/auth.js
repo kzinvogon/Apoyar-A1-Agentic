@@ -1244,5 +1244,70 @@ router.post('/:tenantCode/reauth', verifyToken, async (req, res) => {
   }
 });
 
+// Admin password reset endpoint (admin only)
+router.post('/admin/reset-password/:tenantCode', verifyToken, async (req, res) => {
+  try {
+    const { tenantCode } = req.params;
+    const { username, newPassword } = req.body;
+
+    // Verify requester is admin
+    if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
+      return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
+
+    if (!username || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Username and newPassword are required' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ success: false, message: 'Password must be at least 6 characters' });
+    }
+
+    const connection = await getTenantConnection(tenantCode);
+    try {
+      // Check if user exists
+      const [users] = await connection.query(
+        'SELECT id, username, email FROM users WHERE username = ?',
+        [username]
+      );
+
+      if (users.length === 0) {
+        return res.status(404).json({ success: false, message: 'User not found' });
+      }
+
+      // Hash and update password
+      const newPasswordHash = await hashPassword(newPassword);
+      await connection.query(
+        'UPDATE users SET password_hash = ?, updated_at = NOW() WHERE username = ?',
+        [newPasswordHash, username]
+      );
+
+      // Log to audit
+      try {
+        await connection.query(`
+          INSERT INTO audit_log (user_id, action, entity_type, entity_id, details)
+          VALUES (?, 'ADMIN_PASSWORD_RESET', 'users', ?, ?)
+        `, [req.user.userId, users[0].id, JSON.stringify({
+          resetBy: req.user.username,
+          targetUser: username
+        })]);
+      } catch (auditErr) {
+        console.error('Audit log error:', auditErr.message);
+      }
+
+      res.json({
+        success: true,
+        message: `Password reset for ${username}`,
+        user: { id: users[0].id, username: users[0].username, email: users[0].email }
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error in admin password reset:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
 module.exports = router;
 
