@@ -141,7 +141,7 @@ router.get('/:tenantId/my-company/users', requireCompanyAdmin, async (req, res) 
           c.is_company_admin,
           c.job_title,
           u.created_at,
-          u.last_login
+          u.updated_at as last_activity
         FROM users u
         JOIN customers c ON c.user_id = u.id
         WHERE c.customer_company_id = ?
@@ -160,7 +160,7 @@ router.get('/:tenantId/my-company/users', requireCompanyAdmin, async (req, res) 
           isCompanyAdmin: u.is_company_admin === 1,
           jobTitle: u.job_title,
           createdAt: u.created_at,
-          lastLogin: u.last_login
+          lastLogin: u.last_activity
         }))
       });
     } finally {
