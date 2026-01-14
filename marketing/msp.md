@@ -1,103 +1,103 @@
 # Managed Service Providers
 
-## Run your MSP on a platform built for multi-customer operations
+## Multi-customer operations from one platform
 
-ServiFlow's MSP tier isn't a feature upgrade—it's a different way of operating. You manage multiple customer relationships from a single platform, with the separation, SLA tracking, and governance that professional service delivery requires.
-
----
-
-### Multi-customer operations
-
-As an MSP, you serve multiple distinct customers. Each has their own:
-
-- **Users** — Employees who submit tickets and access the portal
-- **Configuration items** — Servers, workstations, and systems you manage
-- **SLA definitions** — Service levels specific to their contract
-- **Ticket history** — Complete record of service delivery
-
-Your team works from a unified console. You see all tickets, all customers, all assets. Your customers see only their own.
+ServiFlow's MSP tier is built for providers who deliver IT services to multiple customers. Each customer has their own SLAs, users, and assets. You have unified visibility and the governance to run a professional operation.
 
 ---
 
-### SLA as a service differentiator
+### The structure
+
+As an MSP, you are the tenant. Your customers are companies within your tenant.
+
+Each customer company has:
+- **Users** — People who submit tickets and access the portal
+- **Assets** — Configuration items you manage for them
+- **SLAs** — Service levels defined for their contract
+- **Tickets** — Complete history of service delivery
+
+Your team works across all customers from a single interface. Customers see only their own data.
+
+---
+
+### SLA flexibility
 
 Different customers pay for different service levels. ServiFlow supports this with:
 
-**Customer-level SLAs**
-Assign a default SLA to each customer company. All their tickets inherit this SLA unless overridden.
+**Company-level SLAs**
+Assign a default SLA to each customer. All their tickets inherit this SLA unless something more specific applies.
 
-**User-level SLA overrides**
-Within a customer company, specific users can have enhanced SLAs. This supports premium support tiers—the CFO gets 2-hour response while standard users get 8-hour response.
+**User-level overrides**
+Within a customer company, individual users can have enhanced SLAs. The CFO gets priority response while other staff use standard timelines.
 
-**Per-ticket overrides**
-For specific critical issues, override the SLA directly on the ticket.
+**Ticket overrides**
+For critical incidents, override the SLA directly on the ticket.
 
-The SLA hierarchy is deterministic and auditable. You always know which SLA applies and why.
-
----
-
-### Contracts and billing readiness
-
-ServiFlow tracks the data you need for contract management and billing:
-
-- Ticket volumes per customer
-- SLA performance metrics per customer
-- Asset counts per customer
-- User counts per customer
-
-You can export this data for your billing systems or use it in customer business reviews. ServiFlow doesn't bill your customers directly—that's your relationship to manage.
+The hierarchy is deterministic. You always know which SLA applied and why.
 
 ---
 
-### Governance and audit
+### Customer separation
 
-When you operate services for multiple customers, you need to demonstrate control:
+Customers cannot see each other.
+
+- Ticket lists are scoped to the customer's company
+- Assets are owned by specific customers
+- Users belong to exactly one company
+- The portal enforces these boundaries automatically
+
+This separation is enforced at the data layer, not just the interface.
+
+---
+
+### Governance
+
+Operating services for multiple customers requires accountability.
 
 **Audit logging**
-User actions, ticket changes, and configuration modifications are logged with timestamps and user attribution.
-
-**No ghost users**
-Every action is tied to an authenticated user. There are no anonymous operations or shared service accounts that obscure accountability.
+User actions, ticket changes, and configuration updates are logged with timestamps and attribution.
 
 **Role-based access**
-Define what each team member can see and do. Administrators, experts, and customers have different permissions enforced by the platform.
+Your team members have defined permissions. Customers have limited portal access. No one can exceed their role.
 
-**Customer isolation**
-Customers cannot see each other's data. This isn't just a UI filter—it's enforced at the data layer.
-
----
-
-### Start simple, scale later
-
-You don't need to configure everything on day one.
-
-Start with:
-- Basic ticket management
-- One or two customer companies
-- Default SLAs
-
-Then add:
-- Per-customer SLA configurations
-- User-level overrides
-- CMDB with SLA inheritance
-- Advanced notification rules
-
-ServiFlow grows with your operation. The platform is the same at 5 customers as it is at 50.
+**No anonymous actions**
+Every operation in ServiFlow is tied to an authenticated user. There are no shared accounts that hide who did what.
 
 ---
 
-### Guided onboarding
+### Operational reporting
 
-MSP configuration isn't self-serve.
+You need data to manage contracts and run your business.
 
-When you sign up for the MSP tier, we work with you to:
-- Understand your customer structure
-- Configure appropriate SLA definitions
-- Set up business hours profiles
+ServiFlow tracks:
+- Ticket volumes per customer
+- SLA performance per customer
+- Asset counts and status
+- User activity
+
+Export this data for billing systems, contract reviews, or internal dashboards.
+
+---
+
+### Billing model
+
+ServiFlow does not bill your customers.
+
+You pay for the platform. How you charge your customers is your business. ServiFlow provides the data you need for billing but does not process payments or invoices on your behalf.
+
+---
+
+### Getting started
+
+MSP configuration is not self-serve.
+
+When you choose the MSP tier, we work with you to:
+- Set up your customer structure
+- Configure SLA definitions
 - Import existing customers and users
-- Establish operational workflows
+- Establish your operational workflows
 
-This ensures you start with a properly configured system, not a blank slate you have to figure out yourself.
+This ensures you start with a properly configured system rather than a blank slate.
 
 ---
 
@@ -105,15 +105,15 @@ This ensures you start with a properly configured system, not a blank slate you 
 
 ServiFlow is designed for MSPs who:
 - Deliver contracted IT services to multiple customers
-- Need SLA tracking with business hours awareness
-- Want operational visibility without exposing internals to customers
-- Require audit trails and governance controls
+- Need SLA tracking against business hours
+- Want customer-facing visibility without exposing internal operations
+- Require audit trails and operational governance
 
 ServiFlow is not designed for:
-- MSPs who need white-label portals with customer branding
-- Resellers who want to bill customers directly through the platform
-- Operations that require deep PSA integrations out of the box
+- White-label portals with customer branding
+- Direct billing to end customers through the platform
+- Self-serve MSP signup without onboarding
 
-If you're not sure, talk to us. We'll tell you honestly whether ServiFlow fits your operation.
+If you're unsure whether ServiFlow fits, contact us. We'll give you a direct answer.
 
 [Contact Us →](#contact)

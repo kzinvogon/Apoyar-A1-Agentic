@@ -1,78 +1,76 @@
 # Customer Portal
 
-## Give customers visibility without giving away control
+## Visibility for customers. Control for you.
 
-ServiFlow's customer portal lets your customers view their tickets, submit new requests, and communicate with your team—without seeing your internal operations, other customers, or SLA mechanics.
+ServiFlow's customer portal gives your customers a way to submit requests, track progress, and confirm resolutions—without exposing your internal operations.
 
 ---
 
 ### What customers can do
 
+**Submit requests**
+Customers raise tickets through the portal. They select a category, describe the issue, and attach files if needed. The request enters your queue with appropriate routing and SLA assignment.
+
 **View their tickets**
-Customers see all tickets raised by anyone in their company. They can filter by status, see the current state of each issue, and read the public conversation history.
+Customers see all tickets raised by anyone in their company. They can filter by status, read the conversation history, and check current progress.
 
-**Submit new requests**
-Customers can raise new tickets directly from the portal. They select a category, describe the issue, and optionally attach files. The ticket enters your normal queue with appropriate SLA assignment.
-
-**Communicate with your team**
-Customers can add comments to their tickets. These appear in your ticket timeline alongside your public responses. Internal notes remain hidden.
+**Communicate**
+Customers add comments to their tickets. These appear in your timeline alongside your public replies. Your internal notes remain hidden.
 
 **Accept or reject resolutions**
-When you mark a ticket as resolved, the customer can confirm the resolution or reopen the issue if it's not actually fixed. This closes the loop on every ticket.
+When you mark a ticket resolved, the customer can confirm the fix or reopen if the issue persists. This closes the loop on every request.
 
 ---
 
 ### What customers cannot see
 
-The portal is deliberately limited. Customers do not have access to:
+The portal shows only what's relevant to the customer. They do not have access to:
 
-- **Internal notes** — Private comments between your team members
-- **SLA targets or timers** — Response and resolution deadlines are not exposed
-- **Breach status** — Customers don't see whether you're meeting or missing SLAs
-- **Other customers** — Complete isolation between customer companies
-- **Assignee workload** — No visibility into your team's capacity or assignments
-- **Operational dashboards** — No access to reporting or analytics
-- **Configuration items** — CMDB is not exposed through the customer portal (unless explicitly configured)
+- **Internal notes** — Comments between your team members
+- **SLA targets** — Response and resolution deadlines
+- **Breach status** — Whether you're meeting or missing service levels
+- **Other customers** — Complete separation between companies
+- **Your team's workload** — Capacity, assignments, queues
+- **Reporting or analytics** — Operational dashboards
+- **Configuration items** — Unless you explicitly enable asset visibility
 
-This separation keeps your operational mechanics internal while giving customers the visibility they need.
+This boundary keeps your service delivery mechanics internal.
 
 ---
 
 ### Company administrators
 
-Within each customer company, you can designate company administrators.
+Within each customer company, you can designate administrators.
 
-Company admins can:
-- View all tickets for their company (not just their own)
-- Invite new users to their company
-- Enable or disable users in their company
+Company administrators can:
+- View all tickets for their company
+- Invite new users
+- Disable users who leave
 
 They cannot:
-- See other companies
-- Modify SLAs or service settings
+- See other customer companies
+- Change SLA settings
 - Access your internal systems
 
-This lets your customers manage their own users without requiring your intervention for every new employee.
+This lets customers manage their own user accounts without your involvement.
 
 ---
 
 ### Authentication
 
-Customer users log in with their own credentials. Accounts are created by:
-- Your team inviting them from the admin console
-- Company administrators inviting them from the portal
-- Self-registration (if enabled for the customer company)
+Each customer user has their own login.
 
-Each user belongs to exactly one customer company. There's no cross-company access.
+Users are created by:
+- Your team sending an invitation
+- A company administrator adding them
+- Self-registration if you enable it
+
+Users belong to exactly one company. There is no cross-company access.
 
 ---
 
-### Communication channel
+### Communication record
 
-The customer portal is the primary channel for structured communication.
+The portal creates a structured record of all customer interaction.
 
-- Customers submit requests through the portal
-- Your team responds through the ticket system
-- Email notifications keep customers informed of updates
-
-This keeps all communication attached to tickets, creating a clear record of every interaction.
+Every request, response, and resolution is attached to a ticket. Email notifications keep customers informed, but the conversation lives in ServiFlow—not scattered across inboxes.
