@@ -19,13 +19,13 @@ router.get('/:tenantId', async (req, res) => {
       const [experts] = await connection.query(
         `SELECT
           u.id, u.username, u.email, u.full_name, u.role, u.is_active,
-          u.created_at, u.updated_at,
+          u.created_at, u.updated_at, u.last_login,
           COUNT(CASE WHEN t.status IN ('open', 'in_progress', 'paused') THEN 1 END) as open_tickets
          FROM users u
          LEFT JOIN tickets t ON u.id = t.assignee_id
          WHERE u.role IN ('admin', 'expert') AND u.is_active = TRUE
          GROUP BY u.id, u.username, u.email, u.full_name, u.role, u.is_active,
-                  u.created_at, u.updated_at
+                  u.created_at, u.updated_at, u.last_login
          ORDER BY u.full_name ASC, u.username ASC`
       );
 
@@ -49,7 +49,7 @@ router.get('/:tenantId/deleted', async (req, res) => {
       const [experts] = await connection.query(
         `SELECT
           u.id, u.username, u.email, u.full_name, u.role, u.is_active,
-          u.created_at, u.updated_at
+          u.created_at, u.updated_at, u.last_login
          FROM users u
          WHERE u.role IN ('admin', 'expert') AND u.is_active = FALSE
            AND u.invitation_token IS NULL
@@ -113,13 +113,13 @@ router.get('/:tenantId/:expertId', async (req, res) => {
       const [experts] = await connection.query(
         `SELECT
           u.id, u.username, u.email, u.full_name, u.role, u.is_active,
-          u.created_at, u.updated_at,
+          u.created_at, u.updated_at, u.last_login,
           COUNT(CASE WHEN t.status IN ('open', 'in_progress', 'paused') THEN 1 END) as open_tickets
          FROM users u
          LEFT JOIN tickets t ON u.id = t.assignee_id
          WHERE u.id = ? AND u.role IN ('admin', 'expert')
          GROUP BY u.id, u.username, u.email, u.full_name, u.role, u.is_active,
-                  u.created_at, u.updated_at`,
+                  u.created_at, u.updated_at, u.last_login`,
         [expertId]
       );
 
