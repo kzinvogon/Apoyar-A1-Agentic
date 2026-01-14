@@ -2,7 +2,45 @@ const express = require('express');
 const router = express.Router();
 const fs = require('fs');
 const path = require('path');
-const { marked } = require('marked');
+
+// Simple markdown to HTML converter (no external dependencies)
+function parseMarkdown(md) {
+  let html = md
+    // Escape HTML
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    // Headers
+    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+    // Bold
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    // Links
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
+    // Horizontal rules
+    .replace(/^---$/gm, '<hr>')
+    // List items
+    .replace(/^- (.+)$/gm, '<li>$1</li>')
+    // Paragraphs (lines not already tagged)
+    .split('\n\n')
+    .map(block => {
+      block = block.trim();
+      if (!block) return '';
+      if (block.startsWith('<h') || block.startsWith('<hr') || block.startsWith('<li>')) {
+        // Wrap consecutive <li> in <ul>
+        if (block.includes('<li>')) {
+          return '<ul>' + block + '</ul>';
+        }
+        return block;
+      }
+      // Wrap in paragraph if not already tagged
+      return '<p>' + block.replace(/\n/g, '<br>') + '</p>';
+    })
+    .join('\n');
+
+  return html;
+}
 
 // Marketing pages - no auth required
 const PAGES = {
@@ -23,7 +61,7 @@ function renderHTML(content, title, currentPage) {
   const footerPath = path.join(MARKETING_DIR, 'footer.md');
   let footerContent = '';
   if (fs.existsSync(footerPath)) {
-    footerContent = marked(fs.readFileSync(footerPath, 'utf8'));
+    footerContent = parseMarkdown(fs.readFileSync(footerPath, 'utf8'));
   }
 
   const navItems = [
@@ -354,7 +392,7 @@ router.get('/:page?', (req, res) => {
 
   const markdown = fs.readFileSync(filepath, 'utf8');
   const title = extractTitle(markdown);
-  const html = marked(markdown);
+  const html = parseMarkdown(markdown);
 
   // Cache for 1 hour in production
   res.set('Cache-Control', 'public, max-age=3600');
