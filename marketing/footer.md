@@ -6,7 +6,7 @@ Internal helpdesk. Customer service delivery. Multi-customer MSP operations. One
 
 ---
 
-[Home](#home) · [Pricing](#pricing) · [SLA Engine](#features-sla) · [CMDB](#features-cmdb) · [Customer Portal](#customer-portal) · [MSP](#msp) · [Security](#security)
+[Home](/marketing) · [Pricing](/marketing/pricing) · [SLA Engine](/marketing/features-sla) · [CMDB](/marketing/features-cmdb) · [Customer Portal](/marketing/customer-portal) · [MSP](/marketing/msp) · [Security](/marketing/security)
 
 ---
 

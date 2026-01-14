@@ -13,17 +13,17 @@ Whether you run an internal helpdesk or deliver contracted services to dozens of
 **Internal IT**
 Support your organisation's employees. Track requests, manage assets, and report on service performance. No external customers, no SLA complexity—just a clean ticket queue and the tools to work through it.
 
-[Start with Internal IT →](#pricing)
+[Start with Internal IT →](/marketing/pricing)
 
 **Customer Service Delivery**
 Serve external customers under defined service levels. Separate what your team sees from what customers see. Track response and resolution times against business hours. Give customers a portal without giving them your operational details.
 
-[Start with Service Delivery →](#pricing)
+[Start with Service Delivery →](/marketing/pricing)
 
 **Managed Services**
 Operate IT services for multiple customers from a single platform. Each customer gets their own SLAs, users, and assets. You get unified visibility and governance across all accounts.
 
-[Talk to us about MSP →](#msp)
+[Talk to us about MSP →](/marketing/msp)
 
 ---
 
