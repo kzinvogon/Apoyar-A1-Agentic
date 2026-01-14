@@ -36,8 +36,6 @@
   "license": "MIT",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",
-    "botbuilder": "^4.23.3",
-    "node-fetch": "^2.7.0",
     "@capacitor/android": "^8.0.0",
     "@capacitor/cli": "^7.4.4",
     "@capacitor/core": "^8.0.0",
@@ -46,6 +44,7 @@
     "@capacitor/status-bar": "^8.0.0",
     "@ionic/core": "^8.7.14",
     "bcrypt": "^5.1.1",
+    "botbuilder": "^4.23.3",
     "cors": "^2.8.5",
     "csv-parser": "^3.2.0",
     "dotenv": "^16.3.1",
@@ -56,8 +55,10 @@
     "imap": "^0.8.19",
     "jsonwebtoken": "^9.0.2",
     "mailparser": "^3.7.5",
+    "marked": "^17.0.1",
     "multer": "^2.0.2",
     "mysql2": "^3.15.3",
+    "node-fetch": "^2.7.0",
     "nodemailer": "^7.0.10"
   },
   "engines": {

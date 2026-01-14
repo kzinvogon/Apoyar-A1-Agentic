@@ -31,7 +31,7 @@ IT departments, internal helpdesks, operations teams supporting internal users.
 
 ---
 
-### Service Delivery
+### Professional
 
 **For teams with external customers and SLA commitments**
 
@@ -65,7 +65,7 @@ IT service providers, outsourced support teams, internal IT with external SLA ob
 You run IT operations for several customers. Each has their own contract, their own users, and their own expectations. You need separation between customers while maintaining a single view for your team.
 
 **What you get:**
-- Everything in Service Delivery
+- Everything in Professional
 - Multiple customer companies under one tenant
 - Per-customer SLA configuration
 - Per-user SLA overrides for premium support tiers
@@ -82,7 +82,7 @@ You run IT operations for several customers. Each has their own contract, their 
 **Who this is for:**
 Managed service providers, IT outsourcing firms, multi-customer service operations.
 
-[Contact Us →](#msp)
+[Talk to us about MSP →](/marketing/msp)
 
 ---
 
@@ -90,7 +90,7 @@ Managed service providers, IT outsourcing firms, multi-customer service operatio
 
 If you only support internal users, start with **Internal IT**.
 
-If you have external customers with service level expectations, start with **Service Delivery**.
+If you have external customers with service level expectations, start with **Professional**.
 
 If you serve multiple distinct customers and need operational separation between them, talk to us about **MSP**.
 

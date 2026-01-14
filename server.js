@@ -52,6 +52,7 @@ const adminRoutes = require('./routes/admin');
 const notificationsRoutes = require('./routes/notifications');
 const tenantSettingsRoutes = require('./routes/tenant-settings');
 const companyAdminRoutes = require('./routes/company-admin');
+const marketingRoutes = require('./routes/marketing');
 
 // Import email processor service
 const { startEmailProcessing } = require('./services/email-processor');
@@ -110,10 +111,8 @@ app.use('/api/company-admin', companyAdminRoutes);
 // Public routes (no authentication required) - Must be before authenticated routes
 app.use('/ticket', publicTicketRoutes);
 
-// Marketing site route
-app.get('/marketing', (req, res) => {
-  res.sendFile(path.join(__dirname, 'marketing.html'));
-});
+// Marketing site routes (no auth required)
+app.use('/marketing', marketingRoutes);
 
 // Teams app manifest download
 app.get('/teams-manifest.zip', (req, res) => {
