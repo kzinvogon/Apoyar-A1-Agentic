@@ -1,12 +1,16 @@
 /**
  * Teams Integration Routes
  * Self-service setup for Microsoft Teams bot integration
+ *
+ * Feature flag: integrations.teams (Professional+ plan required)
  */
 
 const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
 const { getMasterConnection, getTenantConnection } = require('../config/database');
+const { requireFeature } = require('../middleware/featureGuard');
+const { hasFeature } = require('../services/feature-flags');
 
 // Microsoft OAuth endpoints
 const MICROSOFT_AUTH_URL = 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize';
@@ -23,12 +27,22 @@ const APP_BASE_URL = process.env.APP_BASE_URL || 'https://web-production-11114.u
 /**
  * GET /api/integrations/:tenantCode/teams/status
  * Check Teams integration status for a tenant
+ * Includes feature availability (no auth required for status check)
  */
 router.get('/:tenantCode/teams/status', async (req, res) => {
   const { tenantCode } = req.params;
   let masterConn;
 
   try {
+    // Check if feature is enabled for this tenant
+    let featureEnabled = false;
+    try {
+      featureEnabled = await hasFeature(tenantCode, 'integrations.teams');
+    } catch (featureError) {
+      // Feature check failed - continue with default
+      console.warn('[Teams Integration] Feature check failed:', featureError.message);
+    }
+
     masterConn = await getMasterConnection();
 
     // Check for existing mapping (use COLLATE to handle mixed collations)
@@ -47,20 +61,27 @@ router.get('/:tenantCode/teams/status', async (req, res) => {
       [tenantCode]
     );
 
+    const response = {
+      feature_enabled: featureEnabled,
+      minimum_plan: 'professional',
+      connected: false,
+      email_domains: domainMappings.map(d => d.email_domain)
+    };
+
     if (mappings.length > 0) {
-      res.json({
-        connected: true,
-        teams_tenant_id: mappings[0].teams_tenant_id,
-        teams_tenant_name: mappings[0].teams_tenant_name,
-        connected_at: mappings[0].created_at,
-        email_domains: domainMappings.map(d => d.email_domain)
-      });
-    } else {
-      res.json({
-        connected: false,
-        email_domains: domainMappings.map(d => d.email_domain)
-      });
+      response.connected = true;
+      response.teams_tenant_id = mappings[0].teams_tenant_id;
+      response.teams_tenant_name = mappings[0].teams_tenant_name;
+      response.connected_at = mappings[0].created_at;
     }
+
+    // Add upgrade hint if feature not enabled
+    if (!featureEnabled) {
+      response.upgrade_message = 'Upgrade to Professional plan to enable Microsoft Teams integration';
+      response.upgrade_url = '/pricing';
+    }
+
+    res.json(response);
   } catch (error) {
     console.error('[Teams Integration] Status error:', error);
     res.status(500).json({ error: 'Failed to check Teams integration status' });
@@ -72,8 +93,9 @@ router.get('/:tenantCode/teams/status', async (req, res) => {
 /**
  * GET /api/integrations/:tenantCode/teams/connect
  * Initiate Microsoft OAuth flow
+ * Requires: integrations.teams feature (Professional+ plan)
  */
-router.get('/:tenantCode/teams/connect', async (req, res) => {
+router.get('/:tenantCode/teams/connect', requireFeature('integrations.teams'), async (req, res) => {
   const { tenantCode } = req.params;
 
   if (!MS_CLIENT_ID) {
@@ -282,8 +304,9 @@ router.get('/teams/callback', async (req, res) => {
 /**
  * DELETE /api/integrations/:tenantCode/teams/disconnect
  * Remove Teams integration
+ * Requires: integrations.teams feature (Professional+ plan)
  */
-router.delete('/:tenantCode/teams/disconnect', async (req, res) => {
+router.delete('/:tenantCode/teams/disconnect', requireFeature('integrations.teams'), async (req, res) => {
   const { tenantCode } = req.params;
   let masterConn;
 
@@ -314,8 +337,9 @@ router.delete('/:tenantCode/teams/disconnect', async (req, res) => {
 /**
  * POST /api/integrations/:tenantCode/teams/email-domain
  * Add additional email domain mapping
+ * Requires: integrations.teams feature (Professional+ plan)
  */
-router.post('/:tenantCode/teams/email-domain', async (req, res) => {
+router.post('/:tenantCode/teams/email-domain', requireFeature('integrations.teams'), async (req, res) => {
   const { tenantCode } = req.params;
   const { email_domain } = req.body;
 
@@ -348,8 +372,9 @@ router.post('/:tenantCode/teams/email-domain', async (req, res) => {
 /**
  * DELETE /api/integrations/:tenantCode/teams/email-domain/:domain
  * Remove email domain mapping
+ * Requires: integrations.teams feature (Professional+ plan)
  */
-router.delete('/:tenantCode/teams/email-domain/:domain', async (req, res) => {
+router.delete('/:tenantCode/teams/email-domain/:domain', requireFeature('integrations.teams'), async (req, res) => {
   const { tenantCode, domain } = req.params;
   let masterConn;
 
@@ -373,8 +398,9 @@ router.delete('/:tenantCode/teams/email-domain/:domain', async (req, res) => {
 /**
  * GET /api/integrations/:tenantCode/teams/manifest
  * Download Teams app manifest
+ * Requires: integrations.teams feature (Professional+ plan)
  */
-router.get('/:tenantCode/teams/manifest', async (req, res) => {
+router.get('/:tenantCode/teams/manifest', requireFeature('integrations.teams'), async (req, res) => {
   const { tenantCode } = req.params;
   let masterConn;
 
