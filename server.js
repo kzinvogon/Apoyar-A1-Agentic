@@ -52,6 +52,7 @@ const adminRoutes = require('./routes/admin');
 const notificationsRoutes = require('./routes/notifications');
 const tenantSettingsRoutes = require('./routes/tenant-settings');
 const companyAdminRoutes = require('./routes/company-admin');
+const featureFlagsRoutes = require('./routes/feature-flags');
 const marketingRoutes = require('./routes/marketing');
 
 // Import email processor service
@@ -110,6 +111,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/tenant-settings', tenantSettingsRoutes);
 app.use('/api/company-admin', companyAdminRoutes);
+app.use('/api/features', featureFlagsRoutes);
 
 // Public routes (no authentication required) - Must be before authenticated routes
 app.use('/ticket', publicTicketRoutes);
@@ -399,6 +401,15 @@ async function startServer() {
           console.log('✅ Last login column migration completed');
         } catch (migrationError) {
           console.warn(`⚠️  Warning: Last login column migration:`, migrationError.message);
+        }
+
+        // Run tenant features migration
+        try {
+          const { migrate: runTenantFeaturesMigration } = require('./migrations/add-tenant-features');
+          await runTenantFeaturesMigration('apoyar', 'professional');
+          console.log('✅ Tenant features migration completed');
+        } catch (migrationError) {
+          console.warn(`⚠️  Warning: Tenant features migration:`, migrationError.message);
         }
 
         // Start email processing for apoyar tenant
