@@ -47,6 +47,47 @@ Run internal IT, deliver SLA-backed support, or operate a managed service busine
 
 ---
 
+## Integrations {#integrations}
+
+### Integrations that scale with your service model
+
+ServiFlow connects to the tools your team already uses. Integrations unlock based on your operating model — starting with inbound workflows that create tickets and escalate issues, then expanding to customer channels and billing systems as you scale.
+
+[CARDS]
+
+**Collaboration**
+Microsoft Teams (available)
+Slack (planned)
+
+**Monitoring & Alerts**
+Nagios, Zabbix, PRTG
+Datadog, Prometheus, Grafana
+Alerts become tickets with SLA awareness
+
+**Identity & Access**
+Microsoft Entra ID (Azure AD)
+Google Workspace
+
+**Ticket & Dev Escalation**
+Jira
+GitHub Issues
+GitLab Issues
+
+**Customer Channels**
+Email (all plans)
+WhatsApp Business (MSP, planned)
+SMS (MSP, planned)
+
+**Billing & Contracts**
+Xero (MSP, planned)
+QuickBooks (MSP, planned)
+
+[/CARDS]
+
+All integrations focus on operational workflows first. Deep bi-directional sync is implemented only where it adds real service value.
+
+---
+
 ## Pricing {#pricing}
 
 ### One platform. Three ways to operate.
@@ -59,15 +100,40 @@ Run internal IT, deliver SLA-backed support, or operate a managed service busine
 | MSP | Managed service providers | Contracts & billing readiness, governance, audit, multi-customer operations at scale |
 [/TABLE]
 
+### Integrations by plan
+
+[TABLE]
+| Integration | Starter | Professional | MSP |
+|-------------|---------|--------------|-----|
+| Email ingest & notifications | Yes | Yes | Yes |
+| Basic monitoring alerts | Yes | Yes | Yes |
+| Incoming webhook | Yes | Yes | Yes |
+| Microsoft Teams | — | Yes | Yes |
+| Slack (when available) | — | Yes | Yes |
+| Monitoring source classification | — | Yes | Yes |
+| SLA-aware alert handling | — | Yes | Yes |
+| Jira / GitHub / GitLab escalation | — | Yes | Yes |
+| Azure AD / Google Workspace SSO | — | Yes | Yes |
+| Outbound webhooks | — | Yes | Yes |
+| WhatsApp Business (planned) | — | — | Yes |
+| SMS (planned) | — | — | Yes |
+| Per-customer monitoring routing | — | — | Yes |
+| CMDB-linked monitoring | — | — | Yes |
+| Contract-aware SLA enforcement | — | — | Yes |
+| Billing integrations (planned) | — | — | Yes |
+| Full API + automation access | — | — | Yes |
+[/TABLE]
+
 [BUTTON:Start a trial|#contact]
 [BUTTON2:Talk to us|#contact]
 
-**What's included in every plan**
+### When to choose each plan
 
-- Ticketing and workflows
-- SLA definitions with business hours
-- CMDB items and linkage to tickets
-- Notifications and audit trail foundations
+**Starter** works if you need ticketing with SLA tracking and email-based workflows. You get the foundations without integration complexity.
+
+**Professional** unlocks collaboration tools, monitoring integrations, and identity providers. Choose this when you serve external customers with defined SLAs and need your tools connected.
+
+**MSP** adds customer-facing channels, billing system connectivity, and full automation access. Built for providers managing multiple customers at scale with distinct contracts and routing requirements.
 
 ---
 
@@ -126,6 +192,10 @@ Yes. Targets are computed within business windows and the clock pauses outside b
 
 Yes. Monitoring/system sources are classified and tickets are created under a system requester with clear reasoning.
 
+### Which integrations are available now?
+
+Email, Microsoft Teams, and monitoring alert ingest are available. Identity providers and escalation tools are in active development. Check the integration matrix above for current status.
+
 ---
 
 ## Contact {#contact}
@@ -141,4 +211,4 @@ Tell us your operating model (Internal IT, Professional service delivery, or MSP
 
 **ServiFlow** — SLA-first service delivery for MSPs and modern IT teams.
 
-[Top](#top) · [Features](#features) · [Pricing](#pricing) · [How it works](#how) · [Security](#security) · [FAQ](#faq) · [Contact](#contact)
+[Top](#top) · [Features](#features) · [Integrations](#integrations) · [Pricing](#pricing) · [How it works](#how) · [Security](#security) · [FAQ](#faq) · [Contact](#contact)
