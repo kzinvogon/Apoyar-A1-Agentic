@@ -71,6 +71,9 @@ app.use(express.urlencoded({ extended: true }));
 // Apply global rate limiting to all API routes
 app.use('/api', apiLimiter);
 
+// Marketing site routes (must be BEFORE static middleware to take precedence)
+app.use('/marketing', marketingRoutes);
+
 // Serve static files from the current directory with no-cache for HTML
 app.use(express.static(__dirname, {
   setHeaders: (res, filePath) => {
@@ -110,9 +113,6 @@ app.use('/api/company-admin', companyAdminRoutes);
 
 // Public routes (no authentication required) - Must be before authenticated routes
 app.use('/ticket', publicTicketRoutes);
-
-// Marketing site routes (no auth required)
-app.use('/marketing', marketingRoutes);
 
 // Teams app manifest download
 app.get('/teams-manifest.zip', (req, res) => {
