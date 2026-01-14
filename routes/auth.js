@@ -430,54 +430,40 @@ router.get('/customers', async (req, res) => {
 });
 
 // Get user profile
-router.get('/profile', async (req, res) => {
+router.get('/profile', verifyToken, async (req, res) => {
   try {
-    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (req.user.userType === 'tenant') {
+      const connection = await getTenantConnection(req.user.tenantCode);
+      try {
+        const [rows] = await connection.query(
+          'SELECT id, username, email, full_name, role, phone, department, receive_email_updates, created_at, updated_at FROM users WHERE id = ?',
+          [req.user.userId]
+        );
 
-    if (!token) {
-      return res.status(401).json({ success: false, message: 'Token required' });
-    }
-
-    const jwt = require('jsonwebtoken');
-
-    try {
-      const decoded = jwt.verify(token, JWT_SECRET);
-      
-      if (decoded.userType === 'tenant') {
-        const connection = await getTenantConnection(decoded.tenantCode);
-        try {
-          const [rows] = await connection.query(
-            'SELECT id, username, email, full_name, role, phone, department, receive_email_updates, created_at, updated_at FROM users WHERE id = ?',
-            [decoded.userId]
-          );
-
-          if (rows.length === 0) {
-            return res.status(404).json({ success: false, message: 'User not found' });
-          }
-
-          res.json({ success: true, profile: rows[0] });
-        } finally {
-          connection.release();
+        if (rows.length === 0) {
+          return res.status(404).json({ success: false, message: 'User not found' });
         }
-      } else {
-        const connection = await getMasterConnection();
-        try {
-          const [rows] = await connection.query(
-            'SELECT id, username, email, full_name, role FROM master_users WHERE id = ?',
-            [decoded.userId]
-          );
 
-          if (rows.length === 0) {
-            return res.status(404).json({ success: false, message: 'User not found' });
-          }
-
-          res.json({ success: true, profile: rows[0] });
-        } finally {
-          connection.release();
-        }
+        res.json({ success: true, profile: rows[0] });
+      } finally {
+        connection.release();
       }
-    } catch (jwtError) {
-      return res.status(401).json({ success: false, message: 'Invalid or expired token' });
+    } else {
+      const connection = await getMasterConnection();
+      try {
+        const [rows] = await connection.query(
+          'SELECT id, username, email, full_name, role FROM master_users WHERE id = ?',
+          [req.user.userId]
+        );
+
+        if (rows.length === 0) {
+          return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
+        res.json({ success: true, profile: rows[0] });
+      } finally {
+        connection.release();
+      }
     }
   } catch (error) {
     console.error('Error getting profile:', error);
@@ -486,126 +472,113 @@ router.get('/profile', async (req, res) => {
 });
 
 // Update user profile
-router.put('/profile', validateProfileUpdate, async (req, res) => {
+router.put('/profile', verifyToken, validateProfileUpdate, async (req, res) => {
   try {
-    const token = req.headers.authorization?.replace('Bearer ', '');
     const { full_name, email, phone, department, receive_email_updates } = req.body;
 
-    if (!token) {
-      return res.status(401).json({ success: false, message: 'Token required' });
-    }
+    if (req.user.userType === 'tenant') {
+      const connection = await getTenantConnection(req.user.tenantCode);
+      try {
+        // Build update fields
+        const updates = [];
+        const values = [];
 
-    const jwt = require('jsonwebtoken');
-
-    try {
-      const decoded = jwt.verify(token, JWT_SECRET);
-      
-      if (decoded.userType === 'tenant') {
-        const connection = await getTenantConnection(decoded.tenantCode);
-        try {
-          // Build update fields
-          const updates = [];
-          const values = [];
-          
-          if (full_name !== undefined) {
-            updates.push('full_name = ?');
-            values.push(full_name);
-          }
-          
-          if (email !== undefined) {
-            updates.push('email = ?');
-            values.push(email);
-          }
-          
-          if (phone !== undefined) {
-            updates.push('phone = ?');
-            values.push(phone);
-          }
-          
-          if (department !== undefined) {
-            updates.push('department = ?');
-            values.push(department);
-          }
-
-          // Handle receive_email_updates preference (coerce to 0/1)
-          if (receive_email_updates !== undefined) {
-            updates.push('receive_email_updates = ?');
-            values.push(receive_email_updates ? 1 : 0);
-          }
-
-          if (updates.length === 0) {
-            return res.status(400).json({ success: false, message: 'No fields to update' });
-          }
-          
-          updates.push('updated_at = NOW()');
-          values.push(decoded.userId);
-          
-          await connection.query(
-            `UPDATE users SET ${updates.join(', ')} WHERE id = ?`,
-            values
-          );
-
-          // Get updated profile
-          const [rows] = await connection.query(
-            'SELECT id, username, email, full_name, role, phone, department, receive_email_updates, created_at, updated_at FROM users WHERE id = ?',
-            [decoded.userId]
-          );
-
-          // Log preference change to audit (best-effort, don't block save)
-          if (receive_email_updates !== undefined) {
-            try {
-              await connection.query(`
-                INSERT INTO audit_log (user_id, action, entity_type, entity_id, details)
-                VALUES (?, 'EMAIL_PREFERENCE_CHANGED', 'users', ?, ?)
-              `, [decoded.userId, decoded.userId, JSON.stringify({ receive_email_updates: receive_email_updates ? 1 : 0 })]);
-            } catch (auditErr) {
-              console.error('Could not log email preference change:', auditErr.message);
-            }
-          }
-
-          res.json({ success: true, message: 'Profile updated successfully', profile: rows[0] });
-        } finally {
-          connection.release();
+        if (full_name !== undefined) {
+          updates.push('full_name = ?');
+          values.push(full_name);
         }
-      } else {
-        const connection = await getMasterConnection();
-        try {
-          const updates = [];
-          const values = [];
-          
-          if (full_name !== undefined) {
-            updates.push('full_name = ?');
-            values.push(full_name);
-          }
-          
-          if (email !== undefined) {
-            updates.push('email = ?');
-            values.push(email);
-          }
-          
-          if (updates.length === 0) {
-            return res.status(400).json({ success: false, message: 'No fields to update' });
-          }
-          
-          values.push(decoded.userId);
-          
-          await connection.query(
-            `UPDATE master_users SET ${updates.join(', ')} WHERE id = ?`,
-            values
-          );
 
-          const [rows] = await connection.query(
-            'SELECT id, username, email, full_name, role FROM master_users WHERE id = ?',
-            [decoded.userId]
-          );
-
-          res.json({ success: true, message: 'Profile updated successfully', profile: rows[0] });
-        } finally {
-          connection.release();
+        if (email !== undefined) {
+          updates.push('email = ?');
+          values.push(email);
         }
+
+        if (phone !== undefined) {
+          updates.push('phone = ?');
+          values.push(phone);
+        }
+
+        if (department !== undefined) {
+          updates.push('department = ?');
+          values.push(department);
+        }
+
+        // Handle receive_email_updates preference (coerce to 0/1)
+        if (receive_email_updates !== undefined) {
+          updates.push('receive_email_updates = ?');
+          values.push(receive_email_updates ? 1 : 0);
+        }
+
+        if (updates.length === 0) {
+          return res.status(400).json({ success: false, message: 'No fields to update' });
+        }
+
+        updates.push('updated_at = NOW()');
+        values.push(req.user.userId);
+
+        await connection.query(
+          `UPDATE users SET ${updates.join(', ')} WHERE id = ?`,
+          values
+        );
+
+        // Get updated profile
+        const [rows] = await connection.query(
+          'SELECT id, username, email, full_name, role, phone, department, receive_email_updates, created_at, updated_at FROM users WHERE id = ?',
+          [req.user.userId]
+        );
+
+        // Log preference change to audit (best-effort, don't block save)
+        if (receive_email_updates !== undefined) {
+          try {
+            await connection.query(`
+              INSERT INTO audit_log (user_id, action, entity_type, entity_id, details)
+              VALUES (?, 'EMAIL_PREFERENCE_CHANGED', 'users', ?, ?)
+            `, [req.user.userId, req.user.userId, JSON.stringify({ receive_email_updates: receive_email_updates ? 1 : 0 })]);
+          } catch (auditErr) {
+            console.error('Could not log email preference change:', auditErr.message);
+          }
+        }
+
+        res.json({ success: true, message: 'Profile updated successfully', profile: rows[0] });
+      } finally {
+        connection.release();
       }
-    } catch (jwtError) {
-      return res.status(401).json({ success: false, message: 'Invalid or expired token' });
+    } else {
+      const connection = await getMasterConnection();
+      try {
+        const updates = [];
+        const values = [];
+
+        if (full_name !== undefined) {
+          updates.push('full_name = ?');
+          values.push(full_name);
+        }
+
+        if (email !== undefined) {
+          updates.push('email = ?');
+          values.push(email);
+        }
+
+        if (updates.length === 0) {
+          return res.status(400).json({ success: false, message: 'No fields to update' });
+        }
+
+        values.push(req.user.userId);
+
+        await connection.query(
+          `UPDATE master_users SET ${updates.join(', ')} WHERE id = ?`,
+          values
+        );
+
+        const [rows] = await connection.query(
+          'SELECT id, username, email, full_name, role FROM master_users WHERE id = ?',
+          [req.user.userId]
+        );
+
+        res.json({ success: true, message: 'Profile updated successfully', profile: rows[0] });
+      } finally {
+        connection.release();
+      }
     }
   } catch (error) {
     console.error('Error updating profile:', error);
