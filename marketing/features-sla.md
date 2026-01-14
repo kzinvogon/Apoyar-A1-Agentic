@@ -1,84 +1,84 @@
 # SLA Engine
 
-## Service levels that mean something
+## Response and resolution, measured properly
 
-ServiFlow's SLA engine tracks response and resolution times against business hours, assigns SLAs deterministically, and shows your team exactly where they stand—without exposing the mechanics to your customers.
-
----
-
-### Two-phase SLA tracking
-
-Every ticket is measured on two independent clocks:
-
-**Response SLA**
-Time from ticket creation to first meaningful response. This is when you acknowledge the issue and begin work.
-
-**Resolution SLA**
-Time from ticket creation to closure. This is when the issue is resolved and the customer confirms acceptance.
-
-Both phases have separate targets, separate warnings, and separate breach notifications. You can set a 4-hour response target with a 48-hour resolution target—or any combination your service agreements require.
+ServiFlow tracks service levels in two phases—response and resolution—against business hours. SLAs are assigned deterministically, and the mechanics stay hidden from your customers.
 
 ---
 
-### Business hours awareness
+### Two-phase tracking
 
-SLA timers only run during defined business hours.
+Every ticket has two clocks:
 
-A ticket raised at 5pm on Friday with an 8-hour response target won't breach at 1am Saturday. It will breach at 1pm Monday—assuming your business hours are 9-5 weekdays.
+**Response time**
+How long until someone acknowledges the request and begins work. This is when the customer knows you're on it.
 
-You can define multiple business hours profiles:
-- Standard office hours
-- Extended support hours
-- 24/7 coverage
+**Resolution time**
+How long until the issue is closed. This is when the work is done.
 
-Assign different profiles to different customers, categories, or service tiers.
-
----
-
-### Deterministic SLA selection
-
-When a ticket is created, ServiFlow assigns an SLA using a clear priority order:
-
-1. **Explicit override** — SLA set manually on the ticket
-2. **User-level SLA** — Premium support tier assigned to the requesting user
-3. **Customer company SLA** — Default SLA for the customer's organisation
-4. **Category mapping** — SLA assigned based on ticket category
-5. **Asset SLA** — SLA inherited from linked configuration item
-6. **Tenant default** — Fallback SLA if nothing else applies
-
-This hierarchy is evaluated once at ticket creation. The source is recorded, so you always know why a particular SLA was applied.
+Each phase has its own target. A ticket might require a 2-hour response but allow 24 hours for resolution. Both are tracked independently.
 
 ---
 
-### Visibility for your team
+### Business hours
+
+SLA timers pause outside your operating hours.
+
+A ticket raised at 4:55pm on Friday with a 4-hour response target won't breach overnight. It will resume counting Monday morning.
+
+You can define multiple profiles:
+- Weekday office hours
+- Extended support windows
+- Around-the-clock coverage
+
+Different customers or categories can use different profiles.
+
+---
+
+### How SLAs are assigned
+
+When a ticket is created, ServiFlow selects an SLA using this order:
+
+1. **Ticket override** — Explicitly set on the ticket itself
+2. **User override** — Assigned to the individual user (for premium tiers)
+3. **Customer company** — Default SLA for the customer's organisation
+4. **Category** — SLA mapped to the ticket category
+5. **Linked asset** — SLA inherited from a configuration item
+6. **Tenant default** — Fallback if nothing else applies
+
+The first match wins. The source is recorded on the ticket so you can see why that SLA was applied.
+
+---
+
+### What your team sees
 
 Your dashboard shows:
-- Tickets approaching response deadline
-- Tickets approaching resolution deadline
-- Breached tickets requiring escalation
-- SLA performance by customer, category, or assignee
+- Tickets nearing response deadline
+- Tickets nearing resolution deadline
+- Breached tickets
+- Performance by customer, category, or team member
 
-You see the full picture: target times, elapsed time, time remaining, and breach status.
+Timers show elapsed time, remaining time, and breach status.
 
 ---
 
 ### What customers see
 
-Customers see their ticket status and can track progress. They do not see:
-- SLA target times
-- Internal response/resolution deadlines
-- Breach warnings or escalation status
-- SLA source or calculation logic
+Customers can view their tickets and track progress. They do not see:
+- Target response or resolution times
+- Breach warnings
+- SLA source or selection logic
+- Internal escalation status
 
-This keeps your service commitments visible to your team while keeping operational mechanics out of customer view.
+This keeps service commitments visible to your team while keeping the mechanics out of customer view.
 
 ---
 
 ### Notifications
 
-ServiFlow sends email notifications at configurable thresholds:
-- SLA warning (e.g., 75% of time elapsed)
-- SLA breach
-- Escalation triggers
+ServiFlow sends alerts at defined thresholds:
+- Warning before breach
+- Notification on breach
+- Escalation to designated recipients
 
-Notifications go to assignees, team leads, or custom recipients based on your rules.
+You configure who receives what and when.

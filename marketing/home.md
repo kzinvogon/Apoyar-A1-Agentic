@@ -1,37 +1,42 @@
 # ServiFlow
 
-## Service delivery that scales with your operation
+## IT service management for teams that deliver
 
-From internal IT helpdesk to multi-customer managed services—one platform that adapts to how you actually work.
+ServiFlow is a service desk platform built for three ways of working: internal IT support, customer-facing service delivery, and managed service operations.
 
-ServiFlow is an ITSM platform built for teams who deliver IT services. Whether you're supporting internal staff, serving external customers under SLA, or operating as an MSP across multiple accounts, ServiFlow provides the structure you need without the overhead you don't.
-
----
-
-### How do you deliver services?
-
-**Internal IT Team**
-You support employees within your organisation. You need ticket management, asset tracking, and visibility into what's open and what's overdue.
-
-[Get Started →](#pricing)
-
-**Managed Service Provider**
-You deliver IT services to multiple customers, each with their own SLAs, users, and assets. You need tenant separation, SLA tracking per customer, and operational governance.
-
-[Talk to Us →](#msp)
+Whether you run an internal helpdesk or deliver contracted services to dozens of customers, ServiFlow gives you ticket management, SLA tracking, and asset visibility—without forcing you into a workflow designed for someone else.
 
 ---
 
-### Why ServiFlow
+### Choose how you operate
 
-**Deterministic SLA tracking**
-Every ticket gets an SLA. The system selects it automatically based on customer, category, or asset—and tracks response and resolution times against business hours.
+**Internal IT**
+Support your organisation's employees. Track requests, manage assets, and report on service performance. No external customers, no SLA complexity—just a clean ticket queue and the tools to work through it.
 
-**Customer portal without the noise**
-Your customers see their tickets, submit requests, and accept resolutions. They don't see your internal notes, your other customers, or your SLA calculations.
+[Start with Internal IT →](#pricing)
 
-**Asset management that connects to service delivery**
-Link tickets to configuration items. Inherit SLAs from assets. Know which systems are generating the most work.
+**Customer Service Delivery**
+Serve external customers under defined service levels. Separate what your team sees from what customers see. Track response and resolution times against business hours. Give customers a portal without giving them your operational details.
 
-**Built for service operations**
-ServiFlow is designed for teams who are accountable for service delivery—not for software vendors who want to track feature requests.
+[Start with Service Delivery →](#pricing)
+
+**Managed Services**
+Operate IT services for multiple customers from a single platform. Each customer gets their own SLAs, users, and assets. You get unified visibility and governance across all accounts.
+
+[Talk to us about MSP →](#msp)
+
+---
+
+### What ServiFlow does
+
+**Tickets with context**
+Every request has a clear owner, priority, and status. Link tickets to assets. See the full history. Know what's overdue before it becomes a problem.
+
+**SLAs that run on business hours**
+Define response and resolution targets. Assign them to customers, categories, or individual users. The clock only runs when you're open for business.
+
+**Customer portal with boundaries**
+Customers submit requests, track progress, and confirm resolutions. They don't see your internal notes, your SLA calculations, or your other customers.
+
+**Configuration management for service delivery**
+Track the systems you support. Link them to tickets. Know which assets generate the most work and which customers they belong to.

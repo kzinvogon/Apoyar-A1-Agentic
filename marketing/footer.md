@@ -1,8 +1,8 @@
 # ServiFlow
 
-**Service delivery that scales with your operation.**
+**IT service management that fits how you work.**
 
-From internal helpdesk to multi-customer MSP—one platform, clear SLAs, complete visibility.
+Internal helpdesk. Customer service delivery. Multi-customer MSP operations. One platform.
 
 ---
 
@@ -10,4 +10,4 @@ From internal helpdesk to multi-customer MSP—one platform, clear SLAs, complet
 
 ---
 
-© ServiFlow. All rights reserved.
+© ServiFlow

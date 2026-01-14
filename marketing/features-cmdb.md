@@ -1,81 +1,85 @@
 # Configuration Management
 
-## Assets connected to service delivery
+## Track the systems you support
 
-ServiFlow's CMDB isn't a standalone inventory system. It's designed to connect your configuration items directly to the tickets, customers, and SLAs that depend on them.
-
----
-
-### Configuration items, not just assets
-
-Track servers, workstations, network devices, software, and services. Each item includes:
-
-- **Identification** — Name, type, serial number, asset tag
-- **Ownership** — Which customer company owns this item
-- **Categorisation** — Asset type, brand, model
-- **Status** — Active, retired, maintenance, decommissioned
-- **Relationships** — Links to other CIs, dependencies, parent systems
-
-You define the categories and attributes that matter for your operation.
+ServiFlow's CMDB connects your assets to your service delivery. Link tickets to configuration items, inherit SLAs from critical systems, and see which infrastructure generates the most work.
 
 ---
 
-### Ticket-to-asset linkage
+### What you track
 
-When creating or updating a ticket, link it to one or more configuration items.
+Configuration items represent the systems and services you manage:
+
+- Servers and workstations
+- Network equipment
+- Software and applications
+- Cloud services
+- Business services
+
+Each item has:
+- **Identity** — Name, type, serial number, asset tag
+- **Ownership** — Which customer company it belongs to
+- **Classification** — Category, brand, model
+- **Status** — Active, retired, under maintenance
+- **Relationships** — Dependencies on other items
+
+You define what attributes matter for your operation.
+
+---
+
+### Linking tickets to assets
+
+When a ticket comes in, link it to the affected configuration items.
 
 This gives you:
-- **Context** — Technicians see what system is affected before they start work
-- **History** — View all tickets related to a specific asset
-- **Patterns** — Identify assets generating repeated issues
-- **Impact** — Understand which customers are affected by a failing system
+- **Context for technicians** — See what's affected before starting work
+- **History per asset** — All tickets related to a system in one place
+- **Pattern recognition** — Identify assets that generate repeated issues
+- **Impact visibility** — Understand which customers are affected
 
-Linking is optional per ticket, but when used, it adds meaningful operational intelligence.
+Linking is optional per ticket but valuable when used consistently.
 
 ---
 
-### SLA inheritance from assets
+### SLA inheritance
 
-Configuration items can have their own SLA definitions.
+Configuration items can carry their own SLA definitions.
 
-When a ticket is linked to a CI with an assigned SLA, that SLA can be inherited by the ticket (based on the SLA selection hierarchy). This is useful for:
-
-- Critical infrastructure with stricter response requirements
-- Premium hardware under enhanced support agreements
+When a ticket is linked to an asset with an assigned SLA, that SLA can apply to the ticket. This is useful for:
+- Critical infrastructure requiring faster response
+- Premium hardware under enhanced support
 - Specific systems with contractual obligations
 
-The SLA source is recorded on the ticket, so you always know whether the SLA came from the customer, category, or asset.
+The SLA source is recorded, so you always know whether the service level came from the customer, the category, or the asset.
 
 ---
 
 ### Customer ownership
 
-Every configuration item belongs to a customer company (or to the tenant for internal assets).
+Every configuration item belongs to a customer company.
 
-When viewing the CMDB:
-- **Your team** sees all assets across all customers
-- **Customers** see only their own assets (if portal access is enabled)
+Your team sees all assets across all customers. Customers see only their own. There is no mechanism for one customer to view another's infrastructure.
 
-There's no risk of a customer seeing another customer's infrastructure. Ownership is enforced at the data level.
+For internal IT teams without external customers, assets can belong to the tenant directly.
 
 ---
 
-### For MSPs: operational separation
+### For MSPs
 
-If you're an MSP managing assets for multiple customers:
+If you manage assets for multiple customers:
+- Each customer's items are isolated by ownership
+- You report on asset health and ticket volume per customer
+- Your team works from a unified view
+- Customers access only their own systems
 
-- Each customer's CIs are isolated by ownership
-- You can report on asset counts, ticket volumes, and SLA performance per customer
-- Your team has a unified view; your customers see only their own systems
-
-This structure supports both operational efficiency (one console for your team) and governance (clear boundaries between customers).
+This supports both operational efficiency and customer data separation.
 
 ---
 
 ### Not a discovery tool
 
-ServiFlow's CMDB is a register of managed assets, not an automatic discovery system.
+ServiFlow's CMDB is a managed register, not an automatic scanner.
 
-You add configuration items manually or via import. This is intentional—your CMDB should contain the systems you're accountable for, not everything that happens to exist on the network.
+You add configuration items manually or via import. This is intentional—your CMDB should contain the systems you're accountable for, not everything that exists on a network.
 
-If you need discovery, use your preferred scanning tools and import the results.
+If you use discovery tools, import their output into ServiFlow.

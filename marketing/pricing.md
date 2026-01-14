@@ -1,96 +1,97 @@
 # Pricing
 
-## One platform. Three ways to operate.
+## One platform. Three operating models.
 
-ServiFlow is priced based on how you use it, not how many features you unlock. Every tier runs on the same platform—the difference is in how your operation is structured.
+ServiFlow adapts to how your team works. Pricing is based on your operating model, not on how many features you unlock.
 
 ---
 
-### Starter
+### Internal IT
 
-**For internal IT teams**
+**For teams supporting their own organisation**
 
-You're an IT team supporting employees within your organisation. You need a straightforward way to manage tickets, track assets, and report on service delivery.
+You have employees who need IT support. You need a way to track requests, assign work, and understand what's open and what's overdue.
 
-**Includes:**
-- Ticket management with categories and priorities
-- Team assignment and workload visibility
-- Configuration item tracking (CMDB)
+**What you get:**
+- Ticket management with categories, priorities, and assignments
+- Configuration item tracking
+- Team workload visibility
 - Email notifications
-- Basic reporting and dashboards
+- Reporting dashboards
 
-**Does not include:**
+**What this tier does not include:**
 - External customer accounts
 - SLA tracking with business hours
 - Customer-facing portal
-- Multi-tenant separation
 
-**Best for:** IT departments, internal helpdesks, small operations teams.
+**Who this is for:**
+IT departments, internal helpdesks, operations teams supporting internal users.
 
 [Start Free Trial →](#)
 
 ---
 
-### Professional
+### Service Delivery
 
-**For teams delivering SLA-backed services**
+**For teams with external customers and SLA commitments**
 
-You serve external customers who expect measurable service levels. You need SLA tracking, a customer portal, and clear separation between what you see and what your customers see.
+You deliver IT services to customers outside your organisation. Those customers expect defined response times and a way to track their requests.
 
-**Includes:**
-- Everything in Starter
-- Customer companies with user management
-- Two-phase SLA engine (response + resolution)
+**What you get:**
+- Everything in Internal IT
+- Customer companies with their own users
+- Two-phase SLA engine (response and resolution)
 - Business hours profiles
-- Customer portal (read-only ticket view, request submission)
-- SLA inheritance from customer, category, or asset
-- Notification rules for SLA warnings and breaches
+- Customer portal with request submission and status tracking
+- SLA assignment by customer, category, or asset
+- Breach notifications
 
-**Does not include:**
+**What this tier does not include:**
 - Multi-tenant MSP operations
-- Customer-specific branding
-- Contract and billing integrations
+- Per-user SLA overrides
 - Guided onboarding
 
-**Best for:** IT service providers, outsourced support teams, internal teams with external SLA commitments.
+**Who this is for:**
+IT service providers, outsourced support teams, internal IT with external SLA obligations.
 
 [Start Free Trial →](#)
 
 ---
 
-### MSP
+### Managed Service Provider
 
-**For Managed Service Providers**
+**For MSPs serving multiple distinct customers**
 
-You operate IT services for multiple customers, each with their own SLAs, assets, and users. You need governance, audit trails, and a platform that supports your business model—not just your ticket queue.
+You run IT operations for several customers. Each has their own contract, their own users, and their own expectations. You need separation between customers while maintaining a single view for your team.
 
-**Includes:**
-- Everything in Professional
-- Multi-customer operations from a single tenant
+**What you get:**
+- Everything in Service Delivery
+- Multiple customer companies under one tenant
 - Per-customer SLA configuration
-- Per-user SLA overrides (for premium support tiers)
-- Customer company administration
-- Audit logging for compliance
-- Operational reporting across customers
-- Guided onboarding and configuration support
+- Per-user SLA overrides for premium support tiers
+- Customer company self-administration
+- Audit logging
+- Cross-customer operational reporting
+- Guided setup and configuration support
 
-**Does not include:**
-- Self-serve signup (MSP configuration requires onboarding)
+**What this tier does not include:**
+- Self-serve signup (MSP setup requires onboarding)
 - White-label customer portals
-- Direct billing to your end-customers
+- Direct billing to end customers through ServiFlow
 
-**Best for:** MSPs, IT outsourcing firms, multi-client service operations.
+**Who this is for:**
+Managed service providers, IT outsourcing firms, multi-customer service operations.
 
 [Contact Us →](#msp)
 
 ---
 
-### Not sure which tier?
+### How to choose
 
-If you're supporting internal users only, start with **Starter**.
+If you only support internal users, start with **Internal IT**.
 
-If you have external customers with SLAs, start with **Professional**.
+If you have external customers with service level expectations, start with **Service Delivery**.
 
-If you serve multiple distinct customers and need operational separation, talk to us about **MSP**.
+If you serve multiple distinct customers and need operational separation between them, talk to us about **MSP**.
 
-You can upgrade between tiers as your operation grows.
+You can move between tiers as your operation changes.
