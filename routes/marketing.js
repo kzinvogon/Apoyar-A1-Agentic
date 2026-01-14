@@ -22,16 +22,18 @@ const PAGES = {
 const MARKETING_DIR = path.join(__dirname, '..', 'marketing');
 
 // Parse markdown table to HTML
-function parseTable(tableContent) {
+function parseTable(tableContent, isMatrix = false) {
   const lines = tableContent.trim().split('\n').filter(l => l.trim());
   if (lines.length < 2) return '';
 
-  let html = '<div class="table-wrap"><table class="pricing-table">';
+  const tableClass = isMatrix ? 'matrix-table' : 'pricing-table';
+  let html = `<div class="table-wrap"><table class="${tableClass}">`;
 
   const headerCells = lines[0].split('|').map(c => c.trim()).filter(c => c);
   html += '<thead><tr>';
-  headerCells.forEach(cell => {
-    html += `<th>${cell}</th>`;
+  headerCells.forEach((cell, idx) => {
+    const className = idx > 0 && isMatrix ? ' class="tier-col"' : '';
+    html += `<th${className}>${cell}</th>`;
   });
   html += '</tr></thead>';
 
@@ -40,7 +42,18 @@ function parseTable(tableContent) {
     const cells = lines[i].split('|').map(c => c.trim()).filter(c => c);
     html += '<tr>';
     cells.forEach((cell, idx) => {
-      const className = idx === 0 ? ' class="plan-name"' : '';
+      let className = '';
+      if (idx === 0) {
+        className = ' class="row-label"';
+      } else if (isMatrix) {
+        if (cell === 'Yes') {
+          className = ' class="yes"';
+          cell = '<span class="check">✓</span>';
+        } else if (cell === '—') {
+          className = ' class="no"';
+          cell = '<span class="dash">—</span>';
+        }
+      }
       html += `<td${className}>${cell}</td>`;
     });
     html += '</tr>';
@@ -50,32 +63,73 @@ function parseTable(tableContent) {
   return html;
 }
 
+// Parse cards block to HTML grid
+function parseCards(cardsContent) {
+  const cards = cardsContent.trim().split(/\n\n+/).filter(c => c.trim());
+  let html = '<div class="integration-grid">';
+
+  cards.forEach(card => {
+    const lines = card.trim().split('\n');
+    if (lines.length === 0) return;
+
+    // First line is the title (bold)
+    const titleMatch = lines[0].match(/^\*\*(.+?)\*\*$/);
+    const title = titleMatch ? titleMatch[1] : lines[0];
+    const items = lines.slice(1).filter(l => l.trim());
+
+    html += '<div class="integration-card">';
+    html += `<div class="card-header">${title}</div>`;
+    html += '<div class="card-items">';
+    items.forEach(item => {
+      const isPlanned = item.toLowerCase().includes('planned');
+      const isMsp = item.toLowerCase().includes('msp');
+      let badges = '';
+      if (isPlanned) badges += '<span class="badge badge-planned">Planned</span>';
+      if (isMsp && !isPlanned) badges += '<span class="badge badge-msp">MSP</span>';
+      html += `<div class="card-item">${item.replace(/\(planned\)/gi, '').replace(/\(MSP, planned\)/gi, '').replace(/\(MSP\)/gi, '').replace(/\(available\)/gi, '').replace(/\(all plans\)/gi, '').trim()}${badges}</div>`;
+    });
+    html += '</div></div>';
+  });
+
+  html += '</div>';
+  return html;
+}
+
 // Simple markdown to HTML converter (no external dependencies)
 function parseMarkdown(md) {
-  // Pre-processing: Extract and process tables
-  md = md.replace(/\[TABLE\]([\s\S]*?)\[\/TABLE\]/g, (match, tableContent) => {
-    return parseTable(tableContent);
+  // Protected blocks array - populated during pre-processing
+  const protectedBlocks = [];
+
+  // Helper to protect HTML from escaping
+  function protect(html) {
+    protectedBlocks.push(html);
+    return `__PROTECTED_${protectedBlocks.length - 1}__`;
+  }
+
+  // Pre-processing: Extract and process cards (protect immediately)
+  md = md.replace(/\[CARDS\]([\s\S]*?)\[\/CARDS\]/g, (match, content) => {
+    return protect(parseCards(content));
   });
 
-  // Pre-processing: Convert button syntax BEFORE escaping
-  md = md.replace(/\[BUTTON:([^\|]+)\|([^\]]+)\]/g, '<a href="$2" class="btn btn-primary">$1</a>');
-  md = md.replace(/\[BUTTON2:([^\|]+)\|([^\]]+)\]/g, '<a href="$2" class="btn btn-secondary">$1</a>');
+  // Pre-processing: Extract and process tables (protect immediately)
+  // Detect if it's a matrix table (has Yes/— patterns)
+  md = md.replace(/\[TABLE\]([\s\S]*?)\[\/TABLE\]/g, (match, tableContent) => {
+    const isMatrix = tableContent.includes('| Yes |') || tableContent.includes('| — |');
+    return protect(parseTable(tableContent, isMatrix));
+  });
 
-  // Pre-processing: Convert headings with IDs
+  // Pre-processing: Convert button syntax BEFORE escaping (protect immediately)
+  md = md.replace(/\[BUTTON:([^\|]+)\|([^\]]+)\]/g, (match, text, href) => {
+    return protect(`<a href="${href}" class="btn btn-primary">${text}</a>`);
+  });
+  md = md.replace(/\[BUTTON2:([^\|]+)\|([^\]]+)\]/g, (match, text, href) => {
+    return protect(`<a href="${href}" class="btn btn-secondary">${text}</a>`);
+  });
+
+  // Pre-processing: Convert headings with IDs (protect immediately)
   md = md.replace(/^(#{1,6})\s+(.+?)\s+\{#([^}]+)\}$/gm, (match, hashes, title, id) => {
     const level = hashes.length;
-    return `<h${level} id="${id}" class="section-title">${title}</h${level}>`;
-  });
-
-  // Mark already-processed HTML to protect from escaping
-  const protectedBlocks = [];
-  md = md.replace(/<(table|div|a|h[1-6])[^>]*>[\s\S]*?<\/\1>/gi, (match) => {
-    protectedBlocks.push(match);
-    return `__PROTECTED_${protectedBlocks.length - 1}__`;
-  });
-  md = md.replace(/<(a|h[1-6])[^>]*>[^<]*<\/\1>/gi, (match) => {
-    protectedBlocks.push(match);
-    return `__PROTECTED_${protectedBlocks.length - 1}__`;
+    return protect(`<h${level} id="${id}" class="section-title">${title}</h${level}>`);
   });
 
   let html = md
@@ -159,6 +213,7 @@ function extractTitle(markdown) {
 function renderHTML(content, title, currentPage) {
   const navItems = [
     { href: '#features', label: 'Features' },
+    { href: '#integrations', label: 'Integrations' },
     { href: '#pricing', label: 'Pricing' },
     { href: '#how', label: 'How it works' },
     { href: '#security', label: 'Security' },
@@ -187,6 +242,12 @@ function renderHTML(content, title, currentPage) {
       --primary: #2563eb;
       --primary-dark: #1d4ed8;
       --primary-light: #dbeafe;
+      --success: #059669;
+      --success-light: #d1fae5;
+      --warning: #d97706;
+      --warning-light: #fef3c7;
+      --purple: #7c3aed;
+      --purple-light: #ede9fe;
       --text: #111827;
       --text-muted: #6b7280;
       --text-light: #9ca3af;
@@ -250,15 +311,15 @@ function renderHTML(content, title, currentPage) {
     .nav-links {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 4px;
     }
 
     .nav-link {
       color: var(--text-muted);
       text-decoration: none;
-      padding: 8px 16px;
+      padding: 8px 12px;
       border-radius: var(--radius);
-      font-size: 0.9rem;
+      font-size: 0.875rem;
       font-weight: 500;
       transition: all 0.15s ease;
     }
@@ -279,7 +340,7 @@ function renderHTML(content, title, currentPage) {
       padding: 10px 20px;
       border-radius: var(--radius);
       font-weight: 600;
-      font-size: 0.9rem;
+      font-size: 0.875rem;
       text-decoration: none;
       margin-left: 8px;
       transition: all 0.15s ease;
@@ -293,9 +354,9 @@ function renderHTML(content, title, currentPage) {
     .login-link {
       color: var(--text-muted);
       text-decoration: none;
-      padding: 8px 16px;
-      font-size: 0.9rem;
-      margin-left: 8px;
+      padding: 8px 12px;
+      font-size: 0.875rem;
+      margin-left: 4px;
     }
 
     .login-link:hover {
@@ -483,6 +544,76 @@ function renderHTML(content, title, currentPage) {
       border-radius: 50%;
     }
 
+    /* === INTEGRATION CARDS GRID === */
+    .integration-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 24px;
+      margin: 32px 0 40px;
+    }
+
+    .integration-card {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      transition: all 0.2s ease;
+    }
+
+    .integration-card:hover {
+      box-shadow: var(--shadow);
+      border-color: var(--primary-light);
+    }
+
+    .integration-card .card-header {
+      background: var(--bg-dark);
+      padding: 16px 20px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: var(--text);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .integration-card .card-items {
+      padding: 16px 20px;
+    }
+
+    .integration-card .card-item {
+      padding: 8px 0;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .integration-card .card-item:last-child {
+      border-bottom: none;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      white-space: nowrap;
+    }
+
+    .badge-planned {
+      background: var(--warning-light);
+      color: var(--warning);
+    }
+
+    .badge-msp {
+      background: var(--purple-light);
+      color: var(--purple);
+    }
+
     /* === PRICING TABLE === */
     .table-wrap {
       overflow-x: auto;
@@ -514,10 +645,11 @@ function renderHTML(content, title, currentPage) {
       color: var(--text-muted);
     }
 
-    .pricing-table td.plan-name {
-      font-weight: 700;
+    .pricing-table td.plan-name,
+    .pricing-table td.row-label {
+      font-weight: 600;
       color: var(--primary);
-      font-size: 1.1rem;
+      font-size: 1.05rem;
     }
 
     .pricing-table tbody tr {
@@ -529,6 +661,72 @@ function renderHTML(content, title, currentPage) {
     }
 
     .pricing-table tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    /* === MATRIX TABLE (Integrations by plan) === */
+    .matrix-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+      min-width: 500px;
+    }
+
+    .matrix-table th,
+    .matrix-table td {
+      padding: 14px 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.9rem;
+    }
+
+    .matrix-table th {
+      background: var(--bg-dark);
+      font-weight: 600;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+    }
+
+    .matrix-table th.tier-col {
+      text-align: center;
+      min-width: 100px;
+    }
+
+    .matrix-table td.row-label {
+      font-weight: 500;
+      color: var(--text);
+      font-size: 0.9rem;
+    }
+
+    .matrix-table td.yes,
+    .matrix-table td.no {
+      text-align: center;
+    }
+
+    .matrix-table .check {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      background: var(--success-light);
+      color: var(--success);
+      border-radius: 50%;
+      font-weight: bold;
+      font-size: 0.85rem;
+    }
+
+    .matrix-table .dash {
+      color: var(--text-light);
+    }
+
+    .matrix-table tbody tr:hover {
+      background: var(--bg-alt);
+    }
+
+    .matrix-table tbody tr:last-child td {
       border-bottom: none;
     }
 
@@ -626,6 +824,15 @@ function renderHTML(content, title, currentPage) {
       gap: 12px;
     }
 
+    /* === PRICING SECTION ENHANCEMENTS === */
+    #pricing .table-wrap + .table-wrap {
+      margin-top: 48px;
+    }
+
+    h3.card-title + .table-wrap {
+      margin-top: 16px;
+    }
+
     /* === RESPONSIVE === */
     @media (max-width: 768px) {
       :root {
@@ -677,10 +884,16 @@ function renderHTML(content, title, currentPage) {
         width: 100%;
       }
 
+      .integration-grid {
+        grid-template-columns: 1fr;
+      }
+
       .pricing-table th,
-      .pricing-table td {
-        padding: 16px;
-        font-size: 0.9rem;
+      .pricing-table td,
+      .matrix-table th,
+      .matrix-table td {
+        padding: 12px;
+        font-size: 0.85rem;
       }
     }
 
