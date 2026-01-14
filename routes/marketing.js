@@ -212,6 +212,7 @@ function extractTitle(markdown) {
 // HTML template with navigation and styling for single-page site
 function renderHTML(content, title, currentPage) {
   const navItems = [
+    { href: '#built', label: 'Built by operators' },
     { href: '#features', label: 'Features' },
     { href: '#integrations', label: 'Integrations' },
     { href: '#pricing', label: 'Pricing' },

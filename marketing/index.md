@@ -2,10 +2,25 @@
 
 ### The complete service delivery platform for MSPs and modern IT teams.
 
-Run internal IT, deliver SLA-backed support, or operate a managed service business — on one platform that combines structured knowledge, intelligent automation, and governed AI to deliver consistent, accountable service at scale.
+Built by Managed Service Providers who have operated production service desks for over a decade. Informed by 1M+ tickets, thousands of CMDB assets, and real-world escalation patterns across multi-timezone, multi-tenant environments.
 
 [BUTTON:Request a demo|#contact]
 [BUTTON2:View pricing|#pricing]
+
+---
+
+## Built by operators {#built}
+
+ServiFlow is built by MSPs who have delivered IT services at scale — not consultants theorizing about service management.
+
+- 1M+ tickets processed across production environments
+- Thousands of CMDB assets under active management
+- Permanent staff and on-demand experts (freelancers) coordinated globally
+- Multi-timezone, multi-lingual, multi-tenant operations
+- NOC alerting, escalation, and 24/7 response handling
+- Customer complaints and consumer-to-expert service workflows
+
+The platform reflects what actually works when SLAs are on the line and customers are waiting.
 
 ---
 
@@ -69,13 +84,17 @@ Run internal IT, deliver SLA-backed support, or operate a managed service busine
 - Prevent "ghost companies" created by alerts
 - Track and display classification reason
 
-### AI that assists, not replaces
+### AI informed by real operations
 
-- Triage suggestions based on ticket content, knowledge, and history
-- Expert matching using skills, availability, and workload
-- SLA risk analysis with escalation recommendations
-- Performance insights and trend detection
-- All AI output is governed, auditable, and requires human confirmation
+ServiFlow AI is trained on patterns from real service delivery — not generic models. It operates agent-facing and operations-facing, never customer-facing by default.
+
+- Triage suggestions informed by ticket content, knowledge base, CMDB, and historical resolution patterns
+- Expert matching using skills, availability, workload, and past performance
+- SLA risk analysis with escalation recommendations based on breach proximity
+- Performance insights and root-cause assistance from operational data
+- Trend detection across ticket volumes, categories, and customer segments
+
+All AI output is governed by tenant feature flags, fully auditable, and requires human confirmation. AI never resolves tickets autonomously.
 
 ---
 
@@ -209,7 +228,7 @@ Customers see clean progress updates. Resolution acceptance confirms service com
 
 **No anonymous operations** — Every action is tied to an authenticated user. No shared service accounts that obscure attribution.
 
-**AI governance** — All AI suggestions are logged with confidence scores. Accepted and rejected suggestions are tracked. AI never acts autonomously — human confirmation is always required.
+**AI governance** — All AI capabilities are controlled by tenant feature flags. AI suggestions are logged with confidence scores and acceptance/rejection tracking. AI is agent-facing and operations-facing by default. AI never acts autonomously — human confirmation is always required.
 
 ---
 
@@ -237,11 +256,15 @@ Email, Microsoft Teams, and monitoring alert ingest are available. Identity prov
 
 ### How does AI work in ServiFlow?
 
-AI operates alongside structured knowledge, rules, CMDB data, and service catalogues — not as a replacement for them. AI provides triage suggestions, expert matching, CMDB linking, and performance insights. All AI output requires human confirmation and is fully auditable.
+AI is informed by real operational data at scale — patterns learned from 1M+ tickets, CMDB relationships, and escalation outcomes. It operates alongside structured knowledge, rules, and service catalogues. AI provides triage, escalation recommendations, SLA intelligence, expert matching, performance analysis, and root-cause assistance. All output requires human confirmation and is governed by tenant feature flags.
 
 ### Is AI autonomous or chatbot-based?
 
-No. ServiFlow AI enhances human decision-making, not replaces it. There is no autonomous ticket resolution or chatbot-only interaction. AI suggestions are presented to experts who confirm, modify, or reject them.
+No. ServiFlow AI is agent-facing and operations-facing — not customer-facing by default. There is no autonomous ticket resolution. AI suggestions are presented to experts who confirm, modify, or reject them. All actions are logged and auditable.
+
+### What makes ServiFlow AI different?
+
+ServiFlow AI is trained on production service delivery patterns, not generic models. It understands CMDB relationships, SLA hierarchies, escalation chains, and resolution workflows. The AI reflects what actually works when SLAs are on the line — built by MSPs who have operated service desks at scale.
 
 ### Can we expose services to customers?
 
@@ -262,4 +285,4 @@ Tell us your operating model (Internal IT, Professional service delivery, or MSP
 
 **ServiFlow** — The complete service delivery platform. Knowledge, rules, AI, and accountability — all in one place.
 
-[Top](#top) · [Features](#features) · [Integrations](#integrations) · [Pricing](#pricing) · [How it works](#how) · [Security](#security) · [FAQ](#faq) · [Contact](#contact)
+[Top](#top) · [Built by operators](#built) · [Features](#features) · [Integrations](#integrations) · [Pricing](#pricing) · [How it works](#how) · [Security](#security) · [FAQ](#faq) · [Contact](#contact)
