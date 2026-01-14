@@ -127,10 +127,9 @@ async function authenticateTenantUser(tenantCode, username, password) {
         };
       }
 
-      // Note: last_login column doesn't exist in users table
-      // Update timestamp to track last activity
+      // Update last_login timestamp
       await connection.query(
-        'UPDATE users SET updated_at = NOW() WHERE id = ?',
+        'UPDATE users SET last_login = NOW(), updated_at = NOW() WHERE id = ?',
         [user.id]
       );
 

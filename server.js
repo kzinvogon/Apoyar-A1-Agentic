@@ -393,6 +393,15 @@ async function startServer() {
           console.warn(`⚠️  Warning: Customer SLA override migration:`, migrationError.message);
         }
 
+        // Run last_login column migration
+        try {
+          const { migrate: runLastLoginMigration } = require('./migrations/add-last-login-column');
+          await runLastLoginMigration('apoyar');
+          console.log('✅ Last login column migration completed');
+        } catch (migrationError) {
+          console.warn(`⚠️  Warning: Last login column migration:`, migrationError.message);
+        }
+
         // Start email processing for apoyar tenant
         try {
           await startEmailProcessing('apoyar');
