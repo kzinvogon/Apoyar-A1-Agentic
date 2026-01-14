@@ -406,13 +406,17 @@ router.get('/customers', async (req, res) => {
         const connection = await getTenantConnection(decoded.tenantCode);
         
         try {
+          // Only return users who are linked to a customer company (real customers)
           const [customers] = await connection.query(
-            `SELECT id, username, email, full_name, role, phone, department, created_at
-             FROM users
-             WHERE role = 'customer' AND is_active = TRUE
-             ORDER BY full_name ASC, username ASC`
+            `SELECT u.id, u.username, u.email, u.full_name, u.role, u.phone, u.department, u.created_at,
+                    cc.company_name as company
+             FROM users u
+             INNER JOIN customers c ON c.user_id = u.id
+             LEFT JOIN customer_companies cc ON c.customer_company_id = cc.id
+             WHERE u.role = 'customer' AND u.is_active = TRUE
+             ORDER BY u.full_name ASC, u.username ASC`
           );
-          
+
           res.json({ success: true, customers });
         } finally {
           connection.release();
