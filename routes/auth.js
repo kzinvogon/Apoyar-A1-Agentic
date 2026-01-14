@@ -435,10 +435,27 @@ router.get('/profile', verifyToken, async (req, res) => {
     if (req.user.userType === 'tenant') {
       const connection = await getTenantConnection(req.user.tenantCode);
       try {
-        const [rows] = await connection.query(
-          'SELECT id, username, email, full_name, role, phone, department, receive_email_updates, created_at, updated_at FROM users WHERE id = ?',
-          [req.user.userId]
-        );
+        // Try full query first, fall back to basic query if columns missing
+        let rows;
+        try {
+          [rows] = await connection.query(
+            'SELECT id, username, email, full_name, role, phone, department, receive_email_updates, created_at, updated_at FROM users WHERE id = ?',
+            [req.user.userId]
+          );
+        } catch (queryErr) {
+          // Fall back to basic query if some columns don't exist
+          console.warn('Profile full query failed, trying basic query:', queryErr.message);
+          [rows] = await connection.query(
+            'SELECT id, username, email, full_name, role, created_at, updated_at FROM users WHERE id = ?',
+            [req.user.userId]
+          );
+          // Add default values for missing fields
+          if (rows.length > 0) {
+            rows[0].phone = rows[0].phone || '';
+            rows[0].department = rows[0].department || '';
+            rows[0].receive_email_updates = rows[0].receive_email_updates ?? 1;
+          }
+        }
 
         if (rows.length === 0) {
           return res.status(404).json({ success: false, message: 'User not found' });
