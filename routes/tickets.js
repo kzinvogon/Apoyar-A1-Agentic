@@ -1321,9 +1321,9 @@ router.post('/:tenantId/:ticketId/comment', writeOperationsLimiter, async (req, 
 
       // Get ticket to verify it exists and check permissions
       const [tickets] = await connection.query(
-        `SELECT t.*, u.customer_company_id as requester_company_id
+        `SELECT t.*, c.customer_company_id as requester_company_id
          FROM tickets t
-         LEFT JOIN users u ON t.requester_id = u.id
+         LEFT JOIN customers c ON t.requester_id = c.user_id
          WHERE t.id = ?`,
         [ticketId]
       );
