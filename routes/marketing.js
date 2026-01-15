@@ -964,7 +964,7 @@ function renderHTML(content, title, currentPage) {
 </html>`;
 }
 
-// Serve marketing pages
+// Serve marketing pages - now using standalone HTML
 router.get('/:page?', (req, res) => {
   const page = req.params.page || '';
 
@@ -976,24 +976,29 @@ router.get('/:page?', (req, res) => {
     return res.redirect(302, '/marketing' + REDIRECTS[page] + queryString);
   }
 
-  // Check if valid page
-  const filename = PAGES[page];
-  if (!filename) {
-    return res.redirect(302, '/marketing');
+  // Serve the standalone HTML site
+  const htmlPath = path.join(MARKETING_DIR, 'site.html');
+
+  if (!fs.existsSync(htmlPath)) {
+    // Fallback to markdown parsing if site.html doesn't exist
+    const filename = PAGES[page];
+    if (!filename) {
+      return res.redirect(302, '/marketing');
+    }
+    const filepath = path.join(MARKETING_DIR, filename);
+    if (!fs.existsSync(filepath)) {
+      return res.status(404).send('<h1>Page Not Found</h1>');
+    }
+    const markdown = fs.readFileSync(filepath, 'utf8');
+    const title = extractTitle(markdown);
+    const html = parseMarkdown(markdown);
+    res.set('Cache-Control', 'public, max-age=3600');
+    return res.send(renderHTML(html, title, page || 'home'));
   }
 
-  const filepath = path.join(MARKETING_DIR, filename);
-
-  if (!fs.existsSync(filepath)) {
-    return res.status(404).send(renderHTML('<h1>Page Not Found</h1><p>The page you requested does not exist.</p>', 'Not Found', ''));
-  }
-
-  const markdown = fs.readFileSync(filepath, 'utf8');
-  const title = extractTitle(markdown);
-  const html = parseMarkdown(markdown);
-
+  // Serve the standalone HTML
   res.set('Cache-Control', 'public, max-age=3600');
-  res.send(renderHTML(html, title, page || 'home'));
+  res.sendFile(htmlPath);
 });
 
 module.exports = router;
