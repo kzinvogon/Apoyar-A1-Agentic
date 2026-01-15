@@ -10375,37 +10375,56 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   function renderPlansList(plans) {
     const tbody = document.getElementById('plans-list-body');
-    if (tbody) {
-      if (!plans || plans.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" class="subtitle">No plans defined</td></tr>';
-        return;
-      }
-      tbody.innerHTML = '';
-      plans.forEach(plan => {
+    if (!tbody) {
+      console.error('Plans tbody not found');
+      return;
+    }
+
+    if (!plans || plans.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="8" class="subtitle">No plans defined</td></tr>';
+      return;
+    }
+
+    console.log('Rendering plans:', plans.length);
+    tbody.innerHTML = '';
+
+    plans.forEach((plan, index) => {
+      try {
         const tr = document.createElement('tr');
         const users = plan.max_users === -1 ? 'Unlimited' : (plan.max_users || 'N/A');
         const tickets = plan.max_tickets === -1 ? 'Unlimited' : (plan.max_tickets || 'N/A');
         const storage = plan.max_storage === -1 ? 'Unlimited' : ((plan.max_storage || 0) + 'GB');
         const featuresList = Array.isArray(plan.features) ? plan.features : [];
         const features = featuresList.length > 0 ? (featuresList.slice(0, 3).join(', ') + (featuresList.length > 3 ? '...' : '')) : 'None';
+        const featuresTitle = featuresList.join(', ').replace(/"/g, '&quot;');
+        const planId = String(plan.id).replace(/'/g, "\\'");
 
         tr.innerHTML = `
-          <td><strong>${plan.name || 'Unknown'}</strong></td>
+          <td><strong>${escapeHtml(plan.name) || 'Unknown'}</strong></td>
           <td>$${plan.monthly_price || 0}/month</td>
           <td>${users}</td>
           <td>${tickets}</td>
           <td>${storage}</td>
-          <td title="${featuresList.join(', ')}">${features}</td>
+          <td title="${featuresTitle}">${escapeHtml(features)}</td>
           <td><span class="badge status-${plan.status || 'inactive'}">${plan.status || 'N/A'}</span></td>
           <td>
-            <button onclick="editPlan('${plan.id}')" class="btn btn-sm">Edit</button>
-            <button onclick="duplicatePlan('${plan.id}')" class="btn btn-sm">Copy</button>
-            <button onclick="deletePlan('${plan.id}')" class="btn btn-sm btn-danger">Delete</button>
+            <button onclick="editPlan('${planId}')" class="btn btn-sm">Edit</button>
+            <button onclick="duplicatePlan('${planId}')" class="btn btn-sm">Copy</button>
+            <button onclick="deletePlan('${planId}')" class="btn btn-sm btn-danger">Delete</button>
           </td>
         `;
         tbody.appendChild(tr);
-      });
-    }
+      } catch (err) {
+        console.error('Error rendering plan', index, plan, err);
+      }
+    });
+  }
+
+  function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
   }
   
   function showCreatePlanForm() {
