@@ -22,7 +22,8 @@ const statusEmoji = {
   'Closed': '⚫'
 };
 
-function buildTicketCard(ticket) {
+function buildTicketCard(ticket, options = {}) {
+  const { mode } = options;
   const priority = (ticket.priority || 'medium').toLowerCase();
   const status = ticket.status || 'Open';
 
@@ -219,6 +220,19 @@ function buildTicketCard(ticket) {
     });
   }
 
+  // Add discrete mode indicator if provided
+  if (mode) {
+    const modeEmoji = mode === 'expert' ? '👔' : '👤';
+    bodyItems.push({
+      type: 'TextBlock',
+      text: `${modeEmoji} ${mode}`,
+      size: 'small',
+      isSubtle: true,
+      horizontalAlignment: 'right',
+      spacing: 'medium'
+    });
+  }
+
   return {
     type: 'AdaptiveCard',
     version: '1.4',
@@ -228,7 +242,8 @@ function buildTicketCard(ticket) {
   };
 }
 
-function buildTicketListCard(tickets, title = 'My Assigned Tickets') {
+function buildTicketListCard(tickets, title = 'My Assigned Tickets', options = {}) {
+  const { mode } = options;
   const ticketItems = tickets.slice(0, 10).map(ticket => ({
     type: 'Container',
     items: [
@@ -280,25 +295,40 @@ function buildTicketListCard(tickets, title = 'My Assigned Tickets') {
     separator: true
   }));
 
+  const bodyItems = [
+    {
+      type: 'TextBlock',
+      text: `${title} (${tickets.length})`,
+      weight: 'bolder',
+      size: 'large'
+    },
+    ...ticketItems,
+    ...(tickets.length > 10 ? [{
+      type: 'TextBlock',
+      text: `...and ${tickets.length - 10} more`,
+      isSubtle: true,
+      size: 'small'
+    }] : [])
+  ];
+
+  // Add discrete mode indicator if provided
+  if (mode) {
+    const modeEmoji = mode === 'expert' ? '👔' : '👤';
+    bodyItems.push({
+      type: 'TextBlock',
+      text: `${modeEmoji} ${mode}`,
+      size: 'small',
+      isSubtle: true,
+      horizontalAlignment: 'right',
+      spacing: 'medium'
+    });
+  }
+
   return {
     type: 'AdaptiveCard',
     version: '1.4',
     $schema: 'http://adaptivecards.io/schemas/adaptive-card.json',
-    body: [
-      {
-        type: 'TextBlock',
-        text: `${title} (${tickets.length})`,
-        weight: 'bolder',
-        size: 'large'
-      },
-      ...ticketItems,
-      ...(tickets.length > 10 ? [{
-        type: 'TextBlock',
-        text: `...and ${tickets.length - 10} more`,
-        isSubtle: true,
-        size: 'small'
-      }] : [])
-    ],
+    body: bodyItems,
     actions: [
       {
         type: 'Action.OpenUrl',
