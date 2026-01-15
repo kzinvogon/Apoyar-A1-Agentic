@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ServiFlow - Service Delivery Platform for MSPs</title>
-  <meta name="description" content="The complete service delivery platform for MSPs and modern IT teams. Built by operators who have processed 1M+ tickets at scale.">
+  <title>ServiFlow - Lean AI-Powered ITSM for MSPs</title>
+  <meta name="description" content="Resolve tickets faster, reclaim billable hours. AI-powered ITSM built by MSPs who have processed 1M+ tickets at scale.">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -26,6 +26,8 @@
     .pricing-toggle input:checked + .slider:before { transform: translateX(24px); }
     .slider { position: relative; cursor: pointer; background-color: #cbd5e1; border-radius: 24px; transition: 0.3s; }
     .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 2px; bottom: 2px; background-color: white; border-radius: 50%; transition: 0.3s; }
+    .annual-badge { animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.8; } }
   </style>
 </head>
 <body class="font-sans text-gray-800 antialiased">
@@ -37,10 +39,10 @@
         <a href="#top" class="text-2xl font-bold text-primary-700">ServiFlow</a>
         <div class="hidden md:flex items-center space-x-8">
           <a href="#features" class="text-gray-600 hover:text-primary-600 transition">Features</a>
-          <a href="#pricing" class="text-gray-600 hover:text-primary-600 transition">Pricing</a>
           <a href="#case-studies" class="text-gray-600 hover:text-primary-600 transition">Case Studies</a>
+          <a href="#pricing" class="text-gray-600 hover:text-primary-600 transition">Pricing</a>
           <a href="#faq" class="text-gray-600 hover:text-primary-600 transition">FAQ</a>
-          <a href="#contact" class="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition">Get Started</a>
+          <a href="#contact" class="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition">Start Free Trial</a>
         </div>
         <button id="mobile-menu-btn" class="md:hidden p-2">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
@@ -50,27 +52,72 @@
     <div id="mobile-menu" class="hidden md:hidden bg-white border-t border-gray-100">
       <div class="px-4 py-3 space-y-2">
         <a href="#features" class="block py-2 text-gray-600">Features</a>
-        <a href="#pricing" class="block py-2 text-gray-600">Pricing</a>
         <a href="#case-studies" class="block py-2 text-gray-600">Case Studies</a>
+        <a href="#pricing" class="block py-2 text-gray-600">Pricing</a>
         <a href="#faq" class="block py-2 text-gray-600">FAQ</a>
-        <a href="#contact" class="block py-2 text-primary-600 font-medium">Get Started</a>
+        <a href="#contact" class="block py-2 text-primary-600 font-medium">Start Free Trial</a>
       </div>
     </div>
   </nav>
 
   <!-- Hero -->
-  <section id="top" class="gradient-hero pt-32 pb-20 px-4">
-    <div class="max-w-4xl mx-auto text-center">
+  <section id="top" class="gradient-hero pt-28 pb-20 px-4">
+    <div class="max-w-5xl mx-auto text-center">
+      <div class="inline-block bg-white/20 text-white text-sm font-medium px-4 py-1.5 rounded-full mb-6">
+        30-Day Free Trial - No Credit Card Required
+      </div>
       <h1 class="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight">
-        The complete service delivery platform for MSPs
+        Lean AI-Powered ITSM for MSPs
       </h1>
-      <p class="text-xl text-primary-100 mb-8 max-w-2xl mx-auto">
-        Built by Managed Service Providers who have operated production service desks for over a decade. Informed by 1M+ tickets, thousands of CMDB assets, and real-world escalation patterns.
+      <p class="text-2xl md:text-3xl text-primary-100 mb-8 font-medium">
+        Resolve Tickets Faster. Reclaim Billable Hours.
       </p>
+
+      <!-- MSP Pain Points / Outcomes -->
+      <div class="max-w-3xl mx-auto mb-10">
+        <div class="grid md:grid-cols-2 gap-4 text-left">
+          <div class="bg-white/10 backdrop-blur-sm rounded-lg p-4">
+            <div class="text-primary-200 text-xs uppercase tracking-wide mb-2">Stop Losing Time To</div>
+            <ul class="space-y-2 text-white text-sm">
+              <li class="flex items-start space-x-2">
+                <svg class="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
+                <span>Manual ticket triage eating unbillable hours</span>
+              </li>
+              <li class="flex items-start space-x-2">
+                <svg class="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
+                <span>SLA breaches from clunky escalation paths</span>
+              </li>
+              <li class="flex items-start space-x-2">
+                <svg class="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
+                <span>Client data leaking between tenants</span>
+              </li>
+            </ul>
+          </div>
+          <div class="bg-white/10 backdrop-blur-sm rounded-lg p-4">
+            <div class="text-primary-200 text-xs uppercase tracking-wide mb-2">Start Gaining</div>
+            <ul class="space-y-2 text-white text-sm">
+              <li class="flex items-start space-x-2">
+                <svg class="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
+                <span>AI triage that routes tickets in seconds</span>
+              </li>
+              <li class="flex items-start space-x-2">
+                <svg class="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
+                <span>Two-phase SLAs that catch issues before breach</span>
+              </li>
+              <li class="flex items-start space-x-2">
+                <svg class="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
+                <span>True multi-tenant isolation with full audit trail</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
       <div class="flex flex-col sm:flex-row gap-4 justify-center">
-        <a href="#contact" class="bg-white text-primary-700 px-8 py-3 rounded-lg font-semibold hover:bg-primary-50 transition shadow-lg">Request a Demo</a>
+        <a href="#contact" class="bg-white text-primary-700 px-8 py-3 rounded-lg font-semibold hover:bg-primary-50 transition shadow-lg">Start 30-Day Free Trial</a>
         <a href="#pricing" class="border-2 border-white text-white px-8 py-3 rounded-lg font-semibold hover:bg-white/10 transition">View Pricing</a>
       </div>
+      <p class="text-primary-200 text-sm mt-4">Auto-import from ConnectWise, Autotask, or start fresh</p>
     </div>
   </section>
 
@@ -247,15 +294,228 @@
     </div>
   </section>
 
+  <!-- Case Studies -->
+  <section id="case-studies" class="py-20 px-4 bg-white">
+    <div class="max-w-6xl mx-auto">
+      <div class="text-center mb-12">
+        <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Real-World Impact: Case Studies</h2>
+        <p class="text-lg text-gray-600">See how service providers transformed their operations with ServiFlow.</p>
+      </div>
+      <div class="grid md:grid-cols-2 gap-8">
+        <!-- Case Study 1: FMCG Compliance -->
+        <div class="bg-gray-50 rounded-xl p-8 border border-gray-100">
+          <div class="text-primary-600 font-semibold text-sm mb-2">FMCG MANUFACTURER - APAC</div>
+          <h3 class="text-xl font-bold text-gray-900 mb-4">Regulatory Compliance Under Control</h3>
+          <ul class="space-y-3 text-gray-600 text-sm mb-6">
+            <li class="flex items-start space-x-2">
+              <span class="text-primary-500 mt-1 font-bold">&#8226;</span>
+              <span>Food safety audits required complete incident traceability across 12 production sites</span>
+            </li>
+            <li class="flex items-start space-x-2">
+              <span class="text-primary-500 mt-1 font-bold">&#8226;</span>
+              <span>ServiFlow's audit logging captured every ticket action with timestamps and user attribution</span>
+            </li>
+            <li class="flex items-start space-x-2">
+              <span class="text-primary-500 mt-1 font-bold">&#8226;</span>
+              <span>CMDB links connected IT incidents to specific production lines and equipment</span>
+            </li>
+            <li class="flex items-start space-x-2">
+              <span class="text-primary-500 mt-1 font-bold">&#8226;</span>
+              <span>Audit prep time reduced from 3 days to 4 hours with exportable compliance reports</span>
+            </li>
+          </ul>
+          <div class="border-t border-gray-200 pt-4 flex justify-between items-center">
+            <div>
+              <div class="text-2xl font-bold text-gray-900">90%</div>
+              <div class="text-gray-500 text-sm">audit prep time saved</div>
+            </div>
+            <div class="text-right">
+              <div class="text-2xl font-bold text-gray-900">12</div>
+              <div class="text-gray-500 text-sm">sites unified</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Case Study 2: Domino's Customer Concerns -->
+        <div class="bg-gray-50 rounded-xl p-8 border border-gray-100">
+          <div class="text-primary-600 font-semibold text-sm mb-2">QUICK SERVICE RESTAURANT - GLOBAL</div>
+          <h3 class="text-xl font-bold text-gray-900 mb-4">Customer Complaints Resolved Faster</h3>
+          <ul class="space-y-3 text-gray-600 text-sm mb-6">
+            <li class="flex items-start space-x-2">
+              <span class="text-primary-500 mt-1 font-bold">&#8226;</span>
+              <span>High-volume customer complaints from 200+ franchise locations needed consistent handling</span>
+            </li>
+            <li class="flex items-start space-x-2">
+              <span class="text-primary-500 mt-1 font-bold">&#8226;</span>
+              <span>AI triage categorized complaints by type (delivery, product, service) with 94% accuracy</span>
+            </li>
+            <li class="flex items-start space-x-2">
+              <span class="text-primary-500 mt-1 font-bold">&#8226;</span>
+              <span>SLA rules auto-escalated VIP customers and repeat complainants to senior team</span>
+            </li>
+            <li class="flex items-start space-x-2">
+              <span class="text-primary-500 mt-1 font-bold">&#8226;</span>
+              <span>Knowledge base templates ensured brand-consistent responses across all agents</span>
+            </li>
+          </ul>
+          <div class="border-t border-gray-200 pt-4 flex justify-between items-center">
+            <div>
+              <div class="text-2xl font-bold text-gray-900">45%</div>
+              <div class="text-gray-500 text-sm">faster resolution</div>
+            </div>
+            <div class="text-right">
+              <div class="text-2xl font-bold text-gray-900">200+</div>
+              <div class="text-gray-500 text-sm">locations served</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Case Study 3: Cinema CMDB -->
+        <div class="bg-gray-50 rounded-xl p-8 border border-gray-100">
+          <div class="text-primary-600 font-semibold text-sm mb-2">CINEMA CHAIN - AUSTRALIA</div>
+          <h3 class="text-xl font-bold text-gray-900 mb-4">CMDB That Actually Gets Used</h3>
+          <ul class="space-y-3 text-gray-600 text-sm mb-6">
+            <li class="flex items-start space-x-2">
+              <span class="text-primary-500 mt-1 font-bold">&#8226;</span>
+              <span>Projectors, POS systems, and network gear across 45 cinemas needed unified tracking</span>
+            </li>
+            <li class="flex items-start space-x-2">
+              <span class="text-primary-500 mt-1 font-bold">&#8226;</span>
+              <span>AI-suggested CMDB links matched tickets to assets with 87% accuracy on first suggestion</span>
+            </li>
+            <li class="flex items-start space-x-2">
+              <span class="text-primary-500 mt-1 font-bold">&#8226;</span>
+              <span>Recurring projector issues automatically flagged for warranty review</span>
+            </li>
+            <li class="flex items-start space-x-2">
+              <span class="text-primary-500 mt-1 font-bold">&#8226;</span>
+              <span>Asset health reports enabled proactive replacement before showtime failures</span>
+            </li>
+          </ul>
+          <div class="border-t border-gray-200 pt-4 flex justify-between items-center">
+            <div>
+              <div class="text-2xl font-bold text-gray-900">3,200+</div>
+              <div class="text-gray-500 text-sm">assets tracked</div>
+            </div>
+            <div class="text-right">
+              <div class="text-2xl font-bold text-gray-900">70%</div>
+              <div class="text-gray-500 text-sm">fewer data entry errors</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Case Study 4: Supportpod Marketplace -->
+        <div class="bg-gray-50 rounded-xl p-8 border border-gray-100">
+          <div class="text-primary-600 font-semibold text-sm mb-2">EXPERT MARKETPLACE - GLOBAL</div>
+          <h3 class="text-xl font-bold text-gray-900 mb-4">Scaling a Distributed Expert Network</h3>
+          <ul class="space-y-3 text-gray-600 text-sm mb-6">
+            <li class="flex items-start space-x-2">
+              <span class="text-primary-500 mt-1 font-bold">&#8226;</span>
+              <span>On-demand IT experts across 6 timezones needed smart ticket routing</span>
+            </li>
+            <li class="flex items-start space-x-2">
+              <span class="text-primary-500 mt-1 font-bold">&#8226;</span>
+              <span>AI expert matching considered skills, availability, workload, and past performance</span>
+            </li>
+            <li class="flex items-start space-x-2">
+              <span class="text-primary-500 mt-1 font-bold">&#8226;</span>
+              <span>Multi-tenant isolation ensured client data never leaked between engagements</span>
+            </li>
+            <li class="flex items-start space-x-2">
+              <span class="text-primary-500 mt-1 font-bold">&#8226;</span>
+              <span>SLA tracking per client contract with automated breach notifications</span>
+            </li>
+          </ul>
+          <div class="border-t border-gray-200 pt-4 flex justify-between items-center">
+            <div>
+              <div class="text-2xl font-bold text-gray-900">150+</div>
+              <div class="text-gray-500 text-sm">experts coordinated</div>
+            </div>
+            <div class="text-right">
+              <div class="text-2xl font-bold text-gray-900">6</div>
+              <div class="text-gray-500 text-sm">timezones covered</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Closing Quote -->
+      <div class="mt-12 text-center">
+        <blockquote class="text-xl md:text-2xl text-gray-700 font-medium italic max-w-4xl mx-auto">
+          "Proven in large-scale distributed environments - delivering efficiency, client isolation, and AI smarts MSPs need."
+        </blockquote>
+      </div>
+    </div>
+  </section>
+
+  <!-- Get Started in Minutes -->
+  <section class="py-20 px-4 bg-gray-50">
+    <div class="max-w-6xl mx-auto">
+      <div class="text-center mb-12">
+        <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Get Started in Minutes</h2>
+        <p class="text-lg text-gray-600">No lengthy implementation. No consultants required.</p>
+      </div>
+      <div class="grid md:grid-cols-3 gap-8">
+        <!-- Step 1 -->
+        <div class="bg-white rounded-xl p-8 shadow-sm border border-gray-100 text-center">
+          <div class="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <span class="text-2xl font-bold text-primary-600">1</span>
+          </div>
+          <h3 class="text-xl font-semibold mb-3">Import Your Data</h3>
+          <p class="text-gray-600 mb-4">Auto-import from ConnectWise, Autotask, or start fresh. Bring your tickets, customers, and CMDB in one click.</p>
+          <div class="flex justify-center space-x-4 text-sm text-gray-500">
+            <span>ConnectWise</span>
+            <span>&#8226;</span>
+            <span>Autotask</span>
+            <span>&#8226;</span>
+            <span>CSV</span>
+          </div>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="bg-white rounded-xl p-8 shadow-sm border border-gray-100 text-center">
+          <div class="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <span class="text-2xl font-bold text-primary-600">2</span>
+          </div>
+          <h3 class="text-xl font-semibold mb-3">Configure with AI</h3>
+          <p class="text-gray-600 mb-4">Answer a few questions about your service model. AI suggests SLAs, categories, and routing rules based on your answers.</p>
+          <div class="flex justify-center space-x-4 text-sm text-gray-500">
+            <span>5-min quiz</span>
+            <span>&#8226;</span>
+            <span>Smart defaults</span>
+          </div>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="bg-white rounded-xl p-8 shadow-sm border border-gray-100 text-center">
+          <div class="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <span class="text-2xl font-bold text-primary-600">3</span>
+          </div>
+          <h3 class="text-xl font-semibold mb-3">Invite Your Team</h3>
+          <p class="text-gray-600 mb-4">Add technicians with one-click invites. Role-based access ensures everyone sees what they need - nothing more.</p>
+          <div class="flex justify-center space-x-4 text-sm text-gray-500">
+            <span>Email invites</span>
+            <span>&#8226;</span>
+            <span>SSO ready</span>
+          </div>
+        </div>
+      </div>
+      <div class="text-center mt-10">
+        <a href="#contact" class="inline-block bg-primary-600 text-white px-8 py-4 rounded-lg font-semibold hover:bg-primary-700 transition shadow-lg text-lg">Start Your Free 30-Day Trial</a>
+        <p class="text-gray-500 text-sm mt-3">No credit card required. Full access to all features.</p>
+      </div>
+    </div>
+  </section>
+
   <!-- Pricing -->
   <section id="pricing" class="py-20 px-4 bg-white">
     <div class="max-w-6xl mx-auto">
       <div class="text-center mb-12">
         <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Simple, transparent pricing</h2>
-        <p class="text-lg text-gray-600 mb-8">One platform. Three ways to operate. Scale as you grow.</p>
+        <p class="text-lg text-gray-600 mb-6">Choose the model that fits your business. Scale as you grow.</p>
 
         <!-- Pricing Toggle -->
-        <div class="flex items-center justify-center space-x-4 mb-8">
+        <div class="flex items-center justify-center space-x-4 mb-4">
           <span id="toggle-tech-label" class="text-gray-900 font-medium">Per Technician</span>
           <label class="pricing-toggle relative inline-block w-14 h-6">
             <input type="checkbox" id="pricing-toggle" class="opacity-0 w-0 h-0" onchange="togglePricing()">
@@ -263,18 +523,24 @@
           </label>
           <span id="toggle-client-label" class="text-gray-500">Per Client</span>
         </div>
+
+        <!-- Annual Discount Badge -->
+        <div class="inline-block annual-badge bg-green-100 text-green-800 text-sm font-semibold px-4 py-2 rounded-full">
+          Pay annually and get 2 months free
+        </div>
       </div>
 
-      <!-- Pricing Cards -->
-      <div class="grid md:grid-cols-3 gap-8">
+      <!-- Per-Tech Pricing Cards -->
+      <div id="pricing-per-tech" class="grid md:grid-cols-3 gap-8">
         <!-- Starter -->
         <div class="bg-gray-50 rounded-2xl p-8 border border-gray-200">
           <h3 class="text-2xl font-bold text-gray-900 mb-2">Starter</h3>
           <p class="text-gray-600 mb-4">Internal IT or small teams</p>
           <div class="mb-6">
-            <span class="text-4xl font-bold text-gray-900" id="price-starter">$29</span>
-            <span class="text-gray-500" id="price-unit-starter">/tech/month</span>
+            <span class="text-4xl font-bold text-gray-900">$29</span>
+            <span class="text-gray-500">/tech/month</span>
           </div>
+          <p class="text-sm text-gray-500 mb-6">Unlimited clients included</p>
           <ul class="space-y-3 mb-8">
             <li class="flex items-center space-x-2"><svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg><span>Ticketing & CMDB</span></li>
             <li class="flex items-center space-x-2"><svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg><span>SLA definitions</span></li>
@@ -285,53 +551,81 @@
           <a href="#contact" class="block text-center bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-300 transition">Start Free Trial</a>
         </div>
 
-        <!-- Professional -->
-        <div class="bg-primary-600 rounded-2xl p-8 text-white relative transform scale-105 shadow-xl">
-          <div class="absolute -top-4 left-1/2 -translate-x-1/2 bg-yellow-400 text-yellow-900 text-sm font-bold px-4 py-1 rounded-full">MOST POPULAR</div>
-          <h3 class="text-2xl font-bold mb-2">Professional</h3>
-          <p class="text-primary-200 mb-4">SLA-backed service delivery</p>
+        <!-- Growth -->
+        <div class="bg-gray-50 rounded-2xl p-8 border border-gray-200">
+          <h3 class="text-2xl font-bold text-gray-900 mb-2">Growth</h3>
+          <p class="text-gray-600 mb-4">Growing teams with integrations</p>
           <div class="mb-6">
-            <span class="text-4xl font-bold" id="price-pro">$79</span>
-            <span class="text-primary-200" id="price-unit-pro">/tech/month</span>
+            <span class="text-4xl font-bold text-gray-900">$49</span>
+            <span class="text-gray-500">/tech/month</span>
           </div>
+          <p class="text-sm text-gray-500 mb-6">Unlimited clients included</p>
           <ul class="space-y-3 mb-8">
-            <li class="flex items-center space-x-2"><svg class="w-5 h-5 text-primary-300" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg><span>Everything in Starter</span></li>
-            <li class="flex items-center space-x-2"><svg class="w-5 h-5 text-primary-300" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg><span>Customer portal</span></li>
-            <li class="flex items-center space-x-2"><svg class="w-5 h-5 text-primary-300" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg><span>Service catalogue</span></li>
-            <li class="flex items-center space-x-2"><svg class="w-5 h-5 text-primary-300" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg><span>AI triage & CMDB matching</span></li>
-            <li class="flex items-center space-x-2"><svg class="w-5 h-5 text-primary-300" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg><span>Teams, Jira, SSO</span></li>
+            <li class="flex items-center space-x-2"><svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg><span>Everything in Starter</span></li>
+            <li class="flex items-center space-x-2"><svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg><span>Customer portal</span></li>
+            <li class="flex items-center space-x-2"><svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg><span>Service catalogue</span></li>
+            <li class="flex items-center space-x-2"><svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg><span>AI triage & CMDB matching</span></li>
+            <li class="flex items-center space-x-2"><svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg><span>Teams, Jira, SSO</span></li>
+          </ul>
+          <a href="#contact" class="block text-center bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-300 transition">Start Free Trial</a>
+        </div>
+
+        <!-- Pro / MSP -->
+        <div class="bg-primary-600 rounded-2xl p-8 text-white relative transform md:scale-105 shadow-xl">
+          <div class="absolute -top-4 left-1/2 -translate-x-1/2 bg-yellow-400 text-yellow-900 text-sm font-bold px-4 py-1 rounded-full">BEST FOR MSPs</div>
+          <h3 class="text-2xl font-bold mb-2">Pro</h3>
+          <p class="text-primary-200 mb-4">Multi-customer operations at scale</p>
+          <div class="mb-6">
+            <span class="text-4xl font-bold">$79</span>
+            <span class="text-primary-200">/tech/month</span>
+          </div>
+          <p class="text-sm text-primary-200 mb-6">Unlimited clients included</p>
+          <ul class="space-y-3 mb-8">
+            <li class="flex items-center space-x-2"><svg class="w-5 h-5 text-primary-300" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg><span>Everything in Growth</span></li>
+            <li class="flex items-center space-x-2"><svg class="w-5 h-5 text-primary-300" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg><span>Full AI suite (expert matching, trends)</span></li>
+            <li class="flex items-center space-x-2"><svg class="w-5 h-5 text-primary-300" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg><span>Contract-aware SLA</span></li>
+            <li class="flex items-center space-x-2"><svg class="w-5 h-5 text-primary-300" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg><span>Governance & audit</span></li>
+            <li class="flex items-center space-x-2"><svg class="w-5 h-5 text-primary-300" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg><span>Full API access</span></li>
           </ul>
           <a href="#contact" class="block text-center bg-white text-primary-700 px-6 py-3 rounded-lg font-semibold hover:bg-primary-50 transition">Start Free Trial</a>
         </div>
+      </div>
 
-        <!-- MSP -->
-        <div class="bg-gray-50 rounded-2xl p-8 border border-gray-200">
-          <h3 class="text-2xl font-bold text-gray-900 mb-2">MSP</h3>
-          <p class="text-gray-600 mb-4">Multi-customer operations at scale</p>
-          <div class="mb-6">
-            <span class="text-4xl font-bold text-gray-900" id="price-msp">$149</span>
-            <span class="text-gray-500" id="price-unit-msp">/tech/month</span>
+      <!-- Per-Client Pricing Cards (Hidden by default) -->
+      <div id="pricing-per-client" class="hidden">
+        <div class="bg-gray-50 rounded-2xl p-8 border border-gray-200 max-w-xl mx-auto">
+          <div class="text-center">
+            <h3 class="text-2xl font-bold text-gray-900 mb-2">Per-Client Pricing</h3>
+            <p class="text-gray-600 mb-6">Perfect for MSPs who want unlimited technicians</p>
+            <div class="mb-6">
+              <span class="text-4xl font-bold text-gray-900">$89</span>
+              <span class="text-gray-500">/month for first 10 clients</span>
+            </div>
+            <div class="bg-primary-50 border border-primary-200 rounded-lg p-4 mb-6">
+              <p class="text-primary-800 font-medium">+ $5/month for each additional client</p>
+              <p class="text-primary-600 text-sm mt-1">Unlimited technicians on all plans</p>
+            </div>
+            <ul class="space-y-3 mb-8 text-left max-w-sm mx-auto">
+              <li class="flex items-center space-x-2"><svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg><span>All Pro features included</span></li>
+              <li class="flex items-center space-x-2"><svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg><span>Full AI suite</span></li>
+              <li class="flex items-center space-x-2"><svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg><span>Contract-aware SLA per client</span></li>
+              <li class="flex items-center space-x-2"><svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg><span>Multi-tenant isolation</span></li>
+              <li class="flex items-center space-x-2"><svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg><span>Full API access</span></li>
+            </ul>
+            <a href="#contact" class="inline-block bg-primary-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-primary-700 transition">Start Free Trial</a>
           </div>
-          <ul class="space-y-3 mb-8">
-            <li class="flex items-center space-x-2"><svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg><span>Everything in Professional</span></li>
-            <li class="flex items-center space-x-2"><svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg><span>Full AI suite</span></li>
-            <li class="flex items-center space-x-2"><svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg><span>Contract-aware SLA</span></li>
-            <li class="flex items-center space-x-2"><svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg><span>Governance & audit</span></li>
-            <li class="flex items-center space-x-2"><svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg><span>Full API access</span></li>
-          </ul>
-          <a href="#contact" class="block text-center bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-300 transition">Contact Sales</a>
         </div>
       </div>
 
-      <!-- Feature Comparison -->
+      <!-- Feature Comparison Table -->
       <div class="mt-16 overflow-x-auto">
         <table class="w-full text-left">
           <thead>
             <tr class="border-b border-gray-200">
               <th class="py-4 pr-4 font-semibold text-gray-900">Capability</th>
               <th class="py-4 px-4 font-semibold text-gray-900 text-center">Starter</th>
-              <th class="py-4 px-4 font-semibold text-primary-600 text-center">Professional</th>
-              <th class="py-4 pl-4 font-semibold text-gray-900 text-center">MSP</th>
+              <th class="py-4 px-4 font-semibold text-gray-900 text-center">Growth</th>
+              <th class="py-4 pl-4 font-semibold text-primary-600 text-center">Pro</th>
             </tr>
           </thead>
           <tbody class="text-gray-600">
@@ -352,97 +646,14 @@
     </div>
   </section>
 
-  <!-- Case Studies -->
-  <section id="case-studies" class="py-20 px-4 bg-gray-50">
-    <div class="max-w-6xl mx-auto">
-      <div class="text-center mb-12">
-        <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Results from real MSPs</h2>
-        <p class="text-lg text-gray-600">See how service providers transformed their operations with ServiFlow.</p>
-      </div>
-      <div class="grid md:grid-cols-3 gap-8">
-        <!-- Case Study 1 -->
-        <div class="bg-white rounded-xl p-8 shadow-sm border border-gray-100">
-          <div class="text-primary-600 font-semibold text-sm mb-2">REGIONAL MSP - APAC</div>
-          <h3 class="text-xl font-bold text-gray-900 mb-4">40% reduction in SLA breaches</h3>
-          <ul class="space-y-2 text-gray-600 text-sm mb-6">
-            <li class="flex items-start space-x-2">
-              <span class="text-primary-500 mt-1">&#8226;</span>
-              <span>Two-phase SLA tracking caught issues before breach</span>
-            </li>
-            <li class="flex items-start space-x-2">
-              <span class="text-primary-500 mt-1">&#8226;</span>
-              <span>Near-breach alerts enabled proactive escalation</span>
-            </li>
-            <li class="flex items-start space-x-2">
-              <span class="text-primary-500 mt-1">&#8226;</span>
-              <span>Business-hours SLA reduced false breach reports</span>
-            </li>
-          </ul>
-          <div class="border-t border-gray-100 pt-4">
-            <div class="text-2xl font-bold text-gray-900">3,200+</div>
-            <div class="text-gray-500 text-sm">tickets/month managed</div>
-          </div>
-        </div>
-
-        <!-- Case Study 2 -->
-        <div class="bg-white rounded-xl p-8 shadow-sm border border-gray-100">
-          <div class="text-primary-600 font-semibold text-sm mb-2">MID-MARKET MSP - EUROPE</div>
-          <h3 class="text-xl font-bold text-gray-900 mb-4">60% faster ticket routing</h3>
-          <ul class="space-y-2 text-gray-600 text-sm mb-6">
-            <li class="flex items-start space-x-2">
-              <span class="text-primary-500 mt-1">&#8226;</span>
-              <span>AI triage eliminated manual categorization</span>
-            </li>
-            <li class="flex items-start space-x-2">
-              <span class="text-primary-500 mt-1">&#8226;</span>
-              <span>CMDB auto-matching reduced data entry by 70%</span>
-            </li>
-            <li class="flex items-start space-x-2">
-              <span class="text-primary-500 mt-1">&#8226;</span>
-              <span>Rule engine handled 80% of routing automatically</span>
-            </li>
-          </ul>
-          <div class="border-t border-gray-100 pt-4">
-            <div class="text-2xl font-bold text-gray-900">12</div>
-            <div class="text-gray-500 text-sm">customer contracts managed</div>
-          </div>
-        </div>
-
-        <!-- Case Study 3 -->
-        <div class="bg-white rounded-xl p-8 shadow-sm border border-gray-100">
-          <div class="text-primary-600 font-semibold text-sm mb-2">ENTERPRISE IT - NORTH AMERICA</div>
-          <h3 class="text-xl font-bold text-gray-900 mb-4">Eliminated ghost customers</h3>
-          <ul class="space-y-2 text-gray-600 text-sm mb-6">
-            <li class="flex items-start space-x-2">
-              <span class="text-primary-500 mt-1">&#8226;</span>
-              <span>Monitoring alerts no longer created fake companies</span>
-            </li>
-            <li class="flex items-start space-x-2">
-              <span class="text-primary-500 mt-1">&#8226;</span>
-              <span>System source classification added full traceability</span>
-            </li>
-            <li class="flex items-start space-x-2">
-              <span class="text-primary-500 mt-1">&#8226;</span>
-              <span>CMDB integrity maintained across 4,000+ assets</span>
-            </li>
-          </ul>
-          <div class="border-t border-gray-100 pt-4">
-            <div class="text-2xl font-bold text-gray-900">4,000+</div>
-            <div class="text-gray-500 text-sm">CMDB items managed</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
   <!-- Testimonials -->
-  <section class="py-20 px-4 bg-white">
+  <section class="py-20 px-4 bg-gray-50">
     <div class="max-w-6xl mx-auto">
       <div class="text-center mb-12">
         <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">What operators say</h2>
       </div>
       <div class="grid md:grid-cols-2 gap-8">
-        <div class="bg-gray-50 rounded-xl p-8">
+        <div class="bg-white rounded-xl p-8 shadow-sm">
           <div class="flex items-center space-x-1 text-yellow-400 mb-4">
             <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>
             <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>
@@ -460,7 +671,7 @@
           </div>
         </div>
 
-        <div class="bg-gray-50 rounded-xl p-8">
+        <div class="bg-white rounded-xl p-8 shadow-sm">
           <div class="flex items-center space-x-1 text-yellow-400 mb-4">
             <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>
             <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>
@@ -482,13 +693,13 @@
   </section>
 
   <!-- FAQ -->
-  <section id="faq" class="py-20 px-4 bg-gray-50">
+  <section id="faq" class="py-20 px-4 bg-white">
     <div class="max-w-3xl mx-auto">
       <div class="text-center mb-12">
         <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Frequently asked questions</h2>
       </div>
       <div class="space-y-4">
-        <div class="bg-white rounded-lg border border-gray-200">
+        <div class="bg-gray-50 rounded-lg border border-gray-200">
           <button class="faq-toggle w-full text-left p-6 flex justify-between items-center" onclick="toggleFaq(this)">
             <span class="font-semibold text-gray-900">Is ServiFlow only for MSPs?</span>
             <svg class="w-5 h-5 text-gray-500 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
@@ -497,16 +708,16 @@
             No. MSPs get the most leverage, but internal IT teams can start on Starter and scale up when needed. The platform works for any team that takes SLAs seriously.
           </div>
         </div>
-        <div class="bg-white rounded-lg border border-gray-200">
+        <div class="bg-gray-50 rounded-lg border border-gray-200">
           <button class="faq-toggle w-full text-left p-6 flex justify-between items-center" onclick="toggleFaq(this)">
             <span class="font-semibold text-gray-900">How does SLA selection work?</span>
             <svg class="w-5 h-5 text-gray-500 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
           </button>
           <div class="faq-content hidden px-6 pb-6 text-gray-600">
-            ServiFlow applies the most specific SLA deterministically: Ticket override → customer → category → CMDB → default. No guessing, no hidden logic.
+            ServiFlow applies the most specific SLA deterministically: Ticket override -> customer -> category -> CMDB -> default. No guessing, no hidden logic.
           </div>
         </div>
-        <div class="bg-white rounded-lg border border-gray-200">
+        <div class="bg-gray-50 rounded-lg border border-gray-200">
           <button class="faq-toggle w-full text-left p-6 flex justify-between items-center" onclick="toggleFaq(this)">
             <span class="font-semibold text-gray-900">Do SLAs respect working hours?</span>
             <svg class="w-5 h-5 text-gray-500 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
@@ -515,7 +726,7 @@
             Yes. Targets are computed within business windows and the clock pauses outside business hours. No more weekend breach alerts.
           </div>
         </div>
-        <div class="bg-white rounded-lg border border-gray-200">
+        <div class="bg-gray-50 rounded-lg border border-gray-200">
           <button class="faq-toggle w-full text-left p-6 flex justify-between items-center" onclick="toggleFaq(this)">
             <span class="font-semibold text-gray-900">Is AI autonomous or chatbot-based?</span>
             <svg class="w-5 h-5 text-gray-500 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
@@ -524,13 +735,22 @@
             No. ServiFlow AI is agent-facing and operations-facing - not customer-facing by default. There is no autonomous ticket resolution. AI suggestions are presented to experts who confirm, modify, or reject them. All actions are logged and auditable.
           </div>
         </div>
-        <div class="bg-white rounded-lg border border-gray-200">
+        <div class="bg-gray-50 rounded-lg border border-gray-200">
+          <button class="faq-toggle w-full text-left p-6 flex justify-between items-center" onclick="toggleFaq(this)">
+            <span class="font-semibold text-gray-900">Can I import from my current PSA?</span>
+            <svg class="w-5 h-5 text-gray-500 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+          </button>
+          <div class="faq-content hidden px-6 pb-6 text-gray-600">
+            Yes. ServiFlow supports auto-import from ConnectWise and Autotask. Your tickets, customers, and CMDB items can be migrated in one click. CSV import is also available for other systems.
+          </div>
+        </div>
+        <div class="bg-gray-50 rounded-lg border border-gray-200">
           <button class="faq-toggle w-full text-left p-6 flex justify-between items-center" onclick="toggleFaq(this)">
             <span class="font-semibold text-gray-900">Which integrations are available now?</span>
             <svg class="w-5 h-5 text-gray-500 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
           </button>
           <div class="faq-content hidden px-6 pb-6 text-gray-600">
-            Email, Microsoft Teams, and monitoring alert ingest are available. Identity providers (Azure AD, Google) and escalation tools (Jira, GitHub, GitLab) are in active development. WhatsApp and billing integrations are planned for MSP tier.
+            Email, Microsoft Teams, and monitoring alert ingest are available. Identity providers (Azure AD, Google) and escalation tools (Jira, GitHub, GitLab) are in active development. WhatsApp and billing integrations are planned for Pro tier.
           </div>
         </div>
       </div>
@@ -541,11 +761,12 @@
   <section id="contact" class="py-20 px-4 gradient-hero">
     <div class="max-w-4xl mx-auto text-center">
       <h2 class="text-3xl md:text-4xl font-bold text-white mb-4">Ready to transform your service delivery?</h2>
-      <p class="text-xl text-primary-200 mb-8">Tell us your operating model and we'll guide setup. 14-day free trial, no credit card required.</p>
+      <p class="text-xl text-primary-200 mb-8">Start your 30-day free trial today. No credit card required. Auto-import from ConnectWise or Autotask.</p>
       <div class="flex flex-col sm:flex-row gap-4 justify-center">
-        <a href="mailto:hello@serviflow.app" class="bg-white text-primary-700 px-8 py-4 rounded-lg font-semibold hover:bg-primary-50 transition shadow-lg text-lg">Request a Demo</a>
-        <a href="mailto:hello@serviflow.app" class="border-2 border-white text-white px-8 py-4 rounded-lg font-semibold hover:bg-white/10 transition text-lg">Start Free Trial</a>
+        <a href="mailto:hello@serviflow.app" class="bg-white text-primary-700 px-8 py-4 rounded-lg font-semibold hover:bg-primary-50 transition shadow-lg text-lg">Start Free Trial</a>
+        <a href="mailto:hello@serviflow.app" class="border-2 border-white text-white px-8 py-4 rounded-lg font-semibold hover:bg-white/10 transition text-lg">Request a Demo</a>
       </div>
+      <p class="text-primary-200 text-sm mt-6">Full access to all features. Cancel anytime.</p>
     </div>
   </section>
 
@@ -599,33 +820,23 @@
       const isPerClient = document.getElementById('pricing-toggle').checked;
       const techLabel = document.getElementById('toggle-tech-label');
       const clientLabel = document.getElementById('toggle-client-label');
+      const perTechSection = document.getElementById('pricing-per-tech');
+      const perClientSection = document.getElementById('pricing-per-client');
 
       if (isPerClient) {
         techLabel.classList.remove('text-gray-900', 'font-medium');
         techLabel.classList.add('text-gray-500');
         clientLabel.classList.remove('text-gray-500');
         clientLabel.classList.add('text-gray-900', 'font-medium');
-
-        // Per-client pricing
-        document.getElementById('price-starter').textContent = '$99';
-        document.getElementById('price-unit-starter').textContent = '/client/month';
-        document.getElementById('price-pro').textContent = '$199';
-        document.getElementById('price-unit-pro').textContent = '/client/month';
-        document.getElementById('price-msp').textContent = '$349';
-        document.getElementById('price-unit-msp').textContent = '/client/month';
+        perTechSection.classList.add('hidden');
+        perClientSection.classList.remove('hidden');
       } else {
         clientLabel.classList.remove('text-gray-900', 'font-medium');
         clientLabel.classList.add('text-gray-500');
         techLabel.classList.remove('text-gray-500');
         techLabel.classList.add('text-gray-900', 'font-medium');
-
-        // Per-tech pricing
-        document.getElementById('price-starter').textContent = '$29';
-        document.getElementById('price-unit-starter').textContent = '/tech/month';
-        document.getElementById('price-pro').textContent = '$79';
-        document.getElementById('price-unit-pro').textContent = '/tech/month';
-        document.getElementById('price-msp').textContent = '$149';
-        document.getElementById('price-unit-msp').textContent = '/tech/month';
+        perTechSection.classList.remove('hidden');
+        perClientSection.classList.add('hidden');
       }
     }
 
