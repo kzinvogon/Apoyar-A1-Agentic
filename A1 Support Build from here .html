@@ -1681,6 +1681,53 @@ vNext-FULL-ActionsSLA:
           </div>
         </div>
 
+        <!-- System Overview (Master Admin) -->
+        <div id="view-system" style="display:none">
+          <div class="row space mb-12">
+            <div class="row"><button class="btn ghost" onclick="switchView('dash')">← Back</button><h3 class="title" style="margin:0 0 0 8px">System Overview</h3></div>
+            <button class="btn" onclick="loadSystemOverview()">🔄 Refresh</button>
+          </div>
+
+          <!-- System Stats -->
+          <div class="grid4 mb-16">
+            <div class="card p-16">
+              <div class="subtitle">Total Tenants</div>
+              <div id="sys-total-tenants" style="font-size:28px;font-weight:800">0</div>
+            </div>
+            <div class="card p-16">
+              <div class="subtitle">Active Tenants</div>
+              <div id="sys-active-tenants" style="font-size:28px;font-weight:800">0</div>
+            </div>
+            <div class="card p-16">
+              <div class="subtitle">Master Users</div>
+              <div id="sys-master-users" style="font-size:28px;font-weight:800">0</div>
+            </div>
+            <div class="card p-16">
+              <div class="subtitle">Audit Entries</div>
+              <div id="sys-audit-logs" style="font-size:28px;font-weight:800">0</div>
+            </div>
+          </div>
+
+          <!-- Recent Activity -->
+          <div class="card p-16">
+            <h4>Recent System Activity</h4>
+            <table id="system-activity-table">
+              <thead>
+                <tr>
+                  <th>Action</th>
+                  <th>User</th>
+                  <th>Details</th>
+                  <th>IP Address</th>
+                  <th>Time</th>
+                </tr>
+              </thead>
+              <tbody id="system-activity-body">
+                <tr><td colspan="5" class="subtitle">Loading activity...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         <!-- Email Processing Management -->
         <div id="view-email-processing" style="display:none">
           <div class="row space mb-12">
@@ -6070,9 +6117,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   function renderExpertDash(){ const currentRole = window.role || role; if(currentRole!=='expert') return; const me='Jane Doe'; const my=tickets.filter(t=>t.assignee===me && t.status!=='Resolved'); const today=my.filter(t=>{ const now=new Date(); const due=parseDueEndOfDay(t.due); return due && now.toDateString()===due.toDateString(); }); const risk=my.filter(t=>getSLAState(t).cls!=='ok'); document.getElementById('ex-open').textContent=my.length; document.getElementById('ex-today').textContent=today.length; document.getElementById('ex-risk').textContent=risk.length; const tb=document.getElementById('ex-list'); tb.innerHTML=''; my.slice(0,6).forEach(t=>{ const tr=document.createElement('tr'); const sla=getSLAState(t); const dateTime=formatDateTime(t.created); tr.onclick=()=>openTicket(t.id); tr.innerHTML = `<td>#${t.id}</td><td>${t.title}</td><td>${dateTime}</td><td>${t.status}</td><td>${slaBadgeHTML(sla)}</td>`; tb.appendChild(tr); }); }
   function renderCustomerDash(){ const currentRole = window.role || role; if(currentRole!=='customer') return; const items = CMDB_ITEMS.filter(i => !tenant || i.customer===tenant); const ciCount = items.reduce((a,i)=>a+(CIS_BY_ITEM[i.cmdb_id]?.length||0),0); const openTickets = tickets.filter(t => (!tenant || (t.customer===tenant)) && t.status!=='Resolved').length; document.getElementById('cu-open').textContent=openTickets; document.getElementById('cu-items').textContent=items.length; document.getElementById('cu-cis').textContent=ciCount; const tbody=document.getElementById('cu-ci-body'); tbody.innerHTML=''; const all=[]; items.forEach(i => (CIS_BY_ITEM[i.cmdb_id]||[]).forEach(ci => all.push({item:i, ci}))); all.slice(0,8).forEach(r => { const tr=document.createElement('tr'); const m=r.ci.Model||r.ci.model||''; const loc=r.ci.Location||r.ci.location||''; const life=r.ci.Lifecycle||r.ci.lifecycle||r.ci.life||''; tr.innerHTML = `<td>${r.item.name}</td><td>${r.ci.name}</td><td>${m}</td><td>${loc}</td><td>${life}</td>`; tbody.appendChild(tr); }); }
-  function renderMasterDash(){ 
+  function renderMasterDash(){
     const currentRole = window.role || role;
-    if (currentRole !== 'master_admin') return; 
+    if (currentRole !== 'super_admin') return; 
     
     // Load tenants from master database
     loadTenants();
@@ -6235,9 +6282,54 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     }
   }
   
-  function loadSystemOverview() {
-    // Placeholder for system overview functionality
-    console.log('Loading system overview...');
+  async function loadSystemOverview() {
+    try {
+      const response = await fetch(window.location.protocol + '//' + window.location.host + '/api/master/overview', {
+        headers: {
+          'Authorization': 'Bearer ' + localStorage.getItem('token')
+        }
+      });
+      const data = await response.json();
+
+      if (data.success && data.overview) {
+        const { counts, recent_activity } = data.overview;
+
+        // Update stats
+        document.getElementById('sys-total-tenants').textContent = counts.total_tenants || 0;
+        document.getElementById('sys-active-tenants').textContent = counts.active_tenants || 0;
+        document.getElementById('sys-master-users').textContent = counts.master_users || 0;
+        document.getElementById('sys-audit-logs').textContent = counts.audit_logs || 0;
+
+        // Update recent activity table
+        const tbody = document.getElementById('system-activity-body');
+        if (tbody && recent_activity && recent_activity.length > 0) {
+          tbody.innerHTML = '';
+          recent_activity.forEach(activity => {
+            const tr = document.createElement('tr');
+            const time = new Date(activity.created_at).toLocaleString();
+            let details = '';
+            try {
+              const parsed = JSON.parse(activity.details);
+              details = parsed.message || JSON.stringify(parsed);
+            } catch (e) {
+              details = activity.details || '';
+            }
+            tr.innerHTML = `
+              <td><span class="badge">${activity.action || 'N/A'}</span></td>
+              <td>${activity.user_username || 'System'}</td>
+              <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis">${details}</td>
+              <td>${activity.ip_address || 'N/A'}</td>
+              <td>${time}</td>
+            `;
+            tbody.appendChild(tr);
+          });
+        } else if (tbody) {
+          tbody.innerHTML = '<tr><td colspan="5" class="subtitle">No recent activity</td></tr>';
+        }
+      }
+    } catch (error) {
+      console.error('Error loading system overview:', error);
+    }
   }
   
 
@@ -9955,50 +10047,60 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   }
   
   function updateSubscriptionStats(subscriptions) {
+    if (!subscriptions || subscriptions.length === 0) {
+      document.getElementById('active-subscriptions').textContent = '0';
+      document.getElementById('total-revenue').textContent = '$0';
+      document.getElementById('trial-conversions').textContent = '0%';
+      return;
+    }
     const activeSubscriptions = subscriptions.filter(s => s.status === 'active').length;
-    const totalRevenue = subscriptions.reduce((sum, s) => sum + (s.monthlyPrice || 0), 0);
-    const trialSubscriptions = subscriptions.filter(s => s.plan === 'trial').length;
-    const convertedTrials = subscriptions.filter(s => s.plan !== 'trial' && s.previousPlan === 'trial').length;
+    const totalRevenue = subscriptions.reduce((sum, s) => sum + (parseFloat(s.monthly_price) || 0), 0);
+    const trialSubscriptions = subscriptions.filter(s => s.status === 'trial').length;
+    const convertedTrials = subscriptions.filter(s => s.status !== 'trial' && s.previous_plan_name === 'Trial').length;
     const conversionRate = trialSubscriptions > 0 ? Math.round((convertedTrials / trialSubscriptions) * 100) : 0;
-    
+
     document.getElementById('active-subscriptions').textContent = activeSubscriptions;
     document.getElementById('total-revenue').textContent = '$' + totalRevenue.toLocaleString();
     document.getElementById('trial-conversions').textContent = conversionRate + '%';
   }
-  
+
   function renderSubscriptionList(subscriptions) {
     const tbody = document.getElementById('subscription-list-body');
     if (tbody) {
+      if (!subscriptions || subscriptions.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="subtitle">No subscriptions</td></tr>';
+        return;
+      }
       tbody.innerHTML = '';
       subscriptions.forEach(sub => {
         const tr = document.createElement('tr');
-        const usage = sub.maxUsers === -1 ? sub.currentUsers + '/∞' : sub.currentUsers + '/' + sub.maxUsers;
-        const nextBilling = sub.nextBillingDate ? new Date(sub.nextBillingDate).toLocaleDateString() : 'N/A';
-        
+        const nextBilling = sub.next_billing_date ? new Date(sub.next_billing_date).toLocaleDateString() : 'N/A';
+        const planName = sub.plan_name || 'Unknown';
+
         // Add trial expiration info
         let trialInfo = '';
-        if (sub.plan === 'trial' && sub.trialEndDate) {
-          const trialEnd = new Date(sub.trialEndDate);
+        if (sub.status === 'trial' && sub.trial_ends_at) {
+          const trialEnd = new Date(sub.trial_ends_at);
           const now = new Date();
           const daysLeft = Math.ceil((trialEnd - now) / (1000 * 60 * 60 * 24));
-          
+
           if (daysLeft > 0) {
             trialInfo = `<br><small style="color: #ff9800;">Trial expires in ${daysLeft} days</small>`;
           } else {
             trialInfo = `<br><small style="color: #f44336;">Trial expired</small>`;
           }
         }
-        
+
         tr.innerHTML = `
-          <td>${sub.tenantName}${trialInfo}</td>
-          <td><span class="badge plan-${sub.plan}">${sub.plan.toUpperCase()}</span></td>
-          <td><span class="badge status-${sub.status}">${sub.status}</span></td>
-          <td>$${sub.monthlyPrice}/month</td>
+          <td>${sub.company_name || sub.tenant_code || 'N/A'}${trialInfo}</td>
+          <td><span class="badge">${planName}</span></td>
+          <td><span class="badge status-${sub.status}">${sub.status || 'N/A'}</span></td>
+          <td>$${sub.monthly_price || 0}/month</td>
           <td>${nextBilling}</td>
-          <td>${usage}</td>
-          <td>${sub.usagePercentage}%</td>
+          <td>${sub.billing_cycle || 'N/A'}</td>
+          <td>—</td>
           <td>
-            ${sub.plan === 'trial' ? `
+            ${sub.status === 'trial' ? `
               <button onclick="extendTrial('${sub.id}')" class="btn btn-sm">Extend</button>
               <button onclick="convertTrial('${sub.id}')" class="btn btn-sm btn-primary">Convert</button>
             ` : `
@@ -10181,7 +10283,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       
       if (data.success) {
         updateBillingStats(data.billing);
-        renderBillingList(data.transactions);
+        renderBillingList(data.billing.transactions || []);
       }
     } catch (error) {
       console.error('Error loading billing:', error);
@@ -10198,20 +10300,24 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   function renderBillingList(transactions) {
     const tbody = document.getElementById('billing-list-body');
     if (tbody) {
+      if (!transactions || transactions.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="subtitle">No billing transactions</td></tr>';
+        return;
+      }
       tbody.innerHTML = '';
       transactions.forEach(transaction => {
         const tr = document.createElement('tr');
-        const date = new Date(transaction.date).toLocaleDateString();
-        const statusClass = transaction.status === 'paid' ? 'status-success' : 
+        const date = transaction.date ? new Date(transaction.date).toLocaleDateString() : 'N/A';
+        const statusClass = transaction.status === 'paid' ? 'status-success' :
                            transaction.status === 'pending' ? 'status-warning' : 'status-error';
-        
+
         tr.innerHTML = `
           <td>${date}</td>
-          <td>${transaction.tenantName}</td>
-          <td>${transaction.description}</td>
-          <td>$${transaction.amount}</td>
-          <td><span class="badge ${statusClass}">${transaction.status}</span></td>
-          <td><button onclick="viewInvoice('${transaction.invoiceId}')" class="btn btn-sm">View</button></td>
+          <td>${transaction.tenant || 'N/A'}</td>
+          <td>${transaction.description || transaction.plan || 'N/A'}</td>
+          <td>$${transaction.amount || 0}</td>
+          <td><span class="badge ${statusClass}">${transaction.status || 'N/A'}</span></td>
+          <td><button onclick="viewInvoice('${transaction.id}')" class="btn btn-sm">View</button></td>
         `;
         tbody.appendChild(tr);
       });
@@ -10250,36 +10356,47 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   }
   
   function updatePlanStats(plans) {
+    if (!plans || plans.length === 0) {
+      document.getElementById('total-plans').textContent = '0';
+      document.getElementById('active-plans').textContent = '0';
+      document.getElementById('popular-plan').textContent = 'N/A';
+      return;
+    }
     const totalPlans = plans.length;
     const activePlans = plans.filter(p => p.status === 'active').length;
-    const popularPlan = plans.reduce((prev, current) => 
-      (prev.subscriberCount || 0) > (current.subscriberCount || 0) ? prev : current
+    const popularPlan = plans.reduce((prev, current) =>
+      (prev.tenant_count || 0) > (current.tenant_count || 0) ? prev : current
     );
-    
+
     document.getElementById('total-plans').textContent = totalPlans;
     document.getElementById('active-plans').textContent = activePlans;
     document.getElementById('popular-plan').textContent = popularPlan.name || 'N/A';
   }
-  
+
   function renderPlansList(plans) {
     const tbody = document.getElementById('plans-list-body');
     if (tbody) {
+      if (!plans || plans.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="subtitle">No plans defined</td></tr>';
+        return;
+      }
       tbody.innerHTML = '';
       plans.forEach(plan => {
         const tr = document.createElement('tr');
-        const users = plan.maxUsers === -1 ? 'Unlimited' : plan.maxUsers;
-        const tickets = plan.maxTickets === -1 ? 'Unlimited' : plan.maxTickets;
-        const storage = plan.maxStorage === -1 ? 'Unlimited' : plan.maxStorage + 'GB';
-        const features = plan.features.slice(0, 3).join(', ') + (plan.features.length > 3 ? '...' : '');
-        
+        const users = plan.max_users === -1 ? 'Unlimited' : (plan.max_users || 'N/A');
+        const tickets = plan.max_tickets === -1 ? 'Unlimited' : (plan.max_tickets || 'N/A');
+        const storage = plan.max_storage === -1 ? 'Unlimited' : ((plan.max_storage || 0) + 'GB');
+        const featuresList = Array.isArray(plan.features) ? plan.features : [];
+        const features = featuresList.length > 0 ? (featuresList.slice(0, 3).join(', ') + (featuresList.length > 3 ? '...' : '')) : 'None';
+
         tr.innerHTML = `
-          <td><strong>${plan.name}</strong></td>
-          <td>$${plan.monthlyPrice}/month</td>
+          <td><strong>${plan.name || 'Unknown'}</strong></td>
+          <td>$${plan.monthly_price || 0}/month</td>
           <td>${users}</td>
           <td>${tickets}</td>
           <td>${storage}</td>
-          <td title="${plan.features.join(', ')}">${features}</td>
-          <td><span class="badge status-${plan.status}">${plan.status}</span></td>
+          <td title="${featuresList.join(', ')}">${features}</td>
+          <td><span class="badge status-${plan.status || 'inactive'}">${plan.status || 'N/A'}</span></td>
           <td>
             <button onclick="editPlan('${plan.id}')" class="btn btn-sm">Edit</button>
             <button onclick="duplicatePlan('${plan.id}')" class="btn btn-sm">Copy</button>
