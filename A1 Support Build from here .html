@@ -3154,6 +3154,10 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               <div><div class="subtitle">Location</div><div id="cmdb-location-h" style="font-weight:600;font-size:15px;"></div></div>
               <div><div class="subtitle">CMDB ID</div><div id="cmdb-id-h" style="font-weight:500;font-size:12px;color:var(--muted);"></div></div>
             </div>
+            <div id="cmdb-comment-section" style="margin-top:16px;display:none;">
+              <div class="subtitle">Comment</div>
+              <div id="cmdb-comment-h" style="font-size:14px;color:var(--text);white-space:pre-wrap;background:var(--bg);padding:12px;border-radius:6px;border:1px solid var(--border);"></div>
+            </div>
           </div>
           <div class="card p-16">
             <h4 class="mb-12">Configuration Items (<span id="ci-count">0</span>)</h4>
@@ -15362,6 +15366,16 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     document.getElementById('cmdb-model-h').textContent = item.model_name || '—';
     document.getElementById('cmdb-location-h').textContent = item.asset_location || '—';
     document.getElementById('cmdb-id-h').textContent = currentItemId || '—';
+
+    // Populate comment if exists
+    const commentSection = document.getElementById('cmdb-comment-section');
+    const commentEl = document.getElementById('cmdb-comment-h');
+    if (item.comment && item.comment.trim()) {
+      commentEl.textContent = item.comment;
+      commentSection.style.display = 'block';
+    } else {
+      commentSection.style.display = 'none';
+    }
 
     // Show loading state
     const ciLoading = document.getElementById('ci-loading');
