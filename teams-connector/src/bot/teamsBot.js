@@ -874,7 +874,7 @@ class ServiFlowBot extends TeamsActivityHandler {
       );
 
       const ticket = tickets[0];
-      const card = buildTicketCard(ticket);
+      const card = buildTicketCard(ticket, { mode });
       const modeLabel = mode === 'customer' ? ' (as Customer)' : '';
       await context.sendActivity({
         text: `✅ Ticket #${ticketId} created successfully!${modeLabel}`,
@@ -917,7 +917,16 @@ class ServiFlowBot extends TeamsActivityHandler {
         return;
       }
 
-      const card = buildTicketCard(tickets[0]);
+      // Get user mode for discrete indicator
+      let mode = null;
+      const userEmailLc = await getUserEmail(context);
+      if (userEmailLc) {
+        const userName = context.activity.from?.name || userEmailLc;
+        const { userId } = await this.findOrCreateUser(pool, userEmailLc, userName);
+        mode = await this.getUserMode(pool, userId, userEmailLc);
+      }
+
+      const card = buildTicketCard(tickets[0], { mode });
       await context.sendActivity({ attachments: [CardFactory.adaptiveCard(card)] });
     } catch (error) {
       console.error('[Bot] View ticket error:', error);
@@ -994,7 +1003,7 @@ class ServiFlowBot extends TeamsActivityHandler {
         return;
       }
 
-      const card = buildTicketListCard(tickets, listTitle);
+      const card = buildTicketListCard(tickets, listTitle, { mode });
       await context.sendActivity({ attachments: [CardFactory.adaptiveCard(card)] });
     } catch (error) {
       console.error('[Bot] My tickets error:', error);
