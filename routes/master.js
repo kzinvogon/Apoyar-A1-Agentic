@@ -503,13 +503,15 @@ router.get('/plans', requireMasterAuth, async (req, res) => {
     try {
       const [plans] = await connection.query(`
         SELECT
-          p.id, p.name, p.description, p.monthly_price, p.max_users,
-          p.max_tickets, p.max_storage, p.features, p.status,
+          p.id, p.name, p.display_name, p.description,
+          p.price_monthly as monthly_price, p.max_users,
+          p.max_tickets, p.max_storage_gb as max_storage, p.features,
+          CASE WHEN p.is_active THEN 'active' ELSE 'inactive' END as status,
           COUNT(s.id) as tenant_count
-        FROM plans p
-        LEFT JOIN subscriptions s ON p.id = s.plan_id AND s.status IN ('active', 'trial')
+        FROM subscription_plans p
+        LEFT JOIN tenant_subscriptions s ON p.id = s.plan_id AND s.status IN ('active', 'trial')
         GROUP BY p.id
-        ORDER BY p.monthly_price ASC
+        ORDER BY p.price_monthly ASC
       `);
 
       // Parse JSON features
@@ -531,7 +533,7 @@ router.get('/plans', requireMasterAuth, async (req, res) => {
 // Create new subscription plan
 router.post('/plans', requireMasterAuth, async (req, res) => {
   try {
-    const { name, description, monthlyPrice, maxUsers, maxTickets, maxStorage, status, features } = req.body;
+    const { name, displayName, description, monthlyPrice, yearlyPrice, maxUsers, maxTickets, maxStorage, status, features } = req.body;
 
     // Validate required fields
     if (!name) {
@@ -542,23 +544,28 @@ router.post('/plans', requireMasterAuth, async (req, res) => {
 
     try {
       // Check if plan name already exists
-      const [existing] = await connection.query('SELECT id FROM plans WHERE name = ?', [name]);
+      const [existing] = await connection.query('SELECT id FROM subscription_plans WHERE name = ?', [name]);
       if (existing.length > 0) {
         return res.status(400).json({ success: false, message: 'Plan with this name already exists' });
       }
 
+      const priceMonthly = parseFloat(monthlyPrice) || 0;
+      const priceYearly = parseFloat(yearlyPrice) || (priceMonthly * 10); // Default: 10 months for yearly
+
       const [result] = await connection.query(`
-        INSERT INTO plans (name, description, monthly_price, max_users, max_tickets, max_storage, features, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO subscription_plans (name, display_name, description, price_monthly, price_yearly, max_users, max_tickets, max_storage_gb, features, is_active)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, [
         name,
+        displayName || name,
         description || `${name} plan`,
-        parseFloat(monthlyPrice) || 0,
+        priceMonthly,
+        priceYearly,
         parseInt(maxUsers) || -1,
         parseInt(maxTickets) || -1,
         parseInt(maxStorage) || 10,
         JSON.stringify(Array.isArray(features) ? features : []),
-        status || 'active'
+        status === 'active' || status === undefined
       ]);
 
       res.json({
