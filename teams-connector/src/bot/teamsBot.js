@@ -546,8 +546,15 @@ class ServiFlowBot extends TeamsActivityHandler {
 
   // Handle adaptive card actions
   async onAdaptiveCardInvoke(context, invokeValue) {
-    const action = invokeValue.action;
-    const data = action.data || {};
+    // Action.Submit data can be in different locations depending on Teams client version
+    const data = invokeValue?.action?.data || invokeValue?.data || context.activity?.value || {};
+
+    console.log('[Bot] Adaptive card invoke received:', JSON.stringify({
+      invokeAction: invokeValue?.action?.type,
+      dataAction: data.action,
+      ticketId: data.ticketId,
+      rawValue: context.activity?.value
+    }));
 
     try {
       switch (data.action) {
@@ -570,17 +577,51 @@ class ServiFlowBot extends TeamsActivityHandler {
           await this.handleSetMode(context, data.mode);
           break;
         default:
-          await context.sendActivity('Unknown action');
+          console.log('[Bot] Unknown card action:', data.action, 'Full data:', JSON.stringify(data));
+          await context.sendActivity('Unknown action: ' + (data.action || 'none'));
       }
       return { statusCode: 200 };
     } catch (error) {
-      console.error('Card action error:', error);
+      console.error('[Bot] Card action error:', error);
       await context.sendActivity(`Error: ${error.message}`);
       return { statusCode: 500 };
     }
   }
 
   async handleMessage(context) {
+    // Check if this is actually a card submit action disguised as a message
+    const activityValue = context.activity.value;
+    if (activityValue && activityValue.action) {
+      console.log('[Bot] Card action received via message:', JSON.stringify(activityValue));
+      // Handle card actions that come through as messages
+      try {
+        switch (activityValue.action) {
+          case 'viewTicket':
+            await this.handleViewTicket(context, activityValue.ticketId);
+            return;
+          case 'assignToMe':
+            await this.handleAssignToMe(context, activityValue.ticketId);
+            return;
+          case 'resolveTicket':
+            await this.handleResolveTicket(context, activityValue.ticketId);
+            return;
+          case 'createTicket':
+            await this.handleCreateTicketSubmit(context, activityValue);
+            return;
+          case 'viewCMDB':
+            await this.handleViewCMDB(context, activityValue.cmdbId);
+            return;
+          case 'setMode':
+            await this.handleSetMode(context, activityValue.mode);
+            return;
+        }
+      } catch (error) {
+        console.error('[Bot] Card action error:', error);
+        await context.sendActivity(`Error: ${error.message}`);
+        return;
+      }
+    }
+
     const rawText = this.removeBotMention(context.activity.text || '').trim();
     const text = rawText.toLowerCase();
 
