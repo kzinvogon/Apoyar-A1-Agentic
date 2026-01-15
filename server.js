@@ -164,6 +164,14 @@ app.get('/ticket/:id', (req, res) => {
   res.sendFile(path.join(__dirname, 'A1 Support Build from here .html'));
 });
 
+// Settings/integrations route - for Teams OAuth callback redirect
+app.get('/settings/integrations', (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.sendFile(path.join(__dirname, 'A1 Support Build from here .html'));
+});
+
 // Health check endpoint - always returns 200 so Railway health checks pass
 app.get('/health', (req, res) => {
   res.json({
