@@ -768,64 +768,12 @@
         </div>
       </div>
 
-      <!-- Per-Tech Pricing Cards -->
+      <!-- Per-Tech Pricing Cards (Dynamically loaded from /api/plans) -->
       <div id="pricing-per-tech" class="grid md:grid-cols-3 gap-8">
-        <!-- Starter -->
-        <div class="bg-gray-50 rounded-2xl p-8 border border-gray-200">
-          <h3 class="text-2xl font-bold text-gray-900 mb-2">Starter</h3>
-          <p class="text-gray-600 mb-4">Internal IT or small teams</p>
-          <div class="mb-6">
-            <span class="text-4xl font-bold text-gray-900">$29</span>
-            <span class="text-gray-500">/tech/month</span>
-          </div>
-          <p class="text-sm text-gray-500 mb-6">Unlimited clients included</p>
-          <ul class="space-y-3 mb-8">
-            <li class="flex items-center space-x-2"><svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg><span>Ticketing & CMDB</span></li>
-            <li class="flex items-center space-x-2"><svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg><span>SLA definitions</span></li>
-            <li class="flex items-center space-x-2"><svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg><span>Knowledge base</span></li>
-            <li class="flex items-center space-x-2"><svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg><span>Basic rules</span></li>
-            <li class="flex items-center space-x-2"><svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg><span>Email ingest</span></li>
-          </ul>
-          <a href="#contact" class="block text-center bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-300 transition">Start Free Trial</a>
-        </div>
-
-        <!-- Growth -->
-        <div class="bg-gray-50 rounded-2xl p-8 border border-gray-200">
-          <h3 class="text-2xl font-bold text-gray-900 mb-2">Growth</h3>
-          <p class="text-gray-600 mb-4">Growing teams with integrations</p>
-          <div class="mb-6">
-            <span class="text-4xl font-bold text-gray-900">$49</span>
-            <span class="text-gray-500">/tech/month</span>
-          </div>
-          <p class="text-sm text-gray-500 mb-6">Unlimited clients included</p>
-          <ul class="space-y-3 mb-8">
-            <li class="flex items-center space-x-2"><svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg><span>Everything in Starter</span></li>
-            <li class="flex items-center space-x-2"><svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg><span>Customer portal</span></li>
-            <li class="flex items-center space-x-2"><svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg><span>Service catalogue</span></li>
-            <li class="flex items-center space-x-2"><svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg><span>AI triage & CMDB matching</span></li>
-            <li class="flex items-center space-x-2"><svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg><span>Teams, Jira, SSO</span></li>
-          </ul>
-          <a href="#contact" class="block text-center bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-300 transition">Start Free Trial</a>
-        </div>
-
-        <!-- Pro / MSP -->
-        <div class="bg-primary-600 rounded-2xl p-8 text-white relative transform md:scale-105 shadow-xl">
-          <div class="absolute -top-4 left-1/2 -translate-x-1/2 bg-yellow-400 text-yellow-900 text-sm font-bold px-4 py-1 rounded-full">BEST FOR MSPs</div>
-          <h3 class="text-2xl font-bold mb-2">Pro</h3>
-          <p class="text-primary-200 mb-4">Multi-customer operations at scale</p>
-          <div class="mb-6">
-            <span class="text-4xl font-bold">$79</span>
-            <span class="text-primary-200">/tech/month</span>
-          </div>
-          <p class="text-sm text-primary-200 mb-6">Unlimited clients included</p>
-          <ul class="space-y-3 mb-8">
-            <li class="flex items-center space-x-2"><svg class="w-5 h-5 text-primary-300" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg><span>Everything in Growth</span></li>
-            <li class="flex items-center space-x-2"><svg class="w-5 h-5 text-primary-300" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg><span>Full AI suite (expert matching, trends)</span></li>
-            <li class="flex items-center space-x-2"><svg class="w-5 h-5 text-primary-300" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg><span>Contract-aware SLA</span></li>
-            <li class="flex items-center space-x-2"><svg class="w-5 h-5 text-primary-300" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg><span>Governance & audit</span></li>
-            <li class="flex items-center space-x-2"><svg class="w-5 h-5 text-primary-300" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg><span>Full API access</span></li>
-          </ul>
-          <a href="#contact" class="block text-center bg-white text-primary-700 px-6 py-3 rounded-lg font-semibold hover:bg-primary-50 transition">Start Free Trial</a>
+        <!-- Loading state -->
+        <div class="col-span-3 text-center py-8" id="pricing-loading">
+          <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-primary-600 border-t-transparent"></div>
+          <p class="text-gray-500 mt-2">Loading plans...</p>
         </div>
       </div>
 
@@ -855,36 +803,20 @@
         </div>
       </div>
 
-      <!-- Feature Comparison Table -->
+      <!-- Feature Comparison Table (Dynamically loaded from /api/plans/compare) -->
       <div class="mt-16 overflow-x-auto">
         <p class="text-gray-600 text-sm mb-4">Capabilities include seamless integrations with your existing tools.</p>
-        <table class="w-full text-left">
-          <thead>
+        <table class="w-full text-left" id="feature-comparison-table">
+          <thead id="comparison-header">
             <tr class="border-b border-gray-200">
               <th class="py-4 pr-4 font-semibold text-gray-900">Capability</th>
-              <th class="py-4 px-4 font-semibold text-gray-900 text-center">Starter</th>
-              <th class="py-4 px-4 font-semibold text-gray-900 text-center">Growth</th>
-              <th class="py-4 pl-4 font-semibold text-primary-600 text-center">Pro</th>
+              <!-- Plan columns loaded dynamically -->
             </tr>
           </thead>
-          <tbody class="text-gray-600">
-            <tr class="border-b border-gray-100"><td class="py-3 pr-4">Knowledge base & articles</td><td class="py-3 px-4 text-center text-green-600">&#10003;</td><td class="py-3 px-4 text-center text-green-600">&#10003;</td><td class="py-3 pl-4 text-center text-green-600">&#10003;</td></tr>
-            <tr class="border-b border-gray-100"><td class="py-3 pr-4">Basic routing rules</td><td class="py-3 px-4 text-center text-green-600">&#10003;</td><td class="py-3 px-4 text-center text-green-600">&#10003;</td><td class="py-3 pl-4 text-center text-green-600">&#10003;</td></tr>
-            <tr class="border-b border-gray-100"><td class="py-3 pr-4">Email ingest & notifications</td><td class="py-3 px-4 text-center text-green-600">&#10003;</td><td class="py-3 px-4 text-center text-green-600">&#10003;</td><td class="py-3 pl-4 text-center text-green-600">&#10003;</td></tr>
-            <tr class="border-b border-gray-100"><td class="py-3 pr-4">Service catalogue</td><td class="py-3 px-4 text-center text-gray-300">-</td><td class="py-3 px-4 text-center text-green-600">&#10003;</td><td class="py-3 pl-4 text-center text-green-600">&#10003;</td></tr>
-            <tr class="border-b border-gray-100"><td class="py-3 pr-4">Customer portal</td><td class="py-3 px-4 text-center text-gray-300">-</td><td class="py-3 px-4 text-center text-green-600">&#10003;</td><td class="py-3 pl-4 text-center text-green-600">&#10003;</td></tr>
-            <tr class="border-b border-gray-100"><td class="py-3 pr-4">AI triage suggestions</td><td class="py-3 px-4 text-center text-gray-300">-</td><td class="py-3 px-4 text-center text-green-600">&#10003;</td><td class="py-3 pl-4 text-center text-green-600">&#10003;</td></tr>
-            <tr class="border-b border-gray-100"><td class="py-3 pr-4">Microsoft Teams / SSO</td><td class="py-3 px-4 text-center text-gray-300">-</td><td class="py-3 px-4 text-center text-green-600">&#10003;</td><td class="py-3 pl-4 text-center text-green-600">&#10003;</td></tr>
-            <tr class="border-b border-gray-100"><td class="py-3 pr-4">AI expert matching</td><td class="py-3 px-4 text-center text-gray-300">-</td><td class="py-3 px-4 text-center text-gray-300">-</td><td class="py-3 pl-4 text-center text-green-600">&#10003;</td></tr>
-            <tr class="border-b border-gray-100"><td class="py-3 pr-4">AI trend detection</td><td class="py-3 px-4 text-center text-gray-300">-</td><td class="py-3 px-4 text-center text-gray-300">-</td><td class="py-3 pl-4 text-center text-green-600">&#10003;</td></tr>
-            <tr class="border-b border-gray-100"><td class="py-3 pr-4">Contract-aware SLA</td><td class="py-3 px-4 text-center text-gray-300">-</td><td class="py-3 px-4 text-center text-gray-300">-</td><td class="py-3 pl-4 text-center text-green-600">&#10003;</td></tr>
-            <tr class="border-b border-gray-100"><td class="py-3 pr-4">Full API + automation access</td><td class="py-3 px-4 text-center text-gray-300">-</td><td class="py-3 px-4 text-center text-gray-300">-</td><td class="py-3 pl-4 text-center text-green-600">&#10003;</td></tr>
-            <!-- Integration rows -->
-            <tr class="border-b border-gray-100 bg-gray-50"><td class="py-3 pr-4 font-medium text-gray-700" colspan="4">Integrations</td></tr>
-            <tr class="border-b border-gray-100"><td class="py-3 pr-4 text-sm">Monitoring & alerts (Nagios, Zabbix, PRTG, Datadog, Prometheus, Grafana)</td><td class="py-3 px-4 text-center text-green-600">&#10003;</td><td class="py-3 px-4 text-center text-green-600">&#10003;</td><td class="py-3 pl-4 text-center text-green-600">&#10003;</td></tr>
-            <tr class="border-b border-gray-100"><td class="py-3 pr-4 text-sm">Identity & SSO (Microsoft Entra ID, Google Workspace)</td><td class="py-3 px-4 text-center text-gray-300">-</td><td class="py-3 px-4 text-center text-green-600">&#10003;</td><td class="py-3 pl-4 text-center text-green-600">&#10003;</td></tr>
-            <tr class="border-b border-gray-100"><td class="py-3 pr-4 text-sm">Customer channels (Email; WhatsApp & SMS Jan '26)*</td><td class="py-3 px-4 text-center text-green-600 text-xs">Email</td><td class="py-3 px-4 text-center text-green-600">&#10003;</td><td class="py-3 pl-4 text-center text-green-600">&#10003;</td></tr>
-            <tr><td class="py-3 pr-4 text-sm">Advanced integrations (Jira, GitHub, GitLab, Slack*, Xero*, QuickBooks*)</td><td class="py-3 px-4 text-center text-gray-300">-</td><td class="py-3 px-4 text-center text-gray-300">-</td><td class="py-3 pl-4 text-center text-green-600">&#10003;</td></tr>
+          <tbody class="text-gray-600" id="comparison-body">
+            <tr>
+              <td colspan="4" class="py-8 text-center text-gray-500">Loading comparison...</td>
+            </tr>
           </tbody>
         </table>
         <p class="text-gray-500 text-xs mt-4 italic">*Upcoming integrations launching January 2026 — quick setup, SLA-aware, focused on real MSP value.</p>
@@ -1116,6 +1048,162 @@
         nav.classList.remove('shadow-sm');
       }
     });
+
+    // Dynamic Pricing - Fetch from /api/plans
+    let plansData = null;
+
+    async function loadPricingData() {
+      try {
+        const response = await fetch('/api/plans');
+        const data = await response.json();
+        plansData = data.plans;
+        renderPricingCards(data.plans);
+        loadComparisonTable();
+      } catch (error) {
+        console.error('Failed to load pricing:', error);
+        document.getElementById('pricing-loading').innerHTML = `
+          <p class="text-red-500">Failed to load pricing. Please refresh the page.</p>
+        `;
+      }
+    }
+
+    function renderPricingCards(plans) {
+      const container = document.getElementById('pricing-per-tech');
+      const checkIcon = `<svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>`;
+      const checkIconLight = `<svg class="w-5 h-5 text-primary-300" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>`;
+
+      // Feature display names for cards
+      const featureDisplayNames = {
+        'core.ticketing': 'Ticketing & CMDB',
+        'sla.basic': 'SLA definitions',
+        'core.knowledge_base': 'Knowledge base',
+        'core.basic_rules': 'Basic rules',
+        'integrations.email.ingest': 'Email ingest',
+        'customer.portal': 'Customer portal',
+        'customer.service_catalogue': 'Service catalogue',
+        'ai.triage': 'AI triage & CMDB matching',
+        'integrations.teams': 'Teams, Jira, SSO',
+        'ai.full_suite': 'Full AI suite (expert matching, trends)',
+        'sla.contract_aware': 'Contract-aware SLA',
+        'msp.governance': 'Governance & audit',
+        'api.full_access': 'Full API access'
+      };
+
+      // Features to show on each card
+      const cardFeatures = {
+        'starter': ['core.ticketing', 'sla.basic', 'core.knowledge_base', 'core.basic_rules', 'integrations.email.ingest'],
+        'professional': ['customer.portal', 'customer.service_catalogue', 'ai.triage', 'integrations.teams'],
+        'msp': ['ai.full_suite', 'sla.contract_aware', 'msp.governance', 'api.full_access']
+      };
+
+      let html = '';
+      plans.forEach((plan, index) => {
+        const isFeatured = plan.is_featured;
+        const featuresToShow = cardFeatures[plan.slug] || [];
+        const prevPlanName = index > 0 ? plans[index - 1].display_name : null;
+
+        const cardClasses = isFeatured
+          ? 'bg-primary-600 rounded-2xl p-8 text-white relative transform md:scale-105 shadow-xl'
+          : 'bg-gray-50 rounded-2xl p-8 border border-gray-200';
+
+        const priceClasses = isFeatured
+          ? 'text-4xl font-bold'
+          : 'text-4xl font-bold text-gray-900';
+
+        const periodClasses = isFeatured
+          ? 'text-primary-200'
+          : 'text-gray-500';
+
+        const taglineClasses = isFeatured
+          ? 'text-primary-200 mb-4'
+          : 'text-gray-600 mb-4';
+
+        const noteClasses = isFeatured
+          ? 'text-sm text-primary-200 mb-6'
+          : 'text-sm text-gray-500 mb-6';
+
+        const btnClasses = isFeatured
+          ? 'block text-center bg-white text-primary-700 px-6 py-3 rounded-lg font-semibold hover:bg-primary-50 transition'
+          : 'block text-center bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-300 transition';
+
+        html += `
+          <div class="${cardClasses}">
+            ${plan.badge_text ? `<div class="absolute -top-4 left-1/2 -translate-x-1/2 bg-yellow-400 text-yellow-900 text-sm font-bold px-4 py-1 rounded-full">${plan.badge_text}</div>` : ''}
+            <h3 class="text-2xl font-bold ${isFeatured ? '' : 'text-gray-900'} mb-2">${plan.display_name}</h3>
+            <p class="${taglineClasses}">${plan.tagline}</p>
+            <div class="mb-6">
+              <span class="${priceClasses}">$${Math.round(plan.price_monthly)}</span>
+              <span class="${periodClasses}">/tech/month</span>
+            </div>
+            <p class="${noteClasses}">Unlimited clients included</p>
+            <ul class="space-y-3 mb-8">
+              ${prevPlanName ? `<li class="flex items-center space-x-2">${isFeatured ? checkIconLight : checkIcon}<span>Everything in ${prevPlanName}</span></li>` : ''}
+              ${featuresToShow.map(f => `<li class="flex items-center space-x-2">${isFeatured ? checkIconLight : checkIcon}<span>${featureDisplayNames[f] || f}</span></li>`).join('')}
+            </ul>
+            <a href="#contact" class="${btnClasses}">Start Free Trial</a>
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
+    }
+
+    async function loadComparisonTable() {
+      try {
+        const response = await fetch('/api/plans/compare');
+        const data = await response.json();
+        renderComparisonTable(data);
+      } catch (error) {
+        console.error('Failed to load comparison:', error);
+      }
+    }
+
+    function renderComparisonTable(data) {
+      const headerRow = document.querySelector('#comparison-header tr');
+      const tbody = document.getElementById('comparison-body');
+
+      // Build header
+      let headerHtml = '<th class="py-4 pr-4 font-semibold text-gray-900">Capability</th>';
+      data.plans.forEach((plan, index) => {
+        const isLast = index === data.plans.length - 1;
+        const classes = isLast
+          ? 'py-4 pl-4 font-semibold text-primary-600 text-center'
+          : 'py-4 px-4 font-semibold text-gray-900 text-center';
+        headerHtml += `<th class="${classes}">${plan.name}</th>`;
+      });
+      headerRow.innerHTML = headerHtml;
+
+      // Build body
+      let bodyHtml = '';
+      const categories = data.categories;
+      const comparison = data.comparison;
+
+      Object.keys(comparison).forEach(category => {
+        // Category header row
+        bodyHtml += `<tr class="border-b border-gray-100 bg-gray-50"><td class="py-3 pr-4 font-medium text-gray-700" colspan="${data.plans.length + 1}">${categories[category] || category}</td></tr>`;
+
+        // Feature rows
+        comparison[category].forEach(feature => {
+          bodyHtml += '<tr class="border-b border-gray-100">';
+          bodyHtml += `<td class="py-3 pr-4">${feature.name}</td>`;
+          data.plans.forEach((plan, index) => {
+            const hasFeature = feature[plan.slug];
+            const isLast = index === data.plans.length - 1;
+            const tdClass = isLast ? 'py-3 pl-4 text-center' : 'py-3 px-4 text-center';
+            const icon = hasFeature
+              ? '<span class="text-green-600">&#10003;</span>'
+              : '<span class="text-gray-300">-</span>';
+            bodyHtml += `<td class="${tdClass}">${icon}</td>`;
+          });
+          bodyHtml += '</tr>';
+        });
+      });
+
+      tbody.innerHTML = bodyHtml;
+    }
+
+    // Load pricing on page load
+    document.addEventListener('DOMContentLoaded', loadPricingData);
   </script>
 </body>
 </html>

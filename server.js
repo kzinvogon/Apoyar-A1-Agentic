@@ -54,6 +54,7 @@ const notificationsRoutes = require('./routes/notifications');
 const tenantSettingsRoutes = require('./routes/tenant-settings');
 const companyAdminRoutes = require('./routes/company-admin');
 const featureFlagsRoutes = require('./routes/feature-flags');
+const plansPublicRoutes = require('./routes/plans-public');
 const marketingRoutes = require('./routes/marketing');
 
 // Import email processor service
@@ -114,6 +115,7 @@ app.use('/api/notifications', notificationsRoutes);
 app.use('/api/tenant-settings', tenantSettingsRoutes);
 app.use('/api/company-admin', companyAdminRoutes);
 app.use('/api/features', featureFlagsRoutes);
+app.use('/api/plans', plansPublicRoutes);
 
 // Public routes (no authentication required) - Must be before authenticated routes
 app.use('/ticket', publicTicketRoutes);
