@@ -107,18 +107,43 @@ async function createTenantTables(connection) {
     )
   `);
 
+  // Customer Companies table (for multi-company support)
+  await connection.execute(`
+    CREATE TABLE IF NOT EXISTS customer_companies (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      company_name VARCHAR(100) NOT NULL,
+      company_domain VARCHAR(100),
+      contact_email VARCHAR(255),
+      contact_phone VARCHAR(20),
+      address TEXT,
+      sla_level ENUM('basic', 'premium', 'enterprise') DEFAULT 'basic',
+      notes TEXT,
+      is_active BOOLEAN DEFAULT TRUE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_company_domain (company_domain),
+      INDEX idx_is_active (is_active)
+    )
+  `);
+
   // Customers table
   await connection.execute(`
     CREATE TABLE IF NOT EXISTS customers (
       id INT AUTO_INCREMENT PRIMARY KEY,
       user_id INT NOT NULL,
+      customer_company_id INT,
+      is_company_admin BOOLEAN DEFAULT FALSE,
+      job_title VARCHAR(100),
       company_name VARCHAR(100),
+      company_domain VARCHAR(100),
       contact_phone VARCHAR(20),
       address TEXT,
       sla_level ENUM('basic', 'premium', 'enterprise') DEFAULT 'basic',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (customer_company_id) REFERENCES customer_companies(id) ON DELETE SET NULL,
+      INDEX idx_customer_company_id (customer_company_id)
     )
   `);
 
