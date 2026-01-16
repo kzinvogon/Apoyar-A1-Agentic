@@ -229,39 +229,39 @@ router.put('/tenants/:id', requireMasterAuth, requireRole(['super_admin']), mast
   }
 });
 
-// Delete tenant (soft delete by setting status to suspended)
+// Delete tenant (soft delete by setting is_active to false)
 router.delete('/tenants/:id', requireMasterAuth, requireRole(['super_admin']), async (req, res) => {
   try {
     const connection = await getMasterConnection();
     try {
       // Check if tenant exists
       const [existing] = await connection.query(
-        'SELECT id, company_name FROM tenants WHERE id = ?',
+        'SELECT id, company_name, tenant_code FROM tenants WHERE id = ?',
         [req.params.id]
       );
-      
+
       if (existing.length === 0) {
         return res.status(404).json({ success: false, message: 'Tenant not found' });
       }
 
-      // Soft delete by setting status to suspended
+      // Soft delete by setting is_active to false
       await connection.query(
-        'UPDATE tenants SET status = "suspended", updated_at = NOW() WHERE id = ?',
+        'UPDATE tenants SET is_active = FALSE, updated_at = NOW() WHERE id = ?',
         [req.params.id]
       );
 
       // Log the action
       await connection.query(`
-        INSERT INTO master_audit_log (user_id, action, details, ip_address)
-        VALUES (?, 'tenant_suspended', ?, ?)
-      `, [req.user.userId, JSON.stringify({ message: `Suspended tenant: ${existing[0].company_name}`, tenant_id: req.params.id }), req.ip]);
+        INSERT INTO master_audit_log (user_id, user_type, action, details, ip_address)
+        VALUES (?, 'master_user', 'tenant_deleted', ?, ?)
+      `, [req.user.userId, JSON.stringify({ message: `Deleted tenant: ${existing[0].company_name}`, tenant_id: req.params.id, tenant_code: existing[0].tenant_code }), req.ip]);
 
-      res.json({ success: true, message: 'Tenant suspended successfully' });
+      res.json({ success: true, message: 'Tenant deleted successfully' });
     } finally {
       connection.release();
     }
   } catch (error) {
-    console.error('Error suspending tenant:', error);
+    console.error('Error deleting tenant:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
