@@ -93,9 +93,9 @@ router.post('/start', signupLimiter, async (req, res) => {
         });
       }
 
-      // Check if company name is too similar to existing
+      // Check if company name is too similar to existing (only active tenants)
       const [existingCompany] = await connection.query(
-        'SELECT id FROM tenants WHERE company_name = ?',
+        'SELECT id FROM tenants WHERE company_name = ? AND is_active = 1',
         [tenant_name]
       );
 
