@@ -1398,8 +1398,58 @@
         </button>
       </div>
 
-      <!-- Step 4: Success -->
+      <!-- Step 4: Confirmation -->
       <div id="signup-step-4" class="signup-step">
+        <div class="text-center mb-6">
+          <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+          </div>
+          <h2 class="text-2xl font-bold text-gray-900">Confirm Your Details</h2>
+          <p class="text-gray-500 mt-2">Please review before creating your account</p>
+        </div>
+
+        <div class="bg-gray-50 rounded-lg p-4 space-y-3 text-sm">
+          <div class="flex justify-between">
+            <span class="text-gray-500">Email:</span>
+            <span id="confirm-email" class="font-medium text-gray-900"></span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-500">Company:</span>
+            <span id="confirm-company" class="font-medium text-gray-900"></span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-500">Technicians:</span>
+            <span id="confirm-technicians" class="font-medium text-gray-900"></span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-500">Clients:</span>
+            <span id="confirm-clients" class="font-medium text-gray-900"></span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-500">Plan:</span>
+            <span id="confirm-plan" class="font-medium text-gray-900"></span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-500">Session Token:</span>
+            <span id="confirm-token" class="font-medium text-gray-900 text-xs break-all"></span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-500">Password:</span>
+            <span id="confirm-password" class="font-medium text-gray-900"></span>
+          </div>
+        </div>
+
+        <button onclick="confirmAndCreateTrial()" class="signup-btn mt-6" id="step4-btn">
+          Confirm & Create My Trial
+        </button>
+
+        <button onclick="goToStep(3)" class="w-full mt-3 text-gray-500 hover:text-gray-700 text-sm">
+          ← Back to Edit
+        </button>
+      </div>
+
+      <!-- Step 5: Success -->
+      <div id="signup-step-5" class="signup-step">
         <div class="text-center py-8">
           <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <svg class="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
@@ -1423,6 +1473,8 @@
     let signupSession = null;
     let selectedPlanSlug = 'professional';
     let signupPlans = [];
+    let signupPassword = null;
+    let signupFormData = null;
 
     function openSignupModal(planSlug = null) {
       if (planSlug) {
@@ -1475,6 +1527,9 @@
         num_technicians: parseInt(form.get('num_technicians')),
         num_clients: parseInt(form.get('num_clients'))
       };
+
+      // Save form data for confirmation
+      signupFormData = data;
 
       try {
         const response = await fetch('/api/signup/start', {
@@ -1569,13 +1624,30 @@
         return;
       }
 
-      setButtonLoading('step3-btn', true);
+      // Save password and show confirmation
+      signupPassword = password;
+
+      // Populate confirmation screen
+      document.getElementById('confirm-email').textContent = signupFormData.email;
+      document.getElementById('confirm-company').textContent = signupFormData.tenant_name;
+      document.getElementById('confirm-technicians').textContent = signupFormData.num_technicians;
+      document.getElementById('confirm-clients').textContent = signupFormData.num_clients;
+      document.getElementById('confirm-plan').textContent = getPlanDisplayName(selectedPlanSlug);
+      document.getElementById('confirm-token').textContent = signupSession.session_token;
+      document.getElementById('confirm-password').textContent = '*'.repeat(password.length) + ' (' + password.length + ' chars)';
+
+      goToStep(4);
+    }
+
+    async function confirmAndCreateTrial() {
+      hideError();
+      setButtonLoading('step4-btn', true);
 
       try {
         const payload = {
           session_token: signupSession.session_token,
           plan_slug: selectedPlanSlug,
-          admin_password: password
+          admin_password: signupPassword
         };
         console.log('[Signup] Sending create-trial request:', JSON.stringify({ ...payload, admin_password: '***' }));
 
@@ -1594,8 +1666,8 @@
           localStorage.setItem('tenantCode', result.tenant_code);
           localStorage.setItem('role', 'admin');
 
-          // Show success
-          goToStep(4);
+          // Show success (now step 5)
+          goToStep(5);
 
           // Redirect after delay
           setTimeout(() => {
@@ -1603,14 +1675,14 @@
           }, 2500);
         } else {
           console.error('[Signup] Trial creation failed:', result);
-          showError(result.message || 'Failed to create trial');
+          showError(result.message || 'Failed to create trial. Error: ' + (result.error_detail || 'Unknown'));
         }
       } catch (error) {
         console.error('[Signup] Request error:', error);
         showError('Connection error. Please try again.');
       } finally {
-        setButtonLoading('step3-btn', false);
-        document.getElementById('step3-btn').textContent = 'Start My Free Trial';
+        setButtonLoading('step4-btn', false);
+        document.getElementById('step4-btn').textContent = 'Confirm & Create My Trial';
       }
     }
 
