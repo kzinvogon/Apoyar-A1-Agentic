@@ -88,7 +88,13 @@ async function runMigration() {
         SELECT features FROM subscription_plans WHERE slug = 'msp'
       `);
 
-      const mspFeatures = mspPlan.length > 0 ? mspPlan[0].features : '[]';
+      // Ensure features is a JSON string
+      let mspFeatures = '[]';
+      if (mspPlan.length > 0 && mspPlan[0].features) {
+        mspFeatures = typeof mspPlan[0].features === 'string'
+          ? mspPlan[0].features
+          : JSON.stringify(mspPlan[0].features);
+      }
 
       // Create per-client plan
       await connection.query(`
