@@ -6,7 +6,7 @@
 require('dotenv').config();
 const express = require('express');
 const { App, ExpressReceiver } = require('@slack/bolt');
-const { registerSlackBot } = require('./src/bot/slackBot');
+const { setupSlackBot } = require('./src/bot/slackBot');
 const ticketWebhook = require('./src/webhooks/ticketWebhook');
 
 // Create Express receiver for custom routes
@@ -45,7 +45,7 @@ const app = new App({
 });
 
 // Register bot handlers
-registerSlackBot(app);
+setupSlackBot(app);
 
 // Mount webhook routes
 receiver.router.use('/api/webhook', ticketWebhook);
