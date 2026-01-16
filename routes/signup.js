@@ -182,10 +182,12 @@ router.post('/start', signupLimiter, async (req, res) => {
  */
 router.post('/create-trial', signupLimiter, async (req, res) => {
   try {
+    console.log('[Signup] create-trial request body:', JSON.stringify(req.body));
     const { session_token, plan_slug, admin_password } = req.body;
 
     // Validate required fields
     if (!session_token || !admin_password) {
+      console.log('[Signup] Missing fields - session_token:', !!session_token, 'admin_password:', !!admin_password);
       return res.status(400).json({
         success: false,
         message: 'Session token and password are required'
@@ -258,18 +260,20 @@ router.post('/create-trial', signupLimiter, async (req, res) => {
     }
 
   } catch (error) {
-    console.error('[Signup] Error creating trial:', error);
+    console.error('[Signup] Error creating trial:', error.message);
+    console.error('[Signup] Error stack:', error.stack);
 
     // Provide user-friendly error messages
     let message = 'Failed to create trial. Please try again.';
-    if (error.message.includes('already exists')) {
+    if (error.message && error.message.includes('already exists')) {
       message = error.message;
     }
 
     res.status(500).json({
       success: false,
       message,
-      error_detail: error.message // Include actual error for debugging
+      error_detail: error.message,
+      error_code: error.code || null
     });
   }
 });
