@@ -387,9 +387,9 @@ async function provisionTenant(options) {
   const dbPassword = process.env.MYSQLPASSWORD || process.env.MYSQL_PASSWORD || '';
 
   try {
-    // 1. Check if email already exists
+    // 1. Check if company/tenant_code already exists (only active tenants)
     const [existingTenant] = await masterConn.query(
-      'SELECT id FROM tenants WHERE company_name = ? OR tenant_code = ?',
+      'SELECT id FROM tenants WHERE (company_name = ? OR tenant_code = ?) AND is_active = 1',
       [tenantName, tenantCode]
     );
 
