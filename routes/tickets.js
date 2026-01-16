@@ -551,11 +551,12 @@ router.get('/:tenantId/:ticketId', readOperationsLimiter, validateTicketGet, asy
         `SELECT t.*,
                 u1.full_name as assignee_name,
                 u2.full_name as requester_name,
-                u2.customer_company_id as requester_company_id,
+                c.customer_company_id as requester_company_id,
                 ci.asset_name as cmdb_item_name
          FROM tickets t
          LEFT JOIN users u1 ON t.assignee_id = u1.id
          LEFT JOIN users u2 ON t.requester_id = u2.id
+         LEFT JOIN customers c ON u2.id = c.user_id
          LEFT JOIN cmdb_items ci ON t.cmdb_item_id = ci.id
          WHERE t.id = ?`,
         [ticketId]
