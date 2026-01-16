@@ -1,0 +1,54 @@
+{
+    "display_information": {
+        "name": "ServiFlow",
+        "description": "Manage support tickets directly from Slack",
+        "background_color": "#4a154b"
+    },
+    "features": {
+        "bot_user": {
+            "display_name": "ServiFlow",
+            "always_online": true
+        },
+        "slash_commands": [
+            {
+                "command": "/ticket",
+                "url": "https://web-production-472fa.up.railway.app/slack/events",
+                "description": "Manage support tickets",
+                "usage_hint": "[create|status|list|mode|resolve|assign|help] [args]",
+                "should_escape": false
+            }
+        ]
+    },
+    "oauth_config": {
+        "redirect_urls": [
+            "https://web-production-11114.up.railway.app/api/integrations/slack/callback"
+        ],
+        "scopes": {
+            "bot": [
+                "chat:write",
+                "commands",
+                "users:read",
+                "users:read.email",
+                "im:history",
+                "app_mentions:read"
+            ]
+        }
+    },
+    "settings": {
+        "event_subscriptions": {
+            "request_url": "https://web-production-472fa.up.railway.app/slack/events",
+            "bot_events": [
+                "app_mention",
+                "message.im"
+            ]
+        },
+        "interactivity": {
+            "is_enabled": true,
+            "request_url": "https://web-production-472fa.up.railway.app/slack/events"
+        },
+        "org_deploy_enabled": false,
+        "socket_mode_enabled": false,
+        "is_hosted": false,
+        "token_rotation_enabled": false
+    }
+}
