@@ -1572,17 +1572,21 @@
       setButtonLoading('step3-btn', true);
 
       try {
+        const payload = {
+          session_token: signupSession.session_token,
+          plan_slug: selectedPlanSlug,
+          admin_password: password
+        };
+        console.log('[Signup] Sending create-trial request:', JSON.stringify({ ...payload, admin_password: '***' }));
+
         const response = await fetch('/api/signup/create-trial', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            session_token: signupSession.session_token,
-            plan_slug: selectedPlanSlug,
-            admin_password: password
-          })
+          body: JSON.stringify(payload)
         });
 
         const result = await response.json();
+        console.log('[Signup] create-trial response:', JSON.stringify(result));
 
         if (result.success) {
           // Store auth token
@@ -1598,10 +1602,11 @@
             window.location.href = result.redirect_url || '/';
           }, 2500);
         } else {
+          console.error('[Signup] Trial creation failed:', result);
           showError(result.message || 'Failed to create trial');
         }
       } catch (error) {
-        console.error('Signup error:', error);
+        console.error('[Signup] Request error:', error);
         showError('Connection error. Please try again.');
       } finally {
         setButtonLoading('step3-btn', false);
