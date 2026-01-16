@@ -28,6 +28,23 @@
     .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 2px; bottom: 2px; background-color: white; border-radius: 50%; transition: 0.3s; }
     .annual-badge { animation: pulse 2s infinite; }
     @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.8; } }
+    /* Signup Modal Styles */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; display: flex; align-items: center; justify-content: center; opacity: 0; visibility: hidden; transition: all 0.3s; }
+    .modal-overlay.active { opacity: 1; visibility: visible; }
+    .modal-content { background: white; border-radius: 16px; max-width: 480px; width: 90%; max-height: 90vh; overflow-y: auto; transform: scale(0.95); transition: transform 0.3s; }
+    .modal-overlay.active .modal-content { transform: scale(1); }
+    .signup-step { display: none; }
+    .signup-step.active { display: block; }
+    .signup-input { width: 100%; padding: 12px 16px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 16px; transition: border-color 0.2s; }
+    .signup-input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+    .signup-btn { width: 100%; padding: 14px; background: #2563eb; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+    .signup-btn:hover { background: #1d4ed8; }
+    .signup-btn:disabled { background: #9ca3af; cursor: not-allowed; }
+    .plan-option { border: 2px solid #e5e7eb; border-radius: 12px; padding: 16px; cursor: pointer; transition: all 0.2s; }
+    .plan-option:hover { border-color: #93c5fd; }
+    .plan-option.selected { border-color: #2563eb; background: #eff6ff; }
+    .plan-option.recommended { position: relative; }
+    .plan-option.recommended::after { content: 'Recommended'; position: absolute; top: -10px; right: 12px; background: #2563eb; color: white; font-size: 12px; padding: 2px 8px; border-radius: 4px; }
   </style>
 </head>
 <body class="font-sans text-gray-800 antialiased">
@@ -43,7 +60,7 @@
           <a href="#integrations" class="text-gray-600 hover:text-primary-600 transition">Integrations</a>
           <a href="#pricing" class="text-gray-600 hover:text-primary-600 transition">Pricing</a>
           <a href="#faq" class="text-gray-600 hover:text-primary-600 transition">FAQ</a>
-          <a href="#contact" class="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition">Start Free Trial</a>
+          <button onclick="openSignupModal()" class="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition">Start Free Trial</button>
         </div>
         <button id="mobile-menu-btn" class="md:hidden p-2">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
@@ -57,7 +74,7 @@
         <a href="#integrations" class="block py-2 text-gray-600">Integrations</a>
         <a href="#pricing" class="block py-2 text-gray-600">Pricing</a>
         <a href="#faq" class="block py-2 text-gray-600">FAQ</a>
-        <a href="#contact" class="block py-2 text-primary-600 font-medium">Start Free Trial</a>
+        <button onclick="openSignupModal()" class="block py-2 text-primary-600 font-medium">Start Free Trial</button>
       </div>
     </div>
   </nav>
@@ -739,7 +756,7 @@
         </div>
       </div>
       <div class="text-center mt-10">
-        <a href="#contact" class="inline-block bg-primary-600 text-white px-8 py-4 rounded-lg font-semibold hover:bg-primary-700 transition shadow-lg text-lg">Start Your Free 30-Day Trial</a>
+        <button onclick="openSignupModal()" class="inline-block bg-primary-600 text-white px-8 py-4 rounded-lg font-semibold hover:bg-primary-700 transition shadow-lg text-lg">Start Your Free 30-Day Trial</button>
         <p class="text-gray-500 text-sm mt-3">No credit card required. Full access to all features.</p>
       </div>
     </div>
@@ -1120,7 +1137,7 @@
               <li class="flex items-center space-x-2">${checkIcon}<span>Multi-tenant isolation</span></li>
               <li class="flex items-center space-x-2">${checkIcon}<span>Full API access</span></li>
             </ul>
-            <a href="#contact" class="inline-block bg-primary-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-primary-700 transition">Start Free Trial</a>
+            <button onclick="openSignupModal()" class="inline-block bg-primary-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-primary-700 transition">Start Free Trial</button>
           </div>
         </div>
       `;
@@ -1199,7 +1216,7 @@
               ${prevPlanName ? `<li class="flex items-center space-x-2">${isFeatured ? checkIconLight : checkIcon}<span>Everything in ${prevPlanName}</span></li>` : ''}
               ${featuresToShow.map(f => `<li class="flex items-center space-x-2">${isFeatured ? checkIconLight : checkIcon}<span>${featureDisplayNames[f] || f}</span></li>`).join('')}
             </ul>
-            <a href="#contact" class="${btnClasses}">Start Free Trial</a>
+            <button onclick="startTrialForPlan('${plan.slug}')" class="${btnClasses}">Start Free Trial</button>
           </div>
         `;
       });
@@ -1263,6 +1280,351 @@
 
     // Load pricing on page load
     document.addEventListener('DOMContentLoaded', loadPricingData);
+  </script>
+
+  <!-- Signup Modal -->
+  <div id="signup-modal" class="modal-overlay" onclick="if(event.target === this) closeSignupModal()">
+    <div class="modal-content p-8">
+      <!-- Close button -->
+      <button onclick="closeSignupModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+      </button>
+
+      <!-- Step 1: Email & Company Info -->
+      <div id="signup-step-1" class="signup-step active">
+        <div class="text-center mb-6">
+          <div class="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg class="w-8 h-8 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+          </div>
+          <h2 class="text-2xl font-bold text-gray-900">Start Your Free 30-Day Trial</h2>
+          <p class="text-gray-500 mt-2">No credit card required</p>
+        </div>
+
+        <form id="signup-form-1" onsubmit="handleStep1Submit(event)" class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Work Email</label>
+            <input type="email" name="email" required placeholder="you@company.com" class="signup-input">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
+            <input type="text" name="tenant_name" required placeholder="Acme IT Services" class="signup-input">
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Technicians</label>
+              <select name="num_technicians" class="signup-input">
+                <option value="2">1-2</option>
+                <option value="5">3-10</option>
+                <option value="15" selected>11-25</option>
+                <option value="50">25+</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Client Companies</label>
+              <select name="num_clients" class="signup-input">
+                <option value="0">Internal IT only</option>
+                <option value="10">1-10 clients</option>
+                <option value="25" selected>11-50 clients</option>
+                <option value="100">51-200 clients</option>
+                <option value="500">200+ clients</option>
+              </select>
+            </div>
+          </div>
+          <button type="submit" class="signup-btn" id="step1-btn">
+            Continue
+          </button>
+        </form>
+
+        <p class="text-center text-sm text-gray-500 mt-4">
+          Already have an account? <a href="/" class="text-primary-600 hover:underline">Sign in</a>
+        </p>
+      </div>
+
+      <!-- Step 2: Plan Selection -->
+      <div id="signup-step-2" class="signup-step">
+        <div class="text-center mb-6">
+          <h2 class="text-2xl font-bold text-gray-900">Choose Your Plan</h2>
+          <p class="text-gray-500 mt-2">We recommend <strong id="recommended-plan-name">Professional</strong> based on your needs</p>
+        </div>
+
+        <div id="plan-options" class="space-y-3 mb-6">
+          <!-- Plans loaded dynamically -->
+        </div>
+
+        <button onclick="handleStep2Continue()" class="signup-btn" id="step2-btn">
+          Continue with <span id="selected-plan-name">Professional</span>
+        </button>
+
+        <button onclick="goToStep(1)" class="w-full mt-3 text-gray-500 hover:text-gray-700 text-sm">
+          ← Back
+        </button>
+      </div>
+
+      <!-- Step 3: Create Password -->
+      <div id="signup-step-3" class="signup-step">
+        <div class="text-center mb-6">
+          <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+          </div>
+          <h2 class="text-2xl font-bold text-gray-900">Create Your Account</h2>
+          <p class="text-gray-500 mt-2">Set a password to secure your account</p>
+        </div>
+
+        <form id="signup-form-3" onsubmit="handleStep3Submit(event)" class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+            <input type="password" name="password" required minlength="8" placeholder="Minimum 8 characters" class="signup-input">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+            <input type="password" name="password_confirm" required minlength="8" placeholder="Confirm your password" class="signup-input">
+          </div>
+          <div class="flex items-start">
+            <input type="checkbox" id="terms-checkbox" required class="mt-1 mr-2">
+            <label for="terms-checkbox" class="text-sm text-gray-600">
+              I agree to the <a href="/terms" class="text-primary-600 hover:underline">Terms of Service</a> and <a href="/privacy" class="text-primary-600 hover:underline">Privacy Policy</a>
+            </label>
+          </div>
+          <button type="submit" class="signup-btn" id="step3-btn">
+            Start My Free Trial
+          </button>
+        </form>
+
+        <button onclick="goToStep(2)" class="w-full mt-3 text-gray-500 hover:text-gray-700 text-sm">
+          ← Back
+        </button>
+      </div>
+
+      <!-- Step 4: Success -->
+      <div id="signup-step-4" class="signup-step">
+        <div class="text-center py-8">
+          <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <svg class="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+          </div>
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Welcome to ServiFlow!</h2>
+          <p class="text-gray-500 mb-6">Your 30-day trial is ready. Redirecting you to your dashboard...</p>
+          <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-primary-600 border-t-transparent"></div>
+        </div>
+      </div>
+
+      <!-- Error State -->
+      <div id="signup-error" class="hidden bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mt-4">
+        <span id="signup-error-text"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Signup JavaScript -->
+  <script>
+    // Signup state
+    let signupSession = null;
+    let selectedPlanSlug = 'professional';
+    let signupPlans = [];
+
+    function openSignupModal(planSlug = null) {
+      if (planSlug) {
+        selectedPlanSlug = planSlug;
+      }
+      document.getElementById('signup-modal').classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeSignupModal() {
+      document.getElementById('signup-modal').classList.remove('active');
+      document.body.style.overflow = '';
+    }
+
+    function goToStep(step) {
+      document.querySelectorAll('.signup-step').forEach(el => el.classList.remove('active'));
+      document.getElementById(`signup-step-${step}`).classList.add('active');
+      hideError();
+    }
+
+    function showError(message) {
+      const errorEl = document.getElementById('signup-error');
+      document.getElementById('signup-error-text').textContent = message;
+      errorEl.classList.remove('hidden');
+    }
+
+    function hideError() {
+      document.getElementById('signup-error').classList.add('hidden');
+    }
+
+    function setButtonLoading(btnId, loading) {
+      const btn = document.getElementById(btnId);
+      if (loading) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="inline-block animate-spin mr-2">⟳</span> Please wait...';
+      } else {
+        btn.disabled = false;
+      }
+    }
+
+    async function handleStep1Submit(e) {
+      e.preventDefault();
+      hideError();
+      setButtonLoading('step1-btn', true);
+
+      const form = new FormData(e.target);
+      const data = {
+        email: form.get('email'),
+        tenant_name: form.get('tenant_name'),
+        num_technicians: parseInt(form.get('num_technicians')),
+        num_clients: parseInt(form.get('num_clients'))
+      };
+
+      try {
+        const response = await fetch('/api/signup/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          signupSession = result;
+          signupPlans = result.plans || [];
+          selectedPlanSlug = result.recommended_plan || 'professional';
+
+          // Render plan options
+          renderPlanOptions(signupPlans, selectedPlanSlug);
+
+          // Update UI
+          document.getElementById('recommended-plan-name').textContent = getPlanDisplayName(selectedPlanSlug);
+          document.getElementById('selected-plan-name').textContent = getPlanDisplayName(selectedPlanSlug);
+
+          goToStep(2);
+        } else {
+          showError(result.message || 'Failed to start signup');
+        }
+      } catch (error) {
+        console.error('Signup error:', error);
+        showError('Connection error. Please try again.');
+      } finally {
+        setButtonLoading('step1-btn', false);
+        document.getElementById('step1-btn').textContent = 'Continue';
+      }
+    }
+
+    function renderPlanOptions(plans, recommendedSlug) {
+      const container = document.getElementById('plan-options');
+      container.innerHTML = plans.map(plan => `
+        <div class="plan-option ${plan.slug === recommendedSlug ? 'recommended selected' : ''}"
+             onclick="selectPlan('${plan.slug}')" data-plan="${plan.slug}">
+          <div class="flex justify-between items-start">
+            <div>
+              <h3 class="font-semibold text-gray-900">${plan.display_name}</h3>
+              <p class="text-sm text-gray-500">${plan.tagline || ''}</p>
+            </div>
+            <div class="text-right">
+              <span class="text-xl font-bold text-gray-900">$${plan.price_monthly}</span>
+              <span class="text-sm text-gray-500">/mo</span>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function selectPlan(slug) {
+      selectedPlanSlug = slug;
+      document.querySelectorAll('.plan-option').forEach(el => {
+        el.classList.toggle('selected', el.dataset.plan === slug);
+      });
+      document.getElementById('selected-plan-name').textContent = getPlanDisplayName(slug);
+    }
+
+    function getPlanDisplayName(slug) {
+      const plan = signupPlans.find(p => p.slug === slug);
+      return plan ? plan.display_name : slug.charAt(0).toUpperCase() + slug.slice(1);
+    }
+
+    function handleStep2Continue() {
+      goToStep(3);
+    }
+
+    async function handleStep3Submit(e) {
+      e.preventDefault();
+      hideError();
+
+      const form = new FormData(e.target);
+      const password = form.get('password');
+      const passwordConfirm = form.get('password_confirm');
+
+      if (password !== passwordConfirm) {
+        showError('Passwords do not match');
+        return;
+      }
+
+      if (password.length < 8) {
+        showError('Password must be at least 8 characters');
+        return;
+      }
+
+      if (!signupSession || !signupSession.session_token) {
+        showError('Session expired. Please start over.');
+        return;
+      }
+
+      setButtonLoading('step3-btn', true);
+
+      try {
+        const response = await fetch('/api/signup/create-trial', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            session_token: signupSession.session_token,
+            plan_slug: selectedPlanSlug,
+            admin_password: password
+          })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          // Store auth token
+          localStorage.setItem('token', result.auth_token);
+          localStorage.setItem('tenantCode', result.tenant_code);
+          localStorage.setItem('role', 'admin');
+
+          // Show success
+          goToStep(4);
+
+          // Redirect after delay
+          setTimeout(() => {
+            window.location.href = result.redirect_url || '/';
+          }, 2500);
+        } else {
+          showError(result.message || 'Failed to create trial');
+        }
+      } catch (error) {
+        console.error('Signup error:', error);
+        showError('Connection error. Please try again.');
+      } finally {
+        setButtonLoading('step3-btn', false);
+        document.getElementById('step3-btn').textContent = 'Start My Free Trial';
+      }
+    }
+
+    // Wire up all "Start Free Trial" buttons
+    document.addEventListener('DOMContentLoaded', function() {
+      // Update nav link
+      const navTrialLinks = document.querySelectorAll('a[href="#contact"]');
+      navTrialLinks.forEach(link => {
+        if (link.textContent.includes('Trial') || link.textContent.includes('trial')) {
+          link.href = '#';
+          link.onclick = (e) => { e.preventDefault(); openSignupModal(); };
+        }
+      });
+
+      // Update pricing card buttons (they have onclick already from renderPricingCards)
+      // We'll update the renderPricingCards function to call openSignupModal
+    });
+
+    // Override the pricing card button click
+    window.startTrialForPlan = function(planSlug) {
+      openSignupModal(planSlug);
+    };
   </script>
 </body>
 </html>
