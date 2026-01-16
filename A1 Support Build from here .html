@@ -3599,9 +3599,70 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               <div id="teams-error" class="subtitle" style="color:#b91c1c;display:none;margin-top:12px"></div>
             </div>
 
+            <!-- Slack Integration -->
+            <div id="slack-integration" style="border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px">
+              <div class="row space mb-12">
+                <div class="row" style="gap:12px">
+                  <div style="width:48px;height:48px;background:linear-gradient(135deg,#4a154b,#611f69);border-radius:8px;display:flex;align-items:center;justify-content:center">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="white"><path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z"/></svg>
+                  </div>
+                  <div>
+                    <div style="font-weight:600;font-size:16px">Slack</div>
+                    <div class="subtitle" style="color:#666">Manage tickets directly from Slack</div>
+                  </div>
+                </div>
+                <div id="slack-status-badge">
+                  <span id="slack-disconnected-badge" class="badge" style="background:#fee2e2;color:#b91c1c">Not Connected</span>
+                  <span id="slack-connected-badge" class="badge" style="background:#dcfce7;color:#16a34a;display:none">Connected</span>
+                </div>
+              </div>
+
+              <!-- Not Connected State -->
+              <div id="slack-not-connected">
+                <div class="subtitle mb-12">
+                  <strong>Features:</strong>
+                  <ul style="margin:8px 0 0 20px;padding:0">
+                    <li>Create tickets with <code>/ticket create [description]</code></li>
+                    <li>Check status with <code>/ticket status #123</code></li>
+                    <li>View your assigned tickets with <code>/ticket list</code></li>
+                    <li>Switch modes with <code>/ticket mode</code></li>
+                    <li>Get help with <code>/ticket help</code></li>
+                  </ul>
+                </div>
+                <button class="btn primary" onclick="connectSlack()">
+                  <span style="margin-right:8px">🔐</span> Connect to Slack
+                </button>
+              </div>
+
+              <!-- Connected State -->
+              <div id="slack-connected" style="display:none">
+                <div class="subtitle mb-12" style="background:#f0fdf4;padding:12px;border-radius:4px;border-left:4px solid #16a34a">
+                  <strong>✓ Connected to:</strong> <span id="slack-workspace-name">-</span>
+                  <br>
+                  <span style="color:#666">Connected on: <span id="slack-connected-date">-</span></span>
+                </div>
+
+                <div class="mb-12">
+                  <strong>Email Domains:</strong>
+                  <div id="slack-email-domains" style="margin-top:8px"></div>
+                  <div class="row mt-8" style="gap:8px">
+                    <input id="slack-new-domain" class="input" placeholder="Add domain (e.g., company.com)" style="max-width:200px"/>
+                    <button class="btn" onclick="addSlackDomain()">Add Domain</button>
+                  </div>
+                </div>
+
+                <div class="row" style="gap:8px">
+                  <button class="btn" onclick="disconnectSlack()" style="color:#b91c1c">Disconnect</button>
+                </div>
+              </div>
+
+              <div id="slack-message" class="subtitle" style="color:#16a34a;display:none;margin-top:12px"></div>
+              <div id="slack-error" class="subtitle" style="color:#b91c1c;display:none;margin-top:12px"></div>
+            </div>
+
             <!-- Placeholder for future integrations -->
             <div style="border:1px dashed var(--border);border-radius:8px;padding:16px;text-align:center;color:#666">
-              <div class="subtitle">More integrations coming soon: Slack, Email to Ticket, Webhooks...</div>
+              <div class="subtitle">More integrations coming soon: Email to Ticket, Webhooks...</div>
             </div>
           </div>
 
@@ -4926,8 +4987,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           switchView('dash');
           go('app');
 
-          // Check for Teams OAuth callback
+          // Check for OAuth callbacks
           checkTeamsOAuthCallback();
+          checkSlackOAuthCallback();
 
           // Load data
           await fetchTicketsFromAPI();
@@ -5607,7 +5669,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   function nav(el){ document.querySelectorAll('.navlink').forEach(n=>n.classList.remove('active')); el.classList.add('active'); switchView(el.getAttribute('data-target')); if(el.getAttribute('data-target')==='dash') renderAllDashboards(); }
   function navTo(view){ switchView(view); }
-  function switchView(view){ currentView=view; ['dash','profile','tickets','ticket-detail','experts','expert-detail','customers','cmdb-hub','cmdb','cmdb-detail','manage-cmdb','cmdb-mgmt','wizard','raise','tenants','subscriptions','billing','plans','system','usage','customer-plans','customer-billing','my-company','company-admin','analytics','ai-insights','ticket-rules','email-processing','system-control','knowledge-base','raw-variables','audit-log','notifications'].forEach(n=>{ const el=document.getElementById('view-'+n); if(el) el.style.display=(n===view)?'block':'none'; }); if(view==='tickets') { loadFilterSettings('tickets'); renderList(); } if(view==='experts') { loadFilterSettings('experts'); renderExperts(); } if(view==='expert-detail') renderExpertDetail(); if(view==='customers') { loadFilterSettings('customers'); renderCustomers(); } if(view==='cmdb-hub') initCmdbHub(); if(view==='cmdb') { loadFilterSettings('cmdb'); renderCMDB(); } if(view==='cmdb-detail') renderCMDBDetail(); if(view==='manage-cmdb') loadManageCMDB(); if(view==='cmdb-mgmt') loadCMDBMgmt(); if(view==='raise') loadRaiseFormOptions(); if(view==='ticket-detail') renderTicketDetail(); if(view==='tenants') loadTenants(); if(view==='subscriptions') loadSubscriptions(); if(view==='billing') loadBilling(); if(view==='plans') loadPlans(); if(view==='system') loadSystemOverview(); if(view==='usage') loadUsageDashboard(); if(view==='customer-plans') loadCustomerPlans(); if(view==='customer-billing') loadCustomerBilling(); if(view==='my-company') loadMyCompany(); if(view==='company-admin') loadCompanyAdminUsers(); if(view==='analytics') loadAnalytics(); if(view==='ai-insights') loadAIInsights(); if(view==='ticket-rules') loadTicketRules(); if(view==='email-processing') loadEmailProcessing(); if(view==='system-control') loadSystemControlSettings(); if(view==='knowledge-base') initKnowledgeBase(); if(view==='raw-variables') loadRawVariables(); if(view==='audit-log') { loadAuditActions(); loadAuditLog(); } if(view==='notifications') loadNotifications(); if(view==='wizard') { initWizardSection(); loadCompanyProfile(); loadEmailIngestSettings(); loadSystemSenders(); loadExpertRegSettings(); loadSupportSettings(); loadTeamsIntegrationStatus(); loadSLAData(); } if(view==='profile') loadProfile(); }
+  function switchView(view){ currentView=view; ['dash','profile','tickets','ticket-detail','experts','expert-detail','customers','cmdb-hub','cmdb','cmdb-detail','manage-cmdb','cmdb-mgmt','wizard','raise','tenants','subscriptions','billing','plans','system','usage','customer-plans','customer-billing','my-company','company-admin','analytics','ai-insights','ticket-rules','email-processing','system-control','knowledge-base','raw-variables','audit-log','notifications'].forEach(n=>{ const el=document.getElementById('view-'+n); if(el) el.style.display=(n===view)?'block':'none'; }); if(view==='tickets') { loadFilterSettings('tickets'); renderList(); } if(view==='experts') { loadFilterSettings('experts'); renderExperts(); } if(view==='expert-detail') renderExpertDetail(); if(view==='customers') { loadFilterSettings('customers'); renderCustomers(); } if(view==='cmdb-hub') initCmdbHub(); if(view==='cmdb') { loadFilterSettings('cmdb'); renderCMDB(); } if(view==='cmdb-detail') renderCMDBDetail(); if(view==='manage-cmdb') loadManageCMDB(); if(view==='cmdb-mgmt') loadCMDBMgmt(); if(view==='raise') loadRaiseFormOptions(); if(view==='ticket-detail') renderTicketDetail(); if(view==='tenants') loadTenants(); if(view==='subscriptions') loadSubscriptions(); if(view==='billing') loadBilling(); if(view==='plans') loadPlans(); if(view==='system') loadSystemOverview(); if(view==='usage') loadUsageDashboard(); if(view==='customer-plans') loadCustomerPlans(); if(view==='customer-billing') loadCustomerBilling(); if(view==='my-company') loadMyCompany(); if(view==='company-admin') loadCompanyAdminUsers(); if(view==='analytics') loadAnalytics(); if(view==='ai-insights') loadAIInsights(); if(view==='ticket-rules') loadTicketRules(); if(view==='email-processing') loadEmailProcessing(); if(view==='system-control') loadSystemControlSettings(); if(view==='knowledge-base') initKnowledgeBase(); if(view==='raw-variables') loadRawVariables(); if(view==='audit-log') { loadAuditActions(); loadAuditLog(); } if(view==='notifications') loadNotifications(); if(view==='wizard') { initWizardSection(); loadCompanyProfile(); loadEmailIngestSettings(); loadSystemSenders(); loadExpertRegSettings(); loadSupportSettings(); loadTeamsIntegrationStatus(); loadSlackIntegrationStatus(); loadSLAData(); } if(view==='profile') loadProfile(); }
   function configureRole(){
     const currentRole = window.role || role; // Use global role from login, fallback to local
     document.getElementById('nav-admin').style.display = (currentRole==='admin') ? 'block' : 'none';
@@ -7734,6 +7796,211 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     if (params.get('teams_error')) {
       const error = decodeURIComponent(params.get('teams_error'));
       showTeamsError(`Connection failed: ${error}`);
+      window.history.replaceState({}, document.title, window.location.pathname);
+      switchView('wizard');
+    }
+  }
+
+  // =====================================================
+  // Slack Integration Functions
+  // =====================================================
+
+  async function loadSlackIntegrationStatus() {
+    try {
+      const tenantCode = currentUser?.tenantCode || window.tenant || 'apoyar';
+      const response = await fetch(`/api/integrations/${tenantCode}/slack/status`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+
+      if (!response.ok) {
+        console.log('Slack integration status check failed or not available');
+        return;
+      }
+
+      const data = await response.json();
+
+      if (data.connected) {
+        // Show connected state
+        document.getElementById('slack-not-connected').style.display = 'none';
+        document.getElementById('slack-connected').style.display = 'block';
+        document.getElementById('slack-disconnected-badge').style.display = 'none';
+        document.getElementById('slack-connected-badge').style.display = 'inline';
+
+        document.getElementById('slack-workspace-name').textContent = data.slack_workspace_name || 'Unknown';
+        document.getElementById('slack-connected-date').textContent = data.connected_at
+          ? new Date(data.connected_at).toLocaleDateString()
+          : '-';
+
+        // Show email domains
+        renderSlackEmailDomains(data.email_domains || []);
+      } else {
+        // Show not connected state
+        document.getElementById('slack-not-connected').style.display = 'block';
+        document.getElementById('slack-connected').style.display = 'none';
+        document.getElementById('slack-disconnected-badge').style.display = 'inline';
+        document.getElementById('slack-connected-badge').style.display = 'none';
+      }
+    } catch (error) {
+      console.error('Error loading Slack integration status:', error);
+    }
+  }
+
+  function renderSlackEmailDomains(domains) {
+    const container = document.getElementById('slack-email-domains');
+    if (domains.length === 0) {
+      container.innerHTML = '<span class="subtitle" style="color:#666">No additional domains configured</span>';
+      return;
+    }
+
+    container.innerHTML = domains.map(domain => `
+      <span class="badge" style="background:#f3e8ff;color:#7c3aed;margin-right:8px;margin-bottom:4px">
+        ${domain}
+        <button onclick="removeSlackDomain('${domain}')" style="background:none;border:none;cursor:pointer;margin-left:4px;color:#8b5cf6">&times;</button>
+      </span>
+    `).join('');
+  }
+
+  async function connectSlack() {
+    try {
+      const tenantCode = currentUser?.tenantCode || window.tenant || 'apoyar';
+      const response = await fetch(`/api/integrations/${tenantCode}/slack/connect`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+
+      const data = await response.json();
+
+      if (data.auth_url) {
+        // Redirect to Slack OAuth
+        window.location.href = data.auth_url;
+      } else {
+        showSlackError(data.error || 'Failed to initiate connection');
+      }
+    } catch (error) {
+      console.error('Error connecting to Slack:', error);
+      showSlackError('Failed to connect to Slack');
+    }
+  }
+
+  async function disconnectSlack() {
+    if (!confirm('Are you sure you want to disconnect Slack integration?')) {
+      return;
+    }
+
+    try {
+      const tenantCode = currentUser?.tenantCode || window.tenant || 'apoyar';
+      const response = await fetch(`/api/integrations/${tenantCode}/slack/disconnect`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        showSlackMessage('Slack integration disconnected');
+        loadSlackIntegrationStatus();
+      } else {
+        showSlackError(data.error || 'Failed to disconnect');
+      }
+    } catch (error) {
+      console.error('Error disconnecting Slack:', error);
+      showSlackError('Failed to disconnect');
+    }
+  }
+
+  async function addSlackDomain() {
+    const input = document.getElementById('slack-new-domain');
+    const domain = input.value.trim().toLowerCase().replace('@', '');
+
+    if (!domain) {
+      showSlackError('Please enter a domain');
+      return;
+    }
+
+    try {
+      const tenantCode = currentUser?.tenantCode || window.tenant || 'apoyar';
+      const response = await fetch(`/api/integrations/${tenantCode}/slack/email-domain`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email_domain: domain })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        input.value = '';
+        showSlackMessage(`Domain "${domain}" added`);
+        loadSlackIntegrationStatus();
+      } else {
+        showSlackError(data.error || 'Failed to add domain');
+      }
+    } catch (error) {
+      console.error('Error adding domain:', error);
+      showSlackError('Failed to add domain');
+    }
+  }
+
+  async function removeSlackDomain(domain) {
+    if (!confirm(`Remove domain "${domain}"?`)) return;
+
+    try {
+      const tenantCode = currentUser?.tenantCode || window.tenant || 'apoyar';
+      const response = await fetch(`/api/integrations/${tenantCode}/slack/email-domain/${domain}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        showSlackMessage(`Domain "${domain}" removed`);
+        loadSlackIntegrationStatus();
+      } else {
+        showSlackError(data.error || 'Failed to remove domain');
+      }
+    } catch (error) {
+      console.error('Error removing domain:', error);
+      showSlackError('Failed to remove domain');
+    }
+  }
+
+  function showSlackMessage(message) {
+    const msgEl = document.getElementById('slack-message');
+    const errEl = document.getElementById('slack-error');
+    errEl.style.display = 'none';
+    msgEl.textContent = message;
+    msgEl.style.display = 'block';
+    setTimeout(() => { msgEl.style.display = 'none'; }, 4000);
+  }
+
+  function showSlackError(message) {
+    const msgEl = document.getElementById('slack-message');
+    const errEl = document.getElementById('slack-error');
+    msgEl.style.display = 'none';
+    errEl.textContent = message;
+    errEl.style.display = 'block';
+    setTimeout(() => { errEl.style.display = 'none'; }, 5000);
+  }
+
+  // Check for Slack OAuth callback parameters on page load
+  function checkSlackOAuthCallback() {
+    const params = new URLSearchParams(window.location.search);
+
+    if (params.get('slack_connected') === 'true') {
+      const workspaceName = params.get('slack_workspace') || 'your workspace';
+      showSlackMessage(`Successfully connected to ${decodeURIComponent(workspaceName)}!`);
+      // Clean URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+      // Navigate to wizard and refresh status
+      switchView('wizard');
+      loadSlackIntegrationStatus();
+    }
+
+    if (params.get('slack_error')) {
+      const error = decodeURIComponent(params.get('slack_error'));
+      showSlackError(`Connection failed: ${error}`);
       window.history.replaceState({}, document.title, window.location.pathname);
       switchView('wizard');
     }
