@@ -1587,10 +1587,10 @@ vNext-FULL-ActionsSLA:
             <div class="row"><button class="btn ghost" onclick="switchView('dash')">← Back</button><h3 class="title" style="margin:0 0 0 8px">Plan Management</h3></div>
             <div class="row">
               <button class="btn primary" onclick="showCreatePlanForm()">+ Create New Plan</button>
-              <button class="btn" onclick="exportPlans()">📊 Export Plans</button>
+              <button class="btn" onclick="previewPlansOnMarketing()" title="Opens marketing pricing page">👁 Preview Marketing</button>
             </div>
           </div>
-          
+
           <!-- Plan Stats -->
           <div class="grid3 mb-16">
             <div class="card p-16">
@@ -1606,19 +1606,20 @@ vNext-FULL-ActionsSLA:
               <div id="popular-plan" style="font-size:28px;font-weight:800">Starter</div>
             </div>
           </div>
-          
+
           <!-- Plans List -->
-          <div class="card p-16">
+          <div class="card p-16 mb-16">
             <h4>Subscription Plans</h4>
+            <p class="subtitle mb-8">Plans are displayed on the marketing pricing page. Changes here update the marketing site immediately.</p>
             <table id="plans-table">
               <thead>
                 <tr>
-                  <th>Plan Name</th>
-                  <th>Price</th>
-                  <th>Users</th>
-                  <th>Tickets</th>
-                  <th>Storage</th>
+                  <th>Order</th>
+                  <th>Plan</th>
+                  <th>Slug</th>
+                  <th>Pricing</th>
                   <th>Features</th>
+                  <th>Tenants</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
@@ -1628,52 +1629,119 @@ vNext-FULL-ActionsSLA:
               </tbody>
             </table>
           </div>
-          
+
           <!-- Create/Edit Plan Form -->
           <div id="create-plan-form" class="card p-16" style="display:none">
             <h4 id="plan-form-title">Create New Plan</h4>
-            <div class="grid2">
-              <div class="form-group">
-                <label>Plan Name</label>
-                <input type="text" id="plan-name" placeholder="e.g., Enterprise">
+            <input type="hidden" id="plan-edit-id">
+
+            <!-- Basic Info -->
+            <div style="border-bottom:1px solid var(--border);padding-bottom:16px;margin-bottom:16px">
+              <h5 style="margin:0 0 12px 0">Basic Information</h5>
+              <div class="grid3">
+                <div class="form-group">
+                  <label>Slug (URL-safe ID)</label>
+                  <input type="text" id="plan-slug" placeholder="e.g., enterprise">
+                  <small class="subtitle">Used in URLs and API. Cannot be changed easily.</small>
+                </div>
+                <div class="form-group">
+                  <label>Internal Name</label>
+                  <input type="text" id="plan-name" placeholder="e.g., Enterprise">
+                </div>
+                <div class="form-group">
+                  <label>Display Name (Marketing)</label>
+                  <input type="text" id="plan-display-name" placeholder="e.g., Enterprise">
+                </div>
+              </div>
+              <div class="grid2">
+                <div class="form-group">
+                  <label>Tagline</label>
+                  <input type="text" id="plan-tagline" placeholder="e.g., For large teams">
+                </div>
+                <div class="form-group">
+                  <label>Badge Text (optional)</label>
+                  <input type="text" id="plan-badge" placeholder="e.g., BEST VALUE">
+                </div>
               </div>
               <div class="form-group">
-                <label>Plan ID</label>
-                <input type="text" id="plan-id" placeholder="e.g., enterprise">
-              </div>
-            </div>
-            <div class="grid3">
-              <div class="form-group">
-                <label>Monthly Price ($)</label>
-                <input type="number" id="plan-price" placeholder="0">
-              </div>
-              <div class="form-group">
-                <label>Max Users (-1 = unlimited)</label>
-                <input type="number" id="plan-users" placeholder="10">
-              </div>
-              <div class="form-group">
-                <label>Max Tickets/Month (-1 = unlimited)</label>
-                <input type="number" id="plan-tickets" placeholder="500">
-              </div>
-            </div>
-            <div class="grid2">
-              <div class="form-group">
-                <label>Storage (GB, -1 = unlimited)</label>
-                <input type="number" id="plan-storage" placeholder="10">
-              </div>
-              <div class="form-group">
-                <label>Status</label>
-                <select id="plan-status">
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                  <option value="beta">Beta</option>
-                </select>
+                <label>Description</label>
+                <textarea id="plan-description" placeholder="Full plan description for marketing"></textarea>
               </div>
             </div>
-            <div class="form-group">
-              <label>Features (comma-separated)</label>
-              <textarea id="plan-features" placeholder="basic_sla, email_support, analytics"></textarea>
+
+            <!-- Pricing -->
+            <div style="border-bottom:1px solid var(--border);padding-bottom:16px;margin-bottom:16px">
+              <h5 style="margin:0 0 12px 0">Pricing (AUD)</h5>
+              <div class="grid3">
+                <div class="form-group">
+                  <label>Monthly Price ($)</label>
+                  <input type="number" id="plan-price-monthly" placeholder="29" step="0.01">
+                </div>
+                <div class="form-group">
+                  <label>Yearly Price ($)</label>
+                  <input type="number" id="plan-price-yearly" placeholder="290" step="0.01">
+                  <small class="subtitle">Typically 10x monthly (2 months free)</small>
+                </div>
+                <div class="form-group">
+                  <label>Per User Price ($)</label>
+                  <input type="number" id="plan-price-per-user" placeholder="29" step="0.01">
+                </div>
+              </div>
             </div>
+
+            <!-- Limits -->
+            <div style="border-bottom:1px solid var(--border);padding-bottom:16px;margin-bottom:16px">
+              <h5 style="margin:0 0 12px 0">Feature Limits (-1 = unlimited)</h5>
+              <div class="grid3">
+                <div class="form-group">
+                  <label>Max Users</label>
+                  <input type="number" id="plan-limit-users" placeholder="-1">
+                </div>
+                <div class="form-group">
+                  <label>Max Tickets/Month</label>
+                  <input type="number" id="plan-limit-tickets" placeholder="-1">
+                </div>
+                <div class="form-group">
+                  <label>Max Storage (GB)</label>
+                  <input type="number" id="plan-limit-storage" placeholder="10">
+                </div>
+              </div>
+            </div>
+
+            <!-- Features -->
+            <div style="border-bottom:1px solid var(--border);padding-bottom:16px;margin-bottom:16px">
+              <h5 style="margin:0 0 12px 0">Included Features</h5>
+              <p class="subtitle mb-8">Select features included in this plan. These control feature gating in the app.</p>
+              <div id="plan-features-checklist" class="grid3" style="max-height:300px;overflow-y:auto;padding:8px;background:var(--bg-soft);border-radius:8px">
+                <div class="subtitle">Loading features...</div>
+              </div>
+            </div>
+
+            <!-- Display Settings -->
+            <div style="margin-bottom:16px">
+              <h5 style="margin:0 0 12px 0">Display Settings</h5>
+              <div class="grid3">
+                <div class="form-group">
+                  <label>Display Order</label>
+                  <input type="number" id="plan-display-order" placeholder="1">
+                  <small class="subtitle">Lower = first on pricing page</small>
+                </div>
+                <div class="form-group">
+                  <label>Status</label>
+                  <select id="plan-status">
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive (Hidden)</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label style="display:flex;align-items:center;gap:8px;margin-top:24px">
+                    <input type="checkbox" id="plan-featured" style="width:auto">
+                    Featured (highlighted on pricing)
+                  </label>
+                </div>
+              </div>
+            </div>
+
             <div class="row">
               <button class="btn primary" onclick="savePlan()">Save Plan</button>
               <button class="btn ghost" onclick="hideCreatePlanForm()">Cancel</button>
@@ -10608,24 +10676,38 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   }
   
   // Plan Management Functions
+  // Plan Management - Enhanced for unified plan system
+  let plansData = [];
+  let featureCatalog = [];
+
   async function loadPlans() {
     try {
-      const response = await fetch(window.location.protocol + '//' + window.location.host + '/api/master/plans', {
-        headers: {
-          'Authorization': 'Bearer ' + localStorage.getItem('token')
-        }
-      });
-      const data = await response.json();
-      
-      if (data.success) {
-        updatePlanStats(data.plans);
-        renderPlansList(data.plans);
+      const [plansResponse, featuresResponse] = await Promise.all([
+        fetch(window.location.protocol + '//' + window.location.host + '/api/master/plans', {
+          headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+        }),
+        fetch(window.location.protocol + '//' + window.location.host + '/api/master/plans/features', {
+          headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+        })
+      ]);
+
+      const plansResult = await plansResponse.json();
+      const featuresResult = await featuresResponse.json();
+
+      if (plansResult.success) {
+        plansData = plansResult.plans;
+        updatePlanStats(plansData);
+        renderPlansList(plansData);
+      }
+
+      if (featuresResult.success) {
+        featureCatalog = featuresResult.features;
       }
     } catch (error) {
       console.error('Error loading plans:', error);
     }
   }
-  
+
   function updatePlanStats(plans) {
     if (!plans || plans.length === 0) {
       document.getElementById('total-plans').textContent = '0';
@@ -10634,60 +10716,47 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       return;
     }
     const totalPlans = plans.length;
-    const activePlans = plans.filter(p => p.status === 'active').length;
+    const activePlans = plans.filter(p => p.is_active).length;
     const popularPlan = plans.reduce((prev, current) =>
       (prev.tenant_count || 0) > (current.tenant_count || 0) ? prev : current
     );
 
     document.getElementById('total-plans').textContent = totalPlans;
     document.getElementById('active-plans').textContent = activePlans;
-    document.getElementById('popular-plan').textContent = popularPlan.name || 'N/A';
+    document.getElementById('popular-plan').textContent = popularPlan.display_name || popularPlan.name || 'N/A';
   }
 
   function renderPlansList(plans) {
     const tbody = document.getElementById('plans-list-body');
-    if (!tbody) {
-      console.error('Plans tbody not found');
-      return;
-    }
+    if (!tbody) return;
 
     if (!plans || plans.length === 0) {
       tbody.innerHTML = '<tr><td colspan="8" class="subtitle">No plans defined</td></tr>';
       return;
     }
 
-    console.log('Rendering plans:', plans.length);
     tbody.innerHTML = '';
+    plans.forEach((plan) => {
+      const tr = document.createElement('tr');
+      const featuresList = Array.isArray(plan.features) ? plan.features : [];
+      const featuresDisplay = featuresList.length > 0 ? `${featuresList.length} features` : 'None';
+      const pricing = `$${plan.price_monthly || 0}/mo`;
+      const status = plan.is_active ? 'active' : 'inactive';
+      const featured = plan.is_featured ? ' <span class="badge">Featured</span>' : '';
 
-    plans.forEach((plan, index) => {
-      try {
-        const tr = document.createElement('tr');
-        const users = plan.max_users === -1 ? 'Unlimited' : (plan.max_users || 'N/A');
-        const tickets = plan.max_tickets === -1 ? 'Unlimited' : (plan.max_tickets || 'N/A');
-        const storage = plan.max_storage === -1 ? 'Unlimited' : ((plan.max_storage || 0) + 'GB');
-        const featuresList = Array.isArray(plan.features) ? plan.features : [];
-        const features = featuresList.length > 0 ? (featuresList.slice(0, 3).join(', ') + (featuresList.length > 3 ? '...' : '')) : 'None';
-        const featuresTitle = featuresList.join(', ').replace(/"/g, '&quot;');
-        const planId = String(plan.id).replace(/'/g, "\\'");
-
-        tr.innerHTML = `
-          <td><strong>${escapeHtml(plan.name) || 'Unknown'}</strong></td>
-          <td>$${plan.monthly_price || 0}/month</td>
-          <td>${users}</td>
-          <td>${tickets}</td>
-          <td>${storage}</td>
-          <td title="${featuresTitle}">${escapeHtml(features)}</td>
-          <td><span class="badge status-${plan.status || 'inactive'}">${plan.status || 'N/A'}</span></td>
-          <td>
-            <button onclick="editPlan('${planId}')" class="btn btn-sm">Edit</button>
-            <button onclick="duplicatePlan('${planId}')" class="btn btn-sm">Copy</button>
-            <button onclick="deletePlan('${planId}')" class="btn btn-sm btn-danger">Delete</button>
-          </td>
-        `;
-        tbody.appendChild(tr);
-      } catch (err) {
-        console.error('Error rendering plan', index, plan, err);
-      }
+      tr.innerHTML = `
+        <td>${plan.display_order || 0}</td>
+        <td><strong>${escapeHtml(plan.display_name || plan.name)}</strong>${featured}<br><small class="subtitle">${escapeHtml(plan.tagline || '')}</small></td>
+        <td><code>${escapeHtml(plan.slug)}</code></td>
+        <td>${pricing}${plan.badge_text ? '<br><small class="subtitle">'+escapeHtml(plan.badge_text)+'</small>' : ''}</td>
+        <td title="${featuresList.join(', ')}">${featuresDisplay}</td>
+        <td>${plan.tenant_count || 0}</td>
+        <td><span class="badge status-${status}">${status}</span></td>
+        <td>
+          <button onclick="editPlan(${plan.id})" class="btn btn-sm">Edit</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
     });
   }
 
@@ -10697,60 +10766,160 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     div.textContent = text;
     return div.innerHTML;
   }
-  
+
   function showCreatePlanForm() {
     document.getElementById('create-plan-form').style.display = 'block';
     document.getElementById('plan-form-title').textContent = 'Create New Plan';
+    document.getElementById('plan-edit-id').value = '';
     clearPlanForm();
+    renderFeatureChecklist([]);
   }
-  
+
   function hideCreatePlanForm() {
     document.getElementById('create-plan-form').style.display = 'none';
     clearPlanForm();
   }
-  
+
   function clearPlanForm() {
+    document.getElementById('plan-slug').value = '';
     document.getElementById('plan-name').value = '';
-    document.getElementById('plan-id').value = '';
-    document.getElementById('plan-price').value = '';
-    document.getElementById('plan-users').value = '';
-    document.getElementById('plan-tickets').value = '';
-    document.getElementById('plan-storage').value = '';
+    document.getElementById('plan-display-name').value = '';
+    document.getElementById('plan-tagline').value = '';
+    document.getElementById('plan-badge').value = '';
+    document.getElementById('plan-description').value = '';
+    document.getElementById('plan-price-monthly').value = '';
+    document.getElementById('plan-price-yearly').value = '';
+    document.getElementById('plan-price-per-user').value = '';
+    document.getElementById('plan-limit-users').value = '-1';
+    document.getElementById('plan-limit-tickets').value = '-1';
+    document.getElementById('plan-limit-storage').value = '10';
+    document.getElementById('plan-display-order').value = '1';
     document.getElementById('plan-status').value = 'active';
-    document.getElementById('plan-features').value = '';
+    document.getElementById('plan-featured').checked = false;
   }
-  
-  async function savePlan() {
-    const planData = {
-      name: document.getElementById('plan-name').value,
-      id: document.getElementById('plan-id').value,
-      monthlyPrice: parseInt(document.getElementById('plan-price').value) || 0,
-      maxUsers: parseInt(document.getElementById('plan-users').value) || 0,
-      maxTickets: parseInt(document.getElementById('plan-tickets').value) || 0,
-      maxStorage: parseInt(document.getElementById('plan-storage').value) || 0,
-      status: document.getElementById('plan-status').value,
-      features: document.getElementById('plan-features').value.split(',').map(f => f.trim()).filter(f => f)
-    };
-    
-    if (!planData.name || !planData.id) {
-      alert('Please fill in plan name and ID');
+
+  function renderFeatureChecklist(selectedFeatures) {
+    const container = document.getElementById('plan-features-checklist');
+    if (!featureCatalog || featureCatalog.length === 0) {
+      container.innerHTML = '<div class="subtitle">No features defined</div>';
       return;
     }
-    
+
+    // Group by category
+    const grouped = {};
+    featureCatalog.forEach(f => {
+      const cat = f.category || 'other';
+      if (!grouped[cat]) grouped[cat] = [];
+      grouped[cat].push(f);
+    });
+
+    const categoryNames = {
+      core: 'Core', customer: 'Customer', ai: 'AI', integrations: 'Integrations',
+      sla: 'SLA', msp: 'MSP', api: 'API'
+    };
+
+    let html = '';
+    Object.keys(grouped).forEach(cat => {
+      html += `<div style="margin-bottom:12px"><strong>${categoryNames[cat] || cat}</strong>`;
+      grouped[cat].forEach(f => {
+        const checked = selectedFeatures.includes(f.feature_key) ? 'checked' : '';
+        html += `<label style="display:flex;align-items:center;gap:4px;margin:4px 0;font-size:13px">
+          <input type="checkbox" class="plan-feature-cb" value="${f.feature_key}" ${checked} style="width:auto">
+          ${escapeHtml(f.marketing_name || f.name)}
+        </label>`;
+      });
+      html += '</div>';
+    });
+
+    container.innerHTML = html;
+  }
+
+  function getSelectedFeatures() {
+    const checkboxes = document.querySelectorAll('.plan-feature-cb:checked');
+    return Array.from(checkboxes).map(cb => cb.value);
+  }
+
+  async function editPlan(planId) {
+    const plan = plansData.find(p => p.id === planId);
+    if (!plan) return;
+
+    document.getElementById('create-plan-form').style.display = 'block';
+    document.getElementById('plan-form-title').textContent = 'Edit Plan: ' + plan.display_name;
+    document.getElementById('plan-edit-id').value = plan.id;
+
+    document.getElementById('plan-slug').value = plan.slug || '';
+    document.getElementById('plan-name').value = plan.name || '';
+    document.getElementById('plan-display-name').value = plan.display_name || '';
+    document.getElementById('plan-tagline').value = plan.tagline || '';
+    document.getElementById('plan-badge').value = plan.badge_text || '';
+    document.getElementById('plan-description').value = plan.description || '';
+    document.getElementById('plan-price-monthly').value = plan.price_monthly || '';
+    document.getElementById('plan-price-yearly').value = plan.price_yearly || '';
+    document.getElementById('plan-price-per-user').value = plan.price_per_user || '';
+
+    const limits = plan.feature_limits || {};
+    document.getElementById('plan-limit-users').value = limits.max_users ?? -1;
+    document.getElementById('plan-limit-tickets').value = limits.max_tickets ?? -1;
+    document.getElementById('plan-limit-storage').value = limits.max_storage_gb ?? 10;
+
+    document.getElementById('plan-display-order').value = plan.display_order || 0;
+    document.getElementById('plan-status').value = plan.is_active ? 'active' : 'inactive';
+    document.getElementById('plan-featured').checked = !!plan.is_featured;
+
+    renderFeatureChecklist(plan.features || []);
+
+    // Scroll to form
+    document.getElementById('create-plan-form').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  async function savePlan() {
+    const editId = document.getElementById('plan-edit-id').value;
+    const isEdit = !!editId;
+
+    const planData = {
+      slug: document.getElementById('plan-slug').value,
+      name: document.getElementById('plan-name').value,
+      displayName: document.getElementById('plan-display-name').value,
+      tagline: document.getElementById('plan-tagline').value,
+      badgeText: document.getElementById('plan-badge').value || null,
+      description: document.getElementById('plan-description').value,
+      priceMonthly: parseFloat(document.getElementById('plan-price-monthly').value) || 0,
+      priceYearly: parseFloat(document.getElementById('plan-price-yearly').value) || 0,
+      pricePerUser: parseFloat(document.getElementById('plan-price-per-user').value) || 0,
+      featureLimits: {
+        max_users: parseInt(document.getElementById('plan-limit-users').value) || -1,
+        max_tickets: parseInt(document.getElementById('plan-limit-tickets').value) || -1,
+        max_storage_gb: parseInt(document.getElementById('plan-limit-storage').value) || 10
+      },
+      features: getSelectedFeatures(),
+      displayOrder: parseInt(document.getElementById('plan-display-order').value) || 0,
+      isActive: document.getElementById('plan-status').value === 'active',
+      isFeatured: document.getElementById('plan-featured').checked
+    };
+
+    if (!planData.slug || !planData.name) {
+      alert('Please fill in slug and name');
+      return;
+    }
+
     try {
-      const response = await fetch(window.location.protocol + '//' + window.location.host + '/api/master/plans', {
-        method: 'POST',
+      const url = isEdit
+        ? `${window.location.protocol}//${window.location.host}/api/master/plans/${editId}`
+        : `${window.location.protocol}//${window.location.host}/api/master/plans`;
+
+      const response = await fetch(url, {
+        method: isEdit ? 'PUT' : 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ' + localStorage.getItem('token')
         },
         body: JSON.stringify(planData)
       });
-      
+
       const data = await response.json();
-      
+
       if (data.success) {
-        alert('Plan saved successfully!');
+        alert(isEdit ? 'Plan updated successfully!' : 'Plan created successfully!');
         hideCreatePlanForm();
         loadPlans();
       } else {
@@ -10761,23 +10930,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       alert('Error saving plan');
     }
   }
-  
-  function editPlan(planId) {
-    alert('Edit plan functionality not yet implemented for: ' + planId);
-  }
-  
-  function duplicatePlan(planId) {
-    alert('Duplicate plan functionality not yet implemented for: ' + planId);
-  }
-  
-  function deletePlan(planId) {
-    if (confirm('Are you sure you want to delete this plan?')) {
-      alert('Delete plan functionality not yet implemented for: ' + planId);
-    }
-  }
-  
-  function exportPlans() {
-    alert('Export plans functionality not yet implemented');
+
+  function previewPlansOnMarketing() {
+    window.open('/marketing/site.html#pricing', '_blank');
   }
 
   // ---- Tickets ----

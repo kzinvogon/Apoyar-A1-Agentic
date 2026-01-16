@@ -503,21 +503,26 @@ router.get('/plans', requireMasterAuth, async (req, res) => {
     try {
       const [plans] = await connection.query(`
         SELECT
-          p.id, p.name, p.display_name, p.description,
-          p.price_monthly as monthly_price, p.max_users,
-          p.max_tickets, p.max_storage_gb as max_storage, p.features,
-          CASE WHEN p.is_active THEN 'active' ELSE 'inactive' END as status,
+          p.id, p.slug, p.name, p.display_name, p.tagline, p.description,
+          p.price_monthly, p.price_yearly, p.price_per_user,
+          p.features, p.feature_limits,
+          p.display_order, p.is_active, p.is_featured, p.badge_text,
+          p.created_at, p.updated_at,
           COUNT(s.id) as tenant_count
         FROM subscription_plans p
         LEFT JOIN tenant_subscriptions s ON p.id = s.plan_id AND s.status IN ('active', 'trial')
         GROUP BY p.id
-        ORDER BY p.price_monthly ASC
+        ORDER BY p.display_order ASC
       `);
 
       // Parse JSON features
       const parsedPlans = plans.map(plan => ({
         ...plan,
-        features: typeof plan.features === 'string' ? JSON.parse(plan.features) : (plan.features || [])
+        features: typeof plan.features === 'string' ? JSON.parse(plan.features) : (plan.features || []),
+        feature_limits: typeof plan.feature_limits === 'string' ? JSON.parse(plan.feature_limits) : (plan.feature_limits || {}),
+        price_monthly: parseFloat(plan.price_monthly),
+        price_yearly: parseFloat(plan.price_yearly),
+        price_per_user: parseFloat(plan.price_per_user)
       }));
 
       res.json({ success: true, plans: parsedPlans });
@@ -530,43 +535,96 @@ router.get('/plans', requireMasterAuth, async (req, res) => {
   }
 });
 
+// Get feature catalog
+router.get('/plans/features', requireMasterAuth, async (req, res) => {
+  try {
+    const connection = await getMasterConnection();
+
+    try {
+      const [features] = await connection.query(`
+        SELECT feature_key, name, marketing_name, description, category, display_order, is_visible_marketing
+        FROM plan_features
+        ORDER BY category, display_order ASC
+      `);
+
+      // Group by category
+      const grouped = features.reduce((acc, feature) => {
+        const cat = feature.category || 'other';
+        if (!acc[cat]) {
+          acc[cat] = [];
+        }
+        acc[cat].push(feature);
+        return acc;
+      }, {});
+
+      res.json({ success: true, features, grouped });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error fetching features:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
 // Create new subscription plan
 router.post('/plans', requireMasterAuth, async (req, res) => {
   try {
-    const { name, displayName, description, monthlyPrice, yearlyPrice, maxUsers, maxTickets, maxStorage, status, features } = req.body;
+    const {
+      slug, name, displayName, tagline, description,
+      priceMonthly, priceYearly, pricePerUser,
+      features, featureLimits,
+      displayOrder, isActive, isFeatured, badgeText
+    } = req.body;
 
     // Validate required fields
-    if (!name) {
-      return res.status(400).json({ success: false, message: 'Plan name is required' });
+    if (!slug || !name) {
+      return res.status(400).json({ success: false, message: 'Slug and name are required' });
     }
 
     const connection = await getMasterConnection();
 
     try {
-      // Check if plan name already exists
-      const [existing] = await connection.query('SELECT id FROM subscription_plans WHERE name = ?', [name]);
+      // Check if slug already exists
+      const [existing] = await connection.query('SELECT id FROM subscription_plans WHERE slug = ?', [slug]);
       if (existing.length > 0) {
-        return res.status(400).json({ success: false, message: 'Plan with this name already exists' });
+        return res.status(400).json({ success: false, message: 'Plan with this slug already exists' });
       }
 
-      const priceMonthly = parseFloat(monthlyPrice) || 0;
-      const priceYearly = parseFloat(yearlyPrice) || (priceMonthly * 10); // Default: 10 months for yearly
+      const monthly = parseFloat(priceMonthly) || 0;
+      const yearly = parseFloat(priceYearly) || (monthly * 10);
+      const perUser = parseFloat(pricePerUser) || monthly;
 
       const [result] = await connection.query(`
-        INSERT INTO subscription_plans (name, display_name, description, price_monthly, price_yearly, max_users, max_tickets, max_storage_gb, features, is_active)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO subscription_plans (
+          slug, name, display_name, tagline, description,
+          price_monthly, price_yearly, price_per_user,
+          features, feature_limits,
+          display_order, is_active, is_featured, badge_text
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, [
+        slug,
         name,
         displayName || name,
-        description || `${name} plan`,
-        priceMonthly,
-        priceYearly,
-        parseInt(maxUsers) || -1,
-        parseInt(maxTickets) || -1,
-        parseInt(maxStorage) || 10,
+        tagline || '',
+        description || '',
+        monthly,
+        yearly,
+        perUser,
         JSON.stringify(Array.isArray(features) ? features : []),
-        status === 'active' || status === undefined
+        JSON.stringify(featureLimits || {}),
+        parseInt(displayOrder) || 0,
+        isActive !== false,
+        !!isFeatured,
+        badgeText || null
       ]);
+
+      // Clear plans cache
+      try {
+        const { clearPlansCache } = require('../plans');
+        clearPlansCache();
+      } catch (e) {}
 
       res.json({
         success: true,
@@ -578,6 +636,82 @@ router.post('/plans', requireMasterAuth, async (req, res) => {
     }
   } catch (error) {
     console.error('Error creating plan:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// Update subscription plan
+router.put('/plans/:id', requireMasterAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      slug, name, displayName, tagline, description,
+      priceMonthly, priceYearly, pricePerUser,
+      features, featureLimits,
+      displayOrder, isActive, isFeatured, badgeText
+    } = req.body;
+
+    const connection = await getMasterConnection();
+
+    try {
+      // Check if plan exists
+      const [existing] = await connection.query('SELECT id FROM subscription_plans WHERE id = ?', [id]);
+      if (existing.length === 0) {
+        return res.status(404).json({ success: false, message: 'Plan not found' });
+      }
+
+      // Check if slug is being changed and conflicts
+      if (slug) {
+        const [slugConflict] = await connection.query('SELECT id FROM subscription_plans WHERE slug = ? AND id != ?', [slug, id]);
+        if (slugConflict.length > 0) {
+          return res.status(400).json({ success: false, message: 'Another plan with this slug already exists' });
+        }
+      }
+
+      // Build update query dynamically
+      const updates = [];
+      const values = [];
+
+      if (slug !== undefined) { updates.push('slug = ?'); values.push(slug); }
+      if (name !== undefined) { updates.push('name = ?'); values.push(name); }
+      if (displayName !== undefined) { updates.push('display_name = ?'); values.push(displayName); }
+      if (tagline !== undefined) { updates.push('tagline = ?'); values.push(tagline); }
+      if (description !== undefined) { updates.push('description = ?'); values.push(description); }
+      if (priceMonthly !== undefined) { updates.push('price_monthly = ?'); values.push(parseFloat(priceMonthly) || 0); }
+      if (priceYearly !== undefined) { updates.push('price_yearly = ?'); values.push(parseFloat(priceYearly) || 0); }
+      if (pricePerUser !== undefined) { updates.push('price_per_user = ?'); values.push(parseFloat(pricePerUser) || 0); }
+      if (features !== undefined) { updates.push('features = ?'); values.push(JSON.stringify(features)); }
+      if (featureLimits !== undefined) { updates.push('feature_limits = ?'); values.push(JSON.stringify(featureLimits)); }
+      if (displayOrder !== undefined) { updates.push('display_order = ?'); values.push(parseInt(displayOrder) || 0); }
+      if (isActive !== undefined) { updates.push('is_active = ?'); values.push(!!isActive); }
+      if (isFeatured !== undefined) { updates.push('is_featured = ?'); values.push(!!isFeatured); }
+      if (badgeText !== undefined) { updates.push('badge_text = ?'); values.push(badgeText || null); }
+
+      if (updates.length === 0) {
+        return res.status(400).json({ success: false, message: 'No fields to update' });
+      }
+
+      values.push(id);
+      await connection.query(`UPDATE subscription_plans SET ${updates.join(', ')} WHERE id = ?`, values);
+
+      // Clear plans cache
+      try {
+        const { clearPlansCache } = require('../plans');
+        clearPlansCache();
+      } catch (e) {}
+
+      // Clear public plans cache
+      try {
+        const { clearPlansCache: clearPublicCache } = require('./plans-public');
+        clearPublicCache();
+      } catch (e) {}
+
+      res.json({ success: true, message: 'Plan updated successfully' });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error updating plan:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
