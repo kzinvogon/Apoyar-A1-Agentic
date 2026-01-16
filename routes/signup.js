@@ -19,7 +19,7 @@ const rateLimit = require('express-rate-limit');
 // Rate limiting for signup endpoints
 const signupLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // 10 requests per window
+  max: 50, // 50 requests per window (increased for testing)
   message: { success: false, message: 'Too many signup attempts. Please try again later.' }
 });
 
