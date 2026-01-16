@@ -14,11 +14,11 @@ require('dotenv').config();
 const mysql = require('mysql2/promise');
 
 const config = {
-  host: process.env.MASTER_DB_HOST || process.env.MYSQLHOST || process.env.DB_HOST,
-  port: process.env.MASTER_DB_PORT || process.env.MYSQLPORT || process.env.DB_PORT || 3306,
-  user: process.env.MASTER_DB_USER || process.env.MYSQLUSER || process.env.DB_USER,
-  password: process.env.MASTER_DB_PASSWORD || process.env.MYSQLPASSWORD || process.env.DB_PASSWORD,
-  database: process.env.MASTER_DB_NAME || process.env.MYSQLDATABASE || 'railway'
+  host: process.env.MYSQLHOST || process.env.MASTER_DB_HOST || process.env.DB_HOST,
+  port: process.env.MYSQLPORT || process.env.MASTER_DB_PORT || process.env.DB_PORT || 3306,
+  user: process.env.MYSQLUSER || process.env.MASTER_DB_USER || process.env.DB_USER,
+  password: process.env.MYSQLPASSWORD || process.env.MASTER_DB_PASSWORD || process.env.DB_PASSWORD,
+  database: process.env.MYSQLDATABASE || process.env.MASTER_DB_NAME || 'railway'
 };
 
 async function runMigration() {
