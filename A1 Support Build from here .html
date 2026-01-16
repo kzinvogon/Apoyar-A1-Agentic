@@ -1389,12 +1389,14 @@ vNext-FULL-ActionsSLA:
                   <th>Company Name</th>
                   <th>Tenant ID</th>
                   <th>Status</th>
+                  <th>Plan</th>
+                  <th>Subscription</th>
                   <th>Created</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody id="tenant-list-body">
-                <tr><td colspan="5" class="subtitle">Loading tenants...</td></tr>
+                <tr><td colspan="7" class="subtitle">Loading tenants...</td></tr>
               </tbody>
             </table>
           </div>
@@ -1449,8 +1451,70 @@ vNext-FULL-ActionsSLA:
               <button class="btn ghost" onclick="hideEditTenantForm()">Cancel</button>
             </div>
           </div>
+
+          <!-- Tenant Subscription Modal -->
+          <div id="tenant-subscription-modal" class="card p-16" style="display:none">
+            <h4>Manage Subscription</h4>
+            <input type="hidden" id="sub-tenant-id">
+            <div class="subtitle mb-12" id="sub-tenant-name">Tenant Name</div>
+
+            <div class="grid2 mb-12">
+              <div class="form-group">
+                <label>Current Plan</label>
+                <select id="sub-plan-id">
+                  <option value="">Loading plans...</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Subscription Status</label>
+                <select id="sub-status">
+                  <option value="trial">Trial</option>
+                  <option value="active">Active</option>
+                  <option value="past_due">Past Due</option>
+                  <option value="cancelled">Cancelled</option>
+                  <option value="expired">Expired</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="grid2 mb-12">
+              <div class="form-group">
+                <label>Billing Cycle</label>
+                <select id="sub-billing-cycle">
+                  <option value="monthly">Monthly</option>
+                  <option value="yearly">Yearly</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Trial End Date</label>
+                <input type="date" id="sub-trial-end">
+              </div>
+            </div>
+
+            <div class="grid2 mb-12">
+              <div class="form-group">
+                <label>Period Start</label>
+                <input type="date" id="sub-period-start">
+              </div>
+              <div class="form-group">
+                <label>Period End</label>
+                <input type="date" id="sub-period-end">
+              </div>
+            </div>
+
+            <div id="sub-current-info" class="p-12 mb-12" style="background:var(--surface);border-radius:8px">
+              <div class="subtitle">Current Subscription</div>
+              <div id="sub-current-details">No subscription</div>
+            </div>
+
+            <div class="row">
+              <button class="btn primary" onclick="saveTenantSubscription()">Save Subscription</button>
+              <button class="btn danger" onclick="cancelTenantSubscription()" id="btn-cancel-sub" style="display:none">Cancel Subscription</button>
+              <button class="btn ghost" onclick="hideTenantSubscriptionModal()">Close</button>
+            </div>
+          </div>
         </div>
-        
+
         <!-- Subscription Management -->
         <div id="view-subscriptions" style="display:none">
           <div class="row space mb-12">
@@ -6288,13 +6352,36 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               const tr = document.createElement('tr');
               const statusBadge = tenant.is_active ? 'Active' : 'Inactive';
               const createdDate = new Date(tenant.created_at).toLocaleDateString();
+
+              // Plan and subscription info
+              const planName = tenant.plan_name || 'No Plan';
+              const subStatus = tenant.subscription_status || 'none';
+              const subBadgeClass = {
+                'trial': 'warning',
+                'active': 'success',
+                'past_due': 'danger',
+                'cancelled': 'danger',
+                'expired': 'danger',
+                'none': ''
+              }[subStatus] || '';
+
+              let subDisplay = subStatus.charAt(0).toUpperCase() + subStatus.slice(1).replace('_', ' ');
+              if (subStatus === 'trial' && tenant.trial_end) {
+                const trialEnd = new Date(tenant.trial_end);
+                const daysLeft = Math.ceil((trialEnd - new Date()) / (1000*60*60*24));
+                subDisplay += ` (${daysLeft}d left)`;
+              }
+
               tr.innerHTML = `
                 <td>${tenant.company_name}</td>
                 <td>${tenant.tenant_code}</td>
                 <td><span class="badge ${tenant.is_active ? 'success' : 'danger'}">${statusBadge}</span></td>
+                <td>${planName}</td>
+                <td><span class="badge ${subBadgeClass}">${subDisplay}</span></td>
                 <td>${createdDate}</td>
                 <td>
                   <button onclick="editTenant(${tenant.id})" class="btn btn-sm">Edit</button>
+                  <button onclick="manageTenantSubscription(${tenant.id})" class="btn btn-sm">Subscription</button>
                   <button onclick="deleteTenant(${tenant.id})" class="btn btn-sm btn-danger">Delete</button>
                 </td>
               `;
@@ -6415,7 +6502,164 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       alert('Error updating tenant');
     }
   }
-  
+
+  // Tenant subscription management
+  let tenantSubPlans = [];
+
+  async function loadPlansForTenantSubscription() {
+    try {
+      const response = await fetch(window.location.protocol + '//' + window.location.host + '/api/master/plans', {
+        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+      });
+      const data = await response.json();
+      if (data.success) {
+        tenantSubPlans = data.plans;
+        const select = document.getElementById('sub-plan-id');
+        select.innerHTML = '<option value="">Select a plan</option>';
+        data.plans.forEach(plan => {
+          select.innerHTML += `<option value="${plan.id}">${plan.name} - $${plan.price_monthly}/mo</option>`;
+        });
+      }
+    } catch (error) {
+      console.error('Error loading plans:', error);
+    }
+  }
+
+  async function manageTenantSubscription(tenantId) {
+    // Load plans if not loaded
+    if (tenantSubPlans.length === 0) {
+      await loadPlansForTenantSubscription();
+    }
+
+    // Show modal
+    document.getElementById('tenant-subscription-modal').style.display = 'block';
+    document.getElementById('sub-tenant-id').value = tenantId;
+
+    // Load current subscription
+    try {
+      const response = await fetch(window.location.protocol + '//' + window.location.host + `/api/master/tenants/${tenantId}/subscription`, {
+        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+      });
+      const data = await response.json();
+
+      // Get tenant name from tenants list
+      const tenantsResp = await fetch(window.location.protocol + '//' + window.location.host + `/api/master/tenants/${tenantId}`, {
+        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+      });
+      const tenantData = await tenantsResp.json();
+      document.getElementById('sub-tenant-name').textContent = tenantData.tenant?.company_name || `Tenant #${tenantId}`;
+
+      if (data.success && data.subscription) {
+        const sub = data.subscription;
+        document.getElementById('sub-plan-id').value = sub.plan_id || '';
+        document.getElementById('sub-status').value = sub.status || 'trial';
+        document.getElementById('sub-billing-cycle').value = sub.billing_cycle || 'monthly';
+        document.getElementById('sub-trial-end').value = sub.trial_end ? sub.trial_end.split('T')[0] : '';
+        document.getElementById('sub-period-start').value = sub.current_period_start ? sub.current_period_start.split('T')[0] : '';
+        document.getElementById('sub-period-end').value = sub.current_period_end ? sub.current_period_end.split('T')[0] : '';
+
+        // Show current info
+        const planName = tenantSubPlans.find(p => p.id == sub.plan_id)?.name || 'Unknown';
+        document.getElementById('sub-current-details').innerHTML = `
+          <strong>${planName}</strong> - ${sub.status}<br>
+          Billing: ${sub.billing_cycle || 'monthly'}
+          ${sub.trial_end ? `<br>Trial ends: ${new Date(sub.trial_end).toLocaleDateString()}` : ''}
+        `;
+
+        // Show cancel button if active or trial
+        document.getElementById('btn-cancel-sub').style.display =
+          (sub.status === 'active' || sub.status === 'trial') ? 'inline-block' : 'none';
+      } else {
+        // No subscription - set defaults
+        document.getElementById('sub-plan-id').value = '';
+        document.getElementById('sub-status').value = 'trial';
+        document.getElementById('sub-billing-cycle').value = 'monthly';
+        document.getElementById('sub-trial-end').value = '';
+        document.getElementById('sub-period-start').value = new Date().toISOString().split('T')[0];
+        document.getElementById('sub-period-end').value = '';
+        document.getElementById('sub-current-details').textContent = 'No subscription assigned';
+        document.getElementById('btn-cancel-sub').style.display = 'none';
+      }
+    } catch (error) {
+      console.error('Error loading subscription:', error);
+      document.getElementById('sub-current-details').textContent = 'Error loading subscription';
+    }
+  }
+
+  function hideTenantSubscriptionModal() {
+    document.getElementById('tenant-subscription-modal').style.display = 'none';
+  }
+
+  async function saveTenantSubscription() {
+    const tenantId = document.getElementById('sub-tenant-id').value;
+    const planId = document.getElementById('sub-plan-id').value;
+    const status = document.getElementById('sub-status').value;
+    const billingCycle = document.getElementById('sub-billing-cycle').value;
+    const trialEnd = document.getElementById('sub-trial-end').value;
+    const periodStart = document.getElementById('sub-period-start').value;
+    const periodEnd = document.getElementById('sub-period-end').value;
+
+    if (!planId) {
+      alert('Please select a plan');
+      return;
+    }
+
+    try {
+      const response = await fetch(window.location.protocol + '//' + window.location.host + `/api/master/tenants/${tenantId}/subscription`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + localStorage.getItem('token')
+        },
+        body: JSON.stringify({
+          plan_id: parseInt(planId),
+          status,
+          billing_cycle: billingCycle,
+          trial_end: trialEnd || null,
+          current_period_start: periodStart || null,
+          current_period_end: periodEnd || null
+        })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        alert('Subscription updated successfully!');
+        hideTenantSubscriptionModal();
+        loadTenants();
+      } else {
+        alert('Error: ' + data.message);
+      }
+    } catch (error) {
+      console.error('Error saving subscription:', error);
+      alert('Error saving subscription');
+    }
+  }
+
+  async function cancelTenantSubscription() {
+    if (!confirm('Are you sure you want to cancel this subscription?')) return;
+
+    const tenantId = document.getElementById('sub-tenant-id').value;
+
+    try {
+      const response = await fetch(window.location.protocol + '//' + window.location.host + `/api/master/tenants/${tenantId}/subscription`, {
+        method: 'DELETE',
+        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        alert('Subscription cancelled');
+        hideTenantSubscriptionModal();
+        loadTenants();
+      } else {
+        alert('Error: ' + data.message);
+      }
+    } catch (error) {
+      console.error('Error cancelling subscription:', error);
+      alert('Error cancelling subscription');
+    }
+  }
+
   async function loadSystemOverview() {
     try {
       const response = await fetch(window.location.protocol + '//' + window.location.host + '/api/master/overview', {

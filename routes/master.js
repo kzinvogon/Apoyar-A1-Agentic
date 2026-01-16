@@ -23,13 +23,28 @@ router.get('/tenants', requireMasterAuth, async (req, res) => {
     try {
       const [rows] = await connection.query(`
         SELECT t.*,
-               COUNT(ta.id) as admin_count,
+               COUNT(DISTINCT ta.id) as admin_count,
                mu.username as created_by_username,
-               (SELECT email FROM tenant_admins WHERE tenant_id = t.id LIMIT 1) as admin_email
+               (SELECT email FROM tenant_admins WHERE tenant_id = t.id LIMIT 1) as admin_email,
+               ts.id as subscription_id,
+               ts.plan_id,
+               ts.status as subscription_status,
+               ts.billing_cycle,
+               ts.trial_start,
+               ts.trial_end,
+               ts.current_period_start,
+               ts.current_period_end,
+               sp.name as plan_name,
+               sp.slug as plan_slug,
+               sp.price_monthly,
+               sp.price_yearly
         FROM tenants t
         LEFT JOIN tenant_admins ta ON t.id = ta.tenant_id
         LEFT JOIN master_users mu ON t.created_by = mu.id
-        GROUP BY t.id
+        LEFT JOIN tenant_subscriptions ts ON t.id = ts.tenant_id
+        LEFT JOIN subscription_plans sp ON ts.plan_id = sp.id
+        GROUP BY t.id, ts.id, ts.plan_id, ts.status, ts.billing_cycle, ts.trial_start, ts.trial_end,
+                 ts.current_period_start, ts.current_period_end, sp.name, sp.slug, sp.price_monthly, sp.price_yearly
         ORDER BY t.created_at DESC
       `);
 
