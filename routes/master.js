@@ -43,6 +43,7 @@ router.get('/tenants', requireMasterAuth, async (req, res) => {
         LEFT JOIN master_users mu ON t.created_by = mu.id
         LEFT JOIN tenant_subscriptions ts ON t.id = ts.tenant_id
         LEFT JOIN subscription_plans sp ON ts.plan_id = sp.id
+        WHERE t.is_active = 1
         GROUP BY t.id, ts.id, ts.plan_id, ts.status, ts.billing_cycle, ts.trial_start, ts.trial_end,
                  ts.current_period_start, ts.current_period_end, sp.name, sp.slug, sp.price_monthly, sp.price_yearly
         ORDER BY t.created_at DESC
@@ -328,9 +329,9 @@ router.get('/overview', requireMasterAuth, async (req, res) => {
   try {
     const connection = await getMasterConnection();
     try {
-      // Get total counts
-      const [tenantCount] = await connection.query('SELECT COUNT(*) as count FROM tenants');
-      const [activeTenantCount] = await connection.query('SELECT COUNT(*) as count FROM tenants WHERE status = "active"');
+      // Get total counts (only active tenants)
+      const [tenantCount] = await connection.query('SELECT COUNT(*) as count FROM tenants WHERE is_active = 1');
+      const [activeTenantCount] = await connection.query('SELECT COUNT(*) as count FROM tenants WHERE is_active = 1');
       const [masterUserCount] = await connection.query('SELECT COUNT(*) as count FROM master_users WHERE is_active = TRUE');
       const [auditLogCount] = await connection.query('SELECT COUNT(*) as count FROM master_audit_log');
 
