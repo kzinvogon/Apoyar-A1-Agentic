@@ -382,7 +382,8 @@ async function provisionTenant(options) {
 
   const masterConn = await getMasterConnection();
   const tenantCode = generateTenantCode(tenantName);
-  const dbPassword = generateDbPassword();
+  // Use actual environment password since we share the DB user on Railway
+  const dbPassword = process.env.MYSQLPASSWORD || process.env.MYSQL_PASSWORD || '';
 
   try {
     // 1. Check if email already exists
