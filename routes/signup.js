@@ -37,14 +37,15 @@ function generateSessionToken() {
  * Generate tenant code from company name
  */
 function generateTenantCode(companyName) {
+  // Limit to 14 chars to leave room for 6-char random suffix (total max 20)
   let code = companyName
     .toLowerCase()
     .replace(/[^a-z0-9\s]/g, '')
     .replace(/\s+/g, '')
-    .substring(0, 15);
+    .substring(0, 14);
 
   // Add random suffix
-  const suffix = crypto.randomBytes(2).toString('hex');
+  const suffix = crypto.randomBytes(3).toString('hex');
   return `${code}${suffix}`;
 }
 

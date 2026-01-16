@@ -25,11 +25,12 @@ const TRIAL_DURATION_MINUTES = parseInt(process.env.TRIAL_DURATION_MINUTES || '4
  */
 function generateTenantCode(companyName) {
   // Remove special characters, convert to lowercase, replace spaces with nothing
+  // Limit to 14 chars to leave room for 6-char random suffix (total max 20)
   let code = companyName
     .toLowerCase()
     .replace(/[^a-z0-9\s]/g, '')
     .replace(/\s+/g, '')
-    .substring(0, 20);
+    .substring(0, 14);
 
   // Add random suffix to ensure uniqueness
   const suffix = crypto.randomBytes(3).toString('hex');
