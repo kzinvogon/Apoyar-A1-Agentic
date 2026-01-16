@@ -43,6 +43,8 @@
     "@capacitor/splash-screen": "^8.0.0",
     "@capacitor/status-bar": "^8.0.0",
     "@ionic/core": "^8.7.14",
+    "@slack/bolt": "^3.17.1",
+    "@slack/web-api": "^6.11.2",
     "bcrypt": "^5.1.1",
     "botbuilder": "^4.23.3",
     "cors": "^2.8.5",
@@ -58,14 +60,13 @@
     "multer": "^2.0.2",
     "mysql2": "^3.15.3",
     "node-fetch": "^2.7.0",
-    "nodemailer": "^7.0.10",
-    "@slack/bolt": "^3.17.1",
-    "@slack/web-api": "^6.11.2"
+    "nodemailer": "^7.0.10"
   },
   "engines": {
     "node": ">=18.0.0"
   },
   "devDependencies": {
+    "bcryptjs": "^3.0.3",
     "sharp": "^0.34.5",
     "typescript": "^5.9.3"
   }

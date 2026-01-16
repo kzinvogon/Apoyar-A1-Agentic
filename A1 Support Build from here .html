@@ -1010,6 +1010,7 @@ vNext-FULL-ActionsSLA:
           <div class="navlink" data-target="subscriptions" onclick="nav(this)">💳 Subscriptions</div>
           <div class="navlink" data-target="billing" onclick="nav(this)">💰 Billing</div>
           <div class="navlink" data-target="plans" onclick="nav(this)">📋 Plan Management</div>
+          <div class="navlink" data-target="currencies" onclick="nav(this)">💱 Currencies</div>
           <div class="navlink" data-target="system" onclick="nav(this)">⚙️ System Overview</div>
         </div>
         
@@ -1820,6 +1821,90 @@ vNext-FULL-ActionsSLA:
             <div class="row">
               <button class="btn primary" onclick="savePlan()">Save Plan</button>
               <button class="btn ghost" onclick="hideCreatePlanForm()">Cancel</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Currencies Management (Master Admin) -->
+        <div id="view-currencies" style="display:none">
+          <div class="row space mb-12">
+            <div class="row"><button class="btn ghost" onclick="switchView('dash')">← Back</button><h3 class="title" style="margin:0 0 0 8px">Currency Management</h3></div>
+            <button class="btn" onclick="loadCurrenciesAdmin()">🔄 Refresh</button>
+          </div>
+
+          <!-- Currency Stats -->
+          <div class="grid3 mb-16">
+            <div class="card p-16">
+              <div class="subtitle">Total Currencies</div>
+              <div id="total-currencies" style="font-size:28px;font-weight:800">0</div>
+            </div>
+            <div class="card p-16">
+              <div class="subtitle">Active Currencies</div>
+              <div id="active-currencies" style="font-size:28px;font-weight:800">0</div>
+            </div>
+            <div class="card p-16">
+              <div class="subtitle">Base Currency</div>
+              <div id="base-currency" style="font-size:28px;font-weight:800">USD</div>
+            </div>
+          </div>
+
+          <!-- Currencies List -->
+          <div class="card p-16 mb-16">
+            <h4>Currency Exchange Rates</h4>
+            <p class="subtitle mb-8">Prices are auto-converted from base currency (USD). Set exchange rates and rounding rules for regional pricing.</p>
+            <table id="currencies-table">
+              <thead>
+                <tr>
+                  <th>Order</th>
+                  <th>Code</th>
+                  <th>Currency</th>
+                  <th>Symbol</th>
+                  <th>Exchange Rate</th>
+                  <th>Round To</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="currencies-list-body">
+                <tr><td colspan="8" class="subtitle">Loading currencies...</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Regional Pricing Section -->
+          <div class="card p-16 mb-16">
+            <h4>Regional Pricing</h4>
+            <p class="subtitle mb-8">Set prices for each currency. Select a plan, calculate suggested prices, review/edit, then commit to save.</p>
+            <div class="row mb-8" style="gap:8px">
+              <select id="regional-plan-select" class="input" style="flex:1" onchange="clearRegionalPrices()">
+                <option value="">Select a plan to configure regional pricing...</option>
+              </select>
+              <button class="btn primary" onclick="calculateRegionalPrices()">Calculate Suggested Prices</button>
+            </div>
+            <div id="regional-prices-container" style="display:none">
+              <div class="mb-8" style="padding:12px;background:#f0f9ff;border:1px solid #0ea5e9;border-radius:8px">
+                <strong>Workflow:</strong> Review the suggested prices below. Edit any values as needed, then click "Commit All Prices" to save.
+              </div>
+              <table id="regional-prices-table">
+                <thead>
+                  <tr>
+                    <th>Currency</th>
+                    <th>Rate</th>
+                    <th>Suggested Monthly</th>
+                    <th>Final Monthly</th>
+                    <th>Final Yearly</th>
+                    <th>Final Per User</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="regional-prices-body">
+                </tbody>
+              </table>
+              <div class="row mt-12" style="gap:8px">
+                <button class="btn primary" onclick="commitRegionalPrices()">Commit All Prices</button>
+                <button class="btn" onclick="useSuggestedPrices()">Use All Suggested</button>
+                <button class="btn ghost" onclick="clearRegionalPrices()">Cancel</button>
+              </div>
             </div>
           </div>
         </div>
@@ -5812,7 +5897,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   function nav(el){ document.querySelectorAll('.navlink').forEach(n=>n.classList.remove('active')); el.classList.add('active'); switchView(el.getAttribute('data-target')); if(el.getAttribute('data-target')==='dash') renderAllDashboards(); }
   function navTo(view){ switchView(view); }
-  function switchView(view){ currentView=view; ['dash','profile','tickets','ticket-detail','experts','expert-detail','customers','cmdb-hub','cmdb','cmdb-detail','manage-cmdb','cmdb-mgmt','wizard','raise','tenants','subscriptions','billing','plans','system','usage','customer-plans','customer-billing','my-company','company-admin','analytics','ai-insights','ticket-rules','email-processing','system-control','knowledge-base','raw-variables','audit-log','notifications'].forEach(n=>{ const el=document.getElementById('view-'+n); if(el) el.style.display=(n===view)?'block':'none'; }); if(view==='tickets') { loadFilterSettings('tickets'); renderList(); } if(view==='experts') { loadFilterSettings('experts'); renderExperts(); } if(view==='expert-detail') renderExpertDetail(); if(view==='customers') { loadFilterSettings('customers'); renderCustomers(); } if(view==='cmdb-hub') initCmdbHub(); if(view==='cmdb') { loadFilterSettings('cmdb'); renderCMDB(); } if(view==='cmdb-detail') renderCMDBDetail(); if(view==='manage-cmdb') loadManageCMDB(); if(view==='cmdb-mgmt') loadCMDBMgmt(); if(view==='raise') loadRaiseFormOptions(); if(view==='ticket-detail') renderTicketDetail(); if(view==='tenants') loadTenants(); if(view==='subscriptions') loadSubscriptions(); if(view==='billing') loadBilling(); if(view==='plans') loadPlans(); if(view==='system') loadSystemOverview(); if(view==='usage') loadUsageDashboard(); if(view==='customer-plans') loadCustomerPlans(); if(view==='customer-billing') loadCustomerBilling(); if(view==='my-company') loadMyCompany(); if(view==='company-admin') loadCompanyAdminUsers(); if(view==='analytics') loadAnalytics(); if(view==='ai-insights') loadAIInsights(); if(view==='ticket-rules') loadTicketRules(); if(view==='email-processing') loadEmailProcessing(); if(view==='system-control') loadSystemControlSettings(); if(view==='knowledge-base') initKnowledgeBase(); if(view==='raw-variables') loadRawVariables(); if(view==='audit-log') { loadAuditActions(); loadAuditLog(); } if(view==='notifications') loadNotifications(); if(view==='wizard') { initWizardSection(); loadCompanyProfile(); loadEmailIngestSettings(); loadSystemSenders(); loadExpertRegSettings(); loadSupportSettings(); loadTeamsIntegrationStatus(); loadSlackIntegrationStatus(); loadSLAData(); } if(view==='profile') loadProfile(); }
+  function switchView(view){ currentView=view; ['dash','profile','tickets','ticket-detail','experts','expert-detail','customers','cmdb-hub','cmdb','cmdb-detail','manage-cmdb','cmdb-mgmt','wizard','raise','tenants','subscriptions','billing','plans','currencies','system','usage','customer-plans','customer-billing','my-company','company-admin','analytics','ai-insights','ticket-rules','email-processing','system-control','knowledge-base','raw-variables','audit-log','notifications'].forEach(n=>{ const el=document.getElementById('view-'+n); if(el) el.style.display=(n===view)?'block':'none'; }); if(view==='tickets') { loadFilterSettings('tickets'); renderList(); } if(view==='experts') { loadFilterSettings('experts'); renderExperts(); } if(view==='expert-detail') renderExpertDetail(); if(view==='customers') { loadFilterSettings('customers'); renderCustomers(); } if(view==='cmdb-hub') initCmdbHub(); if(view==='cmdb') { loadFilterSettings('cmdb'); renderCMDB(); } if(view==='cmdb-detail') renderCMDBDetail(); if(view==='manage-cmdb') loadManageCMDB(); if(view==='cmdb-mgmt') loadCMDBMgmt(); if(view==='raise') loadRaiseFormOptions(); if(view==='ticket-detail') renderTicketDetail(); if(view==='tenants') loadTenants(); if(view==='subscriptions') loadSubscriptions(); if(view==='billing') loadBilling(); if(view==='plans') loadPlans(); if(view==='currencies') loadCurrenciesAdmin(); if(view==='system') loadSystemOverview(); if(view==='usage') loadUsageDashboard(); if(view==='customer-plans') loadCustomerPlans(); if(view==='customer-billing') loadCustomerBilling(); if(view==='my-company') loadMyCompany(); if(view==='company-admin') loadCompanyAdminUsers(); if(view==='analytics') loadAnalytics(); if(view==='ai-insights') loadAIInsights(); if(view==='ticket-rules') loadTicketRules(); if(view==='email-processing') loadEmailProcessing(); if(view==='system-control') loadSystemControlSettings(); if(view==='knowledge-base') initKnowledgeBase(); if(view==='raw-variables') loadRawVariables(); if(view==='audit-log') { loadAuditActions(); loadAuditLog(); } if(view==='notifications') loadNotifications(); if(view==='wizard') { initWizardSection(); loadCompanyProfile(); loadEmailIngestSettings(); loadSystemSenders(); loadExpertRegSettings(); loadSupportSettings(); loadTeamsIntegrationStatus(); loadSlackIntegrationStatus(); loadSLAData(); } if(view==='profile') loadProfile(); }
   function configureRole(){
     const currentRole = window.role || role; // Use global role from login, fallback to local
     document.getElementById('nav-admin').style.display = (currentRole==='admin') ? 'block' : 'none';
@@ -11291,6 +11376,328 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   function previewPlansOnMarketing() {
     window.open('/marketing/site.html#pricing', '_blank');
+  }
+
+  // ---- Currency Management ----
+  let currenciesData = [];
+  let currencyPlansData = [];
+
+  async function loadCurrenciesAdmin() {
+    try {
+      const [currenciesResponse, plansResponse] = await Promise.all([
+        fetch(window.location.protocol + '//' + window.location.host + '/api/master/currencies', {
+          headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+        }),
+        fetch(window.location.protocol + '//' + window.location.host + '/api/master/plans', {
+          headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+        })
+      ]);
+
+      const currenciesResult = await currenciesResponse.json();
+      const plansResult = await plansResponse.json();
+
+      if (currenciesResult.success) {
+        currenciesData = currenciesResult.currencies;
+        updateCurrencyStats(currenciesData);
+        renderCurrenciesList(currenciesData);
+      }
+
+      if (plansResult.success) {
+        currencyPlansData = plansResult.plans;
+        populatePlanSelect(currencyPlansData);
+      }
+    } catch (error) {
+      console.error('Error loading currencies:', error);
+    }
+  }
+
+  function updateCurrencyStats(currencies) {
+    const totalEl = document.getElementById('total-currencies');
+    const activeEl = document.getElementById('active-currencies');
+    const baseEl = document.getElementById('base-currency');
+
+    if (!currencies || currencies.length === 0) {
+      if (totalEl) totalEl.textContent = '0';
+      if (activeEl) activeEl.textContent = '0';
+      if (baseEl) baseEl.textContent = 'N/A';
+      return;
+    }
+
+    const total = currencies.length;
+    const active = currencies.filter(c => c.is_active).length;
+    const base = currencies.find(c => c.is_base);
+
+    if (totalEl) totalEl.textContent = total;
+    if (activeEl) activeEl.textContent = active;
+    if (baseEl) baseEl.textContent = base ? base.code : 'USD';
+  }
+
+  function renderCurrenciesList(currencies) {
+    const tbody = document.getElementById('currencies-list-body');
+    if (!tbody) return;
+
+    if (!currencies || currencies.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="8" class="subtitle">No currencies defined</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = '';
+    currencies.forEach((currency) => {
+      const tr = document.createElement('tr');
+      const status = currency.is_active ? 'active' : 'inactive';
+      const isBase = currency.is_base ? ' <span class="badge">Base</span>' : '';
+
+      tr.innerHTML = `
+        <td>${currency.display_order || 0}</td>
+        <td><strong>${escapeHtml(currency.code)}</strong>${isBase}</td>
+        <td>${escapeHtml(currency.name)}</td>
+        <td>${escapeHtml(currency.symbol)}</td>
+        <td>
+          <input type="number" step="0.0001" class="input" style="width:100px"
+            value="${currency.exchange_rate}"
+            onchange="updateCurrencyRate('${currency.code}', this.value)"
+            ${currency.is_base ? 'disabled' : ''}>
+        </td>
+        <td>
+          <input type="number" step="1" class="input" style="width:80px"
+            value="${currency.round_to}"
+            onchange="updateCurrencyRounding('${currency.code}', this.value)">
+        </td>
+        <td><span class="badge status-${status}">${status}</span></td>
+        <td>
+          <button onclick="toggleCurrencyStatus('${currency.code}', ${!currency.is_active})"
+            class="btn btn-sm ${currency.is_active ? '' : 'primary'}"
+            ${currency.is_base ? 'disabled' : ''}>
+            ${currency.is_active ? 'Disable' : 'Enable'}
+          </button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  async function updateCurrencyRate(code, rate) {
+    try {
+      const response = await fetch(window.location.protocol + '//' + window.location.host + '/api/master/currencies/' + code, {
+        method: 'PUT',
+        headers: {
+          'Authorization': 'Bearer ' + localStorage.getItem('token'),
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ exchange_rate: parseFloat(rate) })
+      });
+      const data = await response.json();
+      if (!data.success) {
+        alert('Error updating rate: ' + data.message);
+        loadCurrenciesAdmin();
+      }
+    } catch (error) {
+      console.error('Error updating currency rate:', error);
+      alert('Error updating exchange rate');
+    }
+  }
+
+  async function updateCurrencyRounding(code, roundTo) {
+    try {
+      const response = await fetch(window.location.protocol + '//' + window.location.host + '/api/master/currencies/' + code, {
+        method: 'PUT',
+        headers: {
+          'Authorization': 'Bearer ' + localStorage.getItem('token'),
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ round_to: parseFloat(roundTo) })
+      });
+      const data = await response.json();
+      if (!data.success) {
+        alert('Error updating rounding: ' + data.message);
+        loadCurrenciesAdmin();
+      }
+    } catch (error) {
+      console.error('Error updating currency rounding:', error);
+      alert('Error updating rounding');
+    }
+  }
+
+  async function toggleCurrencyStatus(code, newStatus) {
+    try {
+      const response = await fetch(window.location.protocol + '//' + window.location.host + '/api/master/currencies/' + code, {
+        method: 'PUT',
+        headers: {
+          'Authorization': 'Bearer ' + localStorage.getItem('token'),
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ is_active: newStatus })
+      });
+      const data = await response.json();
+      if (data.success) {
+        loadCurrenciesAdmin();
+      } else {
+        alert('Error updating status: ' + data.message);
+      }
+    } catch (error) {
+      console.error('Error toggling currency status:', error);
+      alert('Error updating status');
+    }
+  }
+
+  function populatePlanSelect(plans) {
+    const select = document.getElementById('regional-plan-select');
+    if (!select) return;
+
+    select.innerHTML = '<option value="">Select a plan to configure regional pricing...</option>';
+    plans.forEach(plan => {
+      const option = document.createElement('option');
+      option.value = plan.id;
+      option.textContent = `${plan.display_name || plan.name} (${plan.slug}) - $${plan.price_monthly}/mo`;
+      select.appendChild(option);
+    });
+  }
+
+  let regionalPricesData = [];
+  let selectedPlanId = null;
+
+  function clearRegionalPrices() {
+    document.getElementById('regional-prices-container').style.display = 'none';
+    regionalPricesData = [];
+    selectedPlanId = null;
+  }
+
+  async function calculateRegionalPrices() {
+    const planId = document.getElementById('regional-plan-select').value;
+    if (!planId) {
+      alert('Please select a plan first');
+      return;
+    }
+
+    selectedPlanId = planId;
+    const container = document.getElementById('regional-prices-container');
+    const tbody = document.getElementById('regional-prices-body');
+
+    container.style.display = 'block';
+    tbody.innerHTML = '<tr><td colspan="7" class="subtitle">Calculating suggested prices...</td></tr>';
+
+    try {
+      const response = await fetch(window.location.protocol + '//' + window.location.host + '/api/master/plans/' + planId + '/regional-prices/calculate', {
+        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        regionalPricesData = data.regional_prices;
+        renderRegionalPrices(data.plan, data.regional_prices);
+      } else {
+        tbody.innerHTML = '<tr><td colspan="7" class="subtitle">Error: ' + data.message + '</td></tr>';
+      }
+    } catch (error) {
+      console.error('Error calculating regional prices:', error);
+      tbody.innerHTML = '<tr><td colspan="7" class="subtitle">Error calculating prices</td></tr>';
+    }
+  }
+
+  function renderRegionalPrices(plan, prices) {
+    const tbody = document.getElementById('regional-prices-body');
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
+
+    prices.forEach((price, index) => {
+      const tr = document.createElement('tr');
+      const isConfigured = price.is_configured;
+      const statusBadge = price.is_base
+        ? '<span class="badge">Base</span>'
+        : (isConfigured ? '<span class="badge status-active">Committed</span>' : '<span class="badge status-inactive">Not Set</span>');
+
+      // Use committed value if exists, otherwise suggested
+      const monthlyVal = price.committed_monthly !== null ? price.committed_monthly : price.suggested_monthly;
+      const yearlyVal = price.committed_yearly !== null ? price.committed_yearly : price.suggested_yearly;
+      const perUserVal = price.committed_per_user !== null ? price.committed_per_user : price.suggested_per_user;
+
+      tr.innerHTML = `
+        <td><strong>${price.currency_code}</strong><br><small>${price.currency_symbol} ${price.currency_name}</small></td>
+        <td>${price.is_base ? '1.00' : price.exchange_rate.toFixed(4)}</td>
+        <td>${price.currency_symbol}${price.suggested_monthly.toFixed(2)}</td>
+        <td>
+          <input type="number" step="0.01" class="input" style="width:100px"
+            id="regional-monthly-${index}"
+            value="${monthlyVal.toFixed(2)}"
+            ${price.is_base ? 'disabled' : ''}>
+        </td>
+        <td>
+          <input type="number" step="0.01" class="input" style="width:100px"
+            id="regional-yearly-${index}"
+            value="${yearlyVal.toFixed(2)}"
+            ${price.is_base ? 'disabled' : ''}>
+        </td>
+        <td>
+          <input type="number" step="0.01" class="input" style="width:100px"
+            id="regional-peruser-${index}"
+            value="${perUserVal.toFixed(2)}"
+            ${price.is_base ? 'disabled' : ''}>
+        </td>
+        <td>${statusBadge}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function useSuggestedPrices() {
+    regionalPricesData.forEach((price, index) => {
+      if (price.is_base) return;
+      document.getElementById(`regional-monthly-${index}`).value = price.suggested_monthly.toFixed(2);
+      document.getElementById(`regional-yearly-${index}`).value = price.suggested_yearly.toFixed(2);
+      document.getElementById(`regional-peruser-${index}`).value = price.suggested_per_user.toFixed(2);
+    });
+  }
+
+  async function commitRegionalPrices() {
+    if (!selectedPlanId) {
+      alert('No plan selected');
+      return;
+    }
+
+    // Collect all prices from inputs
+    const prices = [];
+    regionalPricesData.forEach((price, index) => {
+      if (price.is_base) return; // Skip base currency
+
+      const monthly = document.getElementById(`regional-monthly-${index}`).value;
+      const yearly = document.getElementById(`regional-yearly-${index}`).value;
+      const perUser = document.getElementById(`regional-peruser-${index}`).value;
+
+      prices.push({
+        currency_code: price.currency_code,
+        price_monthly: parseFloat(monthly) || 0,
+        price_yearly: parseFloat(yearly) || 0,
+        price_per_user: parseFloat(perUser) || 0
+      });
+    });
+
+    if (prices.length === 0) {
+      alert('No prices to commit');
+      return;
+    }
+
+    try {
+      const response = await fetch(window.location.protocol + '//' + window.location.host + '/api/master/plans/' + selectedPlanId + '/regional-prices/commit', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + localStorage.getItem('token'),
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ prices })
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        alert('Regional prices committed successfully!');
+        calculateRegionalPrices(); // Refresh to show updated status
+      } else {
+        alert('Error committing prices: ' + data.message);
+      }
+    } catch (error) {
+      console.error('Error committing regional prices:', error);
+      alert('Error committing prices');
+    }
   }
 
   // ---- Tickets ----

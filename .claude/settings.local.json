@@ -149,7 +149,8 @@
       "Bash(xargs ls:*)",
       "Bash(sort:*)",
       "Bash(MYSQLHOST=\"tramway.proxy.rlwy.net\" MYSQLPASSWORD=\"sBmqbexmEQElIHqKSnpeXzpEZtWQIRRn\" MYSQLPORT=\"19355\" MYSQLUSER=\"root\" mysql:*)",
-      "Bash(MYSQLHOST=\"tramway.proxy.rlwy.net\" MYSQLPASSWORD=\"sBmqbexmEQElIHqKSnpeXzpEZtWQIRRn\" MYSQLPORT=\"19355\" MYSQLUSER=\"root\" MYSQLDATABASE=\"railway\" node:*)"
+      "Bash(MYSQLHOST=\"tramway.proxy.rlwy.net\" MYSQLPASSWORD=\"sBmqbexmEQElIHqKSnpeXzpEZtWQIRRn\" MYSQLPORT=\"19355\" MYSQLUSER=\"root\" MYSQLDATABASE=\"railway\" node:*)",
+      "Bash(railway run node:*)"
     ],
     "deny": [],
     "ask": []
