@@ -6343,18 +6343,27 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   }
 
   async function loadMasterDashActivity() {
+    const activityDiv = document.getElementById('ma-activity');
+    if (!activityDiv) {
+      console.log('ma-activity div not found');
+      return;
+    }
+
     try {
       const response = await fetch(window.location.protocol + '//' + window.location.host + '/api/master/overview', {
         headers: {
           'Authorization': 'Bearer ' + localStorage.getItem('token')
         }
       });
+
+      if (!response.ok) {
+        activityDiv.innerHTML = '<span class="subtitle">Failed to load activity</span>';
+        return;
+      }
+
       const data = await response.json();
 
-      const activityDiv = document.getElementById('ma-activity');
-      if (!activityDiv) return;
-
-      if (data.success && data.overview?.recent_activity?.length > 0) {
+      if (data.success && data.overview && data.overview.recent_activity && data.overview.recent_activity.length > 0) {
         const activities = data.overview.recent_activity.slice(0, 5);
         let html = '<ul style="list-style:none;padding:0;margin:0">';
         activities.forEach(activity => {
@@ -6380,7 +6389,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       }
     } catch (error) {
       console.error('Error loading master activity:', error);
-      document.getElementById('ma-activity').innerHTML = '<span class="subtitle">Failed to load activity</span>';
+      activityDiv.innerHTML = '<span class="subtitle">Failed to load activity</span>';
     }
   }
   
