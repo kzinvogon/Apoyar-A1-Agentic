@@ -777,29 +777,12 @@
         </div>
       </div>
 
-      <!-- Per-Client Pricing Cards (Hidden by default) -->
+      <!-- Per-Client Pricing Cards (Dynamically loaded, hidden by default) -->
       <div id="pricing-per-client" class="hidden">
-        <div class="bg-gray-50 rounded-2xl p-8 border border-gray-200 max-w-xl mx-auto">
-          <div class="text-center">
-            <h3 class="text-2xl font-bold text-gray-900 mb-2">Per-Client Pricing</h3>
-            <p class="text-gray-600 mb-6">Perfect for MSPs who want unlimited technicians</p>
-            <div class="mb-6">
-              <span class="text-4xl font-bold text-gray-900">$89</span>
-              <span class="text-gray-500">/month for first 10 clients</span>
-            </div>
-            <div class="bg-primary-50 border border-primary-200 rounded-lg p-4 mb-6">
-              <p class="text-primary-800 font-medium">+ $5/month for each additional client</p>
-              <p class="text-primary-600 text-sm mt-1">Unlimited technicians on all plans</p>
-            </div>
-            <ul class="space-y-3 mb-8 text-left max-w-sm mx-auto">
-              <li class="flex items-center space-x-2"><svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg><span>All Pro features included</span></li>
-              <li class="flex items-center space-x-2"><svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg><span>Full AI suite</span></li>
-              <li class="flex items-center space-x-2"><svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg><span>Contract-aware SLA per client</span></li>
-              <li class="flex items-center space-x-2"><svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg><span>Multi-tenant isolation</span></li>
-              <li class="flex items-center space-x-2"><svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg><span>Full API access</span></li>
-            </ul>
-            <a href="#contact" class="inline-block bg-primary-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-primary-700 transition">Start Free Trial</a>
-          </div>
+        <!-- Content dynamically rendered by renderPerClientPricing() -->
+        <div class="text-center py-8">
+          <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-primary-600 border-t-transparent"></div>
+          <p class="text-gray-500 mt-2">Loading pricing...</p>
         </div>
       </div>
 
@@ -1051,13 +1034,16 @@
 
     // Dynamic Pricing - Fetch from /api/plans
     let plansData = null;
+    let perClientPlansData = null;
 
     async function loadPricingData() {
       try {
         const response = await fetch('/api/plans');
         const data = await response.json();
         plansData = data.plans;
+        perClientPlansData = data.per_client_plans || [];
         renderPricingCards(data.plans);
+        renderPerClientPricing(data.per_client_plans || []);
         loadComparisonTable();
       } catch (error) {
         console.error('Failed to load pricing:', error);
@@ -1065,6 +1051,47 @@
           <p class="text-red-500">Failed to load pricing. Please refresh the page.</p>
         `;
       }
+    }
+
+    function renderPerClientPricing(plans) {
+      const container = document.getElementById('pricing-per-client');
+      if (!container) return;
+
+      // Use the first per-client plan or fallback values
+      const plan = plans[0] || {
+        price_monthly: 89,
+        base_clients_included: 10,
+        price_additional_client: 5,
+        display_name: 'Per-Client',
+        tagline: 'Perfect for MSPs who want unlimited technicians'
+      };
+
+      const checkIcon = `<svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>`;
+
+      container.innerHTML = `
+        <div class="bg-gray-50 rounded-2xl p-8 border border-gray-200 max-w-xl mx-auto">
+          <div class="text-center">
+            <h3 class="text-2xl font-bold text-gray-900 mb-2">${plan.display_name || 'Per-Client Pricing'}</h3>
+            <p class="text-gray-600 mb-6">${plan.tagline || 'Perfect for MSPs who want unlimited technicians'}</p>
+            <div class="mb-6">
+              <span class="text-4xl font-bold text-gray-900">$${Math.round(plan.price_monthly || plan.price_per_client || 89)}</span>
+              <span class="text-gray-500">/month for first ${plan.base_clients_included || 10} clients</span>
+            </div>
+            <div class="bg-primary-50 border border-primary-200 rounded-lg p-4 mb-6">
+              <p class="text-primary-800 font-medium">+ $${plan.price_additional_client || 5}/month for each additional client</p>
+              <p class="text-primary-600 text-sm mt-1">Unlimited technicians on all plans</p>
+            </div>
+            <ul class="space-y-3 mb-8 text-left max-w-sm mx-auto">
+              <li class="flex items-center space-x-2">${checkIcon}<span>All Pro features included</span></li>
+              <li class="flex items-center space-x-2">${checkIcon}<span>Full AI suite</span></li>
+              <li class="flex items-center space-x-2">${checkIcon}<span>Contract-aware SLA per client</span></li>
+              <li class="flex items-center space-x-2">${checkIcon}<span>Multi-tenant isolation</span></li>
+              <li class="flex items-center space-x-2">${checkIcon}<span>Full API access</span></li>
+            </ul>
+            <a href="#contact" class="inline-block bg-primary-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-primary-700 transition">Start Free Trial</a>
+          </div>
+        </div>
+      `;
     }
 
     function renderPricingCards(plans) {

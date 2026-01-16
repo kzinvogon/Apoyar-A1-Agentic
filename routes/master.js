@@ -516,13 +516,37 @@ router.get('/plans', requireMasterAuth, async (req, res) => {
     const connection = await getMasterConnection();
 
     try {
+      // Check if new columns exist (for backward compatibility before migration)
+      let hasNewColumns = false;
+      try {
+        const [cols] = await connection.query(`
+          SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+          WHERE TABLE_NAME = 'subscription_plans' AND COLUMN_NAME = 'pricing_model'
+        `);
+        hasNewColumns = cols.length > 0;
+      } catch (e) {
+        // Ignore - columns don't exist yet
+      }
+
+      const selectFields = hasNewColumns
+        ? `p.id, p.slug, p.name, p.display_name, p.tagline, p.description,
+           p.price_monthly, p.price_yearly, p.price_per_user,
+           p.pricing_model, p.price_per_client, p.base_clients_included,
+           p.price_additional_client, p.unlimited_technicians,
+           p.features, p.feature_limits,
+           p.display_order, p.is_active, p.is_featured, p.badge_text,
+           p.created_at, p.updated_at`
+        : `p.id, p.slug, p.name, p.display_name, p.tagline, p.description,
+           p.price_monthly, p.price_yearly, p.price_per_user,
+           'per_technician' as pricing_model, 0 as price_per_client, 0 as base_clients_included,
+           0 as price_additional_client, 0 as unlimited_technicians,
+           p.features, p.feature_limits,
+           p.display_order, p.is_active, p.is_featured, p.badge_text,
+           p.created_at, p.updated_at`;
+
       const [plans] = await connection.query(`
         SELECT
-          p.id, p.slug, p.name, p.display_name, p.tagline, p.description,
-          p.price_monthly, p.price_yearly, p.price_per_user,
-          p.features, p.feature_limits,
-          p.display_order, p.is_active, p.is_featured, p.badge_text,
-          p.created_at, p.updated_at,
+          ${selectFields},
           COUNT(ts.id) as tenant_count
         FROM subscription_plans p
         LEFT JOIN tenant_subscriptions ts ON p.id = ts.plan_id AND ts.status IN ('active', 'trial')
@@ -535,9 +559,14 @@ router.get('/plans', requireMasterAuth, async (req, res) => {
         ...plan,
         features: typeof plan.features === 'string' ? JSON.parse(plan.features) : (plan.features || []),
         feature_limits: typeof plan.feature_limits === 'string' ? JSON.parse(plan.feature_limits) : (plan.feature_limits || {}),
-        price_monthly: parseFloat(plan.price_monthly),
-        price_yearly: parseFloat(plan.price_yearly),
-        price_per_user: parseFloat(plan.price_per_user)
+        price_monthly: parseFloat(plan.price_monthly || 0),
+        price_yearly: parseFloat(plan.price_yearly || 0),
+        price_per_user: parseFloat(plan.price_per_user || 0),
+        price_per_client: parseFloat(plan.price_per_client || 0),
+        base_clients_included: parseInt(plan.base_clients_included || 0),
+        price_additional_client: parseFloat(plan.price_additional_client || 0),
+        unlimited_technicians: !!plan.unlimited_technicians,
+        pricing_model: plan.pricing_model || 'per_technician'
       }));
 
       res.json({ success: true, plans: parsedPlans });
@@ -786,7 +815,17 @@ router.get('/tenants/:id/subscription', requireMasterAuth, async (req, res) => {
 router.post('/tenants/:id/subscription', requireMasterAuth, async (req, res) => {
   try {
     const { id } = req.params;
-    const { planId, status, billingCycle, trialDays } = req.body;
+    // Support both camelCase and snake_case for flexibility
+    const planId = req.body.planId || req.body.plan_id;
+    const status = req.body.status;
+    const billingCycle = req.body.billingCycle || req.body.billing_cycle;
+    const pricingModel = req.body.pricingModel || req.body.pricing_model;
+    const trialDays = req.body.trialDays || req.body.trial_days;
+    const trialEnd = req.body.trialEnd || req.body.trial_end;
+    const periodStart = req.body.periodStart || req.body.current_period_start;
+    const periodEnd = req.body.periodEnd || req.body.current_period_end;
+    const userCount = req.body.userCount || req.body.user_count || 0;
+    const clientCount = req.body.clientCount || req.body.client_count || 0;
 
     if (!planId) {
       return res.status(400).json({ success: false, message: 'planId is required' });
@@ -795,11 +834,16 @@ router.post('/tenants/:id/subscription', requireMasterAuth, async (req, res) => 
     const connection = await getMasterConnection();
 
     try {
-      // Verify plan exists
-      const [plans] = await connection.query('SELECT id, slug, features FROM subscription_plans WHERE id = ?', [planId]);
+      // Verify plan exists and get pricing model
+      const [plans] = await connection.query(
+        'SELECT id, slug, features, pricing_model FROM subscription_plans WHERE id = ?',
+        [planId]
+      );
       if (plans.length === 0) {
         return res.status(404).json({ success: false, message: 'Plan not found' });
       }
+
+      const planPricingModel = pricingModel || plans[0].pricing_model || 'per_technician';
 
       // Check for existing subscription
       const [existing] = await connection.query(
@@ -808,14 +852,31 @@ router.post('/tenants/:id/subscription', requireMasterAuth, async (req, res) => 
       );
 
       const now = new Date();
-      const periodEnd = new Date();
 
-      if (status === 'trial' && trialDays) {
-        periodEnd.setDate(periodEnd.getDate() + trialDays);
+      // Calculate period dates
+      let calcPeriodStart = periodStart ? new Date(periodStart) : now;
+      let calcPeriodEnd;
+      let calcTrialEnd = null;
+
+      if (trialEnd) {
+        calcTrialEnd = new Date(trialEnd);
+        calcPeriodEnd = calcTrialEnd;
+      } else if (periodEnd) {
+        calcPeriodEnd = new Date(periodEnd);
+      } else if (status === 'trial' && trialDays) {
+        calcPeriodEnd = new Date(calcPeriodStart);
+        calcPeriodEnd.setDate(calcPeriodEnd.getDate() + parseInt(trialDays));
+        calcTrialEnd = calcPeriodEnd;
       } else if (billingCycle === 'yearly') {
-        periodEnd.setFullYear(periodEnd.getFullYear() + 1);
+        calcPeriodEnd = new Date(calcPeriodStart);
+        calcPeriodEnd.setFullYear(calcPeriodEnd.getFullYear() + 1);
       } else {
-        periodEnd.setMonth(periodEnd.getMonth() + 1);
+        calcPeriodEnd = new Date(calcPeriodStart);
+        calcPeriodEnd.setMonth(calcPeriodEnd.getMonth() + 1);
+      }
+
+      if (status === 'trial' && !calcTrialEnd) {
+        calcTrialEnd = calcPeriodEnd;
       }
 
       if (existing.length > 0) {
@@ -828,22 +889,28 @@ router.post('/tenants/:id/subscription', requireMasterAuth, async (req, res) => 
             plan_id = ?,
             status = ?,
             billing_cycle = ?,
+            pricing_model = ?,
             previous_plan_id = ?,
             plan_changed_at = NOW(),
             current_period_start = ?,
             current_period_end = ?,
             trial_start = ?,
-            trial_end = ?
+            trial_end = ?,
+            user_count = ?,
+            client_count = ?
           WHERE tenant_id = ?
         `, [
           planId,
           status || 'active',
           billingCycle || 'monthly',
+          planPricingModel,
           oldPlanId,
-          now,
-          periodEnd,
-          status === 'trial' ? now : null,
-          status === 'trial' ? periodEnd : null,
+          calcPeriodStart,
+          calcPeriodEnd,
+          status === 'trial' ? calcPeriodStart : null,
+          calcTrialEnd,
+          userCount,
+          clientCount,
           id
         ]);
 
@@ -861,19 +928,22 @@ router.post('/tenants/:id/subscription', requireMasterAuth, async (req, res) => 
         // Create new subscription
         const [result] = await connection.query(`
           INSERT INTO tenant_subscriptions (
-            tenant_id, plan_id, status, billing_cycle,
+            tenant_id, plan_id, status, billing_cycle, pricing_model,
             current_period_start, current_period_end,
-            trial_start, trial_end
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            trial_start, trial_end, user_count, client_count
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
           id,
           planId,
           status || 'trial',
           billingCycle || 'monthly',
-          now,
-          periodEnd,
-          status === 'trial' ? now : null,
-          status === 'trial' ? periodEnd : null
+          planPricingModel,
+          calcPeriodStart,
+          calcPeriodEnd,
+          status === 'trial' ? calcPeriodStart : null,
+          calcTrialEnd,
+          userCount,
+          clientCount
         ]);
 
         // Log history

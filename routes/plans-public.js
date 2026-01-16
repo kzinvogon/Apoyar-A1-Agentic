@@ -31,38 +31,60 @@ router.get('/', async (req, res) => {
 
     const masterConn = await getMasterConnection();
 
+    // Check if new columns exist (for backward compatibility before migration)
+    let hasNewColumns = false;
+    try {
+      const [cols] = await masterConn.query(`
+        SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_NAME = 'subscription_plans' AND COLUMN_NAME = 'pricing_model'
+      `);
+      hasNewColumns = cols.length > 0;
+    } catch (e) {
+      // Ignore - columns don't exist yet
+    }
+
+    const selectFields = hasNewColumns
+      ? `slug, name, display_name, tagline, description,
+         price_monthly, price_yearly, price_per_user,
+         pricing_model, price_per_client, base_clients_included,
+         price_additional_client, unlimited_technicians,
+         features, feature_limits, display_order, is_featured, badge_text`
+      : `slug, name, display_name, tagline, description,
+         price_monthly, price_yearly, price_per_user,
+         'per_technician' as pricing_model, 0 as price_per_client, 0 as base_clients_included,
+         0 as price_additional_client, 0 as unlimited_technicians,
+         features, feature_limits, display_order, is_featured, badge_text`;
+
     const [plans] = await masterConn.query(`
-      SELECT
-        slug,
-        name,
-        display_name,
-        tagline,
-        description,
-        price_monthly,
-        price_yearly,
-        price_per_user,
-        features,
-        feature_limits,
-        display_order,
-        is_featured,
-        badge_text
+      SELECT ${selectFields}
       FROM subscription_plans
       WHERE is_active = TRUE
       ORDER BY display_order ASC
     `);
 
-    // Parse JSON fields
+    // Parse JSON fields and separate by pricing model
     const formattedPlans = plans.map(plan => ({
       ...plan,
       features: typeof plan.features === 'string' ? JSON.parse(plan.features) : plan.features,
       feature_limits: typeof plan.feature_limits === 'string' ? JSON.parse(plan.feature_limits) : plan.feature_limits,
-      price_monthly: parseFloat(plan.price_monthly),
-      price_yearly: parseFloat(plan.price_yearly),
-      price_per_user: parseFloat(plan.price_per_user)
+      price_monthly: parseFloat(plan.price_monthly || 0),
+      price_yearly: parseFloat(plan.price_yearly || 0),
+      price_per_user: parseFloat(plan.price_per_user || 0),
+      price_per_client: parseFloat(plan.price_per_client || 0),
+      base_clients_included: parseInt(plan.base_clients_included || 0),
+      price_additional_client: parseFloat(plan.price_additional_client || 0),
+      unlimited_technicians: !!plan.unlimited_technicians,
+      pricing_model: plan.pricing_model || 'per_technician'
     }));
 
+    // Separate plans by pricing model
+    const perTechPlans = formattedPlans.filter(p => p.pricing_model === 'per_technician');
+    const perClientPlans = formattedPlans.filter(p => p.pricing_model === 'per_client');
+
     const response = {
-      plans: formattedPlans,
+      plans: perTechPlans,
+      per_client_plans: perClientPlans,
+      all_plans: formattedPlans,
       currency: 'AUD',
       billing_note: 'Per technician/month, billed annually'
     };
@@ -139,11 +161,11 @@ router.get('/compare', async (req, res) => {
   try {
     const masterConn = await getMasterConnection();
 
-    // Get all plans
+    // Get per-technician plans only (per-client has same features as MSP)
     const [plans] = await masterConn.query(`
       SELECT slug, display_name, features
       FROM subscription_plans
-      WHERE is_active = TRUE
+      WHERE is_active = TRUE AND (pricing_model = 'per_technician' OR pricing_model IS NULL)
       ORDER BY display_order ASC
     `);
 
@@ -222,6 +244,11 @@ router.get('/:slug', async (req, res) => {
         price_monthly,
         price_yearly,
         price_per_user,
+        pricing_model,
+        price_per_client,
+        base_clients_included,
+        price_additional_client,
+        unlimited_technicians,
         features,
         feature_limits,
         is_featured,
@@ -254,9 +281,14 @@ router.get('/:slug', async (req, res) => {
       feature_limits: typeof plan.feature_limits === 'string'
         ? JSON.parse(plan.feature_limits)
         : plan.feature_limits,
-      price_monthly: parseFloat(plan.price_monthly),
-      price_yearly: parseFloat(plan.price_yearly),
-      price_per_user: parseFloat(plan.price_per_user),
+      price_monthly: parseFloat(plan.price_monthly || 0),
+      price_yearly: parseFloat(plan.price_yearly || 0),
+      price_per_user: parseFloat(plan.price_per_user || 0),
+      price_per_client: parseFloat(plan.price_per_client || 0),
+      base_clients_included: parseInt(plan.base_clients_included || 0),
+      price_additional_client: parseFloat(plan.price_additional_client || 0),
+      unlimited_technicians: !!plan.unlimited_technicians,
+      pricing_model: plan.pricing_model || 'per_technician',
       feature_details: featureDetails
     });
   } catch (error) {
