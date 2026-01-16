@@ -11299,10 +11299,30 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     }
   }
   
-  function deleteTenant(tenantId) {
-    if (confirm('Are you sure you want to delete tenant: ' + tenantId + '?')) {
-      // Placeholder for delete tenant functionality
-      alert('Delete tenant functionality not yet implemented for: ' + tenantId);
+  async function deleteTenant(tenantId) {
+    if (!confirm('Are you sure you want to delete this tenant? This will deactivate the tenant and they will no longer be able to access the system.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${window.location.protocol}//${window.location.host}/api/master/tenants/${tenantId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': 'Bearer ' + localStorage.getItem('token')
+        }
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        alert('Tenant deleted successfully');
+        loadTenants(); // Refresh the tenant list
+      } else {
+        alert('Error deleting tenant: ' + (data.message || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error deleting tenant:', error);
+      alert('Error deleting tenant: ' + error.message);
     }
   }
   
