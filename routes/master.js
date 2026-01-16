@@ -430,12 +430,12 @@ router.get('/subscriptions', requireMasterAuth, async (req, res) => {
           s.id, s.tenant_id, s.plan_id, s.status, s.trial_ends_at,
           s.billing_cycle, s.next_billing_date, s.created_at, s.updated_at,
           t.company_name, t.tenant_code,
-          p.name as plan_name, p.monthly_price,
+          p.name as plan_name, p.price_monthly as monthly_price,
           pp.name as previous_plan_name
-        FROM subscriptions s
+        FROM tenant_subscriptions s
         JOIN tenants t ON s.tenant_id = t.id
-        JOIN plans p ON s.plan_id = p.id
-        LEFT JOIN plans pp ON s.previous_plan_id = pp.id
+        JOIN subscription_plans p ON s.plan_id = p.id
+        LEFT JOIN subscription_plans pp ON s.previous_plan_id = pp.id
         ORDER BY s.created_at DESC
       `);
 
@@ -457,44 +457,56 @@ router.get('/billing', requireMasterAuth, async (req, res) => {
     try {
       // Calculate MRR from active subscriptions
       const [mrrResult] = await connection.query(`
-        SELECT COALESCE(SUM(p.monthly_price), 0) as mrr
-        FROM subscriptions s
-        JOIN plans p ON s.plan_id = p.id
+        SELECT COALESCE(SUM(p.price_monthly), 0) as mrr
+        FROM tenant_subscriptions s
+        JOIN subscription_plans p ON s.plan_id = p.id
         WHERE s.status = 'active'
       `);
 
-      // Get pending payments
-      const [pendingResult] = await connection.query(`
-        SELECT COALESCE(SUM(amount), 0) as pending
-        FROM billing_transactions
-        WHERE status = 'pending'
-      `);
+      // Get pending payments (billing_transactions may not exist yet)
+      let pendingAmount = 0;
+      try {
+        const [pendingResult] = await connection.query(`
+          SELECT COALESCE(SUM(amount), 0) as pending
+          FROM billing_transactions
+          WHERE status = 'pending'
+        `);
+        pendingAmount = parseFloat(pendingResult[0].pending) || 0;
+      } catch (e) {
+        // Table doesn't exist, use 0
+      }
 
       // Get active subscription count for ARPU calculation
       const [subCountResult] = await connection.query(`
-        SELECT COUNT(*) as count FROM subscriptions WHERE status = 'active'
+        SELECT COUNT(*) as count FROM tenant_subscriptions WHERE status = 'active'
       `);
 
-      // Get recent transactions
-      const [transactions] = await connection.query(`
-        SELECT
-          bt.id, bt.amount, bt.status, bt.transaction_date as date, bt.description,
-          t.company_name as tenant,
-          p.name as plan
-        FROM billing_transactions bt
-        JOIN tenants t ON bt.tenant_id = t.id
-        JOIN subscriptions s ON bt.subscription_id = s.id
-        JOIN plans p ON s.plan_id = p.id
-        ORDER BY bt.transaction_date DESC
-        LIMIT 50
-      `);
+      // Get recent transactions (if table exists)
+      let transactions = [];
+      try {
+        const [txResult] = await connection.query(`
+          SELECT
+            bt.id, bt.amount, bt.status, bt.transaction_date as date, bt.description,
+            t.company_name as tenant,
+            p.name as plan
+          FROM billing_transactions bt
+          JOIN tenants t ON bt.tenant_id = t.id
+          JOIN tenant_subscriptions s ON bt.subscription_id = s.id
+          JOIN subscription_plans p ON s.plan_id = p.id
+          ORDER BY bt.transaction_date DESC
+          LIMIT 50
+        `);
+        transactions = txResult;
+      } catch (e) {
+        // Table doesn't exist yet
+      }
 
       const mrr = parseFloat(mrrResult[0].mrr) || 0;
       const activeCount = subCountResult[0].count || 1;
 
       const billing = {
         mrr: mrr,
-        pendingPayments: parseFloat(pendingResult[0].pending) || 0,
+        pendingPayments: pendingAmount,
         churnRate: 0, // Would need historical data to calculate
         arpu: mrr / activeCount,
         transactions: transactions
@@ -756,6 +768,398 @@ router.put('/plans/:id', requireMasterAuth, async (req, res) => {
     }
   } catch (error) {
     console.error('Error updating plan:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// ============ CURRENCY MANAGEMENT ============
+
+// Get all currencies
+router.get('/currencies', requireMasterAuth, async (req, res) => {
+  try {
+    const connection = await getMasterConnection();
+
+    try {
+      const [currencies] = await connection.query(`
+        SELECT code, name, symbol, exchange_rate, round_to, is_base, is_active, display_order, last_rate_update
+        FROM currencies
+        ORDER BY display_order ASC
+      `);
+
+      res.json({ success: true, currencies });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error fetching currencies:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// Update a currency
+router.put('/currencies/:code', requireMasterAuth, async (req, res) => {
+  try {
+    const { code } = req.params;
+    const { exchange_rate, round_to, is_active, display_order } = req.body;
+
+    const connection = await getMasterConnection();
+
+    try {
+      // Check if currency exists
+      const [existing] = await connection.query('SELECT code, is_base FROM currencies WHERE code = ?', [code]);
+      if (existing.length === 0) {
+        return res.status(404).json({ success: false, message: 'Currency not found' });
+      }
+
+      // Build update query dynamically
+      const updates = [];
+      const values = [];
+
+      if (exchange_rate !== undefined && !existing[0].is_base) {
+        updates.push('exchange_rate = ?');
+        values.push(parseFloat(exchange_rate));
+        updates.push('last_rate_update = NOW()');
+      }
+      if (round_to !== undefined) {
+        updates.push('round_to = ?');
+        values.push(parseFloat(round_to));
+      }
+      if (is_active !== undefined && !existing[0].is_base) {
+        updates.push('is_active = ?');
+        values.push(!!is_active);
+      }
+      if (display_order !== undefined) {
+        updates.push('display_order = ?');
+        values.push(parseInt(display_order));
+      }
+
+      if (updates.length === 0) {
+        return res.status(400).json({ success: false, message: 'No fields to update' });
+      }
+
+      values.push(code);
+      await connection.query(`UPDATE currencies SET ${updates.join(', ')} WHERE code = ?`, values);
+
+      // Clear public plans cache to reflect new rates
+      try {
+        const { clearPlansCache: clearPublicCache } = require('./plans-public');
+        clearPublicCache();
+      } catch (e) {}
+
+      res.json({ success: true, message: 'Currency updated successfully' });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error updating currency:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// Get price overrides for a plan
+router.get('/currencies/overrides/:planId', requireMasterAuth, async (req, res) => {
+  try {
+    const { planId } = req.params;
+    const connection = await getMasterConnection();
+
+    try {
+      // Get the plan details
+      const [plans] = await connection.query(
+        'SELECT id, slug, name, display_name, price_monthly, price_yearly, price_per_user FROM subscription_plans WHERE id = ?',
+        [planId]
+      );
+
+      if (plans.length === 0) {
+        return res.status(404).json({ success: false, message: 'Plan not found' });
+      }
+
+      // Get existing overrides
+      const [overrides] = await connection.query(
+        'SELECT id, currency_code, price_monthly, price_yearly, price_per_user, price_per_client, price_additional_client FROM plan_price_overrides WHERE plan_id = ?',
+        [planId]
+      );
+
+      res.json({
+        success: true,
+        plan: plans[0],
+        overrides
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error fetching price overrides:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// Create/update a price override
+router.post('/currencies/overrides', requireMasterAuth, async (req, res) => {
+  try {
+    const { plan_id, currency_code, price_monthly, price_yearly, price_per_user, price_per_client, price_additional_client } = req.body;
+
+    if (!plan_id || !currency_code) {
+      return res.status(400).json({ success: false, message: 'plan_id and currency_code are required' });
+    }
+
+    const connection = await getMasterConnection();
+
+    try {
+      // Check if override already exists
+      const [existing] = await connection.query(
+        'SELECT id FROM plan_price_overrides WHERE plan_id = ? AND currency_code = ?',
+        [plan_id, currency_code]
+      );
+
+      if (existing.length > 0) {
+        // Update existing override
+        await connection.query(`
+          UPDATE plan_price_overrides SET
+            price_monthly = ?,
+            price_yearly = ?,
+            price_per_user = ?,
+            price_per_client = ?,
+            price_additional_client = ?
+          WHERE plan_id = ? AND currency_code = ?
+        `, [
+          price_monthly || null,
+          price_yearly || null,
+          price_per_user || null,
+          price_per_client || null,
+          price_additional_client || null,
+          plan_id,
+          currency_code
+        ]);
+      } else {
+        // Create new override
+        await connection.query(`
+          INSERT INTO plan_price_overrides (plan_id, currency_code, price_monthly, price_yearly, price_per_user, price_per_client, price_additional_client)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `, [
+          plan_id,
+          currency_code,
+          price_monthly || null,
+          price_yearly || null,
+          price_per_user || null,
+          price_per_client || null,
+          price_additional_client || null
+        ]);
+      }
+
+      // Clear public plans cache
+      try {
+        const { clearPlansCache: clearPublicCache } = require('./plans-public');
+        clearPublicCache();
+      } catch (e) {}
+
+      res.json({ success: true, message: 'Price override saved successfully' });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error saving price override:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// Delete a price override
+router.delete('/currencies/overrides/:id', requireMasterAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const connection = await getMasterConnection();
+
+    try {
+      await connection.query('DELETE FROM plan_price_overrides WHERE id = ?', [id]);
+
+      // Clear public plans cache
+      try {
+        const { clearPlansCache: clearPublicCache } = require('./plans-public');
+        clearPublicCache();
+      } catch (e) {}
+
+      res.json({ success: true, message: 'Price override deleted successfully' });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error deleting price override:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// Calculate suggested regional prices for a plan (does not save)
+router.get('/plans/:id/regional-prices/calculate', requireMasterAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const connection = await getMasterConnection();
+
+    try {
+      // Get the plan's base prices
+      const [plans] = await connection.query(
+        'SELECT id, slug, name, display_name, price_monthly, price_yearly, price_per_user, price_per_client, price_additional_client FROM subscription_plans WHERE id = ?',
+        [id]
+      );
+
+      if (plans.length === 0) {
+        return res.status(404).json({ success: false, message: 'Plan not found' });
+      }
+
+      const plan = plans[0];
+      const baseMonthly = parseFloat(plan.price_monthly || 0);
+      const baseYearly = parseFloat(plan.price_yearly || 0);
+      const basePerUser = parseFloat(plan.price_per_user || 0);
+      const basePerClient = parseFloat(plan.price_per_client || 0);
+      const baseAdditionalClient = parseFloat(plan.price_additional_client || 0);
+
+      // Get all active currencies
+      const [currencies] = await connection.query(
+        'SELECT code, name, symbol, exchange_rate, round_to, is_base FROM currencies WHERE is_active = TRUE ORDER BY display_order'
+      );
+
+      // Get existing committed prices
+      const [existing] = await connection.query(
+        'SELECT currency_code, price_monthly, price_yearly, price_per_user, price_per_client, price_additional_client FROM plan_price_overrides WHERE plan_id = ?',
+        [id]
+      );
+
+      const existingMap = {};
+      existing.forEach(e => { existingMap[e.currency_code] = e; });
+
+      // Calculate suggested prices for each currency
+      const suggestions = currencies.map(currency => {
+        const rate = parseFloat(currency.exchange_rate);
+        const roundTo = parseFloat(currency.round_to);
+        const committed = existingMap[currency.code] || null;
+
+        // Round function
+        const round = (val) => Math.round((val * rate) / roundTo) * roundTo;
+
+        return {
+          currency_code: currency.code,
+          currency_name: currency.name,
+          currency_symbol: currency.symbol,
+          is_base: currency.is_base,
+          exchange_rate: rate,
+          // Suggested (calculated) prices
+          suggested_monthly: currency.is_base ? baseMonthly : round(baseMonthly),
+          suggested_yearly: currency.is_base ? baseYearly : round(baseYearly),
+          suggested_per_user: currency.is_base ? basePerUser : round(basePerUser),
+          suggested_per_client: currency.is_base ? basePerClient : round(basePerClient),
+          suggested_additional_client: currency.is_base ? baseAdditionalClient : round(baseAdditionalClient),
+          // Currently committed prices (null if not set)
+          committed_monthly: committed ? parseFloat(committed.price_monthly) : null,
+          committed_yearly: committed ? parseFloat(committed.price_yearly) : null,
+          committed_per_user: committed ? parseFloat(committed.price_per_user) : null,
+          committed_per_client: committed ? parseFloat(committed.price_per_client) : null,
+          committed_additional_client: committed ? parseFloat(committed.price_additional_client) : null,
+          // Is this currency configured?
+          is_configured: !!committed
+        };
+      });
+
+      res.json({
+        success: true,
+        plan: {
+          id: plan.id,
+          slug: plan.slug,
+          name: plan.display_name || plan.name,
+          base_monthly: baseMonthly,
+          base_yearly: baseYearly,
+          base_per_user: basePerUser
+        },
+        regional_prices: suggestions
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error calculating regional prices:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// Commit regional prices for a plan (saves all currencies at once)
+router.post('/plans/:id/regional-prices/commit', requireMasterAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { prices } = req.body; // Array of { currency_code, price_monthly, price_yearly, price_per_user, price_per_client, price_additional_client }
+
+    if (!prices || !Array.isArray(prices)) {
+      return res.status(400).json({ success: false, message: 'prices array is required' });
+    }
+
+    const connection = await getMasterConnection();
+
+    try {
+      // Verify plan exists
+      const [plans] = await connection.query('SELECT id FROM subscription_plans WHERE id = ?', [id]);
+      if (plans.length === 0) {
+        return res.status(404).json({ success: false, message: 'Plan not found' });
+      }
+
+      // Get base currency to skip it
+      const [baseCurrency] = await connection.query('SELECT code FROM currencies WHERE is_base = TRUE');
+      const baseCode = baseCurrency[0]?.code || 'USD';
+
+      // Process each currency price
+      for (const price of prices) {
+        if (price.currency_code === baseCode) continue; // Skip base currency
+
+        // Check if override exists
+        const [existing] = await connection.query(
+          'SELECT id FROM plan_price_overrides WHERE plan_id = ? AND currency_code = ?',
+          [id, price.currency_code]
+        );
+
+        if (existing.length > 0) {
+          // Update existing
+          await connection.query(`
+            UPDATE plan_price_overrides SET
+              price_monthly = ?,
+              price_yearly = ?,
+              price_per_user = ?,
+              price_per_client = ?,
+              price_additional_client = ?,
+              updated_at = NOW()
+            WHERE plan_id = ? AND currency_code = ?
+          `, [
+            price.price_monthly,
+            price.price_yearly,
+            price.price_per_user,
+            price.price_per_client || null,
+            price.price_additional_client || null,
+            id,
+            price.currency_code
+          ]);
+        } else {
+          // Insert new
+          await connection.query(`
+            INSERT INTO plan_price_overrides (plan_id, currency_code, price_monthly, price_yearly, price_per_user, price_per_client, price_additional_client)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+          `, [
+            id,
+            price.currency_code,
+            price.price_monthly,
+            price.price_yearly,
+            price.price_per_user,
+            price.price_per_client || null,
+            price.price_additional_client || null
+          ]);
+        }
+      }
+
+      // Clear public plans cache
+      try {
+        const { clearPlansCache: clearPublicCache } = require('./plans-public');
+        clearPublicCache();
+      } catch (e) {}
+
+      res.json({ success: true, message: 'Regional prices committed successfully' });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error committing regional prices:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });

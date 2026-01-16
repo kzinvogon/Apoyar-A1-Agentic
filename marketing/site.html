@@ -766,6 +766,21 @@
         <div class="inline-block annual-badge bg-green-100 text-green-800 text-sm font-semibold px-4 py-2 rounded-full">
           Pay annually and get 2 months free
         </div>
+
+        <!-- Currency Selector -->
+        <div class="mt-4">
+          <label class="text-sm text-gray-600 mr-2">Currency:</label>
+          <select id="currency-selector" class="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" onchange="changeCurrency(this.value)">
+            <option value="USD">$ USD</option>
+            <option value="AUD">A$ AUD</option>
+            <option value="GBP">£ GBP</option>
+            <option value="EUR">€ EUR</option>
+            <option value="INR">₹ INR</option>
+            <option value="NZD">NZ$ NZD</option>
+            <option value="CAD">CA$ CAD</option>
+            <option value="SGD">S$ SGD</option>
+          </select>
+        </div>
       </div>
 
       <!-- Per-Tech Pricing Cards (Dynamically loaded from /api/plans) -->
@@ -1035,13 +1050,17 @@
     // Dynamic Pricing - Fetch from /api/plans
     let plansData = null;
     let perClientPlansData = null;
+    let currentCurrencySymbol = '$';
+    let currentCurrency = 'USD';
 
-    async function loadPricingData() {
+    async function loadPricingData(currency = 'USD') {
       try {
-        const response = await fetch('/api/plans');
+        currentCurrency = currency;
+        const response = await fetch(`/api/plans?currency=${currency}`);
         const data = await response.json();
         plansData = data.plans;
         perClientPlansData = data.per_client_plans || [];
+        currentCurrencySymbol = data.currency_symbol || 'A$';
         renderPricingCards(data.plans);
         renderPerClientPricing(data.per_client_plans || []);
         loadComparisonTable();
@@ -1051,6 +1070,19 @@
           <p class="text-red-500">Failed to load pricing. Please refresh the page.</p>
         `;
       }
+    }
+
+    function changeCurrency(currency) {
+      // Show loading state
+      const techContainer = document.getElementById('pricing-per-tech');
+      const clientContainer = document.getElementById('pricing-per-client');
+      if (techContainer) {
+        techContainer.innerHTML = `<div class="col-span-3 text-center py-8">
+          <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-primary-600 border-t-transparent"></div>
+          <p class="text-gray-500 mt-2">Loading prices...</p>
+        </div>`;
+      }
+      loadPricingData(currency);
     }
 
     function renderPerClientPricing(plans) {
@@ -1074,11 +1106,11 @@
             <h3 class="text-2xl font-bold text-gray-900 mb-2">${plan.display_name || 'Per-Client Pricing'}</h3>
             <p class="text-gray-600 mb-6">${plan.tagline || 'Perfect for MSPs who want unlimited technicians'}</p>
             <div class="mb-6">
-              <span class="text-4xl font-bold text-gray-900">$${Math.round(plan.price_monthly || plan.price_per_client || 89)}</span>
+              <span class="text-4xl font-bold text-gray-900">${currentCurrencySymbol}${Math.round(plan.price_monthly || plan.price_per_client || 89)}</span>
               <span class="text-gray-500">/month for first ${plan.base_clients_included || 10} clients</span>
             </div>
             <div class="bg-primary-50 border border-primary-200 rounded-lg p-4 mb-6">
-              <p class="text-primary-800 font-medium">+ $${plan.price_additional_client || 5}/month for each additional client</p>
+              <p class="text-primary-800 font-medium">+ ${currentCurrencySymbol}${plan.price_additional_client || 5}/month for each additional client</p>
               <p class="text-primary-600 text-sm mt-1">Unlimited technicians on all plans</p>
             </div>
             <ul class="space-y-3 mb-8 text-left max-w-sm mx-auto">
@@ -1159,7 +1191,7 @@
             <h3 class="text-2xl font-bold ${isFeatured ? '' : 'text-gray-900'} mb-2">${plan.display_name}</h3>
             <p class="${taglineClasses}">${plan.tagline}</p>
             <div class="mb-6">
-              <span class="${priceClasses}">$${Math.round(plan.price_monthly)}</span>
+              <span class="${priceClasses}">${currentCurrencySymbol}${Math.round(plan.price_monthly)}</span>
               <span class="${periodClasses}">/tech/month</span>
             </div>
             <p class="${noteClasses}">Unlimited clients included</p>
