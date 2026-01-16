@@ -52,10 +52,8 @@ router.get('/:tenantCode/slack/status', async (req, res) => {
 
     // Check for existing mapping
     const [mappings] = await masterConn.query(
-      `SELECT swm.*, t.company_name as tenant_name
-       FROM slack_workspace_mappings swm
-       JOIN tenants t ON t.tenant_code COLLATE utf8mb4_unicode_ci = swm.tenant_code COLLATE utf8mb4_unicode_ci
-       WHERE swm.tenant_code = ? AND swm.is_active = TRUE`,
+      `SELECT * FROM slack_workspace_mappings
+       WHERE tenant_code = ? AND is_active = TRUE`,
       [tenantCode]
     );
 
