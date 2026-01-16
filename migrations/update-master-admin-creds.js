@@ -5,7 +5,6 @@
 
 require('dotenv').config();
 const mysql = require('mysql2/promise');
-const bcrypt = require('bcryptjs');
 
 const config = {
   host: process.env.MYSQLHOST || process.env.DB_HOST,
@@ -15,20 +14,19 @@ const config = {
   database: process.env.MYSQLDATABASE || 'railway'
 };
 
+// Pre-hashed password for: 5tarry.5erv1fl0w
+const HASHED_PASSWORD = '$2b$10$28fPLwGNF.geX4ixqFvhWeYEt87QrIyLyDTHyzVoYglAmy10oHbgW';
+
 async function updateMasterAdmin() {
   console.log('Updating master admin credentials...');
 
   const conn = await mysql.createConnection(config);
 
   try {
-    // Hash new password
-    const newPassword = '5tarry.5erv1fl0w';
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-    // Update username and password
+    // Update username and password_hash
     const [result] = await conn.query(
-      "UPDATE master_users SET username = 'master', password = ? WHERE username = 'admin'",
-      [hashedPassword]
+      "UPDATE master_users SET username = 'master', password_hash = ? WHERE username = 'admin'",
+      [HASHED_PASSWORD]
     );
 
     if (result.affectedRows > 0) {
@@ -40,10 +38,10 @@ async function updateMasterAdmin() {
 
       const [existing] = await conn.query("SELECT id FROM master_users WHERE username = 'master'");
       if (existing.length > 0) {
-        // Update password for existing master user
+        // Update password_hash for existing master user
         await conn.query(
-          "UPDATE master_users SET password = ? WHERE username = 'master'",
-          [hashedPassword]
+          "UPDATE master_users SET password_hash = ? WHERE username = 'master'",
+          [HASHED_PASSWORD]
         );
         console.log('✅ Password updated for existing "master" user');
       } else {
