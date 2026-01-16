@@ -784,6 +784,9 @@ vNext-FULL-ActionsSLA:
         <ion-item button onclick="openAdminSettings('admin-section-sla'); closeIonicMenu();">
           <ion-label style="font-size:14px">SLA Management</ion-label>
         </ion-item>
+        <ion-item button onclick="openAdminSettings('admin-section-billing'); closeIonicMenu();">
+          <ion-label style="font-size:14px">Billing & Subscription</ion-label>
+        </ion-item>
       </div>
       <ion-item button onclick="ionicNav('raise'); closeIonicMenu();">
         <ion-icon name="add-circle-outline" slot="start"></ion-icon>
@@ -1051,6 +1054,7 @@ vNext-FULL-ActionsSLA:
                 <div class="nav-subitem" data-section="admin-section-support" onclick="openAdminSettings('admin-section-support')">🎫 Support Settings</div>
                 <div class="nav-subitem" data-section="admin-section-integrations" onclick="openAdminSettings('admin-section-integrations')">🔗 Integrations</div>
                 <div class="nav-subitem" data-section="admin-section-sla" onclick="openAdminSettings('admin-section-sla')">⏱️ SLA Management</div>
+                <div class="nav-subitem" data-section="admin-section-billing" onclick="openAdminSettings('admin-section-billing')">💳 Billing & Subscription</div>
               </div>
             </div>
             <div class="navlink" data-target="system-control" onclick="nav(this)">🔧 System Control</div>
@@ -3976,6 +3980,130 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
             <div id="sla-message" class="subtitle" style="color:#16a34a;display:none;margin-top:12px"></div>
             <div id="sla-error" class="subtitle" style="color:#b91c1c;display:none;margin-top:12px"></div>
+          </div>
+
+          <!-- Billing & Subscription Section -->
+          <div id="admin-section-billing" class="wizard-section card p-16 mb-12" style="display:none">
+            <div class="row space mb-12">
+              <h4 class="subtitle" style="margin:0;font-weight:600">💳 Billing & Subscription</h4>
+            </div>
+
+            <!-- Subscription Status Card -->
+            <div id="billing-subscription-card" style="border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px">
+              <div class="row space mb-12">
+                <div class="row" style="gap:12px">
+                  <div id="billing-plan-icon" style="width:48px;height:48px;background:linear-gradient(135deg,#10b981,#059669);border-radius:8px;display:flex;align-items:center;justify-content:center">
+                    <span style="font-size:24px">📋</span>
+                  </div>
+                  <div>
+                    <div id="billing-plan-name" style="font-weight:600;font-size:16px">Loading...</div>
+                    <div id="billing-plan-tagline" class="subtitle" style="color:#666">-</div>
+                  </div>
+                </div>
+                <div>
+                  <span id="billing-status-badge" class="badge" style="background:#dcfce7;color:#16a34a">Active</span>
+                </div>
+              </div>
+
+              <!-- Trial Countdown -->
+              <div id="billing-trial-banner" style="background:#fef3c7;padding:12px;border-radius:4px;border-left:4px solid #f59e0b;margin-bottom:16px;display:none">
+                <div class="row space">
+                  <div>
+                    <strong>⏳ Trial Period</strong>
+                    <div class="subtitle" style="margin-top:4px">Your trial ends in <strong id="billing-trial-remaining">-</strong></div>
+                  </div>
+                  <button class="btn primary" onclick="openBillingCheckout()">Upgrade Now</button>
+                </div>
+              </div>
+
+              <!-- Subscription Details -->
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-bottom:16px">
+                <div style="background:#f9fafb;padding:12px;border-radius:8px">
+                  <div class="subtitle" style="font-size:11px;text-transform:uppercase;color:#666;margin-bottom:4px">Current Plan</div>
+                  <div id="billing-plan-display" style="font-weight:600">-</div>
+                </div>
+                <div style="background:#f9fafb;padding:12px;border-radius:8px">
+                  <div class="subtitle" style="font-size:11px;text-transform:uppercase;color:#666;margin-bottom:4px">Billing Cycle</div>
+                  <div id="billing-cycle-display" style="font-weight:600">-</div>
+                </div>
+                <div style="background:#f9fafb;padding:12px;border-radius:8px">
+                  <div class="subtitle" style="font-size:11px;text-transform:uppercase;color:#666;margin-bottom:4px">Next Invoice</div>
+                  <div id="billing-next-invoice" style="font-weight:600">-</div>
+                </div>
+                <div style="background:#f9fafb;padding:12px;border-radius:8px">
+                  <div class="subtitle" style="font-size:11px;text-transform:uppercase;color:#666;margin-bottom:4px">Amount</div>
+                  <div id="billing-amount-display" style="font-weight:600">-</div>
+                </div>
+              </div>
+
+              <!-- Actions -->
+              <div class="row" style="gap:8px">
+                <button id="billing-upgrade-btn" class="btn primary" onclick="openBillingCheckout()">Change Plan</button>
+                <button id="billing-cancel-btn" class="btn" onclick="cancelSubscription()" style="display:none">Cancel Subscription</button>
+              </div>
+            </div>
+
+            <!-- Available Plans -->
+            <div style="border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px">
+              <div class="row space mb-12">
+                <div>
+                  <div style="font-weight:600">Available Plans</div>
+                  <div class="subtitle" style="color:#666;font-size:12px">Compare and upgrade your subscription</div>
+                </div>
+                <div class="row" style="gap:8px">
+                  <label class="subtitle" style="display:flex;align-items:center;gap:4px">
+                    <input type="radio" name="billing-cycle" value="monthly" checked onchange="updateBillingPlans()"> Monthly
+                  </label>
+                  <label class="subtitle" style="display:flex;align-items:center;gap:4px">
+                    <input type="radio" name="billing-cycle" value="yearly" onchange="updateBillingPlans()"> Yearly <span style="color:#16a34a;font-size:11px">(Save 17%)</span>
+                  </label>
+                </div>
+              </div>
+              <div id="billing-plans-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
+                <div style="padding:24px;text-align:center;color:#666">Loading plans...</div>
+              </div>
+            </div>
+
+            <!-- Payment Methods -->
+            <div style="border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px">
+              <div class="row space mb-12">
+                <div>
+                  <div style="font-weight:600">Payment Methods</div>
+                  <div class="subtitle" style="color:#666;font-size:12px">Manage your saved cards</div>
+                </div>
+                <button class="btn" onclick="addPaymentMethod()">+ Add Card</button>
+              </div>
+              <div id="billing-payment-methods">
+                <div style="padding:24px;text-align:center;color:#666">No payment methods saved</div>
+              </div>
+            </div>
+
+            <!-- Invoice History -->
+            <div style="border:1px solid var(--border);border-radius:8px;padding:16px">
+              <div class="row space mb-12">
+                <div>
+                  <div style="font-weight:600">Invoice History</div>
+                  <div class="subtitle" style="color:#666;font-size:12px">View and download past invoices</div>
+                </div>
+              </div>
+              <table style="width:100%;border-collapse:collapse" id="billing-invoices-table">
+                <thead>
+                  <tr style="border-bottom:1px solid var(--border);background:#f9fafb">
+                    <th style="text-align:left;padding:8px">Date</th>
+                    <th style="text-align:left;padding:8px">Description</th>
+                    <th style="text-align:left;padding:8px">Amount</th>
+                    <th style="text-align:left;padding:8px">Status</th>
+                    <th style="text-align:right;padding:8px">Invoice</th>
+                  </tr>
+                </thead>
+                <tbody id="billing-invoices-tbody">
+                  <tr><td colspan="5" style="padding:16px;text-align:center;color:#666">No invoices yet</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div id="billing-message" class="subtitle" style="color:#16a34a;display:none;margin-top:12px"></div>
+            <div id="billing-error" class="subtitle" style="color:#b91c1c;display:none;margin-top:12px"></div>
           </div>
         </div>
 
@@ -7752,6 +7880,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     });
     // Persist selection
     localStorage.setItem('wizardSection', sectionId);
+    // Load section-specific data
+    if (sectionId === 'admin-section-billing') loadBillingData();
   }
 
   function initWizardSection() {
@@ -9342,6 +9472,373 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     } catch (error) {
       alert(error.message);
     }
+  }
+
+  // ============================================
+  // Billing & Subscription Functions
+  // ============================================
+  let billingData = { subscription: null, plans: [], paymentMethods: [], invoices: [] };
+
+  async function loadBillingData() {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    try {
+      // Load subscription
+      const subRes = await fetch(`${API_BASE}/api/billing/subscription`, {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      const subData = await subRes.json();
+      if (subData.success) {
+        billingData.subscription = subData.subscription;
+        renderBillingSubscription(subData.subscription);
+      }
+
+      // Load available plans
+      const plansRes = await fetch(`${API_BASE}/api/plans`);
+      const plansData = await plansRes.json();
+      if (plansData.success) {
+        billingData.plans = plansData.plans;
+        updateBillingPlans();
+      }
+
+      // Load payment methods
+      const pmRes = await fetch(`${API_BASE}/api/billing/payment-methods`, {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      const pmData = await pmRes.json();
+      if (pmData.success) {
+        billingData.paymentMethods = pmData.payment_methods || [];
+        renderPaymentMethods();
+      }
+
+      // Load invoices
+      const invRes = await fetch(`${API_BASE}/api/billing/invoices`, {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      const invData = await invRes.json();
+      if (invData.success) {
+        billingData.invoices = invData.invoices || [];
+        renderInvoices();
+      }
+    } catch (error) {
+      console.error('[Billing] Error loading data:', error);
+    }
+  }
+
+  function renderBillingSubscription(sub) {
+    if (!sub) {
+      document.getElementById('billing-plan-name').textContent = 'No Active Subscription';
+      document.getElementById('billing-plan-tagline').textContent = 'Start a trial to get started';
+      document.getElementById('billing-status-badge').textContent = 'None';
+      document.getElementById('billing-status-badge').style.background = '#f3f4f6';
+      document.getElementById('billing-status-badge').style.color = '#666';
+      return;
+    }
+
+    // Plan info
+    document.getElementById('billing-plan-name').textContent = sub.plan_display_name || sub.plan_slug || 'Unknown Plan';
+    document.getElementById('billing-plan-tagline').textContent = sub.plan_tagline || '';
+    document.getElementById('billing-plan-display').textContent = sub.plan_display_name || sub.plan_slug || '-';
+    document.getElementById('billing-cycle-display').textContent = sub.billing_cycle === 'yearly' ? 'Annual' : 'Monthly';
+
+    // Status badge
+    const badge = document.getElementById('billing-status-badge');
+    const status = sub.status || 'unknown';
+    const statusColors = {
+      active: { bg: '#dcfce7', color: '#16a34a', text: 'Active' },
+      trial: { bg: '#fef3c7', color: '#92400e', text: 'Trial' },
+      past_due: { bg: '#fee2e2', color: '#b91c1c', text: 'Past Due' },
+      canceled: { bg: '#f3f4f6', color: '#666', text: 'Canceled' },
+      expired: { bg: '#fee2e2', color: '#b91c1c', text: 'Expired' }
+    };
+    const statusStyle = statusColors[status] || statusColors.active;
+    badge.style.background = statusStyle.bg;
+    badge.style.color = statusStyle.color;
+    badge.textContent = statusStyle.text;
+
+    // Trial banner
+    const trialBanner = document.getElementById('billing-trial-banner');
+    if (status === 'trial' && sub.trial_end) {
+      trialBanner.style.display = 'block';
+      const trialEnd = new Date(sub.trial_end);
+      const now = new Date();
+      const diffMs = trialEnd - now;
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMins / 60);
+      const diffDays = Math.floor(diffHours / 24);
+
+      let remaining;
+      if (diffDays > 0) {
+        remaining = `${diffDays} day${diffDays > 1 ? 's' : ''}`;
+      } else if (diffHours > 0) {
+        remaining = `${diffHours} hour${diffHours > 1 ? 's' : ''}`;
+      } else if (diffMins > 0) {
+        remaining = `${diffMins} minute${diffMins > 1 ? 's' : ''}`;
+      } else {
+        remaining = 'expiring soon';
+      }
+      document.getElementById('billing-trial-remaining').textContent = remaining;
+    } else {
+      trialBanner.style.display = 'none';
+    }
+
+    // Next invoice and amount
+    const price = sub.billing_cycle === 'yearly' ? sub.plan_price_yearly : sub.plan_price_monthly;
+    document.getElementById('billing-amount-display').textContent = price ? `$${parseFloat(price).toFixed(2)}/tech/${sub.billing_cycle === 'yearly' ? 'year' : 'month'}` : '-';
+
+    if (sub.current_period_end) {
+      const nextDate = new Date(sub.current_period_end);
+      document.getElementById('billing-next-invoice').textContent = nextDate.toLocaleDateString();
+    } else {
+      document.getElementById('billing-next-invoice').textContent = '-';
+    }
+
+    // Show/hide cancel button
+    const cancelBtn = document.getElementById('billing-cancel-btn');
+    if (status === 'active' && !sub.cancel_at_period_end) {
+      cancelBtn.style.display = 'inline-block';
+    } else {
+      cancelBtn.style.display = 'none';
+    }
+  }
+
+  function updateBillingPlans() {
+    const cycle = document.querySelector('input[name="billing-cycle"]:checked')?.value || 'monthly';
+    const grid = document.getElementById('billing-plans-grid');
+    const currentSlug = billingData.subscription?.plan_slug;
+
+    if (!billingData.plans || billingData.plans.length === 0) {
+      grid.innerHTML = '<div style="padding:24px;text-align:center;color:#666">No plans available</div>';
+      return;
+    }
+
+    grid.innerHTML = billingData.plans.map(plan => {
+      const price = cycle === 'yearly' ? plan.price_yearly : plan.price_monthly;
+      const isCurrent = plan.slug === currentSlug;
+      const isFeatured = plan.is_featured;
+
+      return `
+        <div style="border:${isFeatured ? '2px solid #2563eb' : '1px solid var(--border)'};border-radius:8px;padding:16px;position:relative;${isCurrent ? 'background:#f0fdf4;' : ''}">
+          ${isFeatured ? '<div style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:#2563eb;color:white;font-size:10px;padding:2px 8px;border-radius:4px;text-transform:uppercase">Popular</div>' : ''}
+          ${isCurrent ? '<div style="position:absolute;top:8px;right:8px;background:#16a34a;color:white;font-size:10px;padding:2px 6px;border-radius:4px">Current</div>' : ''}
+          <div style="font-weight:600;font-size:16px;margin-bottom:4px">${plan.display_name}</div>
+          <div class="subtitle" style="font-size:12px;margin-bottom:12px">${plan.tagline || ''}</div>
+          <div style="font-size:24px;font-weight:bold;margin-bottom:12px">
+            $${parseFloat(price).toFixed(0)}
+            <span style="font-size:12px;font-weight:normal;color:#666">/${cycle === 'yearly' ? 'year' : 'month'}/tech</span>
+          </div>
+          <button class="btn ${isCurrent ? '' : 'primary'}" style="width:100%" onclick="selectBillingPlan('${plan.slug}')" ${isCurrent ? 'disabled' : ''}>
+            ${isCurrent ? 'Current Plan' : 'Select'}
+          </button>
+        </div>
+      `;
+    }).join('');
+  }
+
+  async function selectBillingPlan(planSlug) {
+    const cycle = document.querySelector('input[name="billing-cycle"]:checked')?.value || 'monthly';
+    await openBillingCheckout(planSlug, cycle);
+  }
+
+  async function openBillingCheckout(planSlug = null, billingCycle = null) {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert('Please log in to upgrade your subscription');
+      return;
+    }
+
+    // Default to current or professional plan
+    planSlug = planSlug || billingData.subscription?.plan_slug || 'professional';
+    billingCycle = billingCycle || document.querySelector('input[name="billing-cycle"]:checked')?.value || 'monthly';
+
+    try {
+      showBillingMessage('Creating checkout session...', false);
+
+      const res = await fetch(`${API_BASE}/api/billing/checkout`, {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + token,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ plan_slug: planSlug, billing_cycle: billingCycle })
+      });
+
+      const data = await res.json();
+
+      if (data.success && data.checkout_url) {
+        // Redirect to Stripe checkout
+        window.location.href = data.checkout_url;
+      } else if (data.success && data.message) {
+        // No Stripe configured - test mode
+        showBillingMessage(data.message, false);
+        loadBillingData(); // Refresh
+      } else {
+        throw new Error(data.message || 'Failed to create checkout session');
+      }
+    } catch (error) {
+      showBillingError(error.message);
+    }
+  }
+
+  async function cancelSubscription() {
+    if (!confirm('Are you sure you want to cancel your subscription? You will retain access until the end of your current billing period.')) {
+      return;
+    }
+
+    const token = localStorage.getItem('token');
+
+    try {
+      showBillingMessage('Canceling subscription...', false);
+
+      const res = await fetch(`${API_BASE}/api/billing/cancel`, {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + token,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        showBillingMessage('Subscription canceled. You will retain access until ' + new Date(data.access_until).toLocaleDateString(), false);
+        loadBillingData();
+      } else {
+        throw new Error(data.message || 'Failed to cancel subscription');
+      }
+    } catch (error) {
+      showBillingError(error.message);
+    }
+  }
+
+  function renderPaymentMethods() {
+    const container = document.getElementById('billing-payment-methods');
+    const methods = billingData.paymentMethods || [];
+
+    if (methods.length === 0) {
+      container.innerHTML = '<div style="padding:24px;text-align:center;color:#666">No payment methods saved</div>';
+      return;
+    }
+
+    container.innerHTML = methods.map(pm => `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:40px;height:28px;background:#f3f4f6;border-radius:4px;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:10px">${(pm.card_brand || 'CARD').toUpperCase()}</div>
+          <div>
+            <div style="font-weight:500">**** **** **** ${pm.card_last_four || '****'}</div>
+            <div class="subtitle" style="font-size:12px">Expires ${pm.card_exp_month || '--'}/${pm.card_exp_year || '--'}</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          ${pm.is_default ? '<span class="badge" style="background:#dcfce7;color:#16a34a;font-size:10px">Default</span>' : ''}
+          <button class="btn ghost" style="color:#b91c1c;font-size:12px" onclick="removePaymentMethod('${pm.id}')">Remove</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  async function addPaymentMethod() {
+    const token = localStorage.getItem('token');
+
+    try {
+      showBillingMessage('Setting up card form...', false);
+
+      const res = await fetch(`${API_BASE}/api/billing/payment-methods`, {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + token,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        if (data.setup_url) {
+          window.location.href = data.setup_url;
+        } else if (data.client_secret) {
+          // Would integrate with Stripe.js here for inline card form
+          showBillingMessage('Card setup ready. Stripe integration required for inline form.', false);
+        } else {
+          showBillingMessage('Payment method setup created', false);
+        }
+      } else {
+        throw new Error(data.message || 'Failed to setup payment method');
+      }
+    } catch (error) {
+      showBillingError(error.message);
+    }
+  }
+
+  async function removePaymentMethod(id) {
+    if (!confirm('Remove this payment method?')) return;
+
+    const token = localStorage.getItem('token');
+
+    try {
+      const res = await fetch(`${API_BASE}/api/billing/payment-methods/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        showBillingMessage('Payment method removed', false);
+        loadBillingData();
+      } else {
+        throw new Error(data.message || 'Failed to remove payment method');
+      }
+    } catch (error) {
+      showBillingError(error.message);
+    }
+  }
+
+  function renderInvoices() {
+    const tbody = document.getElementById('billing-invoices-tbody');
+    const invoices = billingData.invoices || [];
+
+    if (invoices.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" style="padding:16px;text-align:center;color:#666">No invoices yet</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = invoices.map(inv => {
+      const date = new Date(inv.created_at || inv.date);
+      const statusColors = {
+        succeeded: { bg: '#dcfce7', color: '#16a34a' },
+        paid: { bg: '#dcfce7', color: '#16a34a' },
+        pending: { bg: '#fef3c7', color: '#92400e' },
+        failed: { bg: '#fee2e2', color: '#b91c1c' }
+      };
+      const statusStyle = statusColors[inv.status] || statusColors.pending;
+
+      return `
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:8px">${date.toLocaleDateString()}</td>
+          <td style="padding:8px">${inv.description || 'Subscription'}</td>
+          <td style="padding:8px">$${parseFloat(inv.amount || 0).toFixed(2)}</td>
+          <td style="padding:8px"><span class="badge" style="background:${statusStyle.bg};color:${statusStyle.color};font-size:11px">${inv.status || 'pending'}</span></td>
+          <td style="padding:8px;text-align:right">
+            ${inv.invoice_url ? `<a href="${inv.invoice_url}" target="_blank" class="btn ghost" style="font-size:12px">View</a>` : '-'}
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  function showBillingMessage(msg, isError = false) {
+    const el = document.getElementById(isError ? 'billing-error' : 'billing-message');
+    const other = document.getElementById(isError ? 'billing-message' : 'billing-error');
+    el.textContent = msg;
+    el.style.display = 'block';
+    other.style.display = 'none';
+    setTimeout(() => { el.style.display = 'none'; }, 5000);
+  }
+
+  function showBillingError(msg) {
+    showBillingMessage(msg, true);
   }
 
   // Email Ingest Functions

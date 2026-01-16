@@ -56,6 +56,8 @@ const companyAdminRoutes = require('./routes/company-admin');
 const featureFlagsRoutes = require('./routes/feature-flags');
 const plansPublicRoutes = require('./routes/plans-public');
 const marketingRoutes = require('./routes/marketing');
+const signupRoutes = require('./routes/signup');
+const billingRoutes = require('./routes/billing');
 
 // Import email processor service
 const { startEmailProcessing } = require('./services/email-processor');
@@ -68,7 +70,14 @@ app.use(helmet({
   contentSecurityPolicy: false
 }));
 app.use(cors());
-app.use(express.json());
+// Save raw body for Stripe webhook verification
+app.use(express.json({
+  verify: (req, res, buf) => {
+    if (req.originalUrl === '/api/billing/webhook') {
+      req.rawBody = buf;
+    }
+  }
+}));
 app.use(express.urlencoded({ extended: true }));
 
 // Apply global rate limiting to all API routes
@@ -116,6 +125,8 @@ app.use('/api/tenant-settings', tenantSettingsRoutes);
 app.use('/api/company-admin', companyAdminRoutes);
 app.use('/api/features', featureFlagsRoutes);
 app.use('/api/plans', plansPublicRoutes);
+app.use('/api/signup', signupRoutes);
+app.use('/api/billing', billingRoutes);
 
 // Public routes (no authentication required) - Must be before authenticated routes
 app.use('/ticket', publicTicketRoutes);
