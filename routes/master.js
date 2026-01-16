@@ -508,10 +508,9 @@ router.get('/plans', requireMasterAuth, async (req, res) => {
           p.features, p.feature_limits,
           p.display_order, p.is_active, p.is_featured, p.badge_text,
           p.created_at, p.updated_at,
-          COUNT(s.id) as tenant_count
+          0 as tenant_count
         FROM subscription_plans p
-        LEFT JOIN tenant_subscriptions s ON p.id = s.plan_id AND s.status IN ('active', 'trial')
-        GROUP BY p.id
+        WHERE 1=1
         ORDER BY p.display_order ASC
       `);
 
