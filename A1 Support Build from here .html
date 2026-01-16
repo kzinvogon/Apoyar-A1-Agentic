@@ -11383,28 +11383,41 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   let currencyPlansData = [];
 
   async function loadCurrenciesAdmin() {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      console.error('No auth token found');
+      return;
+    }
+
     try {
       const [currenciesResponse, plansResponse] = await Promise.all([
         fetch(window.location.protocol + '//' + window.location.host + '/api/master/currencies', {
-          headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+          headers: { 'Authorization': 'Bearer ' + token }
         }),
         fetch(window.location.protocol + '//' + window.location.host + '/api/master/plans', {
-          headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+          headers: { 'Authorization': 'Bearer ' + token }
         })
       ]);
 
       const currenciesResult = await currenciesResponse.json();
       const plansResult = await plansResponse.json();
 
+      console.log('Currencies API response:', currenciesResult);
+      console.log('Plans API response:', plansResult);
+
       if (currenciesResult.success) {
         currenciesData = currenciesResult.currencies;
         updateCurrencyStats(currenciesData);
         renderCurrenciesList(currenciesData);
+      } else {
+        console.error('Failed to load currencies:', currenciesResult.message);
       }
 
       if (plansResult.success) {
         currencyPlansData = plansResult.plans;
         populatePlanSelect(currencyPlansData);
+      } else {
+        console.error('Failed to load plans:', plansResult.message);
       }
     } catch (error) {
       console.error('Error loading currencies:', error);
@@ -11576,21 +11589,38 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     container.style.display = 'block';
     tbody.innerHTML = '<tr><td colspan="7" class="subtitle">Calculating suggested prices...</td></tr>';
 
+    const token = localStorage.getItem('token');
+    if (!token) {
+      tbody.innerHTML = '<tr><td colspan="7" class="subtitle">Error: Not authenticated. Please log in again.</td></tr>';
+      return;
+    }
+
+    const url = window.location.protocol + '//' + window.location.host + '/api/master/plans/' + planId + '/regional-prices/calculate';
+    console.log('Calculating regional prices for plan:', planId, 'URL:', url);
+
     try {
-      const response = await fetch(window.location.protocol + '//' + window.location.host + '/api/master/plans/' + planId + '/regional-prices/calculate', {
-        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+      const response = await fetch(url, {
+        headers: { 'Authorization': 'Bearer ' + token }
       });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API error:', response.status, errorText);
+        tbody.innerHTML = '<tr><td colspan="7" class="subtitle">Error: ' + response.status + ' - ' + (errorText || 'Server error') + '</td></tr>';
+        return;
+      }
+
       const data = await response.json();
 
       if (data.success) {
         regionalPricesData = data.regional_prices;
         renderRegionalPrices(data.plan, data.regional_prices);
       } else {
-        tbody.innerHTML = '<tr><td colspan="7" class="subtitle">Error: ' + data.message + '</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="subtitle">Error: ' + (data.message || 'Unknown error') + '</td></tr>';
       }
     } catch (error) {
       console.error('Error calculating regional prices:', error);
-      tbody.innerHTML = '<tr><td colspan="7" class="subtitle">Error calculating prices</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" class="subtitle">Error: ' + error.message + '</td></tr>';
     }
   }
 
