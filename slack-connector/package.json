@@ -1,0 +1,23 @@
+{
+  "name": "serviflow-slack-connector",
+  "version": "1.0.0",
+  "description": "Slack bot connector for ServiFlow support platform",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "@slack/bolt": "^3.17.0",
+    "@slack/web-api": "^6.11.0",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "mysql2": "^3.6.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
