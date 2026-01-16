@@ -508,9 +508,10 @@ router.get('/plans', requireMasterAuth, async (req, res) => {
           p.features, p.feature_limits,
           p.display_order, p.is_active, p.is_featured, p.badge_text,
           p.created_at, p.updated_at,
-          0 as tenant_count
+          COUNT(ts.id) as tenant_count
         FROM subscription_plans p
-        WHERE 1=1
+        LEFT JOIN tenant_subscriptions ts ON p.id = ts.plan_id AND ts.status IN ('active', 'trial')
+        GROUP BY p.id
         ORDER BY p.display_order ASC
       `);
 
@@ -711,6 +712,264 @@ router.put('/plans/:id', requireMasterAuth, async (req, res) => {
     }
   } catch (error) {
     console.error('Error updating plan:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// ============ TENANT SUBSCRIPTION MANAGEMENT ============
+
+// Get subscription for a tenant
+router.get('/tenants/:id/subscription', requireMasterAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const connection = await getMasterConnection();
+
+    try {
+      const [subscriptions] = await connection.query(`
+        SELECT
+          ts.*,
+          sp.slug as plan_slug,
+          sp.name as plan_name,
+          sp.display_name as plan_display_name,
+          sp.price_monthly,
+          sp.price_yearly,
+          sp.features as plan_features,
+          sp.feature_limits as plan_limits,
+          t.tenant_code,
+          t.company_name
+        FROM tenant_subscriptions ts
+        JOIN subscription_plans sp ON ts.plan_id = sp.id
+        JOIN tenants t ON ts.tenant_id = t.id
+        WHERE ts.tenant_id = ?
+        ORDER BY ts.created_at DESC
+        LIMIT 1
+      `, [id]);
+
+      if (subscriptions.length === 0) {
+        return res.json({ success: true, subscription: null, message: 'No subscription found' });
+      }
+
+      const sub = subscriptions[0];
+      res.json({
+        success: true,
+        subscription: {
+          ...sub,
+          plan_features: typeof sub.plan_features === 'string' ? JSON.parse(sub.plan_features) : sub.plan_features,
+          plan_limits: typeof sub.plan_limits === 'string' ? JSON.parse(sub.plan_limits) : sub.plan_limits
+        }
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error fetching tenant subscription:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// Assign/update subscription for a tenant
+router.post('/tenants/:id/subscription', requireMasterAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { planId, status, billingCycle, trialDays } = req.body;
+
+    if (!planId) {
+      return res.status(400).json({ success: false, message: 'planId is required' });
+    }
+
+    const connection = await getMasterConnection();
+
+    try {
+      // Verify plan exists
+      const [plans] = await connection.query('SELECT id, slug, features FROM subscription_plans WHERE id = ?', [planId]);
+      if (plans.length === 0) {
+        return res.status(404).json({ success: false, message: 'Plan not found' });
+      }
+
+      // Check for existing subscription
+      const [existing] = await connection.query(
+        'SELECT id, plan_id, status FROM tenant_subscriptions WHERE tenant_id = ?',
+        [id]
+      );
+
+      const now = new Date();
+      const periodEnd = new Date();
+
+      if (status === 'trial' && trialDays) {
+        periodEnd.setDate(periodEnd.getDate() + trialDays);
+      } else if (billingCycle === 'yearly') {
+        periodEnd.setFullYear(periodEnd.getFullYear() + 1);
+      } else {
+        periodEnd.setMonth(periodEnd.getMonth() + 1);
+      }
+
+      if (existing.length > 0) {
+        // Update existing subscription
+        const oldPlanId = existing[0].plan_id;
+        const oldStatus = existing[0].status;
+
+        await connection.query(`
+          UPDATE tenant_subscriptions SET
+            plan_id = ?,
+            status = ?,
+            billing_cycle = ?,
+            previous_plan_id = ?,
+            plan_changed_at = NOW(),
+            current_period_start = ?,
+            current_period_end = ?,
+            trial_start = ?,
+            trial_end = ?
+          WHERE tenant_id = ?
+        `, [
+          planId,
+          status || 'active',
+          billingCycle || 'monthly',
+          oldPlanId,
+          now,
+          periodEnd,
+          status === 'trial' ? now : null,
+          status === 'trial' ? periodEnd : null,
+          id
+        ]);
+
+        // Log history
+        const action = oldPlanId !== planId
+          ? (planId > oldPlanId ? 'upgraded' : 'downgraded')
+          : (oldStatus !== status ? 'reactivated' : 'renewed');
+
+        await connection.query(`
+          INSERT INTO subscription_history (subscription_id, tenant_id, action, from_plan_id, to_plan_id, from_status, to_status)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `, [existing[0].id, id, action, oldPlanId, planId, oldStatus, status || 'active']);
+
+      } else {
+        // Create new subscription
+        const [result] = await connection.query(`
+          INSERT INTO tenant_subscriptions (
+            tenant_id, plan_id, status, billing_cycle,
+            current_period_start, current_period_end,
+            trial_start, trial_end
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `, [
+          id,
+          planId,
+          status || 'trial',
+          billingCycle || 'monthly',
+          now,
+          periodEnd,
+          status === 'trial' ? now : null,
+          status === 'trial' ? periodEnd : null
+        ]);
+
+        // Log history
+        await connection.query(`
+          INSERT INTO subscription_history (subscription_id, tenant_id, action, to_plan_id, to_status)
+          VALUES (?, ?, 'created', ?, ?)
+        `, [result.insertId, id, planId, status || 'trial']);
+      }
+
+      // Sync features to tenant_features table
+      const plan = plans[0];
+      const features = typeof plan.features === 'string' ? JSON.parse(plan.features) : plan.features;
+
+      // Get tenant code
+      const [tenant] = await connection.query('SELECT tenant_code FROM tenants WHERE id = ?', [id]);
+      if (tenant.length > 0) {
+        try {
+          const tenantConn = await getTenantConnection(tenant[0].tenant_code);
+          try {
+            // Clear existing plan features and set new ones
+            await tenantConn.query("DELETE FROM tenant_features WHERE source = 'plan'");
+
+            for (const featureKey of features) {
+              await tenantConn.query(`
+                INSERT INTO tenant_features (feature_key, enabled, source)
+                VALUES (?, TRUE, 'plan')
+                ON DUPLICATE KEY UPDATE enabled = TRUE, source = 'plan'
+              `, [featureKey]);
+            }
+            console.log(`[Subscription] Synced ${features.length} features to ${tenant[0].tenant_code}`);
+          } finally {
+            tenantConn.release();
+          }
+        } catch (e) {
+          console.warn(`[Subscription] Could not sync features to tenant: ${e.message}`);
+        }
+      }
+
+      res.json({ success: true, message: 'Subscription updated successfully' });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error updating tenant subscription:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// Cancel subscription
+router.delete('/tenants/:id/subscription', requireMasterAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const connection = await getMasterConnection();
+
+    try {
+      const [existing] = await connection.query(
+        'SELECT id, status FROM tenant_subscriptions WHERE tenant_id = ?',
+        [id]
+      );
+
+      if (existing.length === 0) {
+        return res.status(404).json({ success: false, message: 'No subscription found' });
+      }
+
+      await connection.query(`
+        UPDATE tenant_subscriptions SET status = 'cancelled', cancelled_at = NOW()
+        WHERE tenant_id = ?
+      `, [id]);
+
+      // Log history
+      await connection.query(`
+        INSERT INTO subscription_history (subscription_id, tenant_id, action, from_status, to_status)
+        VALUES (?, ?, 'cancelled', ?, 'cancelled')
+      `, [existing[0].id, id, existing[0].status]);
+
+      res.json({ success: true, message: 'Subscription cancelled' });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error cancelling subscription:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// Get subscription history for a tenant
+router.get('/tenants/:id/subscription/history', requireMasterAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const connection = await getMasterConnection();
+
+    try {
+      const [history] = await connection.query(`
+        SELECT
+          sh.*,
+          fp.name as from_plan_name,
+          tp.name as to_plan_name
+        FROM subscription_history sh
+        LEFT JOIN subscription_plans fp ON sh.from_plan_id = fp.id
+        LEFT JOIN subscription_plans tp ON sh.to_plan_id = tp.id
+        WHERE sh.tenant_id = ?
+        ORDER BY sh.created_at DESC
+        LIMIT 50
+      `, [id]);
+
+      res.json({ success: true, history });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error fetching subscription history:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
