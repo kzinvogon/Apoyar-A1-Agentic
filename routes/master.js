@@ -1027,18 +1027,28 @@ router.get('/plans/:id/regional-prices/calculate', requireMasterAuth, async (req
 
       // Calculate suggested prices for each currency
       const suggestions = currencies.map(currency => {
-        const rate = parseFloat(currency.exchange_rate);
-        const roundTo = parseFloat(currency.round_to);
+        const rate = parseFloat(currency.exchange_rate) || 1;
+        const roundTo = parseFloat(currency.round_to) || 1;
         const committed = existingMap[currency.code] || null;
 
-        // Round function
-        const round = (val) => Math.round((val * rate) / roundTo) * roundTo;
+        // Round function with safety checks
+        const round = (val) => {
+          if (!val || isNaN(val) || !rate || roundTo === 0) return 0;
+          const result = Math.round((val * rate) / roundTo) * roundTo;
+          return isNaN(result) || !isFinite(result) ? 0 : result;
+        };
+
+        // Safe parseFloat helper
+        const safeFloat = (val) => {
+          const parsed = parseFloat(val);
+          return isNaN(parsed) ? null : parsed;
+        };
 
         return {
           currency_code: currency.code,
-          currency_name: currency.name,
-          currency_symbol: currency.symbol,
-          is_base: currency.is_base,
+          currency_name: currency.name || '',
+          currency_symbol: currency.symbol || '',
+          is_base: !!currency.is_base,
           exchange_rate: rate,
           // Suggested (calculated) prices
           suggested_monthly: currency.is_base ? baseMonthly : round(baseMonthly),
@@ -1047,11 +1057,11 @@ router.get('/plans/:id/regional-prices/calculate', requireMasterAuth, async (req
           suggested_per_client: currency.is_base ? basePerClient : round(basePerClient),
           suggested_additional_client: currency.is_base ? baseAdditionalClient : round(baseAdditionalClient),
           // Currently committed prices (null if not set)
-          committed_monthly: committed ? parseFloat(committed.price_monthly) : null,
-          committed_yearly: committed ? parseFloat(committed.price_yearly) : null,
-          committed_per_user: committed ? parseFloat(committed.price_per_user) : null,
-          committed_per_client: committed ? parseFloat(committed.price_per_client) : null,
-          committed_additional_client: committed ? parseFloat(committed.price_additional_client) : null,
+          committed_monthly: committed ? safeFloat(committed.price_monthly) : null,
+          committed_yearly: committed ? safeFloat(committed.price_yearly) : null,
+          committed_per_user: committed ? safeFloat(committed.price_per_user) : null,
+          committed_per_client: committed ? safeFloat(committed.price_per_client) : null,
+          committed_additional_client: committed ? safeFloat(committed.price_additional_client) : null,
           // Is this currency configured?
           is_configured: !!committed
         };

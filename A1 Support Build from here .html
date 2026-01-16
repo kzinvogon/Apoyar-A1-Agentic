@@ -11630,6 +11630,10 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
     tbody.innerHTML = '';
 
+    // Helper to safely format numbers
+    const fmt = (val) => (val !== null && val !== undefined && !isNaN(val)) ? parseFloat(val).toFixed(2) : '0.00';
+    const fmtRate = (val) => (val !== null && val !== undefined && !isNaN(val)) ? parseFloat(val).toFixed(4) : '1.0000';
+
     prices.forEach((price, index) => {
       const tr = document.createElement('tr');
       const isConfigured = price.is_configured;
@@ -11637,31 +11641,35 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         ? '<span class="badge">Base</span>'
         : (isConfigured ? '<span class="badge status-active">Committed</span>' : '<span class="badge status-inactive">Not Set</span>');
 
-      // Use committed value if exists, otherwise suggested
-      const monthlyVal = price.committed_monthly !== null ? price.committed_monthly : price.suggested_monthly;
-      const yearlyVal = price.committed_yearly !== null ? price.committed_yearly : price.suggested_yearly;
-      const perUserVal = price.committed_per_user !== null ? price.committed_per_user : price.suggested_per_user;
+      // Use committed value if exists, otherwise suggested (with null safety)
+      const suggestedMonthly = price.suggested_monthly || 0;
+      const suggestedYearly = price.suggested_yearly || 0;
+      const suggestedPerUser = price.suggested_per_user || 0;
+
+      const monthlyVal = price.committed_monthly !== null ? price.committed_monthly : suggestedMonthly;
+      const yearlyVal = price.committed_yearly !== null ? price.committed_yearly : suggestedYearly;
+      const perUserVal = price.committed_per_user !== null ? price.committed_per_user : suggestedPerUser;
 
       tr.innerHTML = `
-        <td><strong>${price.currency_code}</strong><br><small>${price.currency_symbol} ${price.currency_name}</small></td>
-        <td>${price.is_base ? '1.00' : price.exchange_rate.toFixed(4)}</td>
-        <td>${price.currency_symbol}${price.suggested_monthly.toFixed(2)}</td>
+        <td><strong>${price.currency_code}</strong><br><small>${price.currency_symbol || ''} ${price.currency_name || ''}</small></td>
+        <td>${price.is_base ? '1.00' : fmtRate(price.exchange_rate)}</td>
+        <td>${price.currency_symbol || ''}${fmt(suggestedMonthly)}</td>
         <td>
           <input type="number" step="0.01" class="input" style="width:100px"
             id="regional-monthly-${index}"
-            value="${monthlyVal.toFixed(2)}"
+            value="${fmt(monthlyVal)}"
             ${price.is_base ? 'disabled' : ''}>
         </td>
         <td>
           <input type="number" step="0.01" class="input" style="width:100px"
             id="regional-yearly-${index}"
-            value="${yearlyVal.toFixed(2)}"
+            value="${fmt(yearlyVal)}"
             ${price.is_base ? 'disabled' : ''}>
         </td>
         <td>
           <input type="number" step="0.01" class="input" style="width:100px"
             id="regional-peruser-${index}"
-            value="${perUserVal.toFixed(2)}"
+            value="${fmt(perUserVal)}"
             ${price.is_base ? 'disabled' : ''}>
         </td>
         <td>${statusBadge}</td>
