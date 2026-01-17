@@ -1454,6 +1454,17 @@ vNext-FULL-ActionsSLA:
             </div>
           </div>
 
+          <!-- Delete Tenant Confirmation Modal -->
+          <div id="delete-tenant-modal" class="card p-16" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1000;max-width:400px;box-shadow:0 4px 20px rgba(0,0,0,0.3)">
+            <h4 style="color:var(--danger)">⚠️ Delete Tenant</h4>
+            <p class="mb-12">Are you sure you want to delete this tenant?</p>
+            <p class="subtitle mb-16">This will deactivate the tenant and they will no longer be able to access the system.</p>
+            <div class="row">
+              <button class="btn danger" onclick="confirmDeleteTenant()">Yes, Delete</button>
+              <button class="btn ghost" onclick="cancelDeleteTenant()">Cancel</button>
+            </div>
+          </div>
+
           <!-- Tenant Subscription Modal -->
           <div id="tenant-subscription-modal" class="card p-16" style="display:none">
             <h4>Manage Subscription</h4>
@@ -11302,10 +11313,25 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     }
   }
   
-  async function deleteTenant(tenantId) {
-    if (!confirm('Are you sure you want to delete this tenant? This will deactivate the tenant and they will no longer be able to access the system.')) {
-      return;
-    }
+  // Store tenant ID for delete confirmation
+  let pendingDeleteTenantId = null;
+
+  function deleteTenant(tenantId) {
+    console.log('Delete tenant clicked:', tenantId);
+    pendingDeleteTenantId = tenantId;
+    document.getElementById('delete-tenant-modal').style.display = 'block';
+  }
+
+  function cancelDeleteTenant() {
+    pendingDeleteTenantId = null;
+    document.getElementById('delete-tenant-modal').style.display = 'none';
+  }
+
+  async function confirmDeleteTenant() {
+    if (!pendingDeleteTenantId) return;
+
+    const tenantId = pendingDeleteTenantId;
+    document.getElementById('delete-tenant-modal').style.display = 'none';
 
     try {
       const response = await fetch(`${window.location.protocol}//${window.location.host}/api/master/tenants/${tenantId}`, {
@@ -11326,6 +11352,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     } catch (error) {
       console.error('Error deleting tenant:', error);
       alert('Error deleting tenant: ' + error.message);
+    } finally {
+      pendingDeleteTenantId = null;
     }
   }
   
