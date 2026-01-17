@@ -16,9 +16,134 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { getMasterConnection } = require('../config/database');
 const stripeService = require('./stripe-service');
+const { sendEmail } = require('../config/email');
 
 // Trial duration from environment (default 30 days = 43200 minutes)
 const TRIAL_DURATION_MINUTES = parseInt(process.env.TRIAL_DURATION_MINUTES || '43200', 10);
+
+/**
+ * Send welcome email to new tenant admin
+ */
+async function sendWelcomeEmail(email, tenantName, tenantCode, trialEndsAt) {
+  const trialEndDate = new Date(trialEndsAt).toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+
+  const appUrl = process.env.APP_URL || 'https://www.serviflow.app';
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; padding: 30px; text-align: center; border-radius: 12px 12px 0 0; }
+        .content { background: #f9fafb; padding: 30px; border-radius: 0 0 12px 12px; }
+        .button { display: inline-block; background: #6366f1; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 600; margin: 10px 0; }
+        .step { background: white; padding: 15px; margin: 10px 0; border-radius: 8px; border-left: 4px solid #6366f1; }
+        .step-number { background: #6366f1; color: white; width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; margin-right: 10px; }
+        .trial-badge { background: #fef3c7; color: #92400e; padding: 8px 16px; border-radius: 20px; font-size: 14px; display: inline-block; margin-top: 10px; }
+        .footer { text-align: center; padding: 20px; color: #6b7280; font-size: 12px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1 style="margin:0;font-size:28px;">Welcome to ServiFlow!</h1>
+          <p style="margin:10px 0 0 0;opacity:0.9;">Your IT Service Management Platform</p>
+        </div>
+        <div class="content">
+          <p>Hi there,</p>
+          <p>Great news! Your ServiFlow account for <strong>${tenantName}</strong> is ready to go.</p>
+
+          <div class="trial-badge">
+            🎉 Your free trial is active until ${trialEndDate}
+          </div>
+
+          <h3 style="margin-top:25px;">Getting Started in 5 Minutes</h3>
+
+          <div class="step">
+            <span class="step-number">1</span>
+            <strong>Log In to Your Dashboard</strong>
+            <p style="margin:5px 0 0 30px;color:#6b7280;">Access your account at <a href="${appUrl}">${appUrl}</a></p>
+          </div>
+
+          <div class="step">
+            <span class="step-number">2</span>
+            <strong>Add Your Team</strong>
+            <p style="margin:5px 0 0 30px;color:#6b7280;">Go to Settings → Team Management to invite technicians and assign roles</p>
+          </div>
+
+          <div class="step">
+            <span class="step-number">3</span>
+            <strong>Configure Your Service Desk</strong>
+            <p style="margin:5px 0 0 30px;color:#6b7280;">Set up ticket categories, SLAs, and email integration in Settings</p>
+          </div>
+
+          <div class="step">
+            <span class="step-number">4</span>
+            <strong>Create Your First Ticket</strong>
+            <p style="margin:5px 0 0 30px;color:#6b7280;">Click "+ Raise Ticket" to see how easy it is to track issues</p>
+          </div>
+
+          <div class="step">
+            <span class="step-number">5</span>
+            <strong>Explore AI Features</strong>
+            <p style="margin:5px 0 0 30px;color:#6b7280;">Try automatic ticket triage and smart routing with our AI assistant</p>
+          </div>
+
+          <div style="text-align:center;margin-top:30px;">
+            <a href="${appUrl}" class="button">Go to My Dashboard →</a>
+          </div>
+
+          <h3 style="margin-top:30px;">Your Account Details</h3>
+          <table style="width:100%;background:white;border-radius:8px;padding:15px;">
+            <tr><td style="padding:8px;color:#6b7280;">Company:</td><td style="padding:8px;font-weight:600;">${tenantName}</td></tr>
+            <tr><td style="padding:8px;color:#6b7280;">Tenant Code:</td><td style="padding:8px;font-family:monospace;background:#f3f4f6;border-radius:4px;">${tenantCode}</td></tr>
+            <tr><td style="padding:8px;color:#6b7280;">Admin Email:</td><td style="padding:8px;">${email}</td></tr>
+            <tr><td style="padding:8px;color:#6b7280;">Trial Ends:</td><td style="padding:8px;">${trialEndDate}</td></tr>
+          </table>
+
+          <h3 style="margin-top:30px;">Need Help?</h3>
+          <p>Our support team is here to help you succeed:</p>
+          <ul>
+            <li>📧 Email: support@serviflow.app</li>
+            <li>📚 Documentation: <a href="${appUrl}/docs">Help Center</a></li>
+            <li>💬 In-app chat available on your dashboard</li>
+          </ul>
+
+          <p style="margin-top:20px;">Best of luck with your service desk!</p>
+          <p><strong>The ServiFlow Team</strong></p>
+        </div>
+        <div class="footer">
+          <p>© ${new Date().getFullYear()} ServiFlow. All rights reserved.</p>
+          <p>You're receiving this because you signed up for a ServiFlow trial.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  try {
+    // Send without tenant code check (this is a system email, not tenant-specific)
+    const result = await sendEmail(null, {
+      to: email,
+      subject: `Welcome to ServiFlow - Your ${tenantName} account is ready!`,
+      html: html,
+      skipUserCheck: true
+    });
+    console.log(`[Provision] Welcome email sent to ${email}:`, result);
+    return result;
+  } catch (error) {
+    console.error(`[Provision] Failed to send welcome email to ${email}:`, error.message);
+    // Don't throw - email failure shouldn't block provisioning
+    return { success: false, error: error.message };
+  }
+}
 
 /**
  * Generate a unique tenant code from company name
@@ -511,6 +636,14 @@ async function provisionTenant(options) {
     // 6. Create admin user in tenant database
     await createTenantAdmin(tenantCode, email, adminPassword, tenantName + ' Admin');
 
+    // 6b. Create tenant_admins record in master database
+    const adminPasswordHash = await bcrypt.hash(adminPassword, 10);
+    await masterConn.query(`
+      INSERT INTO tenant_admins (tenant_id, username, password_hash, email, full_name)
+      VALUES (?, 'admin', ?, ?, ?)
+    `, [tenantId, adminPasswordHash, email, tenantName + ' Admin']);
+    console.log(`[Provision] Created tenant_admins record for ${email}`);
+
     // 7. Create subscription record
     const trialEnd = new Date(Date.now() + TRIAL_DURATION_MINUTES * 60 * 1000);
 
@@ -547,6 +680,10 @@ async function provisionTenant(options) {
       process.env.JWT_SECRET || 'your-secret-key',
       { expiresIn: '24h' }
     );
+
+    // 11. Send welcome email (async, don't block on failure)
+    sendWelcomeEmail(email, tenantName, tenantCode, trialEnd.toISOString())
+      .catch(err => console.error('[Provision] Welcome email error:', err));
 
     console.log(`[Provision] Tenant provisioning complete for ${tenantCode}`);
 
