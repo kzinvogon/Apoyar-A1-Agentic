@@ -189,8 +189,8 @@ async function createTenantDatabase(connection, tenantCode, dbUser, dbPassword) 
   const tenantConnection = await mysql.createConnection({
     host: process.env.MYSQLHOST || process.env.DB_HOST || 'localhost',
     port: process.env.MYSQLPORT || process.env.DB_PORT || 3306,
-    user: process.env.MYSQLUSER || process.env.DB_USER,
-    password: process.env.MYSQLPASSWORD || process.env.DB_PASSWORD,
+    user: process.env.MYSQLUSER || process.env.DB_USER || 'root',
+    password: process.env.MYSQLPASSWORD || process.env.DB_PASSWORD || '',
     database: databaseName
   });
 
@@ -496,8 +496,8 @@ async function createTenantAdmin(tenantCode, email, password, fullName) {
   const tenantConnection = await mysql.createConnection({
     host: process.env.MYSQLHOST || process.env.DB_HOST || 'localhost',
     port: process.env.MYSQLPORT || process.env.DB_PORT || 3306,
-    user: process.env.MYSQLUSER || process.env.DB_USER,
-    password: process.env.MYSQLPASSWORD || process.env.DB_PASSWORD,
+    user: process.env.MYSQLUSER || process.env.DB_USER || 'root',
+    password: process.env.MYSQLPASSWORD || process.env.DB_PASSWORD || '',
     database: databaseName
   });
 
@@ -544,8 +544,8 @@ async function syncPlanFeatures(tenantCode, planSlug) {
     const tenantConnection = await mysql.createConnection({
       host: process.env.MYSQLHOST || process.env.DB_HOST || 'localhost',
       port: process.env.MYSQLPORT || process.env.DB_PORT || 3306,
-      user: process.env.MYSQLUSER || process.env.DB_USER,
-      password: process.env.MYSQLPASSWORD || process.env.DB_PASSWORD,
+      user: process.env.MYSQLUSER || process.env.DB_USER || 'root',
+      password: process.env.MYSQLPASSWORD || process.env.DB_PASSWORD || '',
       database: databaseName
     });
 
@@ -638,9 +638,9 @@ async function provisionTenant(options) {
       INSERT INTO tenants (
         tenant_code, company_name, display_name, database_name,
         database_host, database_port, database_user, database_password,
-        max_users, max_tickets, subscription_plan, is_active,
+        max_users, max_tickets, subscription_plan, status,
         signup_source, signup_session_id, stripe_customer_id
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE, 'marketing_trial', ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 'marketing_trial', ?, ?)
     `, [
       tenantCode,
       tenantName,
