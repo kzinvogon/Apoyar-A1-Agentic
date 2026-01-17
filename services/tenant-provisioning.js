@@ -70,12 +70,18 @@ async function sendWelcomeEmail(email, tenantName, tenantCode, trialEndsAt) {
             <span class="step-number">1</span>
             <strong>Log In to Your Dashboard</strong>
             <p style="margin:5px 0 0 30px;color:#6b7280;">Access your account at <a href="${appUrl}">${appUrl}</a></p>
+            <p style="margin:5px 0 0 30px;color:#6b7280;"><strong>Your login credentials:</strong></p>
+            <ul style="margin:5px 0 0 40px;color:#6b7280;">
+              <li>Tenant Code: <code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;">${tenantCode}</code></li>
+              <li>Username: <code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;">admin</code></li>
+              <li>Password: The password you created during registration</li>
+            </ul>
           </div>
 
           <div class="step">
             <span class="step-number">2</span>
             <strong>Add Your Team</strong>
-            <p style="margin:5px 0 0 30px;color:#6b7280;">Go to Settings → Team Management to invite technicians and assign roles</p>
+            <p style="margin:5px 0 0 30px;color:#6b7280;">Go to Admin Settings → Expert Registration to add technicians and support staff</p>
           </div>
 
           <div class="step">
@@ -273,19 +279,30 @@ async function createTenantTables(connection) {
     )
   `);
 
-  // CMDB Items table
+  // CMDB Items table (new schema with asset_name, asset_category, etc.)
   await connection.execute(`
     CREATE TABLE IF NOT EXISTS cmdb_items (
       id INT AUTO_INCREMENT PRIMARY KEY,
-      name VARCHAR(100) NOT NULL,
-      type VARCHAR(50) NOT NULL DEFAULT 'other',
-      status ENUM('active', 'inactive', 'maintenance', 'retired') DEFAULT 'active',
-      owner_id INT,
-      description TEXT,
-      metadata JSON,
+      cmdb_id VARCHAR(50) UNIQUE,
+      asset_name VARCHAR(255) NOT NULL,
+      asset_category VARCHAR(100) NOT NULL,
+      category_field_value VARCHAR(255),
+      brand_name VARCHAR(100),
+      model_name VARCHAR(100),
+      customer_name VARCHAR(255),
+      employee_of VARCHAR(255),
+      asset_location VARCHAR(255),
+      status ENUM('active', 'inactive', 'maintenance') DEFAULT 'active',
+      created_by INT,
+      comment TEXT,
+      sla_definition_id INT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE SET NULL
+      FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+      INDEX idx_asset_category (asset_category),
+      INDEX idx_customer_name (customer_name),
+      INDEX idx_created_by (created_by),
+      INDEX idx_sla_definition_id (sla_definition_id)
     )
   `);
 
@@ -319,13 +336,26 @@ async function createTenantTables(connection) {
       source_metadata JSON,
       sla_deadline TIMESTAMP NULL,
       response_deadline TIMESTAMP NULL,
-      first_response_at TIMESTAMP NULL,
+      first_responded_at TIMESTAMP NULL,
       resolved_at TIMESTAMP NULL,
+      resolved_by INT,
+      sla_definition_id INT,
+      sla_applied_at TIMESTAMP NULL,
+      response_due_at TIMESTAMP NULL,
+      resolve_due_at TIMESTAMP NULL,
+      notified_response_near_at TIMESTAMP NULL,
+      notified_response_breached_at TIMESTAMP NULL,
+      notified_response_past_at TIMESTAMP NULL,
+      notified_resolve_near_at TIMESTAMP NULL,
+      notified_resolve_breached_at TIMESTAMP NULL,
+      notified_resolve_past_at TIMESTAMP NULL,
+      sla_source VARCHAR(16),
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       FOREIGN KEY (requester_id) REFERENCES users(id),
       FOREIGN KEY (assignee_id) REFERENCES users(id) ON DELETE SET NULL,
-      FOREIGN KEY (cmdb_item_id) REFERENCES cmdb_items(id) ON DELETE SET NULL
+      FOREIGN KEY (cmdb_item_id) REFERENCES cmdb_items(id) ON DELETE SET NULL,
+      INDEX idx_sla_definition_id (sla_definition_id)
     )
   `);
 
@@ -568,7 +598,7 @@ async function provisionTenant(options) {
   try {
     // 1. Check if company/tenant_code already exists (only active tenants)
     const [existingTenant] = await masterConn.query(
-      'SELECT id FROM tenants WHERE (company_name = ? OR tenant_code = ?) AND is_active = 1',
+      'SELECT id FROM tenants WHERE (company_name = ? OR tenant_code = ?) AND status = "active"',
       [tenantName, tenantCode]
     );
 
