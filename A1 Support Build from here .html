@@ -5347,10 +5347,13 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           checkTeamsOAuthCallback();
           checkSlackOAuthCallback();
 
-          // Load data
-          await fetchTicketsFromAPI();
+          // Load data (skip for master admin - they don't have tenant data)
+          const currentRole = window.role || localStorage.getItem('role');
+          if (currentRole !== 'super_admin') {
+            await fetchTicketsFromAPI();
+            loadRaiseFormOptions();
+          }
           renderAllDashboards();
-          loadRaiseFormOptions();
         } else {
           // Token invalid - clear and show login
           console.log('Session expired, showing login...');
