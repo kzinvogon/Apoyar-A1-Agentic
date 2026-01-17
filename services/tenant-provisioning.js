@@ -276,6 +276,60 @@ async function createTenantTables(connection) {
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     )
   `);
+
+  // Business hours profiles table
+  await connection.execute(`
+    CREATE TABLE IF NOT EXISTS business_hours_profiles (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      name VARCHAR(100) NOT NULL,
+      timezone VARCHAR(100) NOT NULL DEFAULT 'UTC',
+      days_of_week JSON NOT NULL,
+      start_time TIME NOT NULL DEFAULT '09:00:00',
+      end_time TIME NOT NULL DEFAULT '17:00:00',
+      is_24x7 BOOLEAN DEFAULT FALSE,
+      is_active BOOLEAN DEFAULT TRUE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      UNIQUE KEY unique_name (name)
+    )
+  `);
+
+  // SLA definitions table
+  await connection.execute(`
+    CREATE TABLE IF NOT EXISTS sla_definitions (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      name VARCHAR(100) NOT NULL,
+      description TEXT,
+      business_hours_profile_id INT,
+      response_target_minutes INT NOT NULL DEFAULT 60,
+      resolve_target_minutes INT NOT NULL DEFAULT 480,
+      resolve_after_response_minutes INT DEFAULT NULL,
+      near_breach_percent INT NOT NULL DEFAULT 85,
+      past_breach_percent INT NOT NULL DEFAULT 120,
+      is_active BOOLEAN DEFAULT TRUE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      UNIQUE KEY unique_name (name),
+      FOREIGN KEY (business_hours_profile_id) REFERENCES business_hours_profiles(id) ON DELETE RESTRICT
+    )
+  `);
+
+  // Insert default business hours profiles
+  await connection.execute(`
+    INSERT IGNORE INTO business_hours_profiles (name, timezone, days_of_week, start_time, end_time, is_24x7)
+    VALUES
+      ('Standard Business Hours', 'Australia/Sydney', '[1,2,3,4,5]', '09:00:00', '17:00:00', FALSE),
+      ('24x7 Support', 'UTC', '[1,2,3,4,5,6,7]', '00:00:00', '23:59:59', TRUE)
+  `);
+
+  // Insert default SLA definitions
+  await connection.execute(`
+    INSERT IGNORE INTO sla_definitions (name, description, business_hours_profile_id, response_target_minutes, resolve_target_minutes)
+    VALUES
+      ('Basic SLA', 'Standard support SLA', 1, 240, 2880),
+      ('Premium SLA', 'Priority support with faster response', 1, 60, 480),
+      ('Critical SLA', '24x7 critical system support', 2, 15, 120)
+  `);
 }
 
 /**
