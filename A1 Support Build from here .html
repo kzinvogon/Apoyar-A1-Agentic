@@ -938,12 +938,9 @@ vNext-FULL-ActionsSLA:
         </select>
       </div>
 
-      <div class="mb-16" id="tenant-field" style="display:none">
-        <label for="tenant" style="display:block;margin-bottom:6px;font-weight:500;font-size:14px;color:var(--ink)">Tenant</label>
-        <select id="tenant" class="input" style="cursor:pointer">
-          <option value="apoyar">Apoyar</option>
-          <option value="testcompany">TestCompany</option>
-        </select>
+      <div class="mb-16" id="tenant-field">
+        <label for="tenant" style="display:block;margin-bottom:6px;font-weight:500;font-size:14px;color:var(--ink)">Tenant Code</label>
+        <input type="text" id="tenant" class="input" placeholder="Enter tenant code (e.g., apoyar)">
         </div>
       
       <div style="margin-bottom:16px">
@@ -6564,8 +6561,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     loadMasterDashActivity();
 
     // Update master dashboard stats
-    document.getElementById('ma-tenants').textContent = '1'; // Will be updated by loadTenants
-    document.getElementById('ma-active').textContent = '1';
+    document.getElementById('ma-tenants').textContent = '...'; // Will be updated by loadTenants
+    document.getElementById('ma-active').textContent = '...';
     document.getElementById('ma-health').textContent = '100%';
   }
 
@@ -6642,7 +6639,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             tbody.innerHTML = '';
             data.tenants.forEach(tenant => {
               const tr = document.createElement('tr');
-              const statusBadge = tenant.is_active ? 'Active' : 'Inactive';
+              const statusBadge = tenant.status === 'active' ? 'Active' : (tenant.status === 'suspended' ? 'Suspended' : 'Inactive');
               const createdDate = new Date(tenant.created_at).toLocaleDateString();
 
               // Plan and subscription info
@@ -6667,7 +6664,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               tr.innerHTML = `
                 <td>${tenant.company_name}</td>
                 <td>${tenant.tenant_code}</td>
-                <td><span class="badge ${tenant.is_active ? 'success' : 'danger'}">${statusBadge}</span></td>
+                <td><span class="badge ${tenant.status === 'active' ? 'success' : 'danger'}">${statusBadge}</span></td>
                 <td>${planName}</td>
                 <td><span class="badge ${subBadgeClass}">${subDisplay}</span></td>
                 <td>${createdDate}</td>
@@ -6741,7 +6738,16 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       const data = await response.json();
       
       if (data.success) {
-        alert('Tenant created successfully!');
+        let credentialsMsg = 'Tenant created successfully!\n\n';
+        if (data.adminCredentials) {
+          credentialsMsg += 'Admin Login Credentials:\n';
+          credentialsMsg += `Username: ${data.adminCredentials.username}\n`;
+          credentialsMsg += `Email: ${data.adminCredentials.email}\n`;
+          credentialsMsg += `Password: ${data.adminCredentials.password}\n`;
+          credentialsMsg += `Tenant Code: ${data.tenantCode}\n\n`;
+          credentialsMsg += 'IMPORTANT: Save these credentials! The admin should change their password on first login.';
+        }
+        alert(credentialsMsg);
         hideCreateTenantForm();
         loadTenants();
       } else {
