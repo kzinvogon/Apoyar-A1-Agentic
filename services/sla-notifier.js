@@ -279,7 +279,7 @@ async function runScheduler() {
     const masterConnection = await getMasterConnection();
     try {
       const [tenants] = await masterConnection.query(`
-        SELECT tenant_code FROM tenants WHERE is_active = 1
+        SELECT tenant_code FROM tenants WHERE status = 'active'
       `);
 
       for (const tenant of tenants) {
