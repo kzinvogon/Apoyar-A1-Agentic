@@ -216,7 +216,7 @@ app.get('/api/db/status', async (req, res) => {
     const connection = await getMasterConnection();
     
     try {
-      const [tenantCount] = await connection.query('SELECT COUNT(*) as count FROM tenants WHERE is_active = 1');
+      const [tenantCount] = await connection.query("SELECT COUNT(*) as count FROM tenants WHERE status = 'active'");
       const [userCount] = await connection.query('SELECT COUNT(*) as count FROM master_users WHERE is_active = TRUE');
       
       res.json({

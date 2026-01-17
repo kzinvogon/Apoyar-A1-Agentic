@@ -12,6 +12,7 @@ const {
   masterAdminLimiter,
   emailLimiter
 } = require('../middleware/rateLimiter');
+const { provisionTenant } = require('../services/tenant-provisioning');
 
 // Apply verifyToken middleware to all master routes
 router.use(verifyToken);
@@ -43,7 +44,7 @@ router.get('/tenants', requireMasterAuth, async (req, res) => {
         LEFT JOIN master_users mu ON t.created_by = mu.id
         LEFT JOIN tenant_subscriptions ts ON t.id = ts.tenant_id
         LEFT JOIN subscription_plans sp ON ts.plan_id = sp.id
-        WHERE t.is_active = 1
+        WHERE t.status = 'active'
         GROUP BY t.id, ts.id, ts.plan_id, ts.status, ts.billing_cycle, ts.trial_start, ts.trial_end,
                  ts.current_period_start, ts.current_period_end, sp.name, sp.slug, sp.price_monthly, sp.price_yearly
         ORDER BY t.created_at DESC
@@ -83,93 +84,68 @@ router.get('/tenants/:id', requireMasterAuth, async (req, res) => {
   }
 });
 
-// Create new tenant
-router.post('/tenants', requireMasterAuth, requireRole(['super_admin']), masterAdminLimiter, validateTenantCreate, async (req, res) => {
+// Create new tenant (simplified - uses provisionTenant service)
+router.post('/tenants', requireMasterAuth, requireRole(['super_admin']), masterAdminLimiter, async (req, res) => {
   try {
-    const {
-      tenant_code,
-      company_name,
-      display_name,
-      database_host,
-      database_port,
-      database_user,
-      database_password,
-      max_users,
-      max_tickets,
-      subscription_plan
-    } = req.body;
+    const { companyName, adminUsername, adminEmail, planSlug } = req.body;
 
     // Validate required fields
-    if (!tenant_code || !company_name || !display_name || !database_user || !database_password) {
-      return res.status(400).json({ success: false, message: 'Missing required fields' });
+    if (!companyName || !adminEmail) {
+      return res.status(400).json({ success: false, message: 'Company name and admin email are required' });
     }
 
+    // Generate a default password for the tenant admin
+    const defaultPassword = process.env.DEFAULT_TENANT_PASSWORD || 'TempPass123!';
+
+    // Use the provisionTenant service to create everything properly
+    const result = await provisionTenant({
+      email: adminEmail,
+      tenantName: companyName,
+      adminPassword: defaultPassword,
+      planSlug: planSlug || 'professional',
+      numTechnicians: 1,
+      numClients: 0,
+      createStripeCustomer: false // Don't create Stripe customer for manual provisioning
+    });
+
+    // Log the action
     const connection = await getMasterConnection();
     try {
-      // Check if tenant code already exists
-      const [existing] = await connection.query(
-        'SELECT id FROM tenants WHERE tenant_code = ?',
-        [tenant_code]
-      );
-      
-      if (existing.length > 0) {
-        return res.status(400).json({ success: false, message: 'Tenant code already exists' });
-      }
-
-      // Generate database name
-      const database_name = `a1_tenant_${tenant_code}`;
-
-      // Insert new tenant
-      const [result] = await connection.query(`
-        INSERT INTO tenants (
-          tenant_code, company_name, display_name, database_name,
-          database_host, database_port, database_user, database_password,
-          max_users, max_tickets, subscription_plan, created_by
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `, [
-        tenant_code, company_name, display_name, database_name,
-        database_host || 'localhost', database_port || 3306,
-        database_user, database_password, max_users || 100,
-        max_tickets || 1000, subscription_plan || 'basic', req.user.userId
-      ]);
-
-      // Create tenant admin user
-      const defaultPassword = process.env.DEFAULT_TENANT_PASSWORD || 'CHANGE_ME_IMMEDIATELY';
-      const adminPassword = await hashPassword(defaultPassword);
       await connection.query(`
-        INSERT INTO tenant_admins (
-          tenant_id, username, email, password_hash, full_name, role
-        ) VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO master_audit_log (user_id, user_type, action, details, ip_address)
+        VALUES (?, 'master_user', 'tenant_created', ?, ?)
       `, [
-        result.insertId,
-        'admin',
-        `admin@${tenant_code}.com`,
-        adminPassword,
-        `${company_name} Administrator`,
-        'tenant_admin'
+        req.user.userId,
+        JSON.stringify({
+          message: `Created tenant: ${companyName}`,
+          company_name: companyName,
+          tenant_code: result.tenantCode,
+          admin_email: adminEmail
+        }),
+        req.ip
       ]);
-
-      // Log the action
-      await connection.query(`
-        INSERT INTO master_audit_log (user_id, action, details, ip_address)
-        VALUES (?, 'tenant_created', ?, ?)
-      `, [req.user.userId, JSON.stringify({ message: `Created tenant: ${company_name}`, company_name, tenant_code }), req.ip]);
-
-      res.status(201).json({
-        success: true,
-        message: 'Tenant created successfully. IMPORTANT: Change the default admin password immediately!',
-        tenantId: result.insertId,
-        adminCredentials: {
-          username: 'admin',
-          note: 'Password set from DEFAULT_TENANT_PASSWORD environment variable'
-        }
-      });
     } finally {
       connection.release();
     }
+
+    res.status(201).json({
+      success: true,
+      message: 'Tenant created successfully!',
+      tenantId: result.tenantId,
+      tenantCode: result.tenantCode,
+      adminCredentials: {
+        username: 'admin',
+        email: adminEmail,
+        password: defaultPassword,
+        note: 'Please change this password on first login'
+      }
+    });
   } catch (error) {
     console.error('Error creating tenant:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Internal server error'
+    });
   }
 });
 
@@ -245,9 +221,9 @@ router.delete('/tenants/:id', requireMasterAuth, requireRole(['super_admin']), a
         return res.status(404).json({ success: false, message: 'Tenant not found' });
       }
 
-      // Soft delete by setting is_active to false
+      // Soft delete by setting status to inactive
       await connection.query(
-        'UPDATE tenants SET is_active = FALSE, updated_at = NOW() WHERE id = ?',
+        "UPDATE tenants SET status = 'inactive', updated_at = NOW() WHERE id = ?",
         [req.params.id]
       );
 
@@ -330,8 +306,8 @@ router.get('/overview', requireMasterAuth, async (req, res) => {
     const connection = await getMasterConnection();
     try {
       // Get total counts (only active tenants)
-      const [tenantCount] = await connection.query('SELECT COUNT(*) as count FROM tenants WHERE is_active = 1');
-      const [activeTenantCount] = await connection.query('SELECT COUNT(*) as count FROM tenants WHERE is_active = 1');
+      const [tenantCount] = await connection.query("SELECT COUNT(*) as count FROM tenants WHERE status = 'active'");
+      const [activeTenantCount] = await connection.query("SELECT COUNT(*) as count FROM tenants WHERE status = 'active'");
       const [masterUserCount] = await connection.query('SELECT COUNT(*) as count FROM master_users WHERE is_active = TRUE');
       const [auditLogCount] = await connection.query('SELECT COUNT(*) as count FROM master_audit_log');
 
