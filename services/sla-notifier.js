@@ -14,9 +14,13 @@ const {
 
 // Mutex to prevent overlapping runs
 let isRunning = false;
+let runStartTime = null;
 
 // Batch size limit
 const BATCH_SIZE = 500;
+
+// Maximum run time before force-resetting the mutex (5 minutes)
+const MAX_RUN_TIME_MS = 5 * 60 * 1000;
 
 /**
  * Notification type definitions
@@ -266,13 +270,20 @@ async function processTenant(tenantCode) {
  * Main scheduler run - processes all active tenants
  */
 async function runScheduler() {
+  // Check if stuck from a previous run
   if (isRunning) {
-    console.log('[SLA_NOTIFY] Scheduler already running, skipping this cycle');
-    return;
+    const stuckTime = runStartTime ? Date.now() - runStartTime : 0;
+    if (stuckTime > MAX_RUN_TIME_MS) {
+      console.log(`[SLA_NOTIFY] Scheduler stuck for ${Math.round(stuckTime / 1000)}s, force-resetting`);
+      isRunning = false;
+    } else {
+      console.log('[SLA_NOTIFY] Scheduler already running, skipping this cycle');
+      return;
+    }
   }
 
   isRunning = true;
-  const startTime = Date.now();
+  runStartTime = Date.now();
 
   try {
     // Get all active tenants from master DB
@@ -283,10 +294,15 @@ async function runScheduler() {
       `);
 
       for (const tenant of tenants) {
-        await processTenant(tenant.tenant_code);
+        try {
+          await processTenant(tenant.tenant_code);
+        } catch (tenantError) {
+          // Log but don't stop processing other tenants
+          console.error(`[SLA_NOTIFY] Error processing tenant ${tenant.tenant_code}:`, tenantError.message);
+        }
       }
 
-      const elapsed = Date.now() - startTime;
+      const elapsed = Date.now() - runStartTime;
       if (tenants.length > 0) {
         console.log(`[SLA_NOTIFY] Scheduler completed for ${tenants.length} tenants in ${elapsed}ms`);
       }
@@ -297,6 +313,7 @@ async function runScheduler() {
     console.error('[SLA_NOTIFY] Scheduler error:', error.message);
   } finally {
     isRunning = false;
+    runStartTime = null;
   }
 }
 
