@@ -22,7 +22,6 @@ const masterConfig = {
   connectionLimit: 20,
   queueLimit: 100,
   connectTimeout: 10000,     // 10 seconds to establish connection
-  acquireTimeout: 10000,     // 10 seconds to acquire connection from pool
   enableKeepAlive: true,
   keepAliveInitialDelay: 10000
 };
@@ -79,7 +78,6 @@ async function getTenantConnection(tenantCode) {
         connectionLimit: 30,
         queueLimit: 100,
         connectTimeout: 10000,     // 10 seconds to establish connection
-        acquireTimeout: 10000,     // 10 seconds to acquire connection from pool
         enableKeepAlive: true,
         keepAliveInitialDelay: 10000
       };
