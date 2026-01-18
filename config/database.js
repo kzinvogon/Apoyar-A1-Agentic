@@ -19,8 +19,12 @@ const masterConfig = {
   password: process.env.MASTER_DB_PASSWORD || process.env.MYSQLPASSWORD || process.env.MYSQL_PASSWORD || '',
   database: process.env.MASTER_DB_NAME || process.env.MYSQLDATABASE || process.env.MYSQL_DATABASE || 'a1_master',
   waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
+  connectionLimit: 20,
+  queueLimit: 100,
+  connectTimeout: 10000,     // 10 seconds to establish connection
+  acquireTimeout: 10000,     // 10 seconds to acquire connection from pool
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 10000
 };
 
 console.log(`🔧 Using database host: ${masterConfig.host}:${masterConfig.port}`);
@@ -72,8 +76,12 @@ async function getTenantConnection(tenantCode) {
         password: tenant.database_password || process.env.MYSQLPASSWORD || process.env.MYSQL_PASSWORD,
         database: tenant.database_name,
         waitForConnections: true,
-        connectionLimit: 20,
-        queueLimit: 0
+        connectionLimit: 30,
+        queueLimit: 100,
+        connectTimeout: 10000,     // 10 seconds to establish connection
+        acquireTimeout: 10000,     // 10 seconds to acquire connection from pool
+        enableKeepAlive: true,
+        keepAliveInitialDelay: 10000
       };
 
       const tenantPool = mysql.createPool(tenantConfig);
