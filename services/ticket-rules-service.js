@@ -497,6 +497,108 @@ class TicketRulesService {
       executions_last_24h: recentExecutions[0].count
     };
   }
+
+  // Run rule on all matching tickets in background
+  // Returns immediately, executes asynchronously, creates notification when done
+  async runRuleInBackground(ruleId, userId) {
+    const rule = await this.getRuleById(ruleId);
+    const matchingTickets = await this.findMatchingTickets(rule);
+    const ticketCount = matchingTickets.length;
+
+    if (ticketCount === 0) {
+      return {
+        success: true,
+        message: 'No matching tickets found',
+        ticket_count: 0,
+        started: false
+      };
+    }
+
+    // Start background execution
+    const tenantCode = this.tenantCode;
+    const startTime = Date.now();
+
+    console.log(`[TicketRules] Starting background job: rule ${ruleId} on ${ticketCount} tickets for tenant ${tenantCode}`);
+
+    // Use setImmediate to run in background after response is sent
+    setImmediate(async () => {
+      let successCount = 0;
+      let errorCount = 0;
+      const errors = [];
+
+      try {
+        const service = new TicketRulesService(tenantCode);
+
+        for (const ticket of matchingTickets) {
+          try {
+            const result = await service.executeRuleOnTicket(ruleId, ticket.id);
+            if (result.success && result.result === 'success') {
+              successCount++;
+            } else {
+              errorCount++;
+              errors.push(`#${ticket.id}: ${result.error || 'Unknown error'}`);
+            }
+          } catch (err) {
+            errorCount++;
+            errors.push(`#${ticket.id}: ${err.message}`);
+          }
+        }
+
+        const duration = Math.round((Date.now() - startTime) / 1000);
+        console.log(`[TicketRules] Background job completed: ${successCount} success, ${errorCount} errors in ${duration}s`);
+
+        // Create notification for user
+        const connection = await getTenantConnection(tenantCode);
+        const message = errorCount === 0
+          ? `Rule "${rule.rule_name}" completed: ${successCount} tickets processed successfully`
+          : `Rule "${rule.rule_name}" completed: ${successCount} successful, ${errorCount} failed`;
+
+        await connection.query(
+          `INSERT INTO notifications (ticket_id, type, severity, message, payload_json, created_at)
+           VALUES (NULL, 'RULE_EXECUTION_COMPLETE', ?, ?, ?, NOW())`,
+          [
+            errorCount === 0 ? 'info' : 'warning',
+            message,
+            JSON.stringify({
+              rule_id: ruleId,
+              rule_name: rule.rule_name,
+              success_count: successCount,
+              error_count: errorCount,
+              errors: errors.slice(0, 10),
+              duration_seconds: duration,
+              user_id: userId
+            })
+          ]
+        );
+
+      } catch (err) {
+        console.error(`[TicketRules] Background job failed:`, err);
+
+        // Create error notification
+        try {
+          const connection = await getTenantConnection(tenantCode);
+          await connection.query(
+            `INSERT INTO notifications (ticket_id, type, severity, message, payload_json, created_at)
+             VALUES (NULL, 'RULE_EXECUTION_COMPLETE', 'critical', ?, ?, NOW())`,
+            [
+              `Rule "${rule.rule_name}" execution failed: ${err.message}`,
+              JSON.stringify({ rule_id: ruleId, error: err.message, user_id: userId })
+            ]
+          );
+        } catch (notifErr) {
+          console.error(`[TicketRules] Failed to create error notification:`, notifErr);
+        }
+      }
+    });
+
+    return {
+      success: true,
+      message: `Started processing ${ticketCount} ticket(s) in background`,
+      ticket_count: ticketCount,
+      started: true,
+      rule_name: rule.rule_name
+    };
+  }
 }
 
 module.exports = { TicketRulesService };

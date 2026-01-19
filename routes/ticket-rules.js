@@ -178,6 +178,29 @@ router.post('/:tenantId/:ruleId/test', requireRole(['admin', 'expert']), async (
   }
 });
 
+// Run rule on all matching tickets in background
+router.post('/:tenantId/:ruleId/run', requireRole(['admin', 'expert']), async (req, res) => {
+  try {
+    const { tenantId, ruleId } = req.params;
+    const userId = req.user.userId;
+    const service = new TicketRulesService(tenantId);
+
+    const result = await service.runRuleInBackground(parseInt(ruleId), userId);
+
+    res.json({
+      success: true,
+      ...result
+    });
+  } catch (error) {
+    console.error('Error starting rule execution:', error);
+    res.status(error.message === 'Rule not found' ? 404 : 500).json({
+      success: false,
+      error: 'Failed to start rule execution',
+      message: error.message
+    });
+  }
+});
+
 // Execute rule on specific ticket
 router.post('/:tenantId/:ruleId/execute/:ticketId', requireRole(['admin', 'expert']), async (req, res) => {
   try {
