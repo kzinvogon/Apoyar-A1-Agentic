@@ -2498,6 +2498,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
                     <option value="set_priority">Set Priority</option>
                     <option value="set_status">Set Status</option>
                     <option value="add_tag">Add Tag</option>
+                    <option value="add_to_monitoring">Add to System Monitoring Sources</option>
                   </select>
                 </div>
 
@@ -19025,7 +19026,8 @@ function displayRules(rules) {
     create_for_customer: '📋',
     set_priority: '⚡',
     set_status: '📊',
-    add_tag: '🏷️'
+    add_tag: '🏷️',
+    add_to_monitoring: '📡'
   };
 
   const actionLabels = {
@@ -19034,7 +19036,8 @@ function displayRules(rules) {
     create_for_customer: 'Create for Customer',
     set_priority: 'Set Priority',
     set_status: 'Set Status',
-    add_tag: 'Add Tag'
+    add_tag: 'Add Tag',
+    add_to_monitoring: 'Add to Monitoring'
   };
 
   rulesList.innerHTML = rules.map(rule => {
@@ -19229,6 +19232,15 @@ function updateActionParams() {
         <div class="mb-12">
           <label style="display:block;margin-bottom:4px;font-weight:600">Tag *</label>
           <input type="text" id="param-tag" class="input" placeholder="e.g., auto-processed" required style="width:100%">
+        </div>
+      `;
+      break;
+
+    case 'add_to_monitoring':
+      html = `
+        <div class="subtitle" style="margin-top:8px">
+          📊 This will classify the ticket as a system alert and mark it as a monitoring source.<br>
+          <span style="color:#666;font-size:12px">The ticket will be tagged with source metadata indicating it came from a monitoring system.</span>
         </div>
       `;
       break;
