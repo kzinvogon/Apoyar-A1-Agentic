@@ -19,7 +19,7 @@ async function applyTicketRulesMigration() {
         search_text VARCHAR(500) NOT NULL,
         case_sensitive BOOLEAN DEFAULT FALSE,
 
-        action_type ENUM('delete', 'create_for_customer', 'assign_to_expert', 'set_priority', 'set_status', 'add_tag') NOT NULL,
+        action_type ENUM('delete', 'create_for_customer', 'assign_to_expert', 'set_priority', 'set_status', 'add_tag', 'add_to_monitoring') NOT NULL,
         action_params JSON,
 
         times_triggered INT DEFAULT 0,
