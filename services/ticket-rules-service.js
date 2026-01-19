@@ -296,6 +296,10 @@ class TicketRulesService {
           actionResult = await this.addTag(ticketId, rule.action_params);
           break;
 
+        case 'add_to_monitoring':
+          actionResult = await this.addToMonitoringSources(ticketId);
+          break;
+
         default:
           throw new Error(`Unknown action type: ${rule.action_type}`);
       }
@@ -497,6 +501,42 @@ class TicketRulesService {
     return {
       message: `Tag "${newTag}" added to ticket #${ticketId}`,
       tag: newTag
+    };
+  }
+
+  // Add ticket to system monitoring sources
+  async addToMonitoringSources(ticketId) {
+    const connection = await getTenantConnection(this.tenantCode);
+
+    // Get current ticket to check existing metadata
+    const [tickets] = await connection.query(
+      `SELECT source_metadata FROM tickets WHERE id = ?`,
+      [ticketId]
+    );
+
+    if (tickets.length === 0) {
+      throw new Error('Ticket not found');
+    }
+
+    // Build the monitoring source metadata
+    const sourceMetadata = {
+      type: 'monitoring',
+      reason: 'ticket_rule_action',
+      classified_as: 'alert',
+      added_via: 'ticket_processing_rule',
+      added_at: new Date().toISOString()
+    };
+
+    await connection.query(
+      `UPDATE tickets
+       SET source_metadata = ?, updated_at = NOW()
+       WHERE id = ?`,
+      [JSON.stringify(sourceMetadata), ticketId]
+    );
+
+    return {
+      message: `Ticket #${ticketId} added to system monitoring sources`,
+      source_metadata: sourceMetadata
     };
   }
 
