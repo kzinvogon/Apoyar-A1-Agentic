@@ -334,6 +334,11 @@
   </div>
 
   <script>
+    // API Base URL - use current origin for deployed version, localhost for development
+    const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+      ? 'http://localhost:3000'
+      : window.location.origin;
+
     let selectedRating = 0;
     let ticketToken = '';
     let tenantCode = '';
@@ -356,7 +361,7 @@
         [tenantCode, ticketId] = decoded.split(':');
 
         // Fetch ticket details from public endpoint
-        const response = await fetch(`http://localhost:3000/api/tickets/public/${ticketToken}/details`);
+        const response = await fetch(`${API_BASE}/api/tickets/public/${ticketToken}/details`);
 
         if (response.ok) {
           const data = await response.json();
@@ -412,7 +417,7 @@
 
     async function acceptResolution() {
       try {
-        const response = await fetch(`http://localhost:3000/api/tickets/public/${ticketToken}/accept`, {
+        const response = await fetch(`${API_BASE}/api/tickets/public/${ticketToken}/accept`, {
           method: 'POST'
         });
 
@@ -445,7 +450,7 @@
       }
 
       try {
-        const response = await fetch(`http://localhost:3000/api/tickets/public/${ticketToken}/reject`, {
+        const response = await fetch(`${API_BASE}/api/tickets/public/${ticketToken}/reject`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -490,7 +495,7 @@
       const comment = document.getElementById('csat-comment').value;
 
       try {
-        const response = await fetch(`http://localhost:3000/api/tickets/public/${ticketToken}/csat`, {
+        const response = await fetch(`${API_BASE}/api/tickets/public/${ticketToken}/csat`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
