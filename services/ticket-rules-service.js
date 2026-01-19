@@ -500,6 +500,7 @@ class TicketRulesService {
 
   // Run rule on all matching tickets in background
   // Returns immediately, executes asynchronously, creates notification when done
+  // Processes in batches to avoid blocking the server
   async runRuleInBackground(ruleId, userId) {
     const rule = await this.getRuleById(ruleId);
     const matchingTickets = await this.findMatchingTickets(rule);
@@ -517,8 +518,13 @@ class TicketRulesService {
     // Start background execution
     const tenantCode = this.tenantCode;
     const startTime = Date.now();
+    const BATCH_SIZE = 5; // Process 5 tickets at a time
+    const BATCH_DELAY_MS = 500; // 500ms delay between batches
 
-    console.log(`[TicketRules] Starting background job: rule ${ruleId} on ${ticketCount} tickets for tenant ${tenantCode}`);
+    console.log(`[TicketRules] Starting background job: rule ${ruleId} on ${ticketCount} tickets for tenant ${tenantCode} (batch size: ${BATCH_SIZE})`);
+
+    // Helper to delay execution
+    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
     // Use setImmediate to run in background after response is sent
     setImmediate(async () => {
@@ -529,18 +535,33 @@ class TicketRulesService {
       try {
         const service = new TicketRulesService(tenantCode);
 
-        for (const ticket of matchingTickets) {
-          try {
-            const result = await service.executeRuleOnTicket(ruleId, ticket.id);
-            if (result.success && result.result === 'success') {
-              successCount++;
-            } else {
+        // Process in batches
+        for (let i = 0; i < matchingTickets.length; i += BATCH_SIZE) {
+          const batch = matchingTickets.slice(i, i + BATCH_SIZE);
+          const batchNum = Math.floor(i / BATCH_SIZE) + 1;
+          const totalBatches = Math.ceil(matchingTickets.length / BATCH_SIZE);
+
+          console.log(`[TicketRules] Processing batch ${batchNum}/${totalBatches} (${batch.length} tickets)`);
+
+          // Process tickets in this batch
+          for (const ticket of batch) {
+            try {
+              const result = await service.executeRuleOnTicket(ruleId, ticket.id);
+              if (result.success && result.result === 'success') {
+                successCount++;
+              } else {
+                errorCount++;
+                errors.push(`#${ticket.id}: ${result.error || 'Unknown error'}`);
+              }
+            } catch (err) {
               errorCount++;
-              errors.push(`#${ticket.id}: ${result.error || 'Unknown error'}`);
+              errors.push(`#${ticket.id}: ${err.message}`);
             }
-          } catch (err) {
-            errorCount++;
-            errors.push(`#${ticket.id}: ${err.message}`);
+          }
+
+          // Delay between batches to allow other requests to be processed
+          if (i + BATCH_SIZE < matchingTickets.length) {
+            await delay(BATCH_DELAY_MS);
           }
         }
 
