@@ -5531,7 +5531,12 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   // ---- Shell & Nav ----
   let role='admin', currentView='dash', currentItemId=null, tenant=null, pending=null, currentTicketId=null;
 
-  document.getElementById('role').addEventListener('change', function(){ const isCustomer=this.value==='customer'; const tenantField = document.getElementById('tenant-field'); if(tenantField) tenantField.style.display=isCustomer?'block':'none'; if(isCustomer) loadTenantChoices(); });
+  // Role change listener - show tenant field for all roles except master_admin
+  document.getElementById('role').addEventListener('change', function(){
+    const isMasterAdmin = this.value === 'master_admin';
+    const tenantField = document.getElementById('tenant-field');
+    if(tenantField) tenantField.style.display = isMasterAdmin ? 'none' : 'block';
+  });
   function loadTenantChoices(){ 
     const t=document.getElementById('tenant'); 
     // Use actual tenant data instead of CMDB customer data
