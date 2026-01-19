@@ -2539,7 +2539,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
                 <label style="display:block;margin-bottom:4px;font-size:13px;font-weight:600">Status</label>
                 <select id="ticket-filter-status" class="input" onchange="renderList(); saveFilterSettings('tickets')" style="width:100%">
                   <option value="">All Statuses</option>
-                  <option value="Open">Open</option>
+                  <option value="Open" selected>Open</option>
                   <option value="In Progress">In Progress</option>
                   <option value="Pending">Pending</option>
                   <option value="Resolved">Resolved</option>
@@ -12851,7 +12851,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const sortSelect = document.getElementById('ticket-sort');
 
     if (searchInput) searchInput.value = '';
-    if (statusFilter) statusFilter.value = '';
+    if (statusFilter) statusFilter.value = 'Open';
     if (priorityFilter) priorityFilter.value = '';
     if (assigneeFilter) assigneeFilter.value = '';
     if (companyFilter) companyFilter.value = '';
