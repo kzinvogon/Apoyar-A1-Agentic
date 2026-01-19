@@ -16,11 +16,15 @@ const {
 let isRunning = false;
 let runStartTime = null;
 
-// Batch size limit
-const BATCH_SIZE = 500;
+// Batch size limit - process 5 tickets at a time to avoid server overload
+const BATCH_SIZE = 5;
+const BATCH_DELAY_MS = 1000; // 1 second delay between batches
 
 // Maximum run time before force-resetting the mutex (5 minutes)
 const MAX_RUN_TIME_MS = 5 * 60 * 1000;
+
+// Helper to delay execution
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
  * Notification type definitions
@@ -140,8 +144,16 @@ async function processTenant(tenantCode) {
     `, [BATCH_SIZE]);
 
     let notificationCount = 0;
+    let ticketIndex = 0;
 
     for (const ticket of tickets) {
+      ticketIndex++;
+
+      // Add delay between tickets to prevent server overload
+      if (ticketIndex > 1) {
+        await delay(BATCH_DELAY_MS);
+      }
+
       const profile = buildProfileFromRow(ticket);
       const nearPercent = ticket.near_breach_percent || 85;
       const pastPercent = ticket.past_breach_percent || 120;
