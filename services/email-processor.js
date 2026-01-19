@@ -624,6 +624,63 @@ class EmailProcessor {
   }
 
   /**
+   * Check if email is a bounce/delivery notification that should be ignored
+   */
+  isBounceNotification(fromEmail, subject) {
+    const emailLower = fromEmail.toLowerCase();
+    const subjectLower = (subject || '').toLowerCase();
+
+    // Common bounce sender patterns
+    const bounceSenders = [
+      'mailer-daemon@', 'postmaster@', 'mail-daemon@',
+      'mailerdaemon@', 'postoffice@', 'bounces@',
+      'bounce@', 'ndr@', 'returned@'
+    ];
+
+    // Bounce subject patterns
+    const bounceSubjects = [
+      'delivery status notification',
+      'undeliverable', 'undelivered',
+      'mail delivery failed',
+      'delivery failure',
+      'returned mail',
+      'mail system error',
+      'message not delivered',
+      'delivery report',
+      'non-delivery',
+      'failed delivery',
+      'delivery problem',
+      'could not be delivered',
+      'automatic reply'
+    ];
+
+    // Check sender
+    if (bounceSenders.some(pattern => emailLower.includes(pattern))) {
+      return true;
+    }
+
+    // Check subject
+    if (bounceSubjects.some(pattern => subjectLower.includes(pattern))) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Check if email address is a noreply address that shouldn't receive confirmations
+   */
+  isNoReplyAddress(email) {
+    const emailLower = email.toLowerCase();
+    const noReplyPatterns = [
+      'noreply@', 'no-reply@', 'donotreply@', 'do-not-reply@',
+      'no_reply@', 'do_not_reply@', 'noreply-', 'no-reply-',
+      'mailer-daemon@', 'postmaster@', 'bounces@', 'bounce@'
+    ];
+    return noReplyPatterns.some(pattern => emailLower.includes(pattern));
+  }
+
+  /**
    * Process a single email message
    */
   async processEmail(connection, email) {
@@ -645,6 +702,12 @@ class EmailProcessor {
       }
 
       console.log(`Processing email from: ${fromEmail}, domain: ${domain}, displayName: ${displayName}`);
+
+      // Check if this is a bounce/delivery notification - skip entirely to prevent loops
+      if (this.isBounceNotification(fromEmail, email.subject)) {
+        console.log(`🚫 Skipping bounce/delivery notification from: ${fromEmail}, subject: ${email.subject}`);
+        return { success: false, reason: 'bounce_notification_skipped' };
+      }
 
       // Check if this is a "Register_Expert" expert registration request
       if (this.isExpertRequestEmail(email.subject)) {
@@ -989,6 +1052,12 @@ class EmailProcessor {
    * Send ticket confirmation email
    */
   async sendTicketConfirmation(toEmail, ticketId, subject) {
+    // Skip sending to noreply addresses to prevent bounce loops
+    if (this.isNoReplyAddress(toEmail)) {
+      console.log(`📧 Skipping confirmation email to noreply address: ${toEmail}`);
+      return;
+    }
+
     // Generate secure access token for the ticket
     const token = await createTicketAccessToken(this.tenantCode, ticketId, 30);
     const ticketUrl = `${process.env.BASE_URL || 'https://serviflow.app'}/ticket/view/${token}`;
