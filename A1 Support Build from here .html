@@ -19287,12 +19287,38 @@ async function runRule(ruleId) {
       return;
     }
 
+    // Show progress modal
+    showModal('Rule Execution Progress', `
+      <div id="rule-progress-container">
+        <div style="margin-bottom:16px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+            <span>Processing tickets...</span>
+            <span id="rule-progress-count">0 / ${count}</span>
+          </div>
+          <div style="background:#e2e8f0;border-radius:8px;height:24px;overflow:hidden">
+            <div id="rule-progress-bar" style="background:linear-gradient(135deg,#667eea,#764ba2);height:100%;width:0%;transition:width 0.3s"></div>
+          </div>
+        </div>
+        <div id="rule-progress-status" style="font-size:13px;color:#718096;max-height:200px;overflow-y:auto"></div>
+      </div>
+    `);
+
     // Execute rule on each matching ticket
     let successCount = 0;
     let errorCount = 0;
     const errors = [];
+    const statusEl = document.getElementById('rule-progress-status');
+    const countEl = document.getElementById('rule-progress-count');
+    const barEl = document.getElementById('rule-progress-bar');
 
-    for (const ticket of matchingTickets) {
+    for (let i = 0; i < matchingTickets.length; i++) {
+      const ticket = matchingTickets[i];
+
+      // Update progress
+      const progress = Math.round(((i + 1) / count) * 100);
+      if (countEl) countEl.textContent = `${i + 1} / ${count}`;
+      if (barEl) barEl.style.width = `${progress}%`;
+
       try {
         const execUrl = window.location.protocol + '//' + window.location.host + `/api/ticket-rules/${tenantCode}/${ruleId}/execute/${ticket.id}`;
         const execResponse = await fetch(execUrl, {
@@ -19304,25 +19330,44 @@ async function runRule(ruleId) {
 
         if (execData.success && execData.result === 'success') {
           successCount++;
+          if (statusEl) statusEl.innerHTML += `<div style="color:#38a169">✓ #${ticket.id}: ${ticket.title.substring(0,50)}</div>`;
         } else {
           errorCount++;
-          errors.push(`#${ticket.id}: ${execData.error || execData.message || 'Unknown error'}`);
+          const errMsg = execData.error || execData.message || 'Unknown error';
+          errors.push(`#${ticket.id}: ${errMsg}`);
+          if (statusEl) statusEl.innerHTML += `<div style="color:#e53e3e">✗ #${ticket.id}: ${errMsg}</div>`;
         }
       } catch (err) {
         errorCount++;
         errors.push(`#${ticket.id}: ${err.message}`);
+        if (statusEl) statusEl.innerHTML += `<div style="color:#e53e3e">✗ #${ticket.id}: ${err.message}</div>`;
       }
+
+      // Scroll status to bottom
+      if (statusEl) statusEl.scrollTop = statusEl.scrollHeight;
+
+      // Small delay to allow UI to update
+      await new Promise(r => setTimeout(r, 50));
     }
 
-    // Show results
-    let resultMsg = `✅ Rule Execution Complete\n\nSuccessful: ${successCount}\nFailed: ${errorCount}`;
-    if (errors.length > 0) {
-      resultMsg += `\n\nErrors:\n${errors.slice(0, 5).join('\n')}`;
-      if (errors.length > 5) {
-        resultMsg += `\n... and ${errors.length - 5} more errors`;
-      }
+    // Update modal with final results
+    const progressContainer = document.getElementById('rule-progress-container');
+    if (progressContainer) {
+      progressContainer.innerHTML = `
+        <div style="text-align:center;padding:20px">
+          <div style="font-size:48px;margin-bottom:16px">${errorCount === 0 ? '✅' : '⚠️'}</div>
+          <h3 style="margin-bottom:16px">Execution Complete</h3>
+          <div style="display:flex;gap:24px;justify-content:center;margin-bottom:16px">
+            <div><span style="color:#38a169;font-size:24px;font-weight:bold">${successCount}</span><br>Successful</div>
+            <div><span style="color:#e53e3e;font-size:24px;font-weight:bold">${errorCount}</span><br>Failed</div>
+          </div>
+          ${errors.length > 0 ? `<div style="text-align:left;background:#fef2f2;padding:12px;border-radius:8px;max-height:150px;overflow-y:auto;font-size:12px">
+            <strong>Errors:</strong><br>${errors.slice(0, 10).join('<br>')}${errors.length > 10 ? `<br>... and ${errors.length - 10} more` : ''}
+          </div>` : ''}
+          <button class="btn primary" onclick="closeModal()" style="margin-top:16px">Close</button>
+        </div>
+      `;
     }
-    alert(resultMsg);
 
     // Reload rules to update statistics
     await loadTicketRules();
