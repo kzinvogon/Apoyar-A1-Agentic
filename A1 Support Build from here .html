@@ -206,6 +206,25 @@ vNext-FULL-ActionsSLA:
   .modal .body{padding:20px}
   .modal .foot{padding:12px 20px;display:flex;gap:8px;justify-content:flex-end;border-top:1px solid var(--border);background:var(--table-header)}
 
+  /* Fix for fullscreen modal overlays - ensure content is visible at top */
+  #customer-modal, #company-modal, #company-list-modal, #expert-permissions-modal, #reauth-modal, #rule-modal {
+    display: none;
+    padding-top: 20px !important;
+  }
+  #customer-modal > div, #company-modal > div, #company-list-modal > div, #expert-permissions-modal > div, #reauth-modal > div, #rule-modal > div:first-child {
+    margin-top: 0 !important;
+    margin-bottom: 40px;
+  }
+  /* Ensure modal-content class (used by invite-user-modal) is styled */
+  .modal-content {
+    width: min(500px, calc(100vw - 32px));
+    background: var(--card);
+    border-radius: 12px;
+    box-shadow: var(--shadow-lg);
+    padding: 20px;
+    border: 1px solid var(--border);
+  }
+
   /* Popover mode for Edit (anchored to button) */
   .sheet.popover{position:fixed;z-index:2000;width:500px;max-width:92vw;max-height:85vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,0.35)}
 
@@ -8071,7 +8090,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   }
 
   function showReauthModal() {
-    document.getElementById('reauth-modal').style.display = 'block';
+    const modal = document.getElementById('reauth-modal');
+    modal.style.display = 'block';
+    modal.scrollTop = 0;
     document.getElementById('reauth-password').value = '';
     document.getElementById('reauth-error').style.display = 'none';
     document.getElementById('reauth-password').focus();
@@ -16178,7 +16199,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       return;
     }
 
-    document.getElementById('expert-permissions-modal').style.display = 'block';
+    const modal = document.getElementById('expert-permissions-modal');
+    modal.style.display = 'block';
+    modal.scrollTop = 0;
     console.log('  → Modal opened');
 
     console.log('  → Loading expert permissions...');
@@ -16830,7 +16853,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     document.getElementById('customer-username').disabled = false;
     document.getElementById('customer-form-message').style.display = 'none';
     document.getElementById('customer-form-error').style.display = 'none';
-    document.getElementById('customer-modal').style.display = 'block';
+    const modal = document.getElementById('customer-modal');
+    modal.style.display = 'block';
+    modal.scrollTop = 0;
   }
 
   async function editCustomer(customerId) {
@@ -16861,7 +16886,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         document.getElementById('customer-sla').value = c.sla_level || 'basic';
         document.getElementById('customer-form-message').style.display = 'none';
         document.getElementById('customer-form-error').style.display = 'none';
-        document.getElementById('customer-modal').style.display = 'block';
+        const modal = document.getElementById('customer-modal');
+        modal.style.display = 'block';
+        modal.scrollTop = 0;
       } else {
         alert('Failed to load customer details');
       }
@@ -16884,7 +16911,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     document.getElementById('company-id').value = '';
     document.getElementById('company-form-message').style.display = 'none';
     document.getElementById('company-form-error').style.display = 'none';
-    document.getElementById('company-modal').style.display = 'block';
+    const modal = document.getElementById('company-modal');
+    modal.style.display = 'block';
+    modal.scrollTop = 0;
   }
 
   function closeCompanyModal() {
@@ -16894,7 +16923,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   // Company Management Functions
   async function showManageCompanies() {
-    document.getElementById('company-list-modal').style.display = 'block';
+    const modal = document.getElementById('company-list-modal');
+    modal.style.display = 'block';
+    modal.scrollTop = 0;
     await renderCompanyList();
   }
 
@@ -16971,7 +17002,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     document.getElementById('company-form-error').style.display = 'none';
 
     closeCompanyListModal();
-    document.getElementById('company-modal').style.display = 'block';
+    const modal = document.getElementById('company-modal');
+    modal.style.display = 'block';
+    modal.scrollTop = 0;
   }
 
   async function deleteCompany(companyId, companyName, memberCount) {
@@ -19149,7 +19182,9 @@ function showCreateRuleModal() {
   document.getElementById('rule-enabled').checked = true;
   document.getElementById('rule-action-type').value = 'delete';
   updateActionParams();
-  document.getElementById('rule-modal').style.display = 'block';
+  const modal = document.getElementById('rule-modal');
+  modal.style.display = 'block';
+  modal.scrollTop = 0;
 }
 
 // Close rule modal
@@ -19405,7 +19440,9 @@ async function editRule(ruleId) {
       }, 100);
 
       // Show modal
-      document.getElementById('rule-modal').style.display = 'block';
+      const modal = document.getElementById('rule-modal');
+      modal.style.display = 'block';
+      modal.scrollTop = 0;
     } else {
       alert('Failed to load rule details');
     }
