@@ -1,5 +1,53 @@
 const { getTenantConnection } = require('../config/database');
 
+// Default batch processing values (can be overridden by tenant settings)
+const DEFAULT_BATCH_SIZE = 5;
+const DEFAULT_BATCH_DELAY_SECONDS = 2;
+const MIN_BATCH_DELAY_SECONDS = 3;
+const MAX_BATCH_SIZE = 10;
+
+/**
+ * Fetch batch processing settings from tenant_settings table
+ */
+async function getBatchSettings(connection) {
+  try {
+    const [settings] = await connection.query(`
+      SELECT setting_key, setting_value
+      FROM tenant_settings
+      WHERE setting_key IN ('batch_delay_seconds', 'batch_size')
+    `);
+
+    let batchSize = DEFAULT_BATCH_SIZE;
+    let batchDelayMs = DEFAULT_BATCH_DELAY_SECONDS * 1000;
+
+    for (const setting of settings) {
+      if (setting.setting_key === 'batch_size') {
+        const value = parseInt(setting.setting_value, 10);
+        if (!isNaN(value) && value >= 1 && value <= MAX_BATCH_SIZE) {
+          batchSize = value;
+        }
+      } else if (setting.setting_key === 'batch_delay_seconds') {
+        const value = parseInt(setting.setting_value, 10);
+        if (!isNaN(value) && value >= MIN_BATCH_DELAY_SECONDS) {
+          batchDelayMs = value * 1000;
+        } else if (!isNaN(value) && value > 0) {
+          // If below minimum, use minimum
+          batchDelayMs = MIN_BATCH_DELAY_SECONDS * 1000;
+        }
+      }
+    }
+
+    return { batchSize, batchDelayMs };
+  } catch (error) {
+    // If settings table doesn't exist or error, use defaults
+    console.log('[TicketRules] Using default batch settings (table error):', error.message);
+    return {
+      batchSize: DEFAULT_BATCH_SIZE,
+      batchDelayMs: DEFAULT_BATCH_DELAY_SECONDS * 1000
+    };
+  }
+}
+
 class TicketRulesService {
   constructor(tenantCode) {
     this.tenantCode = tenantCode;
@@ -518,10 +566,12 @@ class TicketRulesService {
     // Start background execution
     const tenantCode = this.tenantCode;
     const startTime = Date.now();
-    const BATCH_SIZE = 5; // Process 5 tickets at a time
-    const BATCH_DELAY_MS = 2000; // 2 second delay between batches to prevent server overload
 
-    console.log(`[TicketRules] Starting background job: rule ${ruleId} on ${ticketCount} tickets for tenant ${tenantCode} (batch size: ${BATCH_SIZE})`);
+    // Get batch processing settings from tenant_settings (before background job starts)
+    const connection = await getTenantConnection(tenantCode);
+    const { batchSize, batchDelayMs } = await getBatchSettings(connection);
+
+    console.log(`[TicketRules] Starting background job: rule ${ruleId} on ${ticketCount} tickets for tenant ${tenantCode} (batch size: ${batchSize}, delay: ${batchDelayMs}ms)`);
 
     // Helper to delay execution
     const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -536,10 +586,10 @@ class TicketRulesService {
         const service = new TicketRulesService(tenantCode);
 
         // Process in batches
-        for (let i = 0; i < matchingTickets.length; i += BATCH_SIZE) {
-          const batch = matchingTickets.slice(i, i + BATCH_SIZE);
-          const batchNum = Math.floor(i / BATCH_SIZE) + 1;
-          const totalBatches = Math.ceil(matchingTickets.length / BATCH_SIZE);
+        for (let i = 0; i < matchingTickets.length; i += batchSize) {
+          const batch = matchingTickets.slice(i, i + batchSize);
+          const batchNum = Math.floor(i / batchSize) + 1;
+          const totalBatches = Math.ceil(matchingTickets.length / batchSize);
 
           console.log(`[TicketRules] Processing batch ${batchNum}/${totalBatches} (${batch.length} tickets)`);
 
@@ -560,8 +610,8 @@ class TicketRulesService {
           }
 
           // Delay between batches to allow other requests to be processed
-          if (i + BATCH_SIZE < matchingTickets.length) {
-            await delay(BATCH_DELAY_MS);
+          if (i + batchSize < matchingTickets.length) {
+            await delay(batchDelayMs);
           }
         }
 

@@ -16,15 +16,51 @@ const {
 let isRunning = false;
 let runStartTime = null;
 
-// Batch size limit - process 5 tickets at a time to avoid server overload
-const BATCH_SIZE = 5;
-const BATCH_DELAY_MS = 2000; // 2 second delay between batches
+// Track last processing time per tenant for configurable intervals
+const tenantLastProcessed = new Map();
+
+// Default batch processing values (can be overridden by tenant settings)
+const DEFAULT_BATCH_SIZE = 5;
+const DEFAULT_BATCH_DELAY_SECONDS = 2;
+const MIN_BATCH_DELAY_SECONDS = 3;
+const MAX_BATCH_SIZE = 10;
+const DEFAULT_SLA_CHECK_INTERVAL_SECONDS = 300;
+const MIN_SLA_CHECK_INTERVAL_SECONDS = 60;
 
 // Maximum run time before force-resetting the mutex (5 minutes)
 const MAX_RUN_TIME_MS = 5 * 60 * 1000;
 
 // Helper to delay execution
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+/**
+ * Fetch SLA check interval from tenant_settings table
+ * Note: Batch processing uses fixed internal values for the SLA notifier
+ * The batch_delay_seconds and batch_size settings are for user-triggered bulk operations only
+ */
+async function getSlaCheckInterval(connection) {
+  try {
+    const [settings] = await connection.query(`
+      SELECT setting_value
+      FROM tenant_settings
+      WHERE setting_key = 'sla_check_interval_seconds'
+    `);
+
+    if (settings.length > 0) {
+      const value = parseInt(settings[0].setting_value, 10);
+      if (!isNaN(value) && value >= MIN_SLA_CHECK_INTERVAL_SECONDS) {
+        return value * 1000;
+      } else if (!isNaN(value) && value > 0) {
+        return MIN_SLA_CHECK_INTERVAL_SECONDS * 1000;
+      }
+    }
+
+    return DEFAULT_SLA_CHECK_INTERVAL_SECONDS * 1000;
+  } catch (error) {
+    // If settings table doesn't exist or error, use default
+    return DEFAULT_SLA_CHECK_INTERVAL_SECONDS * 1000;
+  }
+}
 
 /**
  * Notification type definitions
@@ -121,6 +157,11 @@ async function processTenant(tenantCode) {
   try {
     connection = await getTenantConnection(tenantCode);
 
+    // Use fixed internal batch values for SLA notifier (not user-configurable)
+    // User-configurable batch settings are only for bulk operations like ticket rules
+    const batchSize = DEFAULT_BATCH_SIZE;
+    const batchDelayMs = DEFAULT_BATCH_DELAY_SECONDS * 1000;
+
     // Fetch candidate tickets with SLA and business hours in one query
     const [tickets] = await connection.query(`
       SELECT
@@ -141,7 +182,7 @@ async function processTenant(tenantCode) {
         AND (t.resolved_at IS NULL)
       ORDER BY t.id ASC
       LIMIT ?
-    `, [BATCH_SIZE]);
+    `, [batchSize]);
 
     let notificationCount = 0;
     let ticketIndex = 0;
@@ -151,7 +192,7 @@ async function processTenant(tenantCode) {
 
       // Add delay between tickets to prevent server overload
       if (ticketIndex > 1) {
-        await delay(BATCH_DELAY_MS);
+        await delay(batchDelayMs);
       }
 
       const profile = buildProfileFromRow(ticket);
@@ -279,7 +320,36 @@ async function processTenant(tenantCode) {
 }
 
 /**
- * Main scheduler run - processes all active tenants
+ * Check if tenant should be processed based on their configured SLA check interval
+ */
+async function shouldProcessTenant(tenantCode) {
+  const now = Date.now();
+  const lastProcessed = tenantLastProcessed.get(tenantCode) || 0;
+
+  // Get tenant's configured SLA check interval
+  let checkIntervalMs = DEFAULT_SLA_CHECK_INTERVAL_SECONDS * 1000;
+
+  try {
+    const connection = await getTenantConnection(tenantCode);
+    try {
+      checkIntervalMs = await getSlaCheckInterval(connection);
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    // Use default if can't fetch settings
+  }
+
+  const timeSinceLastProcess = now - lastProcessed;
+  return {
+    shouldProcess: timeSinceLastProcess >= checkIntervalMs,
+    checkIntervalMs,
+    timeSinceLastProcess
+  };
+}
+
+/**
+ * Main scheduler run - processes all active tenants based on their individual intervals
  */
 async function runScheduler() {
   // Check if stuck from a previous run
@@ -289,8 +359,7 @@ async function runScheduler() {
       console.log(`[SLA_NOTIFY] Scheduler stuck for ${Math.round(stuckTime / 1000)}s, force-resetting`);
       isRunning = false;
     } else {
-      console.log('[SLA_NOTIFY] Scheduler already running, skipping this cycle');
-      return;
+      return; // Silently skip if already running (scheduler runs frequently now)
     }
   }
 
@@ -305,9 +374,18 @@ async function runScheduler() {
         SELECT tenant_code FROM tenants WHERE status = 'active'
       `);
 
+      let processedCount = 0;
       for (const tenant of tenants) {
         try {
-          await processTenant(tenant.tenant_code);
+          // Check if this tenant is due for processing based on their interval
+          const { shouldProcess, checkIntervalMs } = await shouldProcessTenant(tenant.tenant_code);
+
+          if (shouldProcess) {
+            await processTenant(tenant.tenant_code);
+            tenantLastProcessed.set(tenant.tenant_code, Date.now());
+            processedCount++;
+            console.log(`[SLA_NOTIFY] Processed ${tenant.tenant_code} (interval: ${checkIntervalMs / 1000}s)`);
+          }
         } catch (tenantError) {
           // Log but don't stop processing other tenants
           console.error(`[SLA_NOTIFY] Error processing tenant ${tenant.tenant_code}:`, tenantError.message);
@@ -315,8 +393,8 @@ async function runScheduler() {
       }
 
       const elapsed = Date.now() - runStartTime;
-      if (tenants.length > 0) {
-        console.log(`[SLA_NOTIFY] Scheduler completed for ${tenants.length} tenants in ${elapsed}ms`);
+      if (processedCount > 0) {
+        console.log(`[SLA_NOTIFY] Scheduler completed: ${processedCount}/${tenants.length} tenants processed in ${elapsed}ms`);
       }
     } finally {
       masterConnection.release();
@@ -331,22 +409,24 @@ async function runScheduler() {
 
 /**
  * Start the scheduler (call from server.js)
+ * The scheduler now runs every 30 seconds to check each tenant's individual interval
  */
 let schedulerInterval = null;
+const SCHEDULER_CHECK_INTERVAL_MS = 30 * 1000; // Check every 30 seconds
 
-function startScheduler(intervalMs = 5 * 60 * 1000) {
+function startScheduler() {
   if (schedulerInterval) {
     console.log('[SLA_NOTIFY] Scheduler already started');
     return;
   }
 
-  console.log(`[SLA_NOTIFY] Starting scheduler (interval: ${intervalMs / 1000}s)`);
+  console.log(`[SLA_NOTIFY] Starting scheduler (checking every ${SCHEDULER_CHECK_INTERVAL_MS / 1000}s, per-tenant intervals configurable)`);
 
   // Run immediately on start
   setTimeout(() => runScheduler(), 5000);
 
-  // Then run every intervalMs
-  schedulerInterval = setInterval(runScheduler, intervalMs);
+  // Check every 30 seconds - actual processing depends on each tenant's sla_check_interval_seconds
+  schedulerInterval = setInterval(runScheduler, SCHEDULER_CHECK_INTERVAL_MS);
 }
 
 function stopScheduler() {

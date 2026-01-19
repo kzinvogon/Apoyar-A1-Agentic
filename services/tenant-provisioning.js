@@ -427,9 +427,21 @@ async function createTenantTables(connection) {
       setting_key VARCHAR(100) NOT NULL UNIQUE,
       setting_value TEXT,
       setting_type VARCHAR(20) DEFAULT 'string',
+      description TEXT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     )
+  `);
+
+  // Insert default tenant settings
+  await connection.execute(`
+    INSERT IGNORE INTO tenant_settings (setting_key, setting_value, setting_type, description)
+    VALUES
+      ('customer_billing_enabled', 'false', 'boolean', 'Show Billing and Plans & Upgrades in customer portal'),
+      ('enhanced_sla_billing_mode', 'none', 'string', 'SLA uplift tracking mode: none, report_only, or chargeback'),
+      ('batch_delay_seconds', '2', 'number', 'Delay in seconds between batch processing operations (minimum 3)'),
+      ('batch_size', '5', 'number', 'Maximum number of items to process per batch (maximum 10)'),
+      ('sla_check_interval_seconds', '300', 'number', 'How often to check for SLA breaches in seconds (minimum 60)')
   `);
 
   // Business hours profiles table

@@ -3746,6 +3746,71 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
             <div id="support-settings-message" class="subtitle" style="color:#16a34a;display:none;margin-top:8px"></div>
             <div id="support-settings-error" class="subtitle" style="color:#b91c1c;display:none;margin-top:8px"></div>
+
+            <!-- Batch Processing Settings -->
+            <div style="border-top:1px solid var(--border);margin-top:24px;padding-top:24px">
+              <div class="row space mb-12">
+                <h4 class="subtitle" style="margin:0;font-weight:600">Bulk Ticket Processing</h4>
+                <button class="btn primary" onclick="saveBatchProcessingSettings()">Save Settings</button>
+              </div>
+
+              <!-- SLA Monitoring Section -->
+              <div style="margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid var(--border)">
+                <div class="subtitle" style="font-weight:600;margin-bottom:8px;color:var(--text)">
+                  SLA Monitoring
+                </div>
+                <div class="subtitle" style="margin-bottom:12px;color:#666;font-size:13px">
+                  Controls how often the system automatically checks for SLA breaches and generates notifications.
+                </div>
+                <div style="max-width:300px">
+                  <label class="subtitle" style="font-weight:500;margin-bottom:8px;display:block">
+                    Check Interval (seconds)
+                  </label>
+                  <input type="number" id="sla-check-interval" min="60" max="3600" value="300"
+                    style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:4px;font-size:14px"/>
+                  <div class="subtitle" style="margin-top:4px;color:#666;font-size:12px">
+                    Minimum 60 seconds. Default 300 (5 minutes).
+                  </div>
+                </div>
+              </div>
+
+              <!-- Bulk Operations Section -->
+              <div>
+                <div class="subtitle" style="font-weight:600;margin-bottom:8px;color:var(--text)">
+                  Bulk Operations
+                </div>
+                <div class="subtitle" style="margin-bottom:12px;color:#666;font-size:13px">
+                  Controls batch processing for user-triggered bulk actions like running ticket rules.
+                  These settings help prevent server overload when processing large numbers of tickets.
+                </div>
+                <div class="row" style="gap:24px;flex-wrap:wrap">
+                  <div style="flex:1;min-width:200px;max-width:300px">
+                    <label class="subtitle" style="font-weight:500;margin-bottom:8px;display:block">
+                      Batch Delay (seconds)
+                    </label>
+                    <input type="number" id="batch-delay-seconds" min="3" max="60" value="3"
+                      style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:4px;font-size:14px"/>
+                    <div class="subtitle" style="margin-top:4px;color:#666;font-size:12px">
+                      Minimum 3 seconds. Delay between processing each batch.
+                    </div>
+                  </div>
+
+                  <div style="flex:1;min-width:200px;max-width:300px">
+                    <label class="subtitle" style="font-weight:500;margin-bottom:8px;display:block">
+                      Batch Size
+                    </label>
+                    <input type="number" id="batch-size" min="1" max="10" value="5"
+                      style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:4px;font-size:14px"/>
+                    <div class="subtitle" style="margin-top:4px;color:#666;font-size:12px">
+                      Maximum 10. Number of items to process per batch.
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div id="batch-settings-message" class="subtitle" style="color:#16a34a;display:none;margin-top:12px"></div>
+              <div id="batch-settings-error" class="subtitle" style="color:#b91c1c;display:none;margin-top:12px"></div>
+            </div>
           </div>
 
           <!-- Integrations Section -->
@@ -7907,6 +7972,10 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     localStorage.setItem('wizardSection', sectionId);
     // Load section-specific data
     if (sectionId === 'admin-section-billing') loadBillingData();
+    if (sectionId === 'admin-section-support') {
+      loadSupportSettings();
+      loadBatchProcessingSettings();
+    }
   }
 
   function initWizardSection() {
@@ -8858,6 +8927,153 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   function hideSupportSettingsMessages() {
     document.getElementById('support-settings-message').style.display = 'none';
     document.getElementById('support-settings-error').style.display = 'none';
+  }
+
+  // ============================================
+  // Batch Processing Settings Functions
+  // ============================================
+
+  async function loadBatchProcessingSettings() {
+    try {
+      const tenantCode = currentUser.tenantCode || 'apoyar';
+      const response = await fetch(`/api/tenant-settings/${tenantCode}/settings`, {
+        headers: {
+          'Authorization': 'Bearer ' + localStorage.getItem('token')
+        }
+      });
+      const data = await response.json();
+      if (data.success && data.settings) {
+        // Find batch settings
+        const batchDelay = data.settings.find(s => s.setting_key === 'batch_delay_seconds');
+        const batchSize = data.settings.find(s => s.setting_key === 'batch_size');
+        const slaCheckInterval = data.settings.find(s => s.setting_key === 'sla_check_interval_seconds');
+
+        const delayInput = document.getElementById('batch-delay-seconds');
+        const sizeInput = document.getElementById('batch-size');
+        const intervalInput = document.getElementById('sla-check-interval');
+
+        if (delayInput && batchDelay) {
+          delayInput.value = batchDelay.setting_value || '3';
+        }
+        if (sizeInput && batchSize) {
+          sizeInput.value = batchSize.setting_value || '5';
+        }
+        if (intervalInput && slaCheckInterval) {
+          intervalInput.value = slaCheckInterval.setting_value || '300';
+        }
+      }
+    } catch (error) {
+      console.error('Error loading batch processing settings:', error);
+    }
+  }
+
+  async function saveBatchProcessingSettings() {
+    const delayInput = document.getElementById('batch-delay-seconds');
+    const sizeInput = document.getElementById('batch-size');
+    const intervalInput = document.getElementById('sla-check-interval');
+
+    let batchDelay = parseInt(delayInput?.value || '3', 10);
+    let batchSize = parseInt(sizeInput?.value || '5', 10);
+    let slaCheckInterval = parseInt(intervalInput?.value || '300', 10);
+
+    // Validate minimum/maximum
+    if (slaCheckInterval < 60) {
+      showBatchSettingsError('SLA check interval must be at least 60 seconds.');
+      intervalInput.value = '60';
+      return;
+    }
+    if (batchDelay < 3) {
+      showBatchSettingsError('Batch delay must be at least 3 seconds.');
+      delayInput.value = '3';
+      return;
+    }
+    if (batchSize < 1 || batchSize > 10) {
+      showBatchSettingsError('Batch size must be between 1 and 10.');
+      sizeInput.value = Math.max(1, Math.min(10, batchSize));
+      return;
+    }
+
+    try {
+      const tenantCode = currentUser.tenantCode || 'apoyar';
+
+      // Save sla_check_interval_seconds
+      const intervalResponse = await fetch(`/api/tenant-settings/${tenantCode}/settings/sla_check_interval_seconds`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + localStorage.getItem('token')
+        },
+        body: JSON.stringify({ value: String(slaCheckInterval) })
+      });
+
+      if (intervalResponse.status === 403) {
+        showBatchSettingsError('Admin access required.');
+        return;
+      }
+
+      // Save batch_delay_seconds
+      const delayResponse = await fetch(`/api/tenant-settings/${tenantCode}/settings/batch_delay_seconds`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + localStorage.getItem('token')
+        },
+        body: JSON.stringify({ value: String(batchDelay) })
+      });
+
+      if (delayResponse.status === 403) {
+        showBatchSettingsError('Admin access required.');
+        return;
+      }
+
+      // Save batch_size
+      const sizeResponse = await fetch(`/api/tenant-settings/${tenantCode}/settings/batch_size`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + localStorage.getItem('token')
+        },
+        body: JSON.stringify({ value: String(batchSize) })
+      });
+
+      if (sizeResponse.status === 403) {
+        showBatchSettingsError('Admin access required.');
+        return;
+      }
+
+      const intervalData = await intervalResponse.json();
+      const delayData = await delayResponse.json();
+      const sizeData = await sizeResponse.json();
+
+      if (intervalData.success && delayData.success && sizeData.success) {
+        showBatchSettingsMessage('Batch processing settings saved successfully.');
+        setTimeout(hideBatchSettingsMessages, 5000);
+      } else {
+        showBatchSettingsError(intervalData.message || delayData.message || sizeData.message || 'Error saving settings');
+      }
+    } catch (error) {
+      console.error('Error saving batch processing settings:', error);
+      showBatchSettingsError('Error saving settings');
+    }
+  }
+
+  function showBatchSettingsMessage(message) {
+    document.getElementById('batch-settings-error').style.display = 'none';
+    const el = document.getElementById('batch-settings-message');
+    el.textContent = message;
+    el.style.display = 'block';
+  }
+
+  function showBatchSettingsError(message) {
+    document.getElementById('batch-settings-message').style.display = 'none';
+    const el = document.getElementById('batch-settings-error');
+    el.textContent = message;
+    el.style.display = 'block';
+  }
+
+  function hideBatchSettingsMessages() {
+    document.getElementById('batch-settings-message').style.display = 'none';
+    document.getElementById('batch-settings-error').style.display = 'none';
   }
 
   // ============================================
