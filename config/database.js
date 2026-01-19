@@ -19,8 +19,8 @@ const masterConfig = {
   password: process.env.MASTER_DB_PASSWORD || process.env.MYSQLPASSWORD || process.env.MYSQL_PASSWORD || '',
   database: process.env.MASTER_DB_NAME || process.env.MYSQLDATABASE || process.env.MYSQL_DATABASE || 'a1_master',
   waitForConnections: true,
-  connectionLimit: 20,
-  queueLimit: 100,
+  connectionLimit: 30,
+  queueLimit: 0,             // 0 = unlimited queue (prevents "Queue limit reached" errors)
   connectTimeout: 10000,     // 10 seconds to establish connection
   enableKeepAlive: true,
   keepAliveInitialDelay: 10000
@@ -75,8 +75,8 @@ async function getTenantConnection(tenantCode) {
         password: tenant.database_password || process.env.MYSQLPASSWORD || process.env.MYSQL_PASSWORD,
         database: tenant.database_name,
         waitForConnections: true,
-        connectionLimit: 30,
-        queueLimit: 100,
+        connectionLimit: 50,
+        queueLimit: 0,             // 0 = unlimited queue (prevents "Queue limit reached" errors)
         connectTimeout: 10000,     // 10 seconds to establish connection
         enableKeepAlive: true,
         keepAliveInitialDelay: 10000
