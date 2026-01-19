@@ -18840,6 +18840,7 @@ function displayRules(rules) {
           </div>
           <div class="row" style="gap:4px">
             <button class="btn ghost" onclick="testRule(${rule.id})" title="Test this rule">🧪 Test</button>
+            <button class="btn primary" onclick="runRule(${rule.id})" title="Run rule on all matching tickets">▶️ Run</button>
             <button class="btn ghost" onclick="editRule(${rule.id})">✏️ Edit</button>
             <button class="btn ghost" onclick="deleteRule(${rule.id})" title="Delete this rule">🗑️</button>
           </div>
@@ -19247,6 +19248,88 @@ async function testRule(ruleId) {
   } catch (error) {
     console.error('Error testing rule:', error);
     alert('❌ Error testing rule: ' + error.message);
+  }
+}
+
+// Run rule on all matching tickets
+async function runRule(ruleId) {
+  const tenantCode = window.currentTenant || 'apoyar';
+  const token = localStorage.getItem('token');
+
+  try {
+    // First test to get matching tickets
+    const testUrl = window.location.protocol + '//' + window.location.host + `/api/ticket-rules/${tenantCode}/${ruleId}/test`;
+    const testResponse = await fetch(testUrl, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    const testData = await testResponse.json();
+
+    if (!testData.success) {
+      alert('❌ Failed to test rule: ' + (testData.message || 'Unknown error'));
+      return;
+    }
+
+    const matchingTickets = testData.matching_tickets;
+    const count = matchingTickets.length;
+
+    if (count === 0) {
+      alert('ℹ️ No tickets match this rule. Nothing to execute.');
+      return;
+    }
+
+    // Confirm execution
+    const ticketPreview = matchingTickets.slice(0, 5).map(t => `#${t.id}: ${t.title}`).join('\n');
+    const more = count > 5 ? `\n... and ${count - 5} more` : '';
+
+    if (!confirm(`▶️ Run Rule\n\nThis will execute the rule on ${count} ticket(s):\n\n${ticketPreview}${more}\n\nAre you sure you want to proceed?`)) {
+      return;
+    }
+
+    // Execute rule on each matching ticket
+    let successCount = 0;
+    let errorCount = 0;
+    const errors = [];
+
+    for (const ticket of matchingTickets) {
+      try {
+        const execUrl = window.location.protocol + '//' + window.location.host + `/api/ticket-rules/${tenantCode}/${ruleId}/execute/${ticket.id}`;
+        const execResponse = await fetch(execUrl, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const execData = await execResponse.json();
+
+        if (execData.success && execData.result === 'success') {
+          successCount++;
+        } else {
+          errorCount++;
+          errors.push(`#${ticket.id}: ${execData.error || execData.message || 'Unknown error'}`);
+        }
+      } catch (err) {
+        errorCount++;
+        errors.push(`#${ticket.id}: ${err.message}`);
+      }
+    }
+
+    // Show results
+    let resultMsg = `✅ Rule Execution Complete\n\nSuccessful: ${successCount}\nFailed: ${errorCount}`;
+    if (errors.length > 0) {
+      resultMsg += `\n\nErrors:\n${errors.slice(0, 5).join('\n')}`;
+      if (errors.length > 5) {
+        resultMsg += `\n... and ${errors.length - 5} more errors`;
+      }
+    }
+    alert(resultMsg);
+
+    // Reload rules to update statistics
+    await loadTicketRules();
+
+  } catch (error) {
+    console.error('Error running rule:', error);
+    alert('❌ Error running rule: ' + error.message);
   }
 }
 
