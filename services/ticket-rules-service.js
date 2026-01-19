@@ -519,7 +519,7 @@ class TicketRulesService {
     const tenantCode = this.tenantCode;
     const startTime = Date.now();
     const BATCH_SIZE = 5; // Process 5 tickets at a time
-    const BATCH_DELAY_MS = 1000; // 1 second delay between batches to prevent server overload
+    const BATCH_DELAY_MS = 2000; // 2 second delay between batches to prevent server overload
 
     console.log(`[TicketRules] Starting background job: rule ${ruleId} on ${ticketCount} tickets for tenant ${tenantCode} (batch size: ${BATCH_SIZE})`);
 

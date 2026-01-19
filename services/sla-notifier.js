@@ -18,7 +18,7 @@ let runStartTime = null;
 
 // Batch size limit - process 5 tickets at a time to avoid server overload
 const BATCH_SIZE = 5;
-const BATCH_DELAY_MS = 1000; // 1 second delay between batches
+const BATCH_DELAY_MS = 2000; // 2 second delay between batches
 
 // Maximum run time before force-resetting the mutex (5 minutes)
 const MAX_RUN_TIME_MS = 5 * 60 * 1000;
