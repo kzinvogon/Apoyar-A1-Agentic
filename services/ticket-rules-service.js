@@ -299,11 +299,15 @@ class TicketRulesService {
     const enabledRules = rules.filter(r => r.enabled);
 
     const results = [];
+    const ticketIdNum = parseInt(ticketId, 10); // Ensure numeric comparison
 
     for (const rule of enabledRules) {
       // Check if ticket matches rule
       const matchingTickets = await this.findMatchingTickets(rule);
-      const matches = matchingTickets.some(t => t.id === ticketId);
+      const matchingIds = matchingTickets.map(t => t.id);
+      const matches = matchingIds.includes(ticketIdNum);
+
+      console.log(`[TicketRules] Rule "${rule.rule_name}" (search: "${rule.search_text}" in ${rule.search_in}): found ${matchingTickets.length} matching tickets, ticketId=${ticketIdNum} matches=${matches}`);
 
       if (matches) {
         const result = await this.executeRuleOnTicket(rule.id, ticketId);
