@@ -62,6 +62,24 @@ async function migrate(tenantCode) {
         value: 'none',
         type: 'string',
         description: 'SLA uplift tracking mode: none, report_only, or chargeback'
+      },
+      {
+        key: 'batch_delay_seconds',
+        value: '2',
+        type: 'number',
+        description: 'Delay in seconds between batch processing operations (minimum 3)'
+      },
+      {
+        key: 'batch_size',
+        value: '5',
+        type: 'number',
+        description: 'Maximum number of items to process per batch (maximum 10)'
+      },
+      {
+        key: 'sla_check_interval_seconds',
+        value: '300',
+        type: 'number',
+        description: 'How often to check for SLA breaches in seconds (minimum 60)'
       }
     ];
 
