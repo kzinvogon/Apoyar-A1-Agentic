@@ -391,10 +391,19 @@ router.get('/settings/:tenantId', async (req, res) => {
 
     try {
       const [settings] = await connection.query('SELECT * FROM tenant_settings');
-      const settingsObj = {};
+
+      // Start with default values for kill switch settings
+      const settingsObj = {
+        send_emails_experts: 'true',
+        send_emails_customers: 'true',
+        process_emails: 'true'
+      };
+
+      // Override with actual values from database
       settings.forEach(s => {
         settingsObj[s.setting_key] = s.setting_value;
       });
+
       res.json({ success: true, settings: settingsObj });
     } finally {
       connection.release();
