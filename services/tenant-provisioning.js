@@ -320,6 +320,88 @@ async function createTenantTables(connection) {
     )
   `);
 
+  // CMDB V2: Custom Field Definitions table
+  await connection.execute(`
+    CREATE TABLE IF NOT EXISTS cmdb_custom_field_definitions (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      asset_category VARCHAR(100) NOT NULL,
+      field_name VARCHAR(100) NOT NULL,
+      field_label VARCHAR(150) NOT NULL,
+      field_type ENUM('text', 'number', 'date', 'dropdown', 'boolean', 'url') NOT NULL DEFAULT 'text',
+      dropdown_options JSON,
+      is_required BOOLEAN DEFAULT FALSE,
+      display_order INT DEFAULT 0,
+      is_active BOOLEAN DEFAULT TRUE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      UNIQUE KEY unique_category_field (asset_category, field_name),
+      INDEX idx_asset_category (asset_category),
+      INDEX idx_is_active (is_active)
+    )
+  `);
+
+  // CMDB V2: Custom Field Values table
+  await connection.execute(`
+    CREATE TABLE IF NOT EXISTS cmdb_custom_field_values (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      cmdb_item_id INT NOT NULL,
+      field_definition_id INT NOT NULL,
+      field_value TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      UNIQUE KEY unique_item_field (cmdb_item_id, field_definition_id),
+      INDEX idx_cmdb_item_id (cmdb_item_id),
+      INDEX idx_field_definition_id (field_definition_id),
+      FOREIGN KEY (cmdb_item_id) REFERENCES cmdb_items(id) ON DELETE CASCADE,
+      FOREIGN KEY (field_definition_id) REFERENCES cmdb_custom_field_definitions(id) ON DELETE CASCADE
+    )
+  `);
+
+  // CMDB V2: Relationships table
+  await connection.execute(`
+    CREATE TABLE IF NOT EXISTS cmdb_relationships (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      source_cmdb_id INT NOT NULL,
+      target_cmdb_id INT NOT NULL,
+      relationship_type ENUM('depends_on', 'hosts', 'connects_to', 'part_of', 'uses', 'provides', 'backs_up', 'monitors') NOT NULL,
+      description TEXT,
+      is_active BOOLEAN DEFAULT TRUE,
+      created_by INT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      UNIQUE KEY unique_relationship (source_cmdb_id, target_cmdb_id, relationship_type),
+      INDEX idx_source_cmdb_id (source_cmdb_id),
+      INDEX idx_target_cmdb_id (target_cmdb_id),
+      INDEX idx_relationship_type (relationship_type),
+      INDEX idx_is_active (is_active),
+      FOREIGN KEY (source_cmdb_id) REFERENCES cmdb_items(id) ON DELETE CASCADE,
+      FOREIGN KEY (target_cmdb_id) REFERENCES cmdb_items(id) ON DELETE CASCADE,
+      FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+    )
+  `);
+
+  // CMDB V2: Change History (Audit Trail) table
+  await connection.execute(`
+    CREATE TABLE IF NOT EXISTS cmdb_change_history (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      cmdb_item_id INT NOT NULL,
+      change_type ENUM('created', 'updated', 'deleted', 'relationship_added', 'relationship_removed', 'custom_field_updated') NOT NULL,
+      field_name VARCHAR(100),
+      old_value TEXT,
+      new_value TEXT,
+      changed_by INT,
+      changed_by_name VARCHAR(100),
+      ip_address VARCHAR(45),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_cmdb_item_id (cmdb_item_id),
+      INDEX idx_change_type (change_type),
+      INDEX idx_changed_by (changed_by),
+      INDEX idx_created_at (created_at),
+      FOREIGN KEY (cmdb_item_id) REFERENCES cmdb_items(id) ON DELETE CASCADE,
+      FOREIGN KEY (changed_by) REFERENCES users(id) ON DELETE SET NULL
+    )
+  `);
+
   // Tickets table
   await connection.execute(`
     CREATE TABLE IF NOT EXISTS tickets (
