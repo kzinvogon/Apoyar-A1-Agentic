@@ -2657,11 +2657,11 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             <div class="row wrap" style="gap:12px">
               <div style="min-width:200px">
                 <label style="display:block;margin-bottom:4px;font-size:13px;font-weight:600">Search</label>
-                <input id="ticket-search" class="input" placeholder="Search by ID, title..." oninput="renderList(); saveFilterSettings('tickets')" style="width:100%">
+                <input id="ticket-search" class="input" placeholder="Search by ID, title..." oninput="onTicketFilterChange()" style="width:100%">
               </div>
               <div style="min-width:150px">
                 <label style="display:block;margin-bottom:4px;font-size:13px;font-weight:600">Status</label>
-                <select id="ticket-filter-status" class="input" onchange="renderList(); saveFilterSettings('tickets')" style="width:100%">
+                <select id="ticket-filter-status" class="input" onchange="onTicketFilterChange()" style="width:100%">
                   <option value="">All Statuses</option>
                   <option value="Open" selected>Open</option>
                   <option value="In Progress">In Progress</option>
@@ -2672,7 +2672,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               </div>
               <div style="min-width:150px">
                 <label style="display:block;margin-bottom:4px;font-size:13px;font-weight:600">Priority</label>
-                <select id="ticket-filter-priority" class="input" onchange="renderList(); saveFilterSettings('tickets')" style="width:100%">
+                <select id="ticket-filter-priority" class="input" onchange="onTicketFilterChange()" style="width:100%">
                   <option value="">All Priorities</option>
                   <option value="low">Low</option>
                   <option value="medium">Medium</option>
@@ -2682,7 +2682,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               </div>
               <div style="min-width:150px">
                 <label style="display:block;margin-bottom:4px;font-size:13px;font-weight:600">Assignee</label>
-                <select id="ticket-filter-assignee" class="input" onchange="renderList(); saveFilterSettings('tickets')" style="width:100%">
+                <select id="ticket-filter-assignee" class="input" onchange="onTicketFilterChange()" style="width:100%">
                   <option value="">All Assignees</option>
                   <option value="unassigned">Unassigned</option>
                 </select>
@@ -2695,13 +2695,13 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               </div>
               <div style="min-width:180px">
                 <label style="display:block;margin-bottom:4px;font-size:13px;font-weight:600">Team Member</label>
-                <select id="ticket-filter-customer" class="input" onchange="renderList(); saveFilterSettings('tickets')" style="width:100%">
+                <select id="ticket-filter-customer" class="input" onchange="onTicketFilterChange()" style="width:100%">
                   <option value="">All Team Members</option>
                 </select>
               </div>
               <div style="min-width:150px">
                 <label style="display:block;margin-bottom:4px;font-size:13px;font-weight:600">Sort By</label>
-                <select id="ticket-sort" class="input" onchange="renderList(); saveFilterSettings('tickets')" style="width:100%">
+                <select id="ticket-sort" class="input" onchange="onTicketFilterChange()" style="width:100%">
                   <option value="id-desc">ID (Newest First)</option>
                   <option value="id-asc">ID (Oldest First)</option>
                   <option value="priority-desc">Priority (High to Low)</option>
@@ -2712,7 +2712,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               </div>
               <div style="min-width:180px;display:flex;align-items:flex-end;padding-bottom:6px">
                 <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;user-select:none">
-                  <input type="checkbox" id="ticket-filter-system" onchange="renderList(); saveFilterSettings('tickets')" checked>
+                  <input type="checkbox" id="ticket-filter-system" onchange="onTicketFilterChange()" checked>
                   <span>Include system tickets</span>
                 </label>
               </div>
@@ -2742,6 +2742,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               <button class="btn ghost" onclick="clearBulkSelection()">Clear Selection</button>
             </div>
             <table id="tickets-table"><thead><tr><th style="width:40px"><input type="checkbox" id="select-all-tickets" onchange="toggleSelectAllTickets()" title="Select All"></th><th style="width:120px;cursor:pointer" onclick="sortTicketsBy('id')">ID ⇅</th><th style="cursor:pointer" onclick="sortTicketsBy('title')">Title ⇅</th><th style="width:140px">Date/Time</th><th style="width:120px;cursor:pointer" onclick="sortTicketsBy('priority')">Priority ⇅</th><th style="width:140px;cursor:pointer" onclick="sortTicketsBy('status')">Status ⇅</th><th style="width:180px">Assignee</th><th style="width:160px">Customer</th><th style="width:120px;cursor:pointer" onclick="sortTicketsBy('sla')">SLA ⇅</th></tr></thead><tbody id="list-body"></tbody></table>
+            <div id="ticket-pagination" style="margin-top:12px"></div>
           </div>
         </div>
 
@@ -3051,7 +3052,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               <button class="btn primary" onclick="showCreateExpertForm()">+ Add Expert</button>
               <button class="btn" onclick="showBulkImportModal()">Import</button>
               <button class="btn" onclick="showInviteExpertModal()">Invite</button>
-              <input id="expert-search" class="input" style="min-width:260px" placeholder="Search experts by name, username, location..." oninput="renderExperts(); saveFilterSettings('experts')"/>
+              <input id="expert-search" class="input" style="min-width:260px" placeholder="Search experts by name, username, location..." oninput="onExpertFilterChange()"/>
             </div>
           </div>
           <!-- Expert tabs -->
@@ -3059,6 +3060,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             <button id="tab-active-experts" class="btn primary" onclick="showActiveExperts()">Active Experts</button>
             <button id="tab-invited-experts" class="btn ghost" onclick="showInvitedExperts()">Invited</button>
             <button id="tab-deleted-experts" class="btn ghost" onclick="showDeletedExperts()">Deleted</button>
+          </div>
+          <div class="row" style="margin-bottom:12px">
+            <div id="expert-count" class="subtitle">Showing 0 experts</div>
           </div>
           <!-- Active experts table (Desktop) -->
           <div id="active-experts-section">
@@ -3077,6 +3081,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
                 </thead>
                 <tbody id="experts-body"></tbody>
               </table>
+              <div id="expert-pagination" style="margin-top:12px"></div>
             </div>
             <!-- Mobile card view -->
             <div id="experts-cards" class="mobile-cards show-mobile"></div>
@@ -3206,17 +3211,17 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             <div class="row wrap" style="gap:12px">
               <div style="min-width:200px">
                 <label style="display:block;margin-bottom:4px;font-size:13px;font-weight:600">Search</label>
-                <input id="cust-search" class="input" placeholder="Search by name, email..." oninput="renderCustomers(); saveFilterSettings('customers')" style="width:100%">
+                <input id="cust-search" class="input" placeholder="Search by name, email..." oninput="onCustomerFilterChange()" style="width:100%">
               </div>
               <div style="min-width:200px">
                 <label style="display:block;margin-bottom:4px;font-size:13px;font-weight:600">Company</label>
-                <select id="cust-filter-company" class="input" onchange="renderCustomers(); saveFilterSettings('customers')" style="width:100%">
+                <select id="cust-filter-company" class="input" onchange="onCustomerFilterChange()" style="width:100%">
                   <option value="">All Companies</option>
                 </select>
               </div>
               <div style="min-width:150px">
                 <label style="display:block;margin-bottom:4px;font-size:13px;font-weight:600">SLA Level</label>
-                <select id="cust-filter-sla" class="input" onchange="renderCustomers(); saveFilterSettings('customers')" style="width:100%">
+                <select id="cust-filter-sla" class="input" onchange="onCustomerFilterChange()" style="width:100%">
                   <option value="">All SLA Levels</option>
                   <option value="basic">Basic</option>
                   <option value="premium">Premium</option>
@@ -3225,7 +3230,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               </div>
               <div style="min-width:150px">
                 <label style="display:block;margin-bottom:4px;font-size:13px;font-weight:600">Status</label>
-                <select id="cust-filter-status" class="input" onchange="renderCustomers(); saveFilterSettings('customers')" style="width:100%">
+                <select id="cust-filter-status" class="input" onchange="onCustomerFilterChange()" style="width:100%">
                   <option value="">All</option>
                   <option value="active">Active Only</option>
                   <option value="inactive">Inactive Only</option>
@@ -3237,7 +3242,10 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             </div>
           </div>
           <!-- Desktop table view -->
-          <div class="card p-16 hide-mobile"><table><thead><tr><th style="cursor:pointer" onclick="sortCustomersBy('name')">Name ⇅</th><th>Email</th><th>Company</th><th>Role</th><th style="width:80px;cursor:pointer" onclick="sortCustomersBy('tickets')"># Tickets ⇅</th><th>SLA</th><th style="width:60px;text-align:center" title="Email Notifications">📧</th><th style="width:180px">Actions</th></tr></thead><tbody id="customers-body"></tbody></table></div>
+          <div class="card p-16 hide-mobile">
+            <table><thead><tr><th style="cursor:pointer" onclick="sortCustomersBy('name')">Name ⇅</th><th>Email</th><th>Company</th><th>Role</th><th style="width:80px;cursor:pointer" onclick="sortCustomersBy('tickets')"># Tickets ⇅</th><th>SLA</th><th style="width:60px;text-align:center" title="Email Notifications">📧</th><th style="width:180px">Actions</th></tr></thead><tbody id="customers-body"></tbody></table>
+            <div id="customer-pagination" style="margin-top:12px"></div>
+          </div>
           <!-- Mobile card view -->
           <div id="customers-cards" class="mobile-cards show-mobile"></div>
         </div>
@@ -3545,11 +3553,14 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             <div class="row"><h3 class="title" style="margin:0">CMDB Items</h3></div>
             <div class="row" style="gap:8px">
               <a href="/public/cmdb-management.html" class="btn primary" target="_blank">Open CMDB Management</a>
-              <input id="cmdb-search" class="input" style="min-width:260px" placeholder="Search by Item or Customer" oninput="renderCMDB(); saveFilterSettings('cmdb')"/>
-              <select id="cmdb-customer" class="input" style="max-width:220px" onchange="renderCMDB(); saveFilterSettings('cmdb')">
+              <input id="cmdb-search" class="input" style="min-width:260px" placeholder="Search by Item or Customer" oninput="onCMDBFilterChange()"/>
+              <select id="cmdb-customer" class="input" style="max-width:220px" onchange="onCMDBFilterChange()">
                 <option value="">All customers</option>
               </select>
             </div>
+          </div>
+          <div class="row" style="margin-bottom:12px">
+            <div id="cmdb-count" class="subtitle">Showing 0 items</div>
           </div>
           <div class="card p-16">
             <div id="cmdb-loading" style="text-align:center;padding:40px;color:var(--muted);">Loading CMDB items...</div>
@@ -3557,6 +3568,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               <thead><tr><th style="width:180px;cursor:pointer" onclick="cmdbSort('customer_name')">Customer <span id="cmdb-sort-customer_name"></span></th><th style="cursor:pointer" onclick="cmdbSort('asset_name')">Asset Name <span id="cmdb-sort-asset_name">▲</span></th><th style="cursor:pointer" onclick="cmdbSort('asset_category')">Category <span id="cmdb-sort-asset_category"></span></th><th style="cursor:pointer" onclick="cmdbSort('brand_name')">Brand/Model <span id="cmdb-sort-brand_name"></span></th><th style="width:60px">CIs</th><th style="width:120px"><div style="display:flex;align-items:center;gap:4px;font-size:12px;">Tickets<button class="btn ghost" style="padding:2px 6px;font-size:10px;" id="cmdbTicketToggle" onclick="toggleCMDBTicketMode()">All</button></div></th><th style="width:100px"></th></tr></thead>
               <tbody id="cmdb-body"></tbody>
             </table>
+            <div id="cmdb-pagination" style="margin-top:12px"></div>
             <div id="cmdb-empty" style="display:none;text-align:center;padding:40px;color:var(--muted);">
               <div style="font-size:48px;margin-bottom:16px;">🗃️</div>
               <div>No CMDB items found</div>
@@ -6966,6 +6978,123 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       btn.disabled = true;
       setTimeout(() => { btn.textContent = '↻ Refresh'; btn.disabled = false; }, 1000);
     }
+  }
+
+  // ====================
+  // PAGINATION UTILITIES
+  // ====================
+  const DEFAULT_PAGE_SIZE = 25;
+  let ticketPage = 1, expertPage = 1, customerPage = 1, cmdbPage = 1;
+
+  function getPageSize(key) {
+    try { return parseInt(localStorage.getItem(`serviflow.${key}.pageSize`)) || DEFAULT_PAGE_SIZE; }
+    catch(e) { return DEFAULT_PAGE_SIZE; }
+  }
+
+  function setPageSize(key, size) {
+    try { localStorage.setItem(`serviflow.${key}.pageSize`, size); } catch(e) {}
+  }
+
+  function paginateArray(arr, page, pageSize) {
+    const start = (page - 1) * pageSize;
+    return arr.slice(start, start + pageSize);
+  }
+
+  function renderPaginationControls(containerId, currentPage, totalItems, pageSize, onPageChange, onPageSizeChange, gridKey) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    const totalPages = Math.ceil(totalItems / pageSize);
+
+    // Hide pagination if total items fit on one page
+    if (totalItems <= pageSize) {
+      container.innerHTML = '';
+      return;
+    }
+
+    const startItem = (currentPage - 1) * pageSize + 1;
+    const endItem = Math.min(currentPage * pageSize, totalItems);
+
+    container.innerHTML = `
+      <div class="row" style="gap:12px;align-items:center;flex-wrap:wrap">
+        <span style="font-size:13px;color:var(--muted)">Showing ${startItem}-${endItem} of ${totalItems}</span>
+        <div class="row" style="gap:4px;align-items:center">
+          <button class="btn ghost" style="padding:4px 10px;font-size:12px" onclick="${onPageChange}(1)" ${currentPage === 1 ? 'disabled' : ''}>«</button>
+          <button class="btn ghost" style="padding:4px 10px;font-size:12px" onclick="${onPageChange}(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>‹ Prev</button>
+          <span style="font-size:13px;padding:0 8px">Page ${currentPage} of ${totalPages}</span>
+          <button class="btn ghost" style="padding:4px 10px;font-size:12px" onclick="${onPageChange}(${currentPage + 1})" ${currentPage >= totalPages ? 'disabled' : ''}>Next ›</button>
+          <button class="btn ghost" style="padding:4px 10px;font-size:12px" onclick="${onPageChange}(${totalPages})" ${currentPage >= totalPages ? 'disabled' : ''}>»</button>
+        </div>
+        <div class="row" style="gap:4px;align-items:center">
+          <span style="font-size:12px;color:var(--muted)">Rows:</span>
+          <select class="input" style="padding:4px 8px;font-size:12px;min-width:auto;width:auto" onchange="${onPageSizeChange}(parseInt(this.value))">
+            <option value="10" ${pageSize === 10 ? 'selected' : ''}>10</option>
+            <option value="25" ${pageSize === 25 ? 'selected' : ''}>25</option>
+            <option value="50" ${pageSize === 50 ? 'selected' : ''}>50</option>
+            <option value="100" ${pageSize === 100 ? 'selected' : ''}>100</option>
+          </select>
+        </div>
+      </div>
+    `;
+  }
+
+  // Page change handlers for each grid
+  function setTicketPage(page) {
+    ticketPage = page;
+    renderList();
+  }
+  // Filter change handlers that reset pagination
+  function onTicketFilterChange() {
+    ticketPage = 1;
+    renderList();
+    saveFilterSettings('tickets');
+  }
+  function onExpertFilterChange() {
+    expertPage = 1;
+    renderExperts();
+    saveFilterSettings('experts');
+  }
+  function onCustomerFilterChange() {
+    customerPage = 1;
+    renderCustomers();
+    saveFilterSettings('customers');
+  }
+  function onCMDBFilterChange() {
+    cmdbPage = 1;
+    renderCMDB();
+    saveFilterSettings('cmdb');
+  }
+  function setTicketPageSize(size) {
+    setPageSize('tickets', size);
+    ticketPage = 1;
+    renderList();
+  }
+  function setExpertPage(page) {
+    expertPage = page;
+    renderExperts();
+  }
+  function setExpertPageSize(size) {
+    setPageSize('experts', size);
+    expertPage = 1;
+    renderExperts();
+  }
+  function setCustomerPage(page) {
+    customerPage = page;
+    renderCustomers();
+  }
+  function setCustomerPageSize(size) {
+    setPageSize('customers', size);
+    customerPage = 1;
+    renderCustomers();
+  }
+  function setCMDBPage(page) {
+    cmdbPage = page;
+    renderCMDB();
+  }
+  function setCMDBPageSize(size) {
+    setPageSize('cmdb', size);
+    cmdbPage = 1;
+    renderCMDB();
   }
   function startSLAInterval(){ if(slaInterval) clearInterval(slaInterval); const interval = getRefreshInterval(); slaInterval = setInterval(()=>{ if(currentView==='tickets') renderList(); if(currentView==='dash') { renderAdminDash(); renderExpertDash(); } if(currentView==='ticket-detail') updateTicketSLA(); }, interval); }
 
@@ -13090,25 +13219,39 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         // Store ticket navigation list for prev/next in detail view
         window.ticketNavList = filteredTickets.map(t => t.id);
 
+        // Store total count before pagination
+        const totalFiltered = filteredTickets.length;
+        const pageSize = getPageSize('tickets');
+
+        // Validate current page
+        const maxPage = Math.max(1, Math.ceil(totalFiltered / pageSize));
+        if (ticketPage > maxPage) ticketPage = maxPage;
+
+        // Apply pagination
+        const paginatedTickets = paginateArray(filteredTickets, ticketPage, pageSize);
+
         // Update ticket count
         const countDiv = document.getElementById('ticket-count');
         if (countDiv) {
-          let countText = `Showing ${filteredTickets.length} of ${tickets.length} tickets`;
+          let countText = `Showing ${totalFiltered} of ${tickets.length} tickets`;
 
           // Add insight filter indicator
           if (window.insightTicketFilter && window.insightTicketFilter.length > 0) {
-            countText = `🔍 Filtered by AI Insight: "${window.insightTitle}" - ${filteredTickets.length} tickets`;
+            countText = `🔍 Filtered by AI Insight: "${window.insightTitle}" - ${totalFiltered} tickets`;
             countText += ` <button class="btn ghost" style="padding:2px 8px;font-size:11px;margin-left:8px" onclick="clearInsightFilter()">✕ Clear Filter</button>`;
           }
 
           countDiv.innerHTML = countText;
         }
 
+        // Render pagination controls
+        renderPaginationControls('ticket-pagination', ticketPage, totalFiltered, pageSize, 'setTicketPage', 'setTicketPageSize', 'tickets');
+
         // Render tickets
-        if (filteredTickets.length === 0) {
+        if (paginatedTickets.length === 0) {
           tb.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px;">No tickets match your filters</td></tr>';
         } else {
-          filteredTickets.forEach(t=>{
+          paginatedTickets.forEach(t=>{
             const tr=document.createElement('tr');
             const sla = getSLAState(t);
             const dateTime = formatDateTime(t.created);
@@ -15656,16 +15799,36 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           (e.email||'').toLowerCase().includes(q)
         );
 
+        // Store total count before pagination
+        const totalFiltered = filteredExperts.length;
+        const pageSize = getPageSize('experts');
+
+        // Validate current page
+        const maxPage = Math.max(1, Math.ceil(totalFiltered / pageSize));
+        if (expertPage > maxPage) expertPage = maxPage;
+
+        // Apply pagination
+        const paginatedExperts = paginateArray(filteredExperts, expertPage, pageSize);
+
+        // Update expert count
+        const countDiv = document.getElementById('expert-count');
+        if (countDiv) {
+          countDiv.textContent = `Showing ${totalFiltered} of ${allExperts.length} experts`;
+        }
+
+        // Render pagination controls
+        renderPaginationControls('expert-pagination', expertPage, totalFiltered, pageSize, 'setExpertPage', 'setExpertPageSize', 'experts');
+
         // Render experts
         body.innerHTML='';
         const cardsContainer = document.getElementById('experts-cards');
         if (cardsContainer) cardsContainer.innerHTML = '';
 
-        if (filteredExperts.length === 0) {
+        if (paginatedExperts.length === 0) {
           body.innerHTML='<tr><td colspan="7" style="text-align:center;">No experts found</td></tr>';
           if (cardsContainer) cardsContainer.innerHTML = '<div class="mobile-card"><div style="text-align:center;color:var(--muted)">No experts found</div></div>';
         } else {
-          filteredExperts.forEach(e=>{
+          paginatedExperts.forEach(e=>{
             const lastLogin = e.last_login ? new Date(e.last_login).toLocaleString() : 'Never';
             const openTickets = e.open_tickets || 0;
             const ticketBadge = openTickets > 0
@@ -17183,22 +17346,36 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           return 0;
         });
 
+        // Store total count before pagination
+        const totalFiltered = filteredCustomers.length;
+        const pageSize = getPageSize('customers');
+
+        // Validate current page
+        const maxPage = Math.max(1, Math.ceil(totalFiltered / pageSize));
+        if (customerPage > maxPage) customerPage = maxPage;
+
+        // Apply pagination
+        const paginatedCustomers = paginateArray(filteredCustomers, customerPage, pageSize);
+
         // Update count
         const countDiv = document.getElementById('customer-count');
         if (countDiv) {
-          countDiv.textContent = `Showing ${filteredCustomers.length} of ${allCustomers.length} customers`;
+          countDiv.textContent = `Showing ${totalFiltered} of ${allCustomers.length} customers`;
         }
+
+        // Render pagination controls
+        renderPaginationControls('customer-pagination', customerPage, totalFiltered, pageSize, 'setCustomerPage', 'setCustomerPageSize', 'customers');
 
         // Render customers
         body.innerHTML='';
         const cardsContainer = document.getElementById('customers-cards');
         if (cardsContainer) cardsContainer.innerHTML = '';
 
-        if (filteredCustomers.length === 0) {
+        if (paginatedCustomers.length === 0) {
           body.innerHTML='<tr><td colspan="8" style="text-align:center;">No customers found</td></tr>';
           if (cardsContainer) cardsContainer.innerHTML = '<div class="mobile-card"><div style="text-align:center;color:var(--muted)">No customers found</div></div>';
         } else {
-          filteredCustomers.forEach(c=>{
+          paginatedCustomers.forEach(c=>{
             const slaColor = c.sla_level === 'enterprise' ? '#16a34a' : c.sla_level === 'premium' ? '#2563eb' : '#6b7280';
             const isActive = c.is_active !== false;
             const statusStyle = isActive ? '' : 'opacity:0.5;text-decoration:line-through';
@@ -17849,6 +18026,26 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       return 0;
     });
 
+    // Store total count before pagination
+    const totalFiltered = filtered.length;
+    const pageSize = getPageSize('cmdb');
+
+    // Validate current page
+    const maxPage = Math.max(1, Math.ceil(totalFiltered / pageSize));
+    if (cmdbPage > maxPage) cmdbPage = maxPage;
+
+    // Apply pagination
+    const paginatedItems = paginateArray(filtered, cmdbPage, pageSize);
+
+    // Update count
+    const countDiv = document.getElementById('cmdb-count');
+    if (countDiv) {
+      countDiv.textContent = `Showing ${totalFiltered} of ${CMDB_ITEMS.length} items`;
+    }
+
+    // Render pagination controls
+    renderPaginationControls('cmdb-pagination', cmdbPage, totalFiltered, pageSize, 'setCMDBPage', 'setCMDBPageSize', 'cmdb');
+
     if(loading) loading.style.display='none';
 
     if(filtered.length === 0){
@@ -17860,7 +18057,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     if(table) table.style.display='table';
     if(empty) empty.style.display='none';
 
-    filtered.forEach(i=>{
+    paginatedItems.forEach(i=>{
       const tr=document.createElement('tr');
       const customerName = i.customer_name || i.customer || '—';
       const assetName = i.asset_name || i.name || '—';
