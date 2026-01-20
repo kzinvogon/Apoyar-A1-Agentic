@@ -1,6 +1,8 @@
 const { getTenantConnection } = require('../config/database');
 const { sendNotificationEmail } = require('../config/email');
 const { createTicketAccessToken } = require('../utils/tokenGenerator');
+const { resolveApplicableSLA } = require('./sla-selector');
+const { computeInitialDeadlines } = require('./sla-calculator');
 const Imap = require('imap');
 const { simpleParser } = require('mailparser');
 const bcrypt = require('bcrypt');
@@ -956,10 +958,6 @@ class EmailProcessor {
       priority = 'low';
     }
 
-    // Calculate SLA deadline (24 hours for medium priority)
-    const slaHours = priority === 'high' ? 4 : priority === 'low' ? 48 : 24;
-    const slaDeadline = new Date(Date.now() + slaHours * 60 * 60 * 1000);
-
     // Build source metadata JSON for system-sourced tickets
     let sourceMetadataJson = null;
     if (sourceMetadata.sourceType === 'system') {
@@ -971,19 +969,64 @@ class EmailProcessor {
       });
     }
 
-    // Ensure source_metadata column exists (idempotent)
+    // Resolve applicable SLA using priority-based selector
+    // Priority: ticket → user → company → category → cmdb → default
+    let slaFields = {
+      sla_definition_id: null,
+      sla_source: null,
+      sla_applied_at: null,
+      response_due_at: null,
+      resolve_due_at: null
+    };
+
     try {
-      await connection.query(`
-        ALTER TABLE tickets ADD COLUMN IF NOT EXISTS source_metadata JSON DEFAULT NULL
-      `);
-    } catch (e) {
-      // Column may already exist or ALTER not supported - ignore
+      const { slaId, source: slaSource } = await resolveApplicableSLA({
+        tenantCode: this.tenantCode,
+        ticketPayload: {
+          requester_id: requesterId,
+          category: 'Email'
+        }
+      });
+
+      if (slaId) {
+        // Fetch full SLA definition with business hours for deadline calculation
+        const [slaRows] = await connection.query(
+          `SELECT s.*, b.timezone, b.days_of_week, b.start_time, b.end_time, b.is_24x7
+           FROM sla_definitions s
+           LEFT JOIN business_hours_profiles b ON s.business_hours_profile_id = b.id
+           WHERE s.id = ? AND s.is_active = 1`,
+          [slaId]
+        );
+
+        if (slaRows.length > 0) {
+          const sla = slaRows[0];
+          const now = new Date();
+          const deadlines = computeInitialDeadlines(sla, now);
+          slaFields = {
+            sla_definition_id: sla.id,
+            sla_source: slaSource,
+            sla_applied_at: now,
+            response_due_at: deadlines.response_due_at,
+            resolve_due_at: deadlines.resolve_due_at
+          };
+        }
+      }
+    } catch (slaError) {
+      console.error(`[EmailProcessor] Error resolving SLA for ticket:`, slaError.message);
+      // Continue without SLA - ticket creation should not fail due to SLA issues
     }
 
-    // Create ticket with source metadata
+    // Legacy SLA deadline fallback (for backwards compatibility)
+    const slaHours = priority === 'high' ? 4 : priority === 'low' ? 48 : 24;
+    const slaDeadline = new Date(Date.now() + slaHours * 60 * 60 * 1000);
+
+    // Create ticket with SLA fields
     const [result] = await connection.query(
-      'INSERT INTO tickets (title, description, status, priority, category, requester_id, sla_deadline, source_metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [title, description, 'open', priority, 'Email', requesterId, slaDeadline, sourceMetadataJson]
+      `INSERT INTO tickets (title, description, status, priority, category, requester_id, sla_deadline, source_metadata,
+                            sla_definition_id, sla_source, sla_applied_at, response_due_at, resolve_due_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [title, description, 'open', priority, 'Email', requesterId, slaDeadline, sourceMetadataJson,
+       slaFields.sla_definition_id, slaFields.sla_source, slaFields.sla_applied_at, slaFields.response_due_at, slaFields.resolve_due_at]
     );
 
     const ticketId = result.insertId;
