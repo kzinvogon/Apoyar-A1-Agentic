@@ -12,6 +12,9 @@ if (process.env.APP_MODE === 'teams') {
 } else if (process.env.APP_MODE === 'slack') {
   console.log('💬 Starting Slack Connector...');
   require('./slack-connector/server.js');
+} else if (process.env.APP_MODE === 'sla-worker') {
+  console.log('⏰ Starting SLA Worker...');
+  require('./sla-worker.js');
 } else {
   console.log('🚀 Starting ServiFlow Main App...');
   require('./server.js');
