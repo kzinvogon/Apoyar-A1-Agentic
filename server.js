@@ -32,6 +32,9 @@ const masterRoutes = require('./routes/master');
 const ticketRoutes = require('./routes/tickets');
 const cmdbRoutes = require('./routes/cmdb');
 const cmdbTypesRoutes = require('./routes/cmdb-types');
+const cmdbCustomFieldsRoutes = require('./routes/cmdb-custom-fields');
+const cmdbRelationshipsRoutes = require('./routes/cmdb-relationships');
+const cmdbHistoryRoutes = require('./routes/cmdb-history');
 const profileRoutes = require('./routes/profile');
 const emailIngestRoutes = require('./routes/email-ingest');
 const usageRoutes = require('./routes/usage');
@@ -65,9 +68,12 @@ const { startEmailProcessing } = require('./services/email-processor');
 // Import rate limiter
 const { apiLimiter } = require('./middleware/rateLimiter');
 
-// Middleware - Disable CSP for development
+// Middleware - Disable CSP and some policies for Safari compatibility
 app.use(helmet({
-  contentSecurityPolicy: false
+  contentSecurityPolicy: false,
+  crossOriginResourcePolicy: false,
+  crossOriginOpenerPolicy: false,
+  crossOriginEmbedderPolicy: false
 }));
 app.use(cors());
 // Save raw body for Stripe webhook verification
@@ -103,6 +109,9 @@ app.use('/api/master', masterRoutes);
 app.use('/api/tickets', ticketRoutes);
 app.use('/api/cmdb', cmdbRoutes);
 app.use('/api/cmdb-types', cmdbTypesRoutes);
+app.use('/api/cmdb', cmdbCustomFieldsRoutes);
+app.use('/api/cmdb', cmdbRelationshipsRoutes);
+app.use('/api/cmdb', cmdbHistoryRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/email-ingest', emailIngestRoutes);
 app.use('/api/usage', usageRoutes);
@@ -435,6 +444,15 @@ async function startServer() {
           console.warn(`⚠️  Warning: Tenant features migration:`, migrationError.message);
         }
 
+        // Run CMDB V2 migration (custom fields, relationships, history)
+        try {
+          const { runMigration: runCMDBV2Migration } = require('./migrations/add-cmdb-v2-tables');
+          await runCMDBV2Migration('apoyar');
+          console.log('✅ CMDB V2 migration completed');
+        } catch (migrationError) {
+          console.warn(`⚠️  Warning: CMDB V2 migration:`, migrationError.message);
+        }
+
         // Start email processing for apoyar tenant
         try {
           await startEmailProcessing('apoyar');
@@ -443,13 +461,17 @@ async function startServer() {
           console.warn(`⚠️  Warning: Could not start email processing:`, emailError.message);
         }
 
-        // Start SLA notification scheduler
-        try {
-          const { startScheduler } = require('./services/sla-notifier');
-          startScheduler(5 * 60 * 1000); // Every 5 minutes
-          console.log('✅ SLA notification scheduler started');
-        } catch (schedulerError) {
-          console.warn(`⚠️  Warning: Could not start SLA scheduler:`, schedulerError.message);
+        // Start SLA notification scheduler (unless disabled for separate worker deployment)
+        if (process.env.DISABLE_SLA_SCHEDULER === 'true') {
+          console.log('ℹ️  SLA scheduler disabled (DISABLE_SLA_SCHEDULER=true) - use sla-worker.js separately');
+        } else {
+          try {
+            const { startScheduler } = require('./services/sla-notifier');
+            startScheduler(5 * 60 * 1000); // Every 5 minutes
+            console.log('✅ SLA notification scheduler started (set DISABLE_SLA_SCHEDULER=true to use separate worker)');
+          } catch (schedulerError) {
+            console.warn(`⚠️  Warning: Could not start SLA scheduler:`, schedulerError.message);
+          }
         }
       } catch (error) {
         console.warn(`⚠️  Warning: Could not initialize tenant 'apoyar':`, error.message);

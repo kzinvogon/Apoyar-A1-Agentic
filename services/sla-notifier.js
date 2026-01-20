@@ -15,6 +15,7 @@ const {
 // Mutex to prevent overlapping runs
 let isRunning = false;
 let runStartTime = null;
+let runGeneration = 0; // Track run generation to detect stale runs
 
 // Track last processing time per tenant for configurable intervals
 const tenantLastProcessed = new Map();
@@ -27,11 +28,25 @@ const MAX_BATCH_SIZE = 10;
 const DEFAULT_SLA_CHECK_INTERVAL_SECONDS = 300;
 const MIN_SLA_CHECK_INTERVAL_SECONDS = 60;
 
-// Maximum run time before force-resetting the mutex (5 minutes)
-const MAX_RUN_TIME_MS = 5 * 60 * 1000;
+// Maximum run time before force-resetting the mutex (2 minutes - reduced since we have per-tenant timeouts)
+const MAX_RUN_TIME_MS = 2 * 60 * 1000;
 
 // Helper to delay execution
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Timeout wrapper - rejects if operation takes too long
+const withTimeout = (promise, ms, operation = 'Operation') => {
+  let timeoutId;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(`${operation} timed out after ${ms}ms`));
+    }, ms);
+  });
+  return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timeoutId));
+};
+
+// Per-tenant timeout (60 seconds max per tenant)
+const TENANT_TIMEOUT_MS = 60 * 1000;
 
 /**
  * Fetch SLA check interval from tenant_settings table
@@ -381,7 +396,12 @@ async function runScheduler() {
           const { shouldProcess, checkIntervalMs } = await shouldProcessTenant(tenant.tenant_code);
 
           if (shouldProcess) {
-            await processTenant(tenant.tenant_code);
+            // Wrap processTenant with timeout to prevent hanging
+            await withTimeout(
+              processTenant(tenant.tenant_code),
+              TENANT_TIMEOUT_MS,
+              `SLA processing for ${tenant.tenant_code}`
+            );
             tenantLastProcessed.set(tenant.tenant_code, Date.now());
             processedCount++;
             console.log(`[SLA_NOTIFY] Processed ${tenant.tenant_code} (interval: ${checkIntervalMs / 1000}s)`);
@@ -412,7 +432,7 @@ async function runScheduler() {
  * The scheduler now runs every 30 seconds to check each tenant's individual interval
  */
 let schedulerInterval = null;
-const SCHEDULER_CHECK_INTERVAL_MS = 30 * 1000; // Check every 30 seconds
+const SCHEDULER_CHECK_INTERVAL_MS = 60 * 1000; // Check every 60 seconds (increased from 30 for stability)
 
 function startScheduler() {
   if (schedulerInterval) {

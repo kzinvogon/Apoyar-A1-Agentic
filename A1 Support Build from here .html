@@ -11,6 +11,12 @@
 <script type="module" src="https://cdn.jsdelivr.net/npm/@ionic/core/dist/ionic/ionic.esm.js"></script>
 <script nomodule src="https://cdn.jsdelivr.net/npm/@ionic/core/dist/ionic/ionic.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@ionic/core/css/ionic.bundle.css"/>
+<!-- DataTables CSS -->
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css"/>
+<!-- jQuery (for DataTables only) -->
+<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+<!-- DataTables JS -->
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
 <script>
   // Set Ionic to iOS mode for consistent look
   window.Ionic = { mode: 'ios' };
@@ -239,6 +245,28 @@ vNext-FULL-ActionsSLA:
   .cmdb-nav-item:last-child{border-bottom:none}
   .cmdb-nav-item:hover{background:var(--bg)}
   .cmdb-nav-item.active{background:var(--primary);color:var(--bg);font-weight:500}
+
+  /* CMDB Detail Tabs */
+  .cmdb-tab{background:var(--bg);border:1px solid var(--border);font-weight:500}
+  .cmdb-tab.active{background:var(--primary);color:white;border-color:var(--primary)}
+  .cmdb-tab-content{animation:fadeIn .2s ease}
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+  /* History Timeline */
+  .history-item{padding:12px;border-left:3px solid var(--border);margin-left:12px;margin-bottom:8px;background:var(--bg);border-radius:0 6px 6px 0}
+  .history-item.created{border-left-color:#22c55e}
+  .history-item.updated{border-left-color:#3b82f6}
+  .history-item.deleted{border-left-color:#ef4444}
+  .history-item.relationship_added{border-left-color:#8b5cf6}
+  .history-item.relationship_removed{border-left-color:#f59e0b}
+  .history-item.custom_field_updated{border-left-color:#06b6d4}
+
+  /* Impact Tree */
+  .impact-node{padding:8px 12px;margin:4px 0;background:var(--card);border:1px solid var(--border);border-radius:6px}
+  .impact-node.level-0{border-left:3px solid var(--primary)}
+  .impact-node.level-1{margin-left:20px;border-left:3px solid #ef4444}
+  .impact-node.level-2{margin-left:40px;border-left:3px solid #f59e0b}
+  .impact-node.level-3{margin-left:60px;border-left:3px solid #22c55e}
 
   /* Toggle Switch */
   .toggle-switch{position:relative;display:inline-block;width:60px;height:32px}
@@ -716,6 +744,81 @@ vNext-FULL-ActionsSLA:
     --background: var(--bg);
     --color: var(--muted);
   }
+
+  /* Asset Viewer Styles */
+  .av-container { display: flex; gap: 15px; height: calc(100vh - 200px); max-width: 100%; overflow: hidden; }
+  .av-grid-panel { flex: 1; min-width: 0; background: var(--card); border-radius: 8px; box-shadow: var(--shadow); padding: 15px; overflow: auto; }
+  .av-detail-panel { width: 380px; flex-shrink: 0; background: var(--card); border-radius: 8px; box-shadow: var(--shadow); padding: 0; overflow: auto; display: none; }
+  .av-detail-panel.active { display: block; }
+
+  #av-table { width: 100% !important; font-size: 12px; }
+  #av-table thead th { white-space: nowrap; padding: 8px 6px; }
+  #av-table tbody td { padding: 6px; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #av-table tbody tr { cursor: pointer; }
+  #av-table tbody tr:hover { background-color: #e8f4f8 !important; }
+  #av-table tbody tr.selected { background-color: var(--primary) !important; color: white; }
+  #av-table tbody tr.selected td { color: white; }
+  #av-table_wrapper { width: 100%; overflow-x: auto; }
+  .dataTables_wrapper { font-size: 12px; }
+
+  .av-detail-header { background: linear-gradient(135deg, var(--primary), #0056b3); color: white; padding: 15px 20px; font-size: 16px; font-weight: bold; position: sticky; top: 0; z-index: 10; display: flex; justify-content: space-between; align-items: center; }
+  .av-detail-close { cursor: pointer; font-size: 24px; opacity: 0.8; line-height: 1; }
+  .av-detail-close:hover { opacity: 1; }
+  .av-section-header { background: linear-gradient(135deg, #17a2b8, #138496); color: white; padding: 10px 15px; font-weight: bold; font-size: 13px; margin-top: 0; }
+  .av-detail-content { padding: 0; }
+  .av-detail-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .av-detail-table tr { border-bottom: 1px solid var(--border); }
+  .av-detail-table tr:hover { background-color: var(--card-hover); }
+  .av-detail-table td { padding: 8px 15px; vertical-align: top; }
+  .av-detail-table td:first-child { font-weight: 500; color: var(--muted); width: 40%; background-color: var(--table-header); }
+  .av-detail-table td:last-child { color: var(--ink); white-space: pre-wrap; word-break: break-word; }
+  .av-loading { text-align: center; padding: 40px; color: var(--muted); }
+  .av-comment-field { max-height: 150px; overflow-y: auto; background: var(--bg); padding: 10px; border-radius: 4px; font-family: inherit; white-space: pre-wrap; }
+
+  .av-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .av-export-btn { background: linear-gradient(135deg, #28a745, #1e7e34); color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold; display: flex; align-items: center; gap: 8px; }
+  .av-export-btn:hover { background: linear-gradient(135deg, #1e7e34, #155724); }
+  .av-export-btn:disabled { background: #ccc; cursor: not-allowed; }
+  .av-export-info { font-size: 12px; color: var(--muted); margin-left: 12px; }
+
+  @media (max-width: 1400px) {
+    .av-detail-panel { width: 320px; }
+  }
+  @media (max-width: 1200px) {
+    .av-container { flex-direction: column; height: auto; }
+    .av-detail-panel { width: 100%; max-height: 500px; }
+  }
+
+  /* Asset Viewer Edit Mode Styles */
+  .av-header-actions { display: flex; align-items: center; gap: 12px; }
+  .av-edit-btn { background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; transition: all 0.2s; }
+  .av-edit-btn:hover { background: rgba(255,255,255,0.3); }
+  .av-edit-form { padding: 15px; }
+  .av-form-group { margin-bottom: 12px; }
+  .av-form-group label { display: block; font-size: 12px; font-weight: 500; color: var(--muted); margin-bottom: 4px; }
+  .av-form-group input, .av-form-group select, .av-form-group textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 4px; font-size: 13px; background: var(--input-bg); color: var(--ink); box-sizing: border-box; }
+  .av-form-group input:focus, .av-form-group select:focus, .av-form-group textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px rgba(0,123,255,0.1); }
+  .av-form-group textarea { resize: vertical; min-height: 80px; }
+  .av-form-actions { display: flex; gap: 10px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+  .av-save-btn { flex: 1; background: linear-gradient(135deg, #28a745, #1e7e34); color: white; border: none; padding: 10px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; }
+  .av-save-btn:hover { background: linear-gradient(135deg, #1e7e34, #155724); }
+  .av-save-btn:disabled { background: #ccc; cursor: not-allowed; }
+  .av-cancel-btn { flex: 1; background: var(--card); color: var(--ink); border: 1px solid var(--border); padding: 10px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; }
+  .av-cancel-btn:hover { background: var(--card-hover); }
+
+  /* Configuration Items List */
+  .av-ci-list { padding: 0; }
+  .av-ci-item { padding: 12px 15px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.2s; }
+  .av-ci-item:hover { background: var(--card-hover); }
+  .av-ci-item:last-child { border-bottom: none; }
+  .av-ci-name { font-weight: 500; color: var(--ink); margin-bottom: 4px; }
+  .av-ci-meta { display: flex; gap: 8px; align-items: center; }
+  .av-ci-type { font-size: 12px; color: var(--muted); }
+  .av-ci-detail { padding: 15px; background: var(--bg); border-radius: 6px; margin: 10px 15px; }
+  .av-ci-detail-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .av-ci-detail-title { font-weight: 600; color: var(--ink); }
+  .av-ci-back-btn { background: none; border: none; color: var(--primary); cursor: pointer; font-size: 13px; padding: 4px 8px; }
+  .av-ci-back-btn:hover { text-decoration: underline; }
 </style>
 </head>
 <body>
@@ -761,6 +864,9 @@ vNext-FULL-ActionsSLA:
         <ion-item button onclick="openCmdb('cmdb-section-management'); closeIonicMenu();">
           <ion-label style="font-size:14px">CMDB Management</ion-label>
         </ion-item>
+        <ion-item button onclick="openCmdb('cmdb-section-assetviewer'); closeIonicMenu();">
+          <ion-label style="font-size:14px">Asset Viewer</ion-label>
+        </ion-item>
       </div>
       <ion-item button onclick="ionicNav('knowledge-base'); closeIonicMenu();">
         <ion-icon name="book-outline" slot="start"></ion-icon>
@@ -793,6 +899,9 @@ vNext-FULL-ActionsSLA:
         </ion-item>
         <ion-item button onclick="openAdminSettings('admin-section-sla'); closeIonicMenu();">
           <ion-label style="font-size:14px">SLA Management</ion-label>
+        </ion-item>
+        <ion-item button onclick="openAdminSettings('admin-section-cmdb-fields'); closeIonicMenu();">
+          <ion-label style="font-size:14px">CMDB Custom Fields</ion-label>
         </ion-item>
         <ion-item button onclick="openAdminSettings('admin-section-billing'); closeIonicMenu();">
           <ion-label style="font-size:14px">Billing & Subscription</ion-label>
@@ -1042,6 +1151,7 @@ vNext-FULL-ActionsSLA:
               <div class="nav-subitem" data-section="cmdb-section-items" onclick="openCmdb('cmdb-section-items')">CMDB Items</div>
               <div class="nav-subitem" data-section="cmdb-section-types" onclick="openCmdb('cmdb-section-types')">CMDB Types</div>
               <div class="nav-subitem" data-section="cmdb-section-management" onclick="openCmdb('cmdb-section-management')">CMDB Management</div>
+              <div class="nav-subitem" data-section="cmdb-section-assetviewer" onclick="openCmdb('cmdb-section-assetviewer')">👁️ Asset Viewer</div>
             </div>
           </div>
           <div class="navlink" data-target="analytics" onclick="nav(this)">📈 Analytics</div>
@@ -1061,6 +1171,7 @@ vNext-FULL-ActionsSLA:
                 <div class="nav-subitem" data-section="admin-section-support" onclick="openAdminSettings('admin-section-support')">🎫 Support Settings</div>
                 <div class="nav-subitem" data-section="admin-section-integrations" onclick="openAdminSettings('admin-section-integrations')">🔗 Integrations</div>
                 <div class="nav-subitem" data-section="admin-section-sla" onclick="openAdminSettings('admin-section-sla')">⏱️ SLA Management</div>
+                <div class="nav-subitem" data-section="admin-section-cmdb-fields" onclick="openAdminSettings('admin-section-cmdb-fields')">🗃️ CMDB Custom Fields</div>
                 <div class="nav-subitem" data-section="admin-section-billing" onclick="openAdminSettings('admin-section-billing')">💳 Billing & Subscription</div>
               </div>
             </div>
@@ -1081,6 +1192,7 @@ vNext-FULL-ActionsSLA:
               <div class="nav-subitem" data-section="cmdb-section-items" onclick="openCmdb('cmdb-section-items')">CMDB Items</div>
               <div class="nav-subitem" data-section="cmdb-section-types" onclick="openCmdb('cmdb-section-types')">CMDB Types</div>
               <div class="nav-subitem" data-section="cmdb-section-management" onclick="openCmdb('cmdb-section-management')">CMDB Management</div>
+              <div class="nav-subitem" data-section="cmdb-section-assetviewer" onclick="openCmdb('cmdb-section-assetviewer')">👁️ Asset Viewer</div>
             </div>
           </div>
           <div class="navlink" data-target="analytics" onclick="nav(this)">📈 Analytics</div>
@@ -1105,6 +1217,7 @@ vNext-FULL-ActionsSLA:
               <div class="nav-subitem" data-section="cmdb-section-items" onclick="openCmdb('cmdb-section-items')">CMDB Items</div>
               <div class="nav-subitem" data-section="cmdb-section-types" onclick="openCmdb('cmdb-section-types')">CMDB Types</div>
               <div class="nav-subitem" data-section="cmdb-section-management" onclick="openCmdb('cmdb-section-management')">CMDB Management</div>
+              <div class="nav-subitem" data-section="cmdb-section-assetviewer" onclick="openCmdb('cmdb-section-assetviewer')">👁️ Asset Viewer</div>
             </div>
           </div>
           <div class="navlink" data-target="raise" onclick="nav(this)">📝 Raise Request</div>
@@ -1144,7 +1257,7 @@ vNext-FULL-ActionsSLA:
               <div class="row wrap" style="margin-top:12px;gap:8px">
                 <button class="btn primary" onclick="navTo('experts')">Manage Experts</button>
                 <button class="btn primary" onclick="navTo('customers')">Manage Customers</button>
-                <button class="btn primary" onclick="navTo('cmdb')">Open CMDB</button>
+                <button class="btn primary" onclick="openCmdb('cmdb-section-assetviewer')">Open CMDB</button>
                 <button class="btn" onclick="navTo('tickets')">View All Tickets</button>
                 <button class="btn" onclick="navTo('wizard')">Admin Settings</button>
               </div>
@@ -1303,7 +1416,7 @@ vNext-FULL-ActionsSLA:
             </div>
             <div class="grid2">
               <div class="card p-16">
-                <div class="row space"><strong>Recently updated CIs</strong><button class="btn ghost" onclick="navTo('cmdb')">Open CMDB</button></div>
+                <div class="row space"><strong>Recently updated CIs</strong><button class="btn ghost" onclick="openCmdb('cmdb-section-assetviewer')">Open CMDB</button></div>
                 <table><thead><tr><th>CMDB Item</th><th>CI Name</th><th>Model</th><th>Location</th><th>Lifecycle</th></tr></thead><tbody id="cu-ci-body"></tbody></table>
               </div>
               <div class="card p-16">
@@ -3364,6 +3477,55 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           <div id="cmdb-section-items" class="cmdb-section"></div>
           <div id="cmdb-section-types" class="cmdb-section" style="display:none"></div>
           <div id="cmdb-section-management" class="cmdb-section" style="display:none"></div>
+          <!-- Asset Viewer Section -->
+          <div id="cmdb-section-assetviewer" class="cmdb-section" style="display:none">
+            <!-- Header -->
+            <div class="av-header-row">
+              <h3 class="title" style="margin:0">Asset Viewer</h3>
+              <div class="row" style="align-items:center">
+                <button id="av-export-btn" class="av-export-btn" onclick="avExportCSV()">
+                  📥 Export to CSV
+                </button>
+                <span id="av-export-info" class="av-export-info">Exports all assets</span>
+              </div>
+            </div>
+
+            <!-- Two-Panel Layout -->
+            <div class="av-container">
+              <!-- Left: Asset Grid -->
+              <div class="av-grid-panel">
+                <table id="av-table" class="display" style="width:100%">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Asset Name</th>
+                      <th>Category</th>
+                      <th>Brand</th>
+                      <th>Model</th>
+                      <th>Customer</th>
+                      <th>Location</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+
+              <!-- Right: Detail Panel -->
+              <div id="av-detail-panel" class="av-detail-panel">
+                <div class="av-detail-header">
+                  <span id="av-detail-title">Asset Details</span>
+                  <div class="av-header-actions">
+                    <button id="av-edit-btn" class="av-edit-btn" onclick="avEnterEditMode()">✏️ Edit</button>
+                    <span class="av-detail-close" onclick="avCloseDetail()">×</span>
+                  </div>
+                </div>
+                <div id="av-detail-content" class="av-detail-content">
+                  <div class="av-loading">Select an asset to view details</div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- CMDB (original - content will be moved to hub) -->
@@ -3410,11 +3572,105 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               <div id="cmdb-comment-h" style="font-size:14px;color:var(--text);white-space:pre-wrap;background:var(--bg);padding:12px;border-radius:6px;border:1px solid var(--border);"></div>
             </div>
           </div>
+
+          <!-- CMDB Detail Tabs -->
           <div class="card p-16">
-            <h4 class="mb-12">Configuration Items (<span id="ci-count">0</span>)</h4>
-            <div id="ci-loading" style="text-align:center;padding:20px;color:var(--muted);">Loading configuration items...</div>
-            <table id="ci-table" style="display:none"><thead id="ci-head"></thead><tbody id="ci-body"></tbody></table>
-            <div id="ci-empty" style="display:none;text-align:center;padding:20px;color:var(--muted);">No configuration items for this asset</div>
+            <div class="row mb-16" style="gap:8px;border-bottom:1px solid var(--border);padding-bottom:12px">
+              <button class="btn cmdb-tab active" data-tab="ci" onclick="switchCMDBDetailTab('ci')">Config Items (<span id="ci-count">0</span>)</button>
+              <button class="btn cmdb-tab" data-tab="custom-fields" onclick="switchCMDBDetailTab('custom-fields')">Custom Fields</button>
+              <button class="btn cmdb-tab" data-tab="relationships" onclick="switchCMDBDetailTab('relationships')">Relationships (<span id="rel-count">0</span>)</button>
+              <button class="btn cmdb-tab" data-tab="history" onclick="switchCMDBDetailTab('history')">History</button>
+            </div>
+
+            <!-- Configuration Items Tab -->
+            <div id="cmdb-tab-ci" class="cmdb-tab-content">
+              <div id="ci-loading" style="text-align:center;padding:20px;color:var(--muted);">Loading configuration items...</div>
+              <table id="ci-table" style="display:none"><thead id="ci-head"></thead><tbody id="ci-body"></tbody></table>
+              <div id="ci-empty" style="display:none;text-align:center;padding:20px;color:var(--muted);">No configuration items for this asset</div>
+            </div>
+
+            <!-- Custom Fields Tab -->
+            <div id="cmdb-tab-custom-fields" class="cmdb-tab-content" style="display:none">
+              <div id="custom-values-loading" style="text-align:center;padding:20px;color:var(--muted);">Loading custom fields...</div>
+              <div id="custom-values-form" style="display:none">
+                <div id="custom-values-fields"></div>
+                <div class="row mt-16" style="gap:8px">
+                  <button class="btn primary" onclick="saveCustomFieldValues()">Save Changes</button>
+                  <span id="custom-values-message" class="subtitle" style="color:#16a34a;display:none"></span>
+                </div>
+              </div>
+              <div id="custom-values-empty" style="display:none;text-align:center;padding:20px;color:var(--muted);">
+                <div>No custom fields defined for this category</div>
+                <div style="margin-top:8px;font-size:13px">Go to Admin Settings → CMDB Custom Fields to define fields</div>
+              </div>
+            </div>
+
+            <!-- Relationships Tab -->
+            <div id="cmdb-tab-relationships" class="cmdb-tab-content" style="display:none">
+              <div class="row space mb-12">
+                <div class="subtitle">Asset Dependencies & Connections</div>
+                <div class="row" style="gap:8px">
+                  <button class="btn" onclick="showImpactAnalysisModal()">🔍 Impact Analysis</button>
+                  <button class="btn primary" onclick="showAddRelationshipModal()">+ Add Relationship</button>
+                </div>
+              </div>
+              <div id="relationships-loading" style="text-align:center;padding:20px;color:var(--muted);">Loading relationships...</div>
+
+              <!-- Outgoing Relationships -->
+              <div id="relationships-outgoing" style="display:none">
+                <h5 class="subtitle mb-8" style="font-weight:600">Outgoing Relationships (This asset...)</h5>
+                <table id="outgoing-rel-table">
+                  <thead><tr><th>Type</th><th>Related Asset</th><th>Category</th><th>Status</th><th>Actions</th></tr></thead>
+                  <tbody id="outgoing-rel-body"></tbody>
+                </table>
+                <div id="outgoing-rel-empty" style="display:none;padding:12px;color:var(--muted);font-size:13px">No outgoing relationships</div>
+              </div>
+
+              <!-- Incoming Relationships -->
+              <div id="relationships-incoming" style="display:none;margin-top:16px">
+                <h5 class="subtitle mb-8" style="font-weight:600">Incoming Relationships (Other assets...)</h5>
+                <table id="incoming-rel-table">
+                  <thead><tr><th>Type</th><th>Related Asset</th><th>Category</th><th>Status</th><th>Actions</th></tr></thead>
+                  <tbody id="incoming-rel-body"></tbody>
+                </table>
+                <div id="incoming-rel-empty" style="display:none;padding:12px;color:var(--muted);font-size:13px">No incoming relationships</div>
+              </div>
+
+              <div id="relationships-empty" style="display:none;text-align:center;padding:30px;color:var(--muted);">
+                <div style="font-size:32px;margin-bottom:12px">🔗</div>
+                <div>No relationships defined</div>
+                <div style="margin-top:8px;font-size:13px">Click "Add Relationship" to link this asset to other CMDB items</div>
+              </div>
+            </div>
+
+            <!-- History Tab -->
+            <div id="cmdb-tab-history" class="cmdb-tab-content" style="display:none">
+              <div class="row space mb-12">
+                <div class="subtitle">Change History</div>
+                <div class="row" style="gap:8px">
+                  <select id="history-type-filter" class="input" style="max-width:180px" onchange="loadCMDBHistory()">
+                    <option value="">All Changes</option>
+                    <option value="created">Created</option>
+                    <option value="updated">Updated</option>
+                    <option value="relationship_added">Relationship Added</option>
+                    <option value="relationship_removed">Relationship Removed</option>
+                    <option value="custom_field_updated">Custom Field Updated</option>
+                  </select>
+                  <button class="btn" onclick="loadCMDBHistory()">Refresh</button>
+                </div>
+              </div>
+              <div id="history-loading" style="text-align:center;padding:20px;color:var(--muted);">Loading history...</div>
+              <div id="history-timeline" style="display:none"></div>
+              <div id="history-empty" style="display:none;text-align:center;padding:30px;color:var(--muted);">
+                <div style="font-size:32px;margin-bottom:12px">📜</div>
+                <div>No change history</div>
+              </div>
+              <div id="history-pagination" class="row" style="justify-content:center;gap:8px;margin-top:16px;display:none">
+                <button class="btn" id="history-prev-btn" onclick="loadCMDBHistoryPage(-1)">Previous</button>
+                <span id="history-page-info" class="subtitle"></span>
+                <button class="btn" id="history-next-btn" onclick="loadCMDBHistoryPage(1)">Next</button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -4064,6 +4320,45 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
             <div id="sla-message" class="subtitle" style="color:#16a34a;display:none;margin-top:12px"></div>
             <div id="sla-error" class="subtitle" style="color:#b91c1c;display:none;margin-top:12px"></div>
+          </div>
+
+          <!-- CMDB Custom Fields Section -->
+          <div id="admin-section-cmdb-fields" class="wizard-section card p-16 mb-12" style="display:none">
+            <div class="row space mb-12">
+              <h4 class="subtitle" style="margin:0;font-weight:600">🗃️ CMDB Custom Fields</h4>
+              <button class="btn primary" onclick="showAddCustomFieldModal()">+ Add Field</button>
+            </div>
+            <p class="subtitle" style="margin-bottom:16px">Define custom fields for each asset category. These fields will appear when viewing or editing CMDB items.</p>
+
+            <!-- Category Filter -->
+            <div class="row mb-16" style="gap:12px;flex-wrap:wrap">
+              <select id="custom-fields-category-filter" class="input" style="max-width:250px" onchange="loadCustomFieldDefinitions()">
+                <option value="">All Categories</option>
+              </select>
+              <button class="btn" onclick="loadCustomFieldDefinitions()">Refresh</button>
+            </div>
+
+            <!-- Custom Fields Table -->
+            <div id="custom-fields-loading" style="text-align:center;padding:20px;color:var(--muted);">Loading custom fields...</div>
+            <table id="custom-fields-table" style="display:none">
+              <thead>
+                <tr>
+                  <th style="width:150px">Category</th>
+                  <th style="width:150px">Field Name</th>
+                  <th style="width:200px">Label</th>
+                  <th style="width:100px">Type</th>
+                  <th style="width:80px">Required</th>
+                  <th style="width:80px">Order</th>
+                  <th style="width:120px">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="custom-fields-body"></tbody>
+            </table>
+            <div id="custom-fields-empty" style="display:none;text-align:center;padding:30px;color:var(--muted);">
+              <div style="font-size:32px;margin-bottom:12px">📝</div>
+              <div>No custom fields defined yet</div>
+              <div style="margin-top:8px;font-size:13px">Click "Add Field" to create custom fields for your CMDB categories</div>
+            </div>
           </div>
 
           <!-- Billing & Subscription Section -->
@@ -5343,7 +5638,153 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   </div>
 </div>
 
+<!-- CMDB Custom Field Modal -->
+<div id="custom-field-modal" class="modal" role="dialog" aria-modal="true" style="display:none;align-items:flex-start;padding-top:10vh">
+  <div class="sheet" style="max-width:500px;max-height:80vh;overflow:auto">
+    <div class="head"><span id="custom-field-modal-title">Add Custom Field</span></div>
+    <div class="body">
+      <input type="hidden" id="custom-field-edit-id">
+      <div class="mb-12">
+        <label class="subtitle">Asset Category *</label>
+        <select id="custom-field-category" class="input">
+          <option value="">-- Select Category --</option>
+        </select>
+      </div>
+      <div class="mb-12">
+        <label class="subtitle">Field Name *</label>
+        <input id="custom-field-name" class="input" placeholder="e.g., serial_number" maxlength="100"/>
+        <div style="font-size:11px;color:#666;margin-top:4px">Internal name (no spaces, use underscores)</div>
+      </div>
+      <div class="mb-12">
+        <label class="subtitle">Field Label *</label>
+        <input id="custom-field-label" class="input" placeholder="e.g., Serial Number" maxlength="150"/>
+        <div style="font-size:11px;color:#666;margin-top:4px">Display label shown to users</div>
+      </div>
+      <div class="mb-12">
+        <label class="subtitle">Field Type *</label>
+        <select id="custom-field-type" class="input" onchange="toggleDropdownOptions()">
+          <option value="text">Text</option>
+          <option value="number">Number</option>
+          <option value="date">Date</option>
+          <option value="dropdown">Dropdown</option>
+          <option value="boolean">Yes/No</option>
+          <option value="url">URL</option>
+        </select>
+      </div>
+      <div id="dropdown-options-section" class="mb-12" style="display:none">
+        <label class="subtitle">Dropdown Options *</label>
+        <textarea id="custom-field-dropdown-options" class="input" rows="4" placeholder="Enter one option per line"></textarea>
+        <div style="font-size:11px;color:#666;margin-top:4px">Enter each option on a new line</div>
+      </div>
+      <div class="mb-12">
+        <label class="subtitle">Display Order</label>
+        <input id="custom-field-order" type="number" class="input" value="0" min="0"/>
+        <div style="font-size:11px;color:#666;margin-top:4px">Lower numbers appear first</div>
+      </div>
+      <div class="mb-12">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="custom-field-required"/>
+          <span>Required field</span>
+        </label>
+      </div>
+      <div id="custom-field-error" class="subtitle" style="color:#b91c1c;display:none;margin-top:8px"></div>
+    </div>
+    <div class="foot">
+      <button class="btn ghost" onclick="closeCustomFieldModal()">Cancel</button>
+      <button class="btn primary" onclick="saveCustomField()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- CMDB Add Relationship Modal -->
+<div id="add-relationship-modal" class="modal" role="dialog" aria-modal="true" style="display:none;align-items:flex-start;padding-top:10vh">
+  <div class="sheet" style="max-width:500px;max-height:80vh;overflow:auto">
+    <div class="head"><span>Add Relationship</span></div>
+    <div class="body">
+      <div class="mb-12">
+        <label class="subtitle">Relationship Type *</label>
+        <select id="rel-type" class="input">
+          <option value="depends_on">Depends On</option>
+          <option value="hosts">Hosts</option>
+          <option value="connects_to">Connects To</option>
+          <option value="part_of">Part Of</option>
+          <option value="uses">Uses</option>
+          <option value="provides">Provides</option>
+          <option value="backs_up">Backs Up</option>
+          <option value="monitors">Monitors</option>
+        </select>
+        <div style="font-size:11px;color:#666;margin-top:4px">This asset [relationship type] the target asset</div>
+      </div>
+      <div class="mb-12">
+        <label class="subtitle">Target Asset *</label>
+        <input id="rel-target-search" class="input" placeholder="Search for asset..." oninput="searchRelTargetAssets()"/>
+        <div id="rel-target-results" style="max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;margin-top:8px;display:none"></div>
+        <input type="hidden" id="rel-target-cmdb-id"/>
+        <div id="rel-target-selected" style="display:none;margin-top:8px;padding:8px;background:var(--bg);border-radius:6px;border:1px solid var(--border)">
+          <div class="row space">
+            <div>
+              <div id="rel-target-name" style="font-weight:600"></div>
+              <div id="rel-target-category" class="subtitle"></div>
+            </div>
+            <button class="btn ghost" onclick="clearRelTarget()" style="padding:4px 8px">✕</button>
+          </div>
+        </div>
+      </div>
+      <div class="mb-12">
+        <label class="subtitle">Description (optional)</label>
+        <textarea id="rel-description" class="input" rows="2" placeholder="Notes about this relationship"></textarea>
+      </div>
+      <div id="rel-error" class="subtitle" style="color:#b91c1c;display:none;margin-top:8px"></div>
+    </div>
+    <div class="foot">
+      <button class="btn ghost" onclick="closeAddRelationshipModal()">Cancel</button>
+      <button class="btn primary" onclick="saveRelationship()">Add Relationship</button>
+    </div>
+  </div>
+</div>
+
+<!-- CMDB Impact Analysis Modal -->
+<div id="impact-analysis-modal" class="modal" role="dialog" aria-modal="true" style="display:none;align-items:flex-start;padding-top:5vh">
+  <div class="sheet" style="max-width:700px;max-height:85vh;overflow:auto">
+    <div class="head"><span>🔍 Impact Analysis</span></div>
+    <div class="body">
+      <div id="impact-root-info" class="mb-12" style="padding:12px;background:var(--bg);border-radius:6px">
+        <div style="font-weight:600">Analyzing: <span id="impact-root-name"></span></div>
+        <div class="subtitle" id="impact-root-category"></div>
+      </div>
+      <div id="impact-loading" style="text-align:center;padding:20px;color:var(--muted);">Analyzing dependencies...</div>
+      <div id="impact-results" style="display:none">
+        <div class="row mb-12" style="gap:16px;flex-wrap:wrap">
+          <div style="padding:12px;background:var(--bg);border-radius:6px;flex:1;min-width:120px;text-align:center">
+            <div id="impact-total-count" style="font-size:24px;font-weight:700;color:#e53e3e">0</div>
+            <div class="subtitle">Impacted Items</div>
+          </div>
+          <div style="padding:12px;background:var(--bg);border-radius:6px;flex:1;min-width:120px;text-align:center">
+            <div id="impact-max-depth" style="font-size:24px;font-weight:700;color:#d97706">0</div>
+            <div class="subtitle">Max Depth</div>
+          </div>
+        </div>
+        <div class="subtitle mb-8" style="font-weight:600">By Category</div>
+        <div id="impact-by-category" class="mb-12"></div>
+        <div class="subtitle mb-8" style="font-weight:600">Impacted Items</div>
+        <div id="impact-tree" style="max-height:300px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:12px"></div>
+      </div>
+      <div id="impact-empty" style="display:none;text-align:center;padding:30px;color:var(--muted);">
+        <div style="font-size:32px;margin-bottom:12px">✅</div>
+        <div>No downstream dependencies found</div>
+        <div style="margin-top:8px;font-size:13px">This asset has no items that depend on it</div>
+      </div>
+    </div>
+    <div class="foot">
+      <button class="btn ghost" onclick="closeImpactAnalysisModal()">Close</button>
+    </div>
+  </div>
+</div>
+
 <script>
+  // ServiFlow Version: 2026-01-20-v2 - VERIFY THIS IN CONSOLE TO CHECK CACHING
+  console.log('[ServiFlow] Loading version 2026-01-20-v2');
+
   // API Base URL - use current origin for deployed version, localhost for development
   const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? 'http://localhost:3000'
@@ -5824,6 +6265,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         window.role = data.user.role;
         window.tenant = data.user.tenantCode || (data.user.role === 'customer' ? 'apoyar' : null);
         window.isMasterAdmin = data.user.role === 'super_admin';
+        // Also set local tenant variable for functions that use it directly
+        tenant = window.tenant;
         
         // Update UI
         document.getElementById('chip-role').textContent = data.user.role === 'super_admin' ? 'Master Admin' : data.user.role;
@@ -6117,7 +6560,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   function nav(el){ document.querySelectorAll('.navlink').forEach(n=>n.classList.remove('active')); el.classList.add('active'); switchView(el.getAttribute('data-target')); if(el.getAttribute('data-target')==='dash') renderAllDashboards(); }
   function navTo(view){ switchView(view); }
-  function switchView(view){ currentView=view; ['dash','profile','tickets','ticket-detail','experts','expert-detail','customers','cmdb-hub','cmdb','cmdb-detail','manage-cmdb','cmdb-mgmt','wizard','raise','tenants','subscriptions','billing','plans','currencies','system','usage','customer-plans','customer-billing','my-company','company-admin','analytics','ai-insights','ticket-rules','email-processing','system-control','knowledge-base','raw-variables','audit-log','notifications'].forEach(n=>{ const el=document.getElementById('view-'+n); if(el) el.style.display=(n===view)?'block':'none'; }); if(view==='tickets') { loadFilterSettings('tickets'); renderList(); } if(view==='experts') { loadFilterSettings('experts'); renderExperts(); } if(view==='expert-detail') renderExpertDetail(); if(view==='customers') { loadFilterSettings('customers'); renderCustomers(); } if(view==='cmdb-hub') initCmdbHub(); if(view==='cmdb') { loadFilterSettings('cmdb'); renderCMDB(); } if(view==='cmdb-detail') renderCMDBDetail(); if(view==='manage-cmdb') loadManageCMDB(); if(view==='cmdb-mgmt') loadCMDBMgmt(); if(view==='raise') loadRaiseFormOptions(); if(view==='ticket-detail') renderTicketDetail(); if(view==='tenants') loadTenants(); if(view==='subscriptions') loadSubscriptions(); if(view==='billing') loadBilling(); if(view==='plans') loadPlans(); if(view==='currencies') loadCurrenciesAdmin(); if(view==='system') loadSystemOverview(); if(view==='usage') loadUsageDashboard(); if(view==='customer-plans') loadCustomerPlans(); if(view==='customer-billing') loadCustomerBilling(); if(view==='my-company') loadMyCompany(); if(view==='company-admin') loadCompanyAdminUsers(); if(view==='analytics') loadAnalytics(); if(view==='ai-insights') loadAIInsights(); if(view==='ticket-rules') loadTicketRules(); if(view==='email-processing') loadEmailProcessing(); if(view==='system-control') loadSystemControlSettings(); if(view==='knowledge-base') initKnowledgeBase(); if(view==='raw-variables') loadRawVariables(); if(view==='audit-log') { loadAuditActions(); loadAuditLog(); } if(view==='notifications') loadNotifications(); if(view==='wizard') { initWizardSection(); loadCompanyProfile(); loadEmailIngestSettings(); loadSystemSenders(); loadExpertRegSettings(); loadSupportSettings(); loadTeamsIntegrationStatus(); loadSlackIntegrationStatus(); loadSLAData(); } if(view==='profile') loadProfile(); }
+  function switchView(view){ currentView=view; ['dash','profile','tickets','ticket-detail','experts','expert-detail','customers','cmdb-hub','cmdb','cmdb-detail','manage-cmdb','cmdb-mgmt','wizard','raise','tenants','subscriptions','billing','plans','currencies','system','usage','customer-plans','customer-billing','my-company','company-admin','analytics','ai-insights','ticket-rules','email-processing','system-control','knowledge-base','raw-variables','audit-log','notifications'].forEach(n=>{ const el=document.getElementById('view-'+n); if(el) el.style.display=(n===view)?'block':'none'; }); if(view==='tickets') { console.log('[switchView] Switching to tickets view'); loadFilterSettings('tickets'); renderList(); } if(view==='experts') { loadFilterSettings('experts'); renderExperts(); } if(view==='expert-detail') renderExpertDetail(); if(view==='customers') { loadFilterSettings('customers'); renderCustomers(); } if(view==='cmdb-hub') initCmdbHub(); if(view==='cmdb') { loadFilterSettings('cmdb'); renderCMDB(); } if(view==='cmdb-detail') renderCMDBDetail(); if(view==='manage-cmdb') loadManageCMDB(); if(view==='cmdb-mgmt') loadCMDBMgmt(); if(view==='raise') loadRaiseFormOptions(); if(view==='ticket-detail') renderTicketDetail(); if(view==='tenants') loadTenants(); if(view==='subscriptions') loadSubscriptions(); if(view==='billing') loadBilling(); if(view==='plans') loadPlans(); if(view==='currencies') loadCurrenciesAdmin(); if(view==='system') loadSystemOverview(); if(view==='usage') loadUsageDashboard(); if(view==='customer-plans') loadCustomerPlans(); if(view==='customer-billing') loadCustomerBilling(); if(view==='my-company') loadMyCompany(); if(view==='company-admin') loadCompanyAdminUsers(); if(view==='analytics') loadAnalytics(); if(view==='ai-insights') loadAIInsights(); if(view==='ticket-rules') loadTicketRules(); if(view==='email-processing') loadEmailProcessing(); if(view==='system-control') loadSystemControlSettings(); if(view==='knowledge-base') initKnowledgeBase(); if(view==='raw-variables') loadRawVariables(); if(view==='audit-log') { loadAuditActions(); loadAuditLog(); } if(view==='notifications') loadNotifications(); if(view==='wizard') { initWizardSection(); loadCompanyProfile(); loadEmailIngestSettings(); loadSystemSenders(); loadExpertRegSettings(); loadSupportSettings(); loadTeamsIntegrationStatus(); loadSlackIntegrationStatus(); loadSLAData(); } if(view==='profile') loadProfile(); }
   function configureRole(){
     const currentRole = window.role || role; // Use global role from login, fallback to local
     document.getElementById('nav-admin').style.display = (currentRole==='admin') ? 'block' : 'none';
@@ -7987,6 +8430,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       loadSupportSettings();
       loadBatchProcessingSettings();
     }
+    if (sectionId === 'admin-section-cmdb-fields') loadCustomFieldDefinitions();
   }
 
   function initWizardSection() {
@@ -8179,6 +8623,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     if (sectionId === 'cmdb-section-items') { loadFilterSettings('cmdb'); renderCMDB(); }
     if (sectionId === 'cmdb-section-types') loadManageCMDB();
     if (sectionId === 'cmdb-section-management') loadCMDBMgmt();
+    if (sectionId === 'cmdb-section-assetviewer') initAssetViewer();
   }
 
   function initCmdbHub() {
@@ -12528,15 +12973,19 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   // ---- Tickets ----
   async function renderList(){
+    console.log('[renderList] Called');
     const tb=document.getElementById('list-body');
-    if(!tb) return;
+    if(!tb) { console.log('[renderList] list-body not found!'); return; }
+    console.log('[renderList] list-body found, clearing...');
     tb.innerHTML='';
+    console.log('[renderList] About to fetch tickets...');
 
     // Fetch tickets from backend API
     try {
       const token = localStorage.getItem('token');
       const tenantCode = window.tenant || 'apoyar';
 
+      console.log('[renderList] Fetching from:', `${API_BASE}/api/tickets/${tenantCode}`);
       const response = await fetch(`${API_BASE}/api/tickets/${tenantCode}`, {
         method: 'GET',
         headers: {
@@ -12544,8 +12993,10 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           'Content-Type': 'application/json'
         }
       });
+      console.log('[renderList] Fetch response status:', response.status);
 
       const data = await response.json();
+      console.log('[renderList] Data received, success:', data.success, 'tickets count:', data.tickets?.length);
 
       if (data.success && data.tickets) {
         // Update local tickets array with fetched data
@@ -12636,7 +13087,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         tb.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;">Failed to load tickets</td></tr>';
       }
     } catch (error) {
-      console.error('Error loading tickets:', error);
+      console.error('[renderList] CATCH - Error loading tickets:', error);
+      console.error('[renderList] Error name:', error.name);
+      console.error('[renderList] Error message:', error.message);
       tb.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;">Error loading tickets</td></tr>';
     }
   }
@@ -17379,9 +17832,20 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       body.appendChild(tr);
     });
   }
-  function openItem(id){ currentItemId=id; switchView('cmdb-detail'); }
+  function openItem(id){
+    currentItemId=id;
+    currentCMDBId=id; // For CMDB V2 features
+    switchView('cmdb-detail');
+  }
   async function renderCMDBDetail(){
     const item = CMDB_ITEMS.find(i=>i.cmdb_id===currentItemId) || {};
+
+    // Set global state for CMDB V2 features
+    currentCMDBId = currentItemId;
+    currentCMDBCategory = item.asset_category || item.type || null;
+
+    // Reset tabs to first tab
+    switchCMDBDetailTab('ci');
 
     // Populate header info
     document.getElementById('cmdb-name-h').textContent = item.asset_name || item.name || '(Unnamed)';
@@ -17485,7 +17949,12 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     if(empty) empty.style.display='none';
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${API_BASE}/api/cmdb/${tenant}/items`, { headers: { 'Authorization': `Bearer ${token}` } });
+      const tenantCode = window.tenant || tenant || localStorage.getItem('tenantCode');
+      if (!tenantCode) {
+        if(loading) loading.innerHTML = '<div style="color:#e53e3e;">No tenant selected</div>';
+        return;
+      }
+      const res = await fetch(`${API_BASE}/api/cmdb/${tenantCode}/items`, { headers: { 'Authorization': `Bearer ${token}` } });
       const data = await res.json();
       if (data.success) {
         CMDB_MGMT_ITEMS = data.items;
@@ -17583,7 +18052,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   async function cmdbMgmtEdit(cmdbId) {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${API_BASE}/api/cmdb/${tenant}/items/${cmdbId}`, { headers: { 'Authorization': `Bearer ${token}` } });
+      const tenantCode = window.tenant || tenant || localStorage.getItem('tenantCode');
+      if (!tenantCode) return;
+      const res = await fetch(`${API_BASE}/api/cmdb/${tenantCode}/items/${cmdbId}`, { headers: { 'Authorization': `Bearer ${token}` } });
       const data = await res.json();
       if (data.success) {
         const i = data.item;
@@ -17621,7 +18092,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     if (!itemData.asset_name || !itemData.asset_category) { alert('Asset Name and Category are required'); return; }
     try {
       const token = localStorage.getItem('token');
-      const url = cmdbId ? `${API_BASE}/api/cmdb/${tenant}/items/${cmdbId}` : `${API_BASE}/api/cmdb/${tenant}/items`;
+      const tenantCode = window.tenant || tenant || localStorage.getItem('tenantCode');
+      if (!tenantCode) { alert('No tenant selected'); return; }
+      const url = cmdbId ? `${API_BASE}/api/cmdb/${tenantCode}/items/${cmdbId}` : `${API_BASE}/api/cmdb/${tenantCode}/items`;
       const res = await fetch(url, {
         method: cmdbId ? 'PUT' : 'POST',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -17638,7 +18111,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   async function cmdbMgmtView(cmdbId) {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${API_BASE}/api/cmdb/${tenant}/items/${cmdbId}`, { headers: { 'Authorization': `Bearer ${token}` } });
+      const tenantCode = window.tenant || tenant || localStorage.getItem('tenantCode');
+      if (!tenantCode) return;
+      const res = await fetch(`${API_BASE}/api/cmdb/${tenantCode}/items/${cmdbId}`, { headers: { 'Authorization': `Bearer ${token}` } });
       const data = await res.json();
       if (data.success) {
         const i = data.item;
@@ -17679,7 +18154,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     if (!ciName) return;
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${API_BASE}/api/cmdb/${tenant}/items/${cmdbId}/cis`, {
+      const tenantCode = window.tenant || tenant || localStorage.getItem('tenantCode');
+      if (!tenantCode) return;
+      const res = await fetch(`${API_BASE}/api/cmdb/${tenantCode}/items/${cmdbId}/cis`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ ci_name: ciName, status: 'active' })
@@ -17693,7 +18170,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     if (!confirm('Delete this Configuration Item?')) return;
     try {
       const token = localStorage.getItem('token');
-      await fetch(`${API_BASE}/api/cmdb/${tenant}/cis/${ciId}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+      const tenantCode = window.tenant || tenant || localStorage.getItem('tenantCode');
+      if (!tenantCode) return;
+      await fetch(`${API_BASE}/api/cmdb/${tenantCode}/cis/${ciId}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
       cmdbMgmtView(cmdbId);
     } catch (err) { alert('Error: ' + err.message); }
   }
@@ -17702,7 +18181,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     if (!confirm('Delete this CMDB item and all its CIs?')) return;
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${API_BASE}/api/cmdb/${tenant}/items/${cmdbId}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+      const tenantCode = window.tenant || tenant || localStorage.getItem('tenantCode');
+      if (!tenantCode) return;
+      const res = await fetch(`${API_BASE}/api/cmdb/${tenantCode}/items/${cmdbId}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
       const data = await res.json();
       if (data.success) { loadCMDBMgmt(); alert(data.message); } else { alert('Error: ' + data.message); }
     } catch (err) { alert('Error: ' + err.message); }
@@ -17716,7 +18197,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     if (conf !== 'DELETE ALL') { alert('Cancelled'); return; }
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${API_BASE}/api/cmdb/${tenant}/items/all`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+      const tenantCode = window.tenant || tenant || localStorage.getItem('tenantCode');
+      if (!tenantCode) { alert('No tenant selected'); return; }
+      const res = await fetch(`${API_BASE}/api/cmdb/${tenantCode}/items/all`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
       const data = await res.json();
       if (data.success) { loadCMDBMgmt(); alert(`Deleted ${data.deleted_items} items and ${data.deleted_cis} CIs`); }
       else { alert('Error: ' + data.message); }
@@ -17751,7 +18234,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     document.getElementById('cmdb-mgmt-import-btn').disabled = true;
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${API_BASE}/api/cmdb/${tenant}/import/items`, {
+      const tenantCode = window.tenant || tenant || localStorage.getItem('tenantCode');
+      if (!tenantCode) { alert('No tenant selected'); return; }
+      const res = await fetch(`${API_BASE}/api/cmdb/${tenantCode}/import/items`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
         body: formData
@@ -17771,7 +18256,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   }
 
   function cmdbMgmtDownloadTemplate() {
-    window.location.href = `${API_BASE}/api/cmdb/${tenant}/template/items`;
+    const tenantCode = window.tenant || tenant || localStorage.getItem('tenantCode');
+    if (!tenantCode) { alert('No tenant selected'); return; }
+    window.location.href = `${API_BASE}/api/cmdb/${tenantCode}/template/items`;
   }
 
   // ---- Manage CMDB Types ----
@@ -17798,6 +18285,897 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   }
   function showCreateItemTypeForm(){ alert('To add a new CMDB Item Type, contact the database administrator or use the API.'); }
   function showCreateCITypeForm(){ alert('To add a new CI Type, select an Item Type first and click "Add CI Type" button.'); }
+
+  // ============================================================================
+  // CMDB V2 FEATURES: Custom Fields, Relationships, History
+  // ============================================================================
+
+  // --- Global state for CMDB detail ---
+  let currentCMDBId = null;
+  let currentCMDBCategory = null;
+  let cmdbHistoryOffset = 0;
+  const cmdbHistoryLimit = 20;
+
+  // --- Tab switching ---
+  function switchCMDBDetailTab(tab) {
+    // Update tab buttons
+    document.querySelectorAll('.cmdb-tab').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.tab === tab);
+    });
+    // Show/hide content
+    document.querySelectorAll('.cmdb-tab-content').forEach(content => {
+      content.style.display = 'none';
+    });
+    const tabContent = document.getElementById(`cmdb-tab-${tab}`);
+    if (tabContent) tabContent.style.display = 'block';
+
+    // Load data for the tab
+    if (tab === 'custom-fields') loadCustomFieldValues();
+    if (tab === 'relationships') loadRelationships();
+    if (tab === 'history') { cmdbHistoryOffset = 0; loadCMDBHistory(); }
+  }
+
+  // ============================================================================
+  // CUSTOM FIELDS ADMIN (Admin Settings section)
+  // ============================================================================
+
+  async function loadCustomFieldDefinitions() {
+    const loading = document.getElementById('custom-fields-loading');
+    const table = document.getElementById('custom-fields-table');
+    const empty = document.getElementById('custom-fields-empty');
+    const body = document.getElementById('custom-fields-body');
+    const categoryFilter = document.getElementById('custom-fields-category-filter');
+
+    loading.style.display = 'block';
+    table.style.display = 'none';
+    empty.style.display = 'none';
+
+    try {
+      const token = localStorage.getItem('token');
+      const tenantCode = window.tenant || tenant || localStorage.getItem('tenantCode');
+      if (!tenantCode) {
+        loading.style.display = 'none';
+        empty.textContent = 'No tenant selected';
+        empty.style.display = 'block';
+        return;
+      }
+      const category = categoryFilter.value;
+      const url = category
+        ? `${API_BASE}/api/cmdb/${tenantCode}/custom-fields/${encodeURIComponent(category)}`
+        : `${API_BASE}/api/cmdb/${tenantCode}/custom-fields`;
+
+      const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+      const data = await res.json();
+
+      loading.style.display = 'none';
+
+      if (!data.success) {
+        empty.textContent = 'Error: ' + data.message;
+        empty.style.display = 'block';
+        return;
+      }
+
+      if (data.fields.length === 0) {
+        empty.style.display = 'block';
+        return;
+      }
+
+      table.style.display = 'table';
+      body.innerHTML = '';
+
+      data.fields.forEach(field => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${escapeHtml(field.asset_category)}</td>
+          <td><code>${escapeHtml(field.field_name)}</code></td>
+          <td>${escapeHtml(field.field_label)}</td>
+          <td><span class="badge">${field.field_type}</span></td>
+          <td>${field.is_required ? '<span class="badge success">Yes</span>' : '<span class="badge">No</span>'}</td>
+          <td>${field.display_order}</td>
+          <td>
+            <button class="btn" onclick="editCustomField(${field.id})">Edit</button>
+            <button class="btn danger" onclick="deleteCustomField(${field.id})">Delete</button>
+          </td>
+        `;
+        body.appendChild(tr);
+      });
+
+      // Populate category filter if needed
+      await populateCustomFieldCategoryFilter();
+    } catch (err) {
+      loading.style.display = 'none';
+      empty.textContent = 'Error loading custom fields: ' + err.message;
+      empty.style.display = 'block';
+    }
+  }
+
+  async function populateCustomFieldCategoryFilter() {
+    const filter = document.getElementById('custom-fields-category-filter');
+    const currentValue = filter.value;
+
+    try {
+      const token = localStorage.getItem('token');
+      const tenantCode = window.tenant || tenant || localStorage.getItem('tenantCode');
+      if (!tenantCode) return;
+      const res = await fetch(`${API_BASE}/api/cmdb/${tenantCode}/items`, { headers: { 'Authorization': `Bearer ${token}` } });
+      const data = await res.json();
+
+      if (data.success && data.items) {
+        const categories = [...new Set(data.items.map(i => i.asset_category).filter(Boolean))].sort();
+        filter.innerHTML = '<option value="">All Categories</option>';
+        categories.forEach(cat => {
+          const opt = document.createElement('option');
+          opt.value = cat;
+          opt.textContent = cat;
+          if (cat === currentValue) opt.selected = true;
+          filter.appendChild(opt);
+        });
+      }
+    } catch (err) {
+      console.error('Error populating category filter:', err);
+    }
+  }
+
+  function toggleDropdownOptions() {
+    const type = document.getElementById('custom-field-type').value;
+    document.getElementById('dropdown-options-section').style.display = type === 'dropdown' ? 'block' : 'none';
+  }
+
+  async function showAddCustomFieldModal() {
+    document.getElementById('custom-field-modal-title').textContent = 'Add Custom Field';
+    document.getElementById('custom-field-edit-id').value = '';
+    document.getElementById('custom-field-name').value = '';
+    document.getElementById('custom-field-name').disabled = false;
+    document.getElementById('custom-field-label').value = '';
+    document.getElementById('custom-field-type').value = 'text';
+    document.getElementById('custom-field-dropdown-options').value = '';
+    document.getElementById('custom-field-order').value = '0';
+    document.getElementById('custom-field-required').checked = false;
+    document.getElementById('custom-field-error').style.display = 'none';
+    toggleDropdownOptions();
+
+    // Populate category dropdown
+    const catSelect = document.getElementById('custom-field-category');
+    catSelect.innerHTML = '<option value="">-- Select Category --</option>';
+    catSelect.disabled = false;
+
+    try {
+      const token = localStorage.getItem('token');
+      const tenantCode = window.tenant || tenant || localStorage.getItem('tenantCode');
+      if (!tenantCode) return;
+      const res = await fetch(`${API_BASE}/api/cmdb/${tenantCode}/items`, { headers: { 'Authorization': `Bearer ${token}` } });
+      const data = await res.json();
+
+      if (data.success && data.items) {
+        const categories = [...new Set(data.items.map(i => i.asset_category).filter(Boolean))].sort();
+        categories.forEach(cat => {
+          const opt = document.createElement('option');
+          opt.value = cat;
+          opt.textContent = cat;
+          catSelect.appendChild(opt);
+        });
+      }
+    } catch (err) {
+      console.error('Error loading categories:', err);
+    }
+
+    document.getElementById('custom-field-modal').style.display = 'flex';
+  }
+
+  async function editCustomField(id) {
+    try {
+      const token = localStorage.getItem('token');
+      const tenantCode = window.tenant || tenant || localStorage.getItem('tenantCode');
+      if (!tenantCode) return;
+      const res = await fetch(`${API_BASE}/api/cmdb/${tenantCode}/custom-fields`, { headers: { 'Authorization': `Bearer ${token}` } });
+      const data = await res.json();
+
+      if (!data.success) {
+        alert('Error loading field: ' + data.message);
+        return;
+      }
+
+      const field = data.fields.find(f => f.id === id);
+      if (!field) {
+        alert('Field not found');
+        return;
+      }
+
+      document.getElementById('custom-field-modal-title').textContent = 'Edit Custom Field';
+      document.getElementById('custom-field-edit-id').value = id;
+      document.getElementById('custom-field-name').value = field.field_name;
+      document.getElementById('custom-field-name').disabled = true; // Can't change field name
+      document.getElementById('custom-field-label').value = field.field_label;
+      document.getElementById('custom-field-type').value = field.field_type;
+      document.getElementById('custom-field-dropdown-options').value = field.dropdown_options ? field.dropdown_options.join('\n') : '';
+      document.getElementById('custom-field-order').value = field.display_order;
+      document.getElementById('custom-field-required').checked = field.is_required;
+      document.getElementById('custom-field-error').style.display = 'none';
+      toggleDropdownOptions();
+
+      // Set category (disabled for edit)
+      const catSelect = document.getElementById('custom-field-category');
+      catSelect.innerHTML = `<option value="${field.asset_category}">${field.asset_category}</option>`;
+      catSelect.disabled = true;
+
+      document.getElementById('custom-field-modal').style.display = 'flex';
+    } catch (err) {
+      alert('Error loading field: ' + err.message);
+    }
+  }
+
+  async function saveCustomField() {
+    const errorEl = document.getElementById('custom-field-error');
+    errorEl.style.display = 'none';
+
+    const editId = document.getElementById('custom-field-edit-id').value;
+    const category = document.getElementById('custom-field-category').value;
+    const fieldName = document.getElementById('custom-field-name').value.trim();
+    const fieldLabel = document.getElementById('custom-field-label').value.trim();
+    const fieldType = document.getElementById('custom-field-type').value;
+    const dropdownText = document.getElementById('custom-field-dropdown-options').value;
+    const displayOrder = parseInt(document.getElementById('custom-field-order').value) || 0;
+    const isRequired = document.getElementById('custom-field-required').checked;
+
+    if (!category || !fieldName || !fieldLabel) {
+      errorEl.textContent = 'Category, field name, and label are required';
+      errorEl.style.display = 'block';
+      return;
+    }
+
+    const dropdownOptions = fieldType === 'dropdown'
+      ? dropdownText.split('\n').map(s => s.trim()).filter(Boolean)
+      : null;
+
+    if (fieldType === 'dropdown' && (!dropdownOptions || dropdownOptions.length === 0)) {
+      errorEl.textContent = 'Dropdown options are required for dropdown fields';
+      errorEl.style.display = 'block';
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const tenantCode = window.tenant || tenant || localStorage.getItem('tenantCode');
+      if (!tenantCode) {
+        errorEl.textContent = 'No tenant selected';
+        errorEl.style.display = 'block';
+        return;
+      }
+      const url = editId
+        ? `${API_BASE}/api/cmdb/${tenantCode}/custom-fields/${editId}`
+        : `${API_BASE}/api/cmdb/${tenantCode}/custom-fields`;
+      const method = editId ? 'PUT' : 'POST';
+
+      const body = {
+        asset_category: category,
+        field_name: fieldName,
+        field_label: fieldLabel,
+        field_type: fieldType,
+        dropdown_options: dropdownOptions,
+        display_order: displayOrder,
+        is_required: isRequired
+      };
+
+      const res = await fetch(url, {
+        method,
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      const data = await res.json();
+
+      if (!data.success) {
+        errorEl.textContent = data.message;
+        errorEl.style.display = 'block';
+        return;
+      }
+
+      closeCustomFieldModal();
+      loadCustomFieldDefinitions();
+    } catch (err) {
+      errorEl.textContent = 'Error saving field: ' + err.message;
+      errorEl.style.display = 'block';
+    }
+  }
+
+  async function deleteCustomField(id) {
+    if (!confirm('Delete this custom field? Existing values will be preserved but hidden.')) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const tenantCode = window.tenant || tenant || localStorage.getItem('tenantCode');
+      if (!tenantCode) return;
+      const res = await fetch(`${API_BASE}/api/cmdb/${tenantCode}/custom-fields/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      const data = await res.json();
+      if (!data.success) {
+        alert('Error: ' + data.message);
+        return;
+      }
+
+      loadCustomFieldDefinitions();
+    } catch (err) {
+      alert('Error deleting field: ' + err.message);
+    }
+  }
+
+  function closeCustomFieldModal() {
+    document.getElementById('custom-field-modal').style.display = 'none';
+  }
+
+  // ============================================================================
+  // CUSTOM FIELD VALUES (CMDB Item Detail Tab)
+  // ============================================================================
+
+  async function loadCustomFieldValues() {
+    if (!currentCMDBId) return;
+
+    const loading = document.getElementById('custom-values-loading');
+    const form = document.getElementById('custom-values-form');
+    const empty = document.getElementById('custom-values-empty');
+    const fieldsContainer = document.getElementById('custom-values-fields');
+
+    loading.style.display = 'block';
+    form.style.display = 'none';
+    empty.style.display = 'none';
+
+    try {
+      const token = localStorage.getItem('token');
+      const tenantCode = window.tenant || tenant || localStorage.getItem('tenantCode');
+      if (!tenantCode) {
+        loading.style.display = 'none';
+        empty.textContent = 'No tenant selected';
+        empty.style.display = 'block';
+        return;
+      }
+      const res = await fetch(`${API_BASE}/api/cmdb/${tenantCode}/items/${currentCMDBId}/custom-values`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+
+      loading.style.display = 'none';
+
+      if (!data.success) {
+        empty.textContent = 'Error: ' + data.message;
+        empty.style.display = 'block';
+        return;
+      }
+
+      if (data.fields.length === 0) {
+        empty.style.display = 'block';
+        return;
+      }
+
+      form.style.display = 'block';
+      fieldsContainer.innerHTML = '';
+
+      data.fields.forEach(field => {
+        const div = document.createElement('div');
+        div.className = 'mb-12';
+        div.innerHTML = `
+          <label class="subtitle">${escapeHtml(field.field_label)}${field.is_required ? ' *' : ''}</label>
+          ${renderCustomFieldInput(field)}
+        `;
+        fieldsContainer.appendChild(div);
+      });
+    } catch (err) {
+      loading.style.display = 'none';
+      empty.textContent = 'Error loading custom fields: ' + err.message;
+      empty.style.display = 'block';
+    }
+  }
+
+  function renderCustomFieldInput(field) {
+    const id = `custom-value-${field.id}`;
+    const value = field.value || '';
+    const req = field.is_required ? 'required' : '';
+
+    switch (field.field_type) {
+      case 'text':
+        return `<input id="${id}" class="input" value="${escapeHtml(value)}" data-field-id="${field.id}" ${req}/>`;
+      case 'number':
+        return `<input id="${id}" type="number" class="input" value="${escapeHtml(value)}" data-field-id="${field.id}" ${req}/>`;
+      case 'date':
+        return `<input id="${id}" type="date" class="input" value="${escapeHtml(value)}" data-field-id="${field.id}" ${req}/>`;
+      case 'url':
+        return `<input id="${id}" type="url" class="input" value="${escapeHtml(value)}" placeholder="https://..." data-field-id="${field.id}" ${req}/>`;
+      case 'boolean':
+        const checked = value === 'true' || value === '1' ? 'checked' : '';
+        return `<label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input id="${id}" type="checkbox" data-field-id="${field.id}" ${checked}/><span>Yes</span></label>`;
+      case 'dropdown':
+        let opts = `<option value="">-- Select --</option>`;
+        if (field.dropdown_options) {
+          field.dropdown_options.forEach(opt => {
+            const sel = opt === value ? 'selected' : '';
+            opts += `<option value="${escapeHtml(opt)}" ${sel}>${escapeHtml(opt)}</option>`;
+          });
+        }
+        return `<select id="${id}" class="input" data-field-id="${field.id}" ${req}>${opts}</select>`;
+      default:
+        return `<input id="${id}" class="input" value="${escapeHtml(value)}" data-field-id="${field.id}"/>`;
+    }
+  }
+
+  async function saveCustomFieldValues() {
+    const fieldsContainer = document.getElementById('custom-values-fields');
+    const inputs = fieldsContainer.querySelectorAll('[data-field-id]');
+    const values = [];
+
+    inputs.forEach(input => {
+      const fieldId = parseInt(input.dataset.fieldId);
+      let value;
+      if (input.type === 'checkbox') {
+        value = input.checked ? 'true' : 'false';
+      } else {
+        value = input.value;
+      }
+      values.push({ field_definition_id: fieldId, value });
+    });
+
+    try {
+      const token = localStorage.getItem('token');
+      const tenantCode = window.tenant || tenant || localStorage.getItem('tenantCode');
+      if (!tenantCode) {
+        alert('No tenant selected');
+        return;
+      }
+      const res = await fetch(`${API_BASE}/api/cmdb/${tenantCode}/items/${currentCMDBId}/custom-values`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ values })
+      });
+
+      const data = await res.json();
+      const msg = document.getElementById('custom-values-message');
+
+      if (data.success) {
+        msg.textContent = 'Saved!';
+        msg.style.color = '#16a34a';
+        msg.style.display = 'inline';
+        setTimeout(() => { msg.style.display = 'none'; }, 3000);
+      } else {
+        msg.textContent = 'Error: ' + data.message;
+        msg.style.color = '#b91c1c';
+        msg.style.display = 'inline';
+      }
+    } catch (err) {
+      alert('Error saving: ' + err.message);
+    }
+  }
+
+  // ============================================================================
+  // RELATIONSHIPS (CMDB Item Detail Tab)
+  // ============================================================================
+
+  async function loadRelationships() {
+    if (!currentCMDBId) return;
+
+    const loading = document.getElementById('relationships-loading');
+    const outgoingSection = document.getElementById('relationships-outgoing');
+    const incomingSection = document.getElementById('relationships-incoming');
+    const empty = document.getElementById('relationships-empty');
+
+    loading.style.display = 'block';
+    outgoingSection.style.display = 'none';
+    incomingSection.style.display = 'none';
+    empty.style.display = 'none';
+
+    try {
+      const token = localStorage.getItem('token');
+      const tenantCode = window.tenant || tenant || localStorage.getItem('tenantCode');
+      if (!tenantCode) {
+        loading.style.display = 'none';
+        empty.textContent = 'No tenant selected';
+        empty.style.display = 'block';
+        return;
+      }
+      const res = await fetch(`${API_BASE}/api/cmdb/${tenantCode}/items/${currentCMDBId}/relationships`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+
+      loading.style.display = 'none';
+
+      if (!data.success) {
+        empty.textContent = 'Error: ' + data.message;
+        empty.style.display = 'block';
+        return;
+      }
+
+      // Update count badge
+      document.getElementById('rel-count').textContent = data.total;
+
+      if (data.total === 0) {
+        empty.style.display = 'block';
+        return;
+      }
+
+      // Render outgoing relationships
+      if (data.outgoing.length > 0) {
+        outgoingSection.style.display = 'block';
+        const tbody = document.getElementById('outgoing-rel-body');
+        tbody.innerHTML = '';
+        data.outgoing.forEach(rel => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td><span class="badge">${escapeHtml(rel.relationship_label)}</span></td>
+            <td><a href="#" onclick="viewRelatedCMDBItem('${rel.related_item.cmdb_id}'); return false;">${escapeHtml(rel.related_item.asset_name)}</a></td>
+            <td>${escapeHtml(rel.related_item.asset_category)}</td>
+            <td><span class="badge ${rel.related_item.status === 'active' ? 'success' : ''}">${rel.related_item.status}</span></td>
+            <td><button class="btn danger" onclick="deleteRelationship(${rel.id})">Remove</button></td>
+          `;
+          tbody.appendChild(tr);
+        });
+        document.getElementById('outgoing-rel-empty').style.display = 'none';
+      } else {
+        outgoingSection.style.display = 'block';
+        document.getElementById('outgoing-rel-body').innerHTML = '';
+        document.getElementById('outgoing-rel-empty').style.display = 'block';
+      }
+
+      // Render incoming relationships
+      if (data.incoming.length > 0) {
+        incomingSection.style.display = 'block';
+        const tbody = document.getElementById('incoming-rel-body');
+        tbody.innerHTML = '';
+        data.incoming.forEach(rel => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td><span class="badge">${escapeHtml(rel.relationship_label)} (from)</span></td>
+            <td><a href="#" onclick="viewRelatedCMDBItem('${rel.related_item.cmdb_id}'); return false;">${escapeHtml(rel.related_item.asset_name)}</a></td>
+            <td>${escapeHtml(rel.related_item.asset_category)}</td>
+            <td><span class="badge ${rel.related_item.status === 'active' ? 'success' : ''}">${rel.related_item.status}</span></td>
+            <td><button class="btn danger" onclick="deleteRelationship(${rel.id})">Remove</button></td>
+          `;
+          tbody.appendChild(tr);
+        });
+        document.getElementById('incoming-rel-empty').style.display = 'none';
+      } else {
+        incomingSection.style.display = 'block';
+        document.getElementById('incoming-rel-body').innerHTML = '';
+        document.getElementById('incoming-rel-empty').style.display = 'block';
+      }
+    } catch (err) {
+      loading.style.display = 'none';
+      empty.textContent = 'Error loading relationships: ' + err.message;
+      empty.style.display = 'block';
+    }
+  }
+
+  function viewRelatedCMDBItem(cmdbId) {
+    openItem(cmdbId);
+  }
+
+  function showAddRelationshipModal() {
+    document.getElementById('rel-type').value = 'depends_on';
+    document.getElementById('rel-target-search').value = '';
+    document.getElementById('rel-target-cmdb-id').value = '';
+    document.getElementById('rel-target-results').style.display = 'none';
+    document.getElementById('rel-target-selected').style.display = 'none';
+    document.getElementById('rel-description').value = '';
+    document.getElementById('rel-error').style.display = 'none';
+    document.getElementById('add-relationship-modal').style.display = 'flex';
+  }
+
+  function closeAddRelationshipModal() {
+    document.getElementById('add-relationship-modal').style.display = 'none';
+  }
+
+  let relSearchTimeout = null;
+  async function searchRelTargetAssets() {
+    const query = document.getElementById('rel-target-search').value.trim();
+    const resultsDiv = document.getElementById('rel-target-results');
+
+    if (query.length < 2) {
+      resultsDiv.style.display = 'none';
+      return;
+    }
+
+    clearTimeout(relSearchTimeout);
+    relSearchTimeout = setTimeout(async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const tenantCode = window.tenant || tenant || localStorage.getItem('tenantCode');
+        if (!tenantCode) return;
+        const res = await fetch(`${API_BASE}/api/cmdb/${tenantCode}/items?search=${encodeURIComponent(query)}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+
+        if (data.success && data.items.length > 0) {
+          resultsDiv.innerHTML = '';
+          data.items.filter(i => i.cmdb_id !== currentCMDBId).slice(0, 10).forEach(item => {
+            const div = document.createElement('div');
+            div.style.cssText = 'padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border)';
+            div.innerHTML = `<div style="font-weight:500">${escapeHtml(item.asset_name)}</div><div class="subtitle">${escapeHtml(item.asset_category)} • ${escapeHtml(item.customer_name || '-')}</div>`;
+            div.onclick = () => selectRelTarget(item);
+            resultsDiv.appendChild(div);
+          });
+          resultsDiv.style.display = 'block';
+        } else {
+          resultsDiv.innerHTML = '<div style="padding:12px;color:var(--muted)">No matching assets found</div>';
+          resultsDiv.style.display = 'block';
+        }
+      } catch (err) {
+        console.error('Error searching assets:', err);
+      }
+    }, 300);
+  }
+
+  function selectRelTarget(item) {
+    document.getElementById('rel-target-cmdb-id').value = item.cmdb_id;
+    document.getElementById('rel-target-name').textContent = item.asset_name;
+    document.getElementById('rel-target-category').textContent = item.asset_category;
+    document.getElementById('rel-target-selected').style.display = 'block';
+    document.getElementById('rel-target-results').style.display = 'none';
+    document.getElementById('rel-target-search').value = '';
+  }
+
+  function clearRelTarget() {
+    document.getElementById('rel-target-cmdb-id').value = '';
+    document.getElementById('rel-target-selected').style.display = 'none';
+  }
+
+  async function saveRelationship() {
+    const errorEl = document.getElementById('rel-error');
+    errorEl.style.display = 'none';
+
+    const relType = document.getElementById('rel-type').value;
+    const targetCmdbId = document.getElementById('rel-target-cmdb-id').value;
+    const description = document.getElementById('rel-description').value.trim();
+
+    if (!targetCmdbId) {
+      errorEl.textContent = 'Please select a target asset';
+      errorEl.style.display = 'block';
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const tenantCode = window.tenant || tenant || localStorage.getItem('tenantCode');
+      if (!tenantCode) {
+        errorEl.textContent = 'No tenant selected';
+        errorEl.style.display = 'block';
+        return;
+      }
+      const res = await fetch(`${API_BASE}/api/cmdb/${tenantCode}/relationships`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          source_cmdb_id: currentCMDBId,
+          target_cmdb_id: targetCmdbId,
+          relationship_type: relType,
+          description
+        })
+      });
+
+      const data = await res.json();
+
+      if (!data.success) {
+        errorEl.textContent = data.message;
+        errorEl.style.display = 'block';
+        return;
+      }
+
+      closeAddRelationshipModal();
+      loadRelationships();
+    } catch (err) {
+      errorEl.textContent = 'Error: ' + err.message;
+      errorEl.style.display = 'block';
+    }
+  }
+
+  async function deleteRelationship(id) {
+    if (!confirm('Remove this relationship?')) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const tenantCode = window.tenant || tenant || localStorage.getItem('tenantCode');
+      if (!tenantCode) return;
+      const res = await fetch(`${API_BASE}/api/cmdb/${tenantCode}/relationships/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      const data = await res.json();
+      if (!data.success) {
+        alert('Error: ' + data.message);
+        return;
+      }
+
+      loadRelationships();
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
+  }
+
+  // ============================================================================
+  // IMPACT ANALYSIS
+  // ============================================================================
+
+  async function showImpactAnalysisModal() {
+    if (!currentCMDBId) return;
+
+    document.getElementById('impact-root-name').textContent = document.getElementById('cmdb-name-h').textContent;
+    document.getElementById('impact-root-category').textContent = currentCMDBCategory || '';
+    document.getElementById('impact-loading').style.display = 'block';
+    document.getElementById('impact-results').style.display = 'none';
+    document.getElementById('impact-empty').style.display = 'none';
+    document.getElementById('impact-analysis-modal').style.display = 'flex';
+
+    try {
+      const token = localStorage.getItem('token');
+      const tenantCode = window.tenant || tenant || localStorage.getItem('tenantCode');
+      if (!tenantCode) {
+        document.getElementById('impact-loading').style.display = 'none';
+        document.getElementById('impact-empty').textContent = 'No tenant selected';
+        document.getElementById('impact-empty').style.display = 'block';
+        return;
+      }
+      const res = await fetch(`${API_BASE}/api/cmdb/${tenantCode}/items/${currentCMDBId}/impact-analysis?depth=5`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+
+      document.getElementById('impact-loading').style.display = 'none';
+
+      if (!data.success) {
+        document.getElementById('impact-empty').textContent = 'Error: ' + data.message;
+        document.getElementById('impact-empty').style.display = 'block';
+        return;
+      }
+
+      if (data.summary.total_impacted === 0) {
+        document.getElementById('impact-empty').style.display = 'block';
+        return;
+      }
+
+      document.getElementById('impact-results').style.display = 'block';
+      document.getElementById('impact-total-count').textContent = data.summary.total_impacted;
+      document.getElementById('impact-max-depth').textContent = data.summary.by_level.length;
+
+      // Render by category
+      const catDiv = document.getElementById('impact-by-category');
+      catDiv.innerHTML = data.summary.by_category.map(c =>
+        `<span class="badge" style="margin-right:8px">${escapeHtml(c.category)}: ${c.count}</span>`
+      ).join('');
+
+      // Render impact tree
+      const treeDiv = document.getElementById('impact-tree');
+      treeDiv.innerHTML = renderImpactTree(data.impact_tree, 0);
+    } catch (err) {
+      document.getElementById('impact-loading').style.display = 'none';
+      document.getElementById('impact-empty').textContent = 'Error: ' + err.message;
+      document.getElementById('impact-empty').style.display = 'block';
+    }
+  }
+
+  function renderImpactTree(node, level) {
+    let html = `<div class="impact-node level-${Math.min(level, 3)}">
+      <div style="font-weight:${level === 0 ? '600' : '500'}">${escapeHtml(node.asset_name)}</div>
+      <div class="subtitle">${escapeHtml(node.asset_category)} • ${node.status}${node.relationship_type ? ' • ' + node.relationship_type : ''}</div>
+    </div>`;
+
+    if (node.children && node.children.length > 0) {
+      node.children.forEach(child => {
+        html += renderImpactTree(child, level + 1);
+      });
+    }
+
+    return html;
+  }
+
+  function closeImpactAnalysisModal() {
+    document.getElementById('impact-analysis-modal').style.display = 'none';
+  }
+
+  // ============================================================================
+  // HISTORY (CMDB Item Detail Tab)
+  // ============================================================================
+
+  async function loadCMDBHistory() {
+    if (!currentCMDBId) return;
+
+    const loading = document.getElementById('history-loading');
+    const timeline = document.getElementById('history-timeline');
+    const empty = document.getElementById('history-empty');
+    const pagination = document.getElementById('history-pagination');
+
+    loading.style.display = 'block';
+    timeline.style.display = 'none';
+    empty.style.display = 'none';
+    pagination.style.display = 'none';
+
+    const changeType = document.getElementById('history-type-filter').value;
+
+    try {
+      const token = localStorage.getItem('token');
+      const tenantCode = window.tenant || tenant || localStorage.getItem('tenantCode');
+      if (!tenantCode) {
+        loading.style.display = 'none';
+        empty.textContent = 'No tenant selected';
+        empty.style.display = 'block';
+        return;
+      }
+      let url = `${API_BASE}/api/cmdb/${tenantCode}/items/${currentCMDBId}/history?limit=${cmdbHistoryLimit}&offset=${cmdbHistoryOffset}`;
+      if (changeType) url += `&change_type=${changeType}`;
+
+      const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+      const data = await res.json();
+
+      loading.style.display = 'none';
+
+      if (!data.success) {
+        empty.textContent = 'Error: ' + data.message;
+        empty.style.display = 'block';
+        return;
+      }
+
+      if (data.history.length === 0) {
+        empty.style.display = 'block';
+        return;
+      }
+
+      timeline.style.display = 'block';
+      timeline.innerHTML = '';
+
+      data.history.forEach(entry => {
+        const div = document.createElement('div');
+        div.className = `history-item ${entry.change_type}`;
+        div.innerHTML = `
+          <div class="row space">
+            <span class="badge">${escapeHtml(entry.change_type_label)}</span>
+            <span class="subtitle">${formatDateTime(entry.created_at)}</span>
+          </div>
+          <div style="margin-top:8px">
+            ${entry.field_name ? `<strong>${escapeHtml(entry.field_name)}</strong>: ` : ''}
+            ${entry.old_value ? `<span style="text-decoration:line-through;color:#b91c1c">${escapeHtml(truncate(entry.old_value, 100))}</span> → ` : ''}
+            ${entry.new_value ? `<span style="color:#16a34a">${escapeHtml(truncate(entry.new_value, 100))}</span>` : ''}
+          </div>
+          <div class="subtitle" style="margin-top:4px">by ${escapeHtml(entry.changed_by_name)}${entry.ip_address ? ' from ' + entry.ip_address : ''}</div>
+        `;
+        timeline.appendChild(div);
+      });
+
+      // Pagination
+      if (data.pagination.total > cmdbHistoryLimit) {
+        pagination.style.display = 'flex';
+        document.getElementById('history-page-info').textContent =
+          `${cmdbHistoryOffset + 1}-${Math.min(cmdbHistoryOffset + cmdbHistoryLimit, data.pagination.total)} of ${data.pagination.total}`;
+        document.getElementById('history-prev-btn').disabled = cmdbHistoryOffset === 0;
+        document.getElementById('history-next-btn').disabled = !data.pagination.has_more;
+      }
+    } catch (err) {
+      loading.style.display = 'none';
+      empty.textContent = 'Error loading history: ' + err.message;
+      empty.style.display = 'block';
+    }
+  }
+
+  function loadCMDBHistoryPage(direction) {
+    cmdbHistoryOffset = Math.max(0, cmdbHistoryOffset + (direction * cmdbHistoryLimit));
+    loadCMDBHistory();
+  }
+
+  function formatDateTime(dateStr) {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function truncate(str, len) {
+    if (!str) return '';
+    return str.length > len ? str.substring(0, len) + '...' : str;
+  }
+
+  // Helper to escape HTML
+  function escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
 
   // ---- Raise Request ----
   async function loadRaiseFormOptions(){
@@ -20190,19 +21568,531 @@ function renderKBSuggestions(suggestions) {
   document.getElementById('kb-suggestions-empty').style.display = 'none';
 }
 
+// ============================================================================
+// ASSET VIEWER
+// ============================================================================
+
+let avDataTable = null;
+let avSelectedAssetId = null;
+let avCurrentAsset = null;
+let avCurrentCustomFields = [];
+let avEditMode = false;
+
+async function initAssetViewer() {
+  // Destroy existing DataTable if reinitializing
+  if ($.fn.DataTable.isDataTable('#av-table')) {
+    $('#av-table').DataTable().destroy();
+    avDataTable = null;
+  }
+
+  const tenantCode = window.tenant || tenant || localStorage.getItem('tenantCode');
+  if (!tenantCode) {
+    document.querySelector('#av-table tbody').innerHTML =
+      '<tr><td colspan="8" class="av-loading">No tenant selected</td></tr>';
+    return;
+  }
+
+  const token = localStorage.getItem('token');
+
+  // Initialize DataTable with AJAX
+  avDataTable = $('#av-table').DataTable({
+    ajax: {
+      url: `${API_BASE}/api/cmdb/${tenantCode}/items`,
+      dataSrc: function(json) {
+        return json.success ? json.items : [];
+      },
+      beforeSend: function(xhr) {
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      }
+    },
+    columns: [
+      { data: 'cmdb_id' },
+      { data: 'asset_name' },
+      { data: 'asset_category' },
+      { data: 'brand_name', defaultContent: '' },
+      { data: 'model_name', defaultContent: '' },
+      { data: 'customer_name', defaultContent: '' },
+      { data: 'asset_location', defaultContent: '' },
+      {
+        data: 'status',
+        render: function(data) {
+          const cls = data === 'active' ? 'success' : '';
+          return `<span class="badge ${cls}">${data || ''}</span>`;
+        }
+      }
+    ],
+    pageLength: 25,
+    order: [[1, 'asc']],
+    language: {
+      search: "Search:",
+      lengthMenu: "Show _MENU_ assets",
+      info: "Showing _START_ to _END_ of _TOTAL_ assets",
+      infoEmpty: "No assets found",
+      infoFiltered: "(filtered from _MAX_ total assets)",
+      loadingRecords: "Loading assets...",
+      zeroRecords: "No matching assets found"
+    }
+  });
+
+  // Row click handler
+  $('#av-table tbody').off('click', 'tr').on('click', 'tr', function() {
+    if (!avDataTable) return;
+    $('#av-table tbody tr').removeClass('selected');
+    $(this).addClass('selected');
+    const data = avDataTable.row(this).data();
+    if (data) {
+      avLoadDetail(data.cmdb_id);
+    }
+  });
+
+  // Search event - update export info
+  avDataTable.on('search.dt', function() {
+    if (!avDataTable) return;
+    const count = avDataTable.rows({ search: 'applied' }).count();
+    const total = avDataTable.rows().count();
+    document.getElementById('av-export-info').textContent =
+      count === total ? 'Exports all assets' : `Exports ${count} filtered assets`;
+  });
+}
+
+async function avLoadDetail(cmdbId) {
+  avSelectedAssetId = cmdbId;
+  document.getElementById('av-detail-panel').classList.add('active');
+  document.getElementById('av-detail-content').innerHTML = '<div class="av-loading">Loading...</div>';
+
+  const tenantCode = window.tenant || tenant || localStorage.getItem('tenantCode');
+  const token = localStorage.getItem('token');
+
+  try {
+    // Fetch asset details and custom field values in parallel
+    const [itemRes, customRes] = await Promise.all([
+      fetch(`${API_BASE}/api/cmdb/${tenantCode}/items/${cmdbId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      }),
+      fetch(`${API_BASE}/api/cmdb/${tenantCode}/items/${cmdbId}/custom-values`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+    ]);
+
+    const itemData = await itemRes.json();
+    const customData = await customRes.json();
+
+    if (!itemData.success) {
+      document.getElementById('av-detail-content').innerHTML =
+        '<div class="av-loading">Error loading asset details</div>';
+      return;
+    }
+
+    // Store current data for edit mode
+    avCurrentAsset = itemData.item;
+    avCurrentCustomFields = customData.success ? customData.fields : [];
+    avEditMode = false;
+
+    avRenderDetail(avCurrentAsset, avCurrentCustomFields);
+  } catch (err) {
+    document.getElementById('av-detail-content').innerHTML =
+      '<div class="av-loading">Error loading asset details</div>';
+  }
+}
+
+function avRenderDetail(asset, customFields) {
+  let html = '';
+
+  // Asset Information Section
+  html += '<div class="av-section-header">Asset Information</div>';
+  html += '<table class="av-detail-table">';
+
+  const infoFields = [
+    ['Asset Name', asset.asset_name],
+    ['CMDB ID', asset.cmdb_id],
+    ['Category', asset.asset_category],
+    ['Brand', asset.brand_name],
+    ['Model', asset.model_name],
+    ['Customer', asset.customer_name],
+    ['Employee Of', asset.employee_of],
+    ['Location', asset.asset_location],
+    ['Status', asset.status],
+    ['Created', asset.created_at ? new Date(asset.created_at).toLocaleString() : ''],
+    ['Updated', asset.updated_at ? new Date(asset.updated_at).toLocaleString() : '']
+  ];
+
+  for (const [label, value] of infoFields) {
+    if (value) {
+      html += `<tr><td>${label}:</td><td>${avEscapeHtml(value)}</td></tr>`;
+    }
+  }
+
+  // Comment field with scrollable container
+  if (asset.comment) {
+    html += `<tr><td>Comment:</td><td><div class="av-comment-field">${avEscapeHtml(asset.comment)}</div></td></tr>`;
+  }
+
+  html += '</table>';
+
+  // Custom Fields Section
+  const nonEmptyFields = customFields.filter(f => f.value);
+  if (nonEmptyFields.length > 0) {
+    html += '<div class="av-section-header">Additional Asset Information</div>';
+    html += '<table class="av-detail-table">';
+
+    // Sort alphabetically by field label
+    nonEmptyFields.sort((a, b) => (a.field_label || '').localeCompare(b.field_label || ''));
+
+    for (const field of nonEmptyFields) {
+      html += `<tr><td>${avEscapeHtml(field.field_label)}:</td><td>${avEscapeHtml(field.value)}</td></tr>`;
+    }
+
+    html += '</table>';
+  }
+
+  // Configuration Items Section
+  if (asset.configuration_items && asset.configuration_items.length > 0) {
+    html += `<div class="av-section-header">Configuration Items (${asset.configuration_items.length})</div>`;
+    html += '<div class="av-ci-list">';
+
+    for (const ci of asset.configuration_items) {
+      html += `<div class="av-ci-item" onclick="avShowCIDetail(${ci.id})">
+        <div class="av-ci-name">${avEscapeHtml(ci.ci_name || ci.ci_id)}</div>
+        <div class="av-ci-meta">
+          ${ci.brand_name ? `<span class="av-ci-type">${avEscapeHtml(ci.brand_name)}</span>` : ''}
+          ${ci.model_name ? `<span class="av-ci-type">${avEscapeHtml(ci.model_name)}</span>` : ''}
+          <span class="badge ${ci.status === 'active' ? 'success' : ''}">${avEscapeHtml(ci.status || '')}</span>
+        </div>
+      </div>`;
+    }
+
+    html += '</div>';
+  }
+
+  document.getElementById('av-detail-title').textContent = asset.asset_name || 'Asset Details';
+  document.getElementById('av-detail-content').innerHTML = html;
+}
+
+function avEscapeHtml(text) {
+  if (!text) return '';
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML.replace(/\n/g, '<br>');
+}
+
+function avEnterEditMode() {
+  if (!avCurrentAsset) return;
+  avEditMode = true;
+  document.getElementById('av-edit-btn').style.display = 'none';
+  avRenderEditForm(avCurrentAsset);
+}
+
+function avRenderEditForm(asset) {
+  let html = '<div class="av-edit-form">';
+  html += '<div class="av-section-header">Edit Asset</div>';
+
+  // Asset Name
+  html += `<div class="av-form-group">
+    <label>Asset Name *</label>
+    <input type="text" id="av-edit-asset_name" value="${avEscapeAttr(asset.asset_name || '')}" required>
+  </div>`;
+
+  // Category
+  html += `<div class="av-form-group">
+    <label>Category</label>
+    <input type="text" id="av-edit-asset_category" value="${avEscapeAttr(asset.asset_category || '')}">
+  </div>`;
+
+  // Brand
+  html += `<div class="av-form-group">
+    <label>Brand</label>
+    <input type="text" id="av-edit-brand_name" value="${avEscapeAttr(asset.brand_name || '')}">
+  </div>`;
+
+  // Model
+  html += `<div class="av-form-group">
+    <label>Model</label>
+    <input type="text" id="av-edit-model_name" value="${avEscapeAttr(asset.model_name || '')}">
+  </div>`;
+
+  // Customer
+  html += `<div class="av-form-group">
+    <label>Customer</label>
+    <input type="text" id="av-edit-customer_name" value="${avEscapeAttr(asset.customer_name || '')}">
+  </div>`;
+
+  // Employee Of
+  html += `<div class="av-form-group">
+    <label>Employee Of</label>
+    <input type="text" id="av-edit-employee_of" value="${avEscapeAttr(asset.employee_of || '')}">
+  </div>`;
+
+  // Location
+  html += `<div class="av-form-group">
+    <label>Location</label>
+    <input type="text" id="av-edit-asset_location" value="${avEscapeAttr(asset.asset_location || '')}">
+  </div>`;
+
+  // Status
+  html += `<div class="av-form-group">
+    <label>Status</label>
+    <select id="av-edit-status">
+      <option value="active" ${asset.status === 'active' ? 'selected' : ''}>Active</option>
+      <option value="inactive" ${asset.status === 'inactive' ? 'selected' : ''}>Inactive</option>
+      <option value="retired" ${asset.status === 'retired' ? 'selected' : ''}>Retired</option>
+      <option value="maintenance" ${asset.status === 'maintenance' ? 'selected' : ''}>Maintenance</option>
+    </select>
+  </div>`;
+
+  // Comment
+  html += `<div class="av-form-group">
+    <label>Comment</label>
+    <textarea id="av-edit-comment">${avEscapeAttr(asset.comment || '')}</textarea>
+  </div>`;
+
+  // Action buttons
+  html += `<div class="av-form-actions">
+    <button class="av-cancel-btn" onclick="avCancelEdit()">Cancel</button>
+    <button class="av-save-btn" id="av-save-btn" onclick="avSaveAsset()">💾 Save Changes</button>
+  </div>`;
+
+  html += '</div>';
+
+  document.getElementById('av-detail-title').textContent = 'Edit: ' + (asset.asset_name || 'Asset');
+  document.getElementById('av-detail-content').innerHTML = html;
+}
+
+function avEscapeAttr(text) {
+  if (!text) return '';
+  return String(text).replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function avCancelEdit() {
+  avEditMode = false;
+  document.getElementById('av-edit-btn').style.display = '';
+  if (avCurrentAsset) {
+    avRenderDetail(avCurrentAsset, avCurrentCustomFields);
+  }
+}
+
+function avShowCIDetail(ciId) {
+  if (!avCurrentAsset || !avCurrentAsset.configuration_items) return;
+
+  const ci = avCurrentAsset.configuration_items.find(c => c.id === ciId);
+  if (!ci) return;
+
+  let html = '';
+
+  // Back button and CI name
+  html += `<div class="av-ci-detail">
+    <div class="av-ci-detail-header">
+      <span class="av-ci-detail-title">${avEscapeHtml(ci.ci_name || ci.ci_id)}</span>
+      <button class="av-ci-back-btn" onclick="avRenderDetail(avCurrentAsset, avCurrentCustomFields)">← Back to Asset</button>
+    </div>
+  </div>`;
+
+  // CI Information Section
+  html += '<div class="av-section-header">Configuration Item Details</div>';
+  html += '<table class="av-detail-table">';
+
+  const ciFields = [
+    ['CI ID', ci.ci_id],
+    ['CI Name', ci.ci_name],
+    ['Category', ci.asset_category],
+    ['Category Value', ci.category_field_value],
+    ['Brand', ci.brand_name],
+    ['Model', ci.model_name],
+    ['Serial Number', ci.serial_number],
+    ['Location', ci.asset_location],
+    ['Employee Of', ci.employee_of],
+    ['Status', ci.status],
+    ['Created', ci.created_at ? new Date(ci.created_at).toLocaleString() : ''],
+    ['Updated', ci.updated_at ? new Date(ci.updated_at).toLocaleString() : '']
+  ];
+
+  for (const [label, value] of ciFields) {
+    if (value) {
+      html += `<tr><td>${label}:</td><td>${avEscapeHtml(value)}</td></tr>`;
+    }
+  }
+
+  // Comment
+  if (ci.comment) {
+    html += `<tr><td>Comment:</td><td><div class="av-comment-field">${avEscapeHtml(ci.comment)}</div></td></tr>`;
+  }
+
+  html += '</table>';
+
+  document.getElementById('av-detail-title').textContent = ci.ci_name || ci.ci_id || 'CI Details';
+  document.getElementById('av-detail-content').innerHTML = html;
+  document.getElementById('av-edit-btn').style.display = 'none'; // Hide edit for CI view
+}
+
+async function avSaveAsset() {
+  const btn = document.getElementById('av-save-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Saving...';
+
+  const tenantCode = window.tenant || tenant || localStorage.getItem('tenantCode');
+  const token = localStorage.getItem('token');
+
+  const payload = {
+    asset_name: document.getElementById('av-edit-asset_name').value.trim(),
+    asset_category: document.getElementById('av-edit-asset_category').value.trim(),
+    brand_name: document.getElementById('av-edit-brand_name').value.trim(),
+    model_name: document.getElementById('av-edit-model_name').value.trim(),
+    customer_name: document.getElementById('av-edit-customer_name').value.trim(),
+    employee_of: document.getElementById('av-edit-employee_of').value.trim(),
+    asset_location: document.getElementById('av-edit-asset_location').value.trim(),
+    status: document.getElementById('av-edit-status').value,
+    comment: document.getElementById('av-edit-comment').value.trim()
+  };
+
+  if (!payload.asset_name) {
+    alert('Asset Name is required');
+    btn.disabled = false;
+    btn.textContent = '💾 Save Changes';
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/api/cmdb/${tenantCode}/items/${avSelectedAssetId}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      // Update stored data
+      avCurrentAsset = data.item;
+      avEditMode = false;
+      document.getElementById('av-edit-btn').style.display = '';
+
+      // Refresh the detail view
+      avRenderDetail(avCurrentAsset, avCurrentCustomFields);
+
+      // Refresh the DataTable to show updated data
+      if (avDataTable) {
+        avDataTable.ajax.reload(null, false);
+      }
+    } else {
+      alert('Error saving: ' + (data.message || 'Unknown error'));
+      btn.disabled = false;
+      btn.textContent = '💾 Save Changes';
+    }
+  } catch (err) {
+    console.error('Save error:', err);
+    alert('Error saving asset. Please try again.');
+    btn.disabled = false;
+    btn.textContent = '💾 Save Changes';
+  }
+}
+
+function avCloseDetail() {
+  document.getElementById('av-detail-panel').classList.remove('active');
+  $('#av-table tbody tr').removeClass('selected');
+  avSelectedAssetId = null;
+  avCurrentAsset = null;
+  avCurrentCustomFields = [];
+  avEditMode = false;
+  document.getElementById('av-edit-btn').style.display = '';
+}
+
+async function avExportCSV() {
+  if (!avDataTable) {
+    alert('Please wait for assets to load');
+    return;
+  }
+  const filteredData = avDataTable.rows({ search: 'applied' }).data().toArray();
+
+  if (filteredData.length === 0) {
+    alert('No assets to export');
+    return;
+  }
+
+  const btn = document.getElementById('av-export-btn');
+  const info = document.getElementById('av-export-info');
+  btn.disabled = true;
+  btn.innerHTML = '⏳ Exporting...';
+  info.textContent = `Exporting ${filteredData.length} assets...`;
+
+  const tenantCode = window.tenant || tenant || localStorage.getItem('tenantCode');
+  const token = localStorage.getItem('token');
+
+  try {
+    // Build CSV from filtered data
+    const headers = ['CMDB ID', 'Asset Name', 'Category', 'Brand', 'Model', 'Customer', 'Employee Of', 'Location', 'Status', 'Comment'];
+    let csv = headers.join(',') + '\n';
+
+    for (const asset of filteredData) {
+      const row = [
+        asset.cmdb_id || '',
+        asset.asset_name || '',
+        asset.asset_category || '',
+        asset.brand_name || '',
+        asset.model_name || '',
+        asset.customer_name || '',
+        asset.employee_of || '',
+        asset.asset_location || '',
+        asset.status || '',
+        (asset.comment || '').replace(/"/g, '""').replace(/\n/g, ' ')
+      ].map(v => `"${v}"`);
+      csv += row.join(',') + '\n';
+    }
+
+    // Download CSV
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `cmdb_export_${tenantCode}_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    a.remove();
+
+    btn.disabled = false;
+    btn.innerHTML = '📥 Export to CSV';
+    info.textContent = `Exported ${filteredData.length} assets successfully`;
+  } catch (err) {
+    console.error('Export error:', err);
+    btn.disabled = false;
+    btn.innerHTML = '📥 Export to CSV';
+    info.textContent = 'Export failed. Please try again.';
+  }
+}
+
 
   </script>
 <script>
-// Register Service Worker for PWA
+// Register Service Worker for PWA - TEMPORARILY DISABLED FOR DEBUGGING
+// if ("serviceWorker" in navigator) {
+//   window.addEventListener("load", function() {
+//     navigator.serviceWorker.register("/sw.js")
+//       .then(function(registration) {
+//         console.log("[PWA] ServiceWorker registered:", registration.scope);
+//       })
+//       .catch(function(error) {
+//         console.log("[PWA] ServiceWorker registration failed:", error);
+//       });
+//   });
+// }
+// Unregister any existing service workers AND clear all caches
 if ("serviceWorker" in navigator) {
-  window.addEventListener("load", function() {
-    navigator.serviceWorker.register("/sw.js")
-      .then(function(registration) {
-        console.log("[PWA] ServiceWorker registered:", registration.scope);
-      })
-      .catch(function(error) {
-        console.log("[PWA] ServiceWorker registration failed:", error);
-      });
+  navigator.serviceWorker.getRegistrations().then(function(registrations) {
+    for (let registration of registrations) {
+      registration.unregister();
+      console.log("[PWA] ServiceWorker unregistered for debugging");
+    }
+  });
+}
+// Clear all browser caches
+if ('caches' in window) {
+  caches.keys().then(function(cacheNames) {
+    cacheNames.forEach(function(cacheName) {
+      caches.delete(cacheName);
+      console.log("[Cache] Cleared cache:", cacheName);
+    });
   });
 }
 
