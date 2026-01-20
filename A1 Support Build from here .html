@@ -279,6 +279,84 @@ vNext-FULL-ActionsSLA:
   .mt-16{margin-top:16px}
   .btn.success{background:#22c55e;color:#fff}
 
+  /* Compact Filter Bar */
+  .filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 8px 0;
+    margin-bottom: 8px;
+  }
+  .filter-bar .filter-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  /* Compact inputs */
+  .filter-compact {
+    padding: 6px 10px !important;
+    font-size: 13px !important;
+    min-height: 32px;
+    border-radius: 6px !important;
+  }
+  /* Search with icon */
+  .filter-search {
+    min-width: 180px;
+    max-width: 220px;
+    padding-left: 32px !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.3-4.3'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: 8px center;
+  }
+  /* Compact selects */
+  .filter-bar select {
+    min-width: 110px;
+    max-width: 150px;
+  }
+  /* Inline checkbox */
+  .filter-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: var(--muted);
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .filter-checkbox input { margin: 0; }
+  /* Clear button */
+  .btn-clear {
+    padding: 4px 8px;
+    font-size: 11px;
+    color: var(--muted);
+    border: none;
+    background: transparent;
+    cursor: pointer;
+  }
+  .btn-clear:hover { color: var(--ink); text-decoration: underline; }
+  /* Filter toggle for mobile */
+  .filter-toggle {
+    display: none;
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+  /* Collapsible section */
+  .filter-collapsible { display: contents; }
+  .filter-bar.collapsed .filter-collapsible { display: none; }
+  .filter-bar.collapsed .filter-toggle { display: inline-flex; }
+  /* Mobile responsive filters */
+  @media (max-width: 768px) {
+    .filter-bar { flex-direction: column; align-items: stretch; gap: 8px; }
+    .filter-bar .filter-toggle { display: flex !important; justify-content: center; }
+    .filter-bar .filter-collapsible { display: none !important; flex-direction: column; gap: 8px; }
+    .filter-bar.expanded .filter-collapsible { display: flex !important; }
+    .filter-bar.expanded .filter-toggle { display: none !important; }
+    .filter-search, .filter-bar select { width: 100%; max-width: none; min-width: auto; }
+    .filter-bar .filter-group { flex-direction: column; width: 100%; }
+  }
+
   /* Mobile Menu Toggle */
   .mobile-menu-toggle{display:none;flex-direction:column;gap:4px;cursor:pointer;padding:8px;border-radius:6px;background:transparent;border:none}
   .mobile-menu-toggle span{width:20px;height:2px;background:var(--ink);border-radius:1px;transition:all .2s}
@@ -2645,91 +2723,70 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             <button class="btn" onclick="exportTicketsToCSV()">📊 Export CSV</button>
           </div>
 
-          <!-- Filters -->
-          <div class="card p-16 mb-16" id="ticket-filters-card">
-            <div class="row space mb-12">
-              <h4 style="margin:0">Filters & Search</h4>
-              <div class="row" style="gap:8px">
-                <button class="btn ghost mobile-filter-toggle" onclick="toggleMobileFilters()" style="display:none">Show Filters ▼</button>
-                <button class="btn ghost" onclick="clearTicketFilters()">Clear Filters</button>
-              </div>
+          <!-- Compact Filter Bar -->
+          <div class="filter-bar" id="ticket-filters-bar">
+            <input id="ticket-search" class="input filter-search filter-compact" placeholder="Search tickets..." oninput="onTicketFilterChange()">
+
+            <div class="filter-group filter-collapsible">
+              <select id="ticket-filter-status" class="input filter-compact" onchange="onTicketFilterChange()">
+                <option value="">All Statuses</option>
+                <option value="Open" selected>Open</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Pending">Pending</option>
+                <option value="Resolved">Resolved</option>
+                <option value="Closed">Closed</option>
+              </select>
+
+              <select id="ticket-filter-priority" class="input filter-compact" onchange="onTicketFilterChange()">
+                <option value="">All Priorities</option>
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+                <option value="critical">Critical</option>
+              </select>
+
+              <select id="ticket-filter-assignee" class="input filter-compact" onchange="onTicketFilterChange()">
+                <option value="">All Assignees</option>
+                <option value="unassigned">Unassigned</option>
+              </select>
+
+              <select id="ticket-filter-company" class="input filter-compact" onchange="onCompanyFilterChange(); saveFilterSettings('tickets')">
+                <option value="">All Companies</option>
+              </select>
+
+              <select id="ticket-filter-customer" class="input filter-compact" onchange="onTicketFilterChange()">
+                <option value="">All Members</option>
+              </select>
+
+              <select id="ticket-sort" class="input filter-compact" style="min-width:100px" onchange="onTicketFilterChange()">
+                <option value="id-desc">Newest</option>
+                <option value="id-asc">Oldest</option>
+                <option value="priority-desc">Priority ↓</option>
+                <option value="priority-asc">Priority ↑</option>
+                <option value="status">Status</option>
+                <option value="sla">SLA</option>
+              </select>
+
+              <label class="filter-checkbox">
+                <input type="checkbox" id="ticket-filter-system" onchange="onTicketFilterChange()" checked>
+                <span>System</span>
+              </label>
+
+              <button class="btn-clear" onclick="clearTicketFilters()">Clear</button>
             </div>
-            <div class="row wrap" style="gap:12px">
-              <div style="min-width:200px">
-                <label style="display:block;margin-bottom:4px;font-size:13px;font-weight:600">Search</label>
-                <input id="ticket-search" class="input" placeholder="Search by ID, title..." oninput="onTicketFilterChange()" style="width:100%">
-              </div>
-              <div style="min-width:150px">
-                <label style="display:block;margin-bottom:4px;font-size:13px;font-weight:600">Status</label>
-                <select id="ticket-filter-status" class="input" onchange="onTicketFilterChange()" style="width:100%">
-                  <option value="">All Statuses</option>
-                  <option value="Open" selected>Open</option>
-                  <option value="In Progress">In Progress</option>
-                  <option value="Pending">Pending</option>
-                  <option value="Resolved">Resolved</option>
-                  <option value="Closed">Closed</option>
-                </select>
-              </div>
-              <div style="min-width:150px">
-                <label style="display:block;margin-bottom:4px;font-size:13px;font-weight:600">Priority</label>
-                <select id="ticket-filter-priority" class="input" onchange="onTicketFilterChange()" style="width:100%">
-                  <option value="">All Priorities</option>
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                  <option value="critical">Critical</option>
-                </select>
-              </div>
-              <div style="min-width:150px">
-                <label style="display:block;margin-bottom:4px;font-size:13px;font-weight:600">Assignee</label>
-                <select id="ticket-filter-assignee" class="input" onchange="onTicketFilterChange()" style="width:100%">
-                  <option value="">All Assignees</option>
-                  <option value="unassigned">Unassigned</option>
-                </select>
-              </div>
-              <div style="min-width:180px">
-                <label style="display:block;margin-bottom:4px;font-size:13px;font-weight:600">Company</label>
-                <select id="ticket-filter-company" class="input" onchange="onCompanyFilterChange(); saveFilterSettings('tickets')" style="width:100%">
-                  <option value="">All Companies</option>
-                </select>
-              </div>
-              <div style="min-width:180px">
-                <label style="display:block;margin-bottom:4px;font-size:13px;font-weight:600">Team Member</label>
-                <select id="ticket-filter-customer" class="input" onchange="onTicketFilterChange()" style="width:100%">
-                  <option value="">All Team Members</option>
-                </select>
-              </div>
-              <div style="min-width:150px">
-                <label style="display:block;margin-bottom:4px;font-size:13px;font-weight:600">Sort By</label>
-                <select id="ticket-sort" class="input" onchange="onTicketFilterChange()" style="width:100%">
-                  <option value="id-desc">ID (Newest First)</option>
-                  <option value="id-asc">ID (Oldest First)</option>
-                  <option value="priority-desc">Priority (High to Low)</option>
-                  <option value="priority-asc">Priority (Low to High)</option>
-                  <option value="status">Status</option>
-                  <option value="sla">SLA (Urgent First)</option>
-                </select>
-              </div>
-              <div style="min-width:180px;display:flex;align-items:flex-end;padding-bottom:6px">
-                <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;user-select:none">
-                  <input type="checkbox" id="ticket-filter-system" onchange="onTicketFilterChange()" checked>
-                  <span>Include system tickets</span>
-                </label>
-              </div>
-            </div>
-            <div class="row space" style="margin-top:12px;align-items:center">
-              <div id="ticket-count" class="subtitle">Showing 0 tickets</div>
-              <div class="row" style="gap:8px;align-items:center">
-                <button id="manual-refresh-btn" class="btn ghost" onclick="manualRefresh()" style="padding:4px 10px;font-size:12px">↻ Refresh</button>
-                <select id="refresh-interval-select" class="input" onchange="setRefreshInterval(parseInt(this.value))" style="padding:4px 8px;font-size:12px;min-width:auto;width:auto">
-                  <option value="15000">15s</option>
-                  <option value="30000">30s</option>
-                  <option value="60000">60s</option>
-                  <option value="120000">2m</option>
-                  <option value="300000">5m</option>
-                </select>
-                <span style="font-size:11px;color:var(--muted)">auto-refresh</span>
-              </div>
+
+            <button class="filter-toggle btn ghost" onclick="toggleFilterBar(this)">+ Filters</button>
+
+            <div style="margin-left:auto;display:flex;align-items:center;gap:6px">
+              <span id="ticket-count" class="subtitle" style="margin-right:8px">0 tickets</span>
+              <button id="manual-refresh-btn" class="btn ghost" style="padding:4px 8px;font-size:11px" onclick="manualRefresh()">↻</button>
+              <select id="refresh-interval-select" class="input filter-compact" style="min-width:55px;max-width:60px" onchange="setRefreshInterval(parseInt(this.value))">
+                <option value="15000">15s</option>
+                <option value="30000">30s</option>
+                <option value="60000">60s</option>
+                <option value="120000">2m</option>
+                <option value="300000">5m</option>
+              </select>
             </div>
           </div>
 
@@ -3052,7 +3109,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               <button class="btn primary" onclick="showCreateExpertForm()">+ Add Expert</button>
               <button class="btn" onclick="showBulkImportModal()">Import</button>
               <button class="btn" onclick="showInviteExpertModal()">Invite</button>
-              <input id="expert-search" class="input" style="min-width:260px" placeholder="Search experts by name, username, location..." oninput="onExpertFilterChange()"/>
+              <input id="expert-search" class="input filter-search filter-compact" style="min-width:220px" placeholder="Search experts..." oninput="onExpertFilterChange()"/>
             </div>
           </div>
           <!-- Expert tabs -->
@@ -3202,44 +3259,34 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               <button class="btn" onclick="showCreateCustomerForm()">+ Add Team Member</button>
             </div>
           </div>
-          <!-- Filters -->
-          <div class="card p-16 mb-16">
-            <div class="row space mb-12">
-              <h4 style="margin:0">Filters</h4>
-              <button class="btn ghost" onclick="clearCustomerFilters()">Clear Filters</button>
+          <!-- Compact Filter Bar -->
+          <div class="filter-bar" id="customer-filters-bar">
+            <input id="cust-search" class="input filter-search filter-compact" placeholder="Search customers..." oninput="onCustomerFilterChange()">
+
+            <div class="filter-group filter-collapsible">
+              <select id="cust-filter-company" class="input filter-compact" onchange="onCustomerFilterChange()">
+                <option value="">All Companies</option>
+              </select>
+
+              <select id="cust-filter-sla" class="input filter-compact" onchange="onCustomerFilterChange()">
+                <option value="">All SLA</option>
+                <option value="basic">Basic</option>
+                <option value="premium">Premium</option>
+                <option value="enterprise">Enterprise</option>
+              </select>
+
+              <select id="cust-filter-status" class="input filter-compact" onchange="onCustomerFilterChange()">
+                <option value="">All</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+
+              <button class="btn-clear" onclick="clearCustomerFilters()">Clear</button>
             </div>
-            <div class="row wrap" style="gap:12px">
-              <div style="min-width:200px">
-                <label style="display:block;margin-bottom:4px;font-size:13px;font-weight:600">Search</label>
-                <input id="cust-search" class="input" placeholder="Search by name, email..." oninput="onCustomerFilterChange()" style="width:100%">
-              </div>
-              <div style="min-width:200px">
-                <label style="display:block;margin-bottom:4px;font-size:13px;font-weight:600">Company</label>
-                <select id="cust-filter-company" class="input" onchange="onCustomerFilterChange()" style="width:100%">
-                  <option value="">All Companies</option>
-                </select>
-              </div>
-              <div style="min-width:150px">
-                <label style="display:block;margin-bottom:4px;font-size:13px;font-weight:600">SLA Level</label>
-                <select id="cust-filter-sla" class="input" onchange="onCustomerFilterChange()" style="width:100%">
-                  <option value="">All SLA Levels</option>
-                  <option value="basic">Basic</option>
-                  <option value="premium">Premium</option>
-                  <option value="enterprise">Enterprise</option>
-                </select>
-              </div>
-              <div style="min-width:150px">
-                <label style="display:block;margin-bottom:4px;font-size:13px;font-weight:600">Status</label>
-                <select id="cust-filter-status" class="input" onchange="onCustomerFilterChange()" style="width:100%">
-                  <option value="">All</option>
-                  <option value="active">Active Only</option>
-                  <option value="inactive">Inactive Only</option>
-                </select>
-              </div>
-            </div>
-            <div class="row" style="margin-top:12px">
-              <div id="customer-count" class="subtitle">Showing 0 customers</div>
-            </div>
+
+            <button class="filter-toggle btn ghost" onclick="toggleFilterBar(this)">+ Filters</button>
+
+            <span id="customer-count" class="subtitle" style="margin-left:auto">0 customers</span>
           </div>
           <!-- Desktop table view -->
           <div class="card p-16 hide-mobile">
@@ -7097,6 +7144,18 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     renderCMDB();
   }
   function startSLAInterval(){ if(slaInterval) clearInterval(slaInterval); const interval = getRefreshInterval(); slaInterval = setInterval(()=>{ if(currentView==='tickets') renderList(); if(currentView==='dash') { renderAdminDash(); renderExpertDash(); } if(currentView==='ticket-detail') updateTicketSLA(); }, interval); }
+
+  // ---- Filter Bar Toggle ----
+  function toggleFilterBar(btn) {
+    const filterBar = btn.closest('.filter-bar');
+    if (filterBar.classList.contains('expanded')) {
+      filterBar.classList.remove('expanded');
+      btn.textContent = '+ Filters';
+    } else {
+      filterBar.classList.add('expanded');
+      btn.textContent = '- Filters';
+    }
+  }
 
   // ---- Dashboards ----
   function renderAllDashboards(){ 
