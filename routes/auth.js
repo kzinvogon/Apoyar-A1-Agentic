@@ -707,7 +707,7 @@ router.post('/tenant/forgot-password', passwordChangeLimiter, async (req, res) =
       );
 
       // Send reset email
-      const baseUrl = process.env.BASE_URL || 'https://serviflow.app';
+      const baseUrl = process.env.BASE_URL || 'https://app.serviflow.app';
       const resetLink = `${baseUrl}/reset-password.html?token=${resetToken}&tenant=${tenant_code}`;
 
       try {
@@ -884,7 +884,7 @@ router.post('/master/forgot-password', passwordChangeLimiter, async (req, res) =
       );
 
       // Send reset email
-      const baseUrl = process.env.BASE_URL || 'https://serviflow.app';
+      const baseUrl = process.env.BASE_URL || 'https://app.serviflow.app';
       const resetLink = `${baseUrl}/reset-password.html?token=${resetToken}&type=master`;
 
       try {
