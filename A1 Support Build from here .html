@@ -2717,8 +2717,19 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
                 </label>
               </div>
             </div>
-            <div class="row" style="margin-top:12px">
+            <div class="row space" style="margin-top:12px;align-items:center">
               <div id="ticket-count" class="subtitle">Showing 0 tickets</div>
+              <div class="row" style="gap:8px;align-items:center">
+                <button id="manual-refresh-btn" class="btn ghost" onclick="manualRefresh()" style="padding:4px 10px;font-size:12px">↻ Refresh</button>
+                <select id="refresh-interval-select" class="input" onchange="setRefreshInterval(parseInt(this.value))" style="padding:4px 8px;font-size:12px;min-width:auto;width:auto">
+                  <option value="15000">15s</option>
+                  <option value="30000">30s</option>
+                  <option value="60000">60s</option>
+                  <option value="120000">2m</option>
+                  <option value="300000">5m</option>
+                </select>
+                <span style="font-size:11px;color:var(--muted)">auto-refresh</span>
+              </div>
             </div>
           </div>
 
@@ -6285,6 +6296,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         loadRaiseFormOptions();
         renderList();
         startSLAInterval();
+        updateRefreshIntervalUI();
       } else {
         console.log('Login failed:', data.message);
         errorDiv.textContent = data.message || 'Login failed';
@@ -6927,7 +6939,35 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   }
 
   let slaInterval = null;
-  function startSLAInterval(){ if(slaInterval) clearInterval(slaInterval); slaInterval = setInterval(()=>{ if(currentView==='tickets') renderList(); if(currentView==='dash') { renderAdminDash(); renderExpertDash(); } if(currentView==='ticket-detail') updateTicketSLA(); }, 30000); }
+  const DEFAULT_REFRESH_INTERVAL = 60000; // 60 seconds default
+  function getRefreshInterval() {
+    try {
+      const saved = localStorage.getItem('serviflow.ticketRefreshInterval');
+      if (saved) return parseInt(saved, 10);
+    } catch(e) {}
+    return DEFAULT_REFRESH_INTERVAL;
+  }
+  function setRefreshInterval(ms) {
+    try { localStorage.setItem('serviflow.ticketRefreshInterval', ms); } catch(e) {}
+    startSLAInterval();
+    updateRefreshIntervalUI();
+  }
+  function updateRefreshIntervalUI() {
+    const sel = document.getElementById('refresh-interval-select');
+    if (sel) sel.value = getRefreshInterval();
+  }
+  function manualRefresh() {
+    if(currentView==='tickets') renderList();
+    if(currentView==='dash') { renderAdminDash(); renderExpertDash(); }
+    // Visual feedback
+    const btn = document.getElementById('manual-refresh-btn');
+    if (btn) {
+      btn.textContent = 'Refreshed!';
+      btn.disabled = true;
+      setTimeout(() => { btn.textContent = '↻ Refresh'; btn.disabled = false; }, 1000);
+    }
+  }
+  function startSLAInterval(){ if(slaInterval) clearInterval(slaInterval); const interval = getRefreshInterval(); slaInterval = setInterval(()=>{ if(currentView==='tickets') renderList(); if(currentView==='dash') { renderAdminDash(); renderExpertDash(); } if(currentView==='ticket-detail') updateTicketSLA(); }, interval); }
 
   // ---- Dashboards ----
   function renderAllDashboards(){ 
