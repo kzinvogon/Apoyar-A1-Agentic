@@ -20,6 +20,54 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
 });
 
+/**
+ * Log a change to the CMDB change history
+ * @param {object} connection - Database connection
+ * @param {object} params - Change parameters
+ * @param {number} params.cmdbItemId - The CMDB item ID (internal id, not cmdb_id)
+ * @param {string} params.changeType - Type of change: created, updated, deleted, etc.
+ * @param {string} [params.fieldName] - Name of the field that changed (for updates)
+ * @param {string} [params.oldValue] - Previous value
+ * @param {string} [params.newValue] - New value
+ * @param {number} params.userId - User who made the change
+ * @param {string} params.userName - Name of user who made the change
+ * @param {string} [params.ipAddress] - IP address of the request
+ */
+async function logCMDBChange(connection, params) {
+  const {
+    cmdbItemId,
+    changeType,
+    fieldName = null,
+    oldValue = null,
+    newValue = null,
+    userId,
+    userName,
+    ipAddress = null
+  } = params;
+
+  try {
+    await connection.query(
+      `INSERT INTO cmdb_change_history
+        (cmdb_item_id, change_type, field_name, old_value, new_value, changed_by, changed_by_name, ip_address)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [cmdbItemId, changeType, fieldName, oldValue, newValue, userId, userName, ipAddress]
+    );
+  } catch (error) {
+    // Log error but don't fail the operation - history is non-critical
+    console.error('Error logging CMDB change:', error.message);
+  }
+}
+
+/**
+ * Get the client IP address from the request
+ */
+function getClientIP(req) {
+  return req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
+         req.connection?.remoteAddress ||
+         req.socket?.remoteAddress ||
+         null;
+}
+
 // Public route - CSV template (no auth required)
 router.get('/:tenantCode/template/items', (req, res) => {
   // Template matches the denormalized format from inventory exports
@@ -321,6 +369,16 @@ router.post('/:tenantCode/items', async (req, res) => {
         ]
       );
 
+      // Log the creation in change history
+      await logCMDBChange(connection, {
+        cmdbItemId: result.insertId,
+        changeType: 'created',
+        newValue: JSON.stringify({ asset_name, asset_category, customer_name }),
+        userId: req.user.userId,
+        userName: req.user.fullName || req.user.username,
+        ipAddress: getClientIP(req)
+      });
+
       // Fetch the created item
       const [items] = await connection.query(
         'SELECT * FROM cmdb_items WHERE id = ?',
@@ -357,6 +415,15 @@ router.put('/:tenantCode/items/:cmdbId', async (req, res) => {
     const connection = await getTenantConnection(tenantCode);
 
     try {
+      // Fetch current values for change tracking
+      const [currentItems] = await connection.query('SELECT * FROM cmdb_items WHERE cmdb_id = ?', [cmdbId]);
+
+      if (currentItems.length === 0) {
+        return res.status(404).json({ success: false, message: 'CMDB item not found' });
+      }
+
+      const currentItem = currentItems[0];
+
       const [result] = await connection.query(
         `UPDATE cmdb_items SET
           asset_name = COALESCE(?, asset_name),
@@ -379,6 +446,29 @@ router.put('/:tenantCode/items/:cmdbId', async (req, res) => {
 
       if (result.affectedRows === 0) {
         return res.status(404).json({ success: false, message: 'CMDB item not found' });
+      }
+
+      // Log field-level changes
+      const fieldsToTrack = {
+        asset_name, asset_category, category_field_value, brand_name,
+        model_name, customer_name, employee_of, asset_location, comment, status
+      };
+
+      for (const [fieldName, newValue] of Object.entries(fieldsToTrack)) {
+        const oldValue = currentItem[fieldName];
+        // Only log if value actually changed (handling null/undefined comparison)
+        if ((oldValue || '') !== (newValue || '') && newValue !== undefined) {
+          await logCMDBChange(connection, {
+            cmdbItemId: currentItem.id,
+            changeType: 'updated',
+            fieldName,
+            oldValue: oldValue || null,
+            newValue: newValue || null,
+            userId: req.user.userId,
+            userName: req.user.fullName || req.user.username,
+            ipAddress: getClientIP(req)
+          });
+        }
       }
 
       const [items] = await connection.query('SELECT * FROM cmdb_items WHERE cmdb_id = ?', [cmdbId]);
@@ -428,6 +518,31 @@ router.delete('/:tenantCode/items/:cmdbId', async (req, res) => {
     const connection = await getTenantConnection(tenantCode);
 
     try {
+      // Fetch current item for logging before deletion
+      const [currentItems] = await connection.query('SELECT * FROM cmdb_items WHERE cmdb_id = ?', [cmdbId]);
+
+      if (currentItems.length === 0) {
+        return res.status(404).json({ success: false, message: 'CMDB item not found' });
+      }
+
+      const currentItem = currentItems[0];
+
+      // Log the deletion before deleting (since cascade will remove history too)
+      // We store the item details in old_value for audit purposes
+      await logCMDBChange(connection, {
+        cmdbItemId: currentItem.id,
+        changeType: 'deleted',
+        oldValue: JSON.stringify({
+          cmdb_id: currentItem.cmdb_id,
+          asset_name: currentItem.asset_name,
+          asset_category: currentItem.asset_category,
+          customer_name: currentItem.customer_name
+        }),
+        userId: req.user.userId,
+        userName: req.user.fullName || req.user.username,
+        ipAddress: getClientIP(req)
+      });
+
       const [result] = await connection.query('DELETE FROM cmdb_items WHERE cmdb_id = ?', [cmdbId]);
 
       if (result.affectedRows === 0) {
