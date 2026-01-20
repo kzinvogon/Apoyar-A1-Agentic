@@ -336,16 +336,14 @@ vNext-FULL-ActionsSLA:
     cursor: pointer;
   }
   .btn-clear:hover { color: var(--ink); text-decoration: underline; }
-  /* Filter toggle for mobile */
+  /* Filter toggle - ONLY visible on mobile when filters are collapsed */
   .filter-toggle {
-    display: none;
+    display: none !important;
     padding: 4px 8px;
     font-size: 11px;
   }
   /* Collapsible section */
   .filter-collapsible { display: contents; }
-  .filter-bar.collapsed .filter-collapsible { display: none; }
-  .filter-bar.collapsed .filter-toggle { display: inline-flex; }
   /* Mobile responsive filters */
   @media (max-width: 768px) {
     .filter-bar { flex-direction: column; align-items: stretch; gap: 8px; }
