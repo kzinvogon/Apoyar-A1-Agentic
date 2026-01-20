@@ -446,5 +446,12 @@ async function main() {
   }
 }
 
-// Run
-main();
+// Run - detect if called directly or via require/entry.js
+// When APP_MODE=sla-worker, always run in daemon mode
+if (require.main === module || process.env.APP_MODE === 'sla-worker') {
+  // Force daemon mode when run via entry.js (Railway)
+  if (process.env.APP_MODE === 'sla-worker' && !process.argv.includes('--daemon')) {
+    process.argv.push('--daemon');
+  }
+  main();
+}
