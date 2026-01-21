@@ -895,6 +895,241 @@ vNext-FULL-ActionsSLA:
   .av-ci-detail-title { font-weight: 600; color: var(--ink); }
   .av-ci-back-btn { background: none; border: none; color: var(--primary); cursor: pointer; font-size: 13px; padding: 4px 8px; }
   .av-ci-back-btn:hover { text-decoration: underline; }
+
+  /* Global Search / Command Palette */
+  .topnav-search-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--card);
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-right: 8px;
+  }
+  .topnav-search-btn:hover {
+    background: var(--card-hover);
+    border-color: var(--primary);
+  }
+  .topnav-search-btn svg {
+    width: 18px;
+    height: 18px;
+    stroke: var(--muted);
+  }
+  .topnav-search-btn:hover svg {
+    stroke: var(--primary);
+  }
+
+  .global-search-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 10000;
+    display: none;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 10vh 16px 16px;
+    backdrop-filter: blur(4px);
+  }
+  .global-search-modal.active {
+    display: flex;
+  }
+  .global-search-container {
+    width: 100%;
+    max-width: 600px;
+    background: var(--card);
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+    animation: searchSlideIn 0.15s ease-out;
+  }
+  @keyframes searchSlideIn {
+    from { opacity: 0; transform: translateY(-20px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .global-search-header {
+    display: flex;
+    align-items: center;
+    padding: 16px;
+    border-bottom: 1px solid var(--border);
+    gap: 12px;
+  }
+  .global-search-header svg {
+    width: 20px;
+    height: 20px;
+    stroke: var(--muted);
+    flex-shrink: 0;
+  }
+  .global-search-input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    font-size: 16px;
+    color: var(--ink);
+    outline: none;
+  }
+  .global-search-input::placeholder {
+    color: var(--muted);
+  }
+  .global-search-esc {
+    font-size: 11px;
+    color: var(--muted);
+    background: var(--bg);
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+  }
+  .global-search-tabs {
+    display: flex;
+    padding: 8px 16px;
+    gap: 4px;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+  }
+  .global-search-tab {
+    padding: 6px 12px;
+    font-size: 13px;
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+    color: var(--muted);
+    background: transparent;
+    border: none;
+    transition: all 0.15s;
+  }
+  .global-search-tab:hover {
+    background: var(--bg);
+    color: var(--ink);
+  }
+  .global-search-tab.active {
+    background: var(--primary);
+    color: white;
+  }
+  .global-search-results {
+    max-height: 400px;
+    overflow-y: auto;
+    padding: 8px;
+  }
+  .global-search-empty {
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--muted);
+  }
+  .global-search-empty svg {
+    width: 48px;
+    height: 48px;
+    stroke: var(--border);
+    margin-bottom: 12px;
+  }
+  .global-search-group {
+    margin-bottom: 8px;
+  }
+  .global-search-group-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    padding: 8px 12px 4px;
+  }
+  .global-search-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    gap: 12px;
+    transition: background 0.1s;
+  }
+  .global-search-item:hover,
+  .global-search-item.selected {
+    background: var(--bg);
+  }
+  .global-search-item.selected {
+    outline: 2px solid var(--primary);
+    outline-offset: -2px;
+  }
+  .global-search-item-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .global-search-item-icon svg {
+    width: 18px;
+    height: 18px;
+    stroke: white;
+  }
+  .global-search-item-icon.ticket { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+  .global-search-item-icon.cmdb { background: linear-gradient(135deg, #10b981, #059669); }
+  .global-search-item-icon.customer { background: linear-gradient(135deg, #8b5cf6, #6d28d9); }
+  .global-search-item-icon.sla { background: linear-gradient(135deg, #f59e0b, #d97706); }
+  .global-search-item-content {
+    flex: 1;
+    min-width: 0;
+  }
+  .global-search-item-title {
+    font-weight: 500;
+    color: var(--ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .global-search-item-meta {
+    font-size: 12px;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .global-search-item-badge {
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: var(--bg);
+    color: var(--muted);
+    flex-shrink: 0;
+  }
+  .global-search-footer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--border);
+    background: var(--bg);
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .global-search-footer kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 5px;
+    font-size: 11px;
+    font-family: inherit;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    margin: 0 3px;
+  }
+  @media (max-width: 600px) {
+    .global-search-modal { padding: 5vh 12px 12px; }
+    .global-search-container { border-radius: 10px; }
+    .global-search-footer { display: none; }
+    .global-search-results { max-height: 50vh; }
+  }
 </style>
 </head>
 <body>
@@ -1070,6 +1305,12 @@ vNext-FULL-ActionsSLA:
           </div>
         </div>
       </div>
+      <button class="topnav-search-btn" onclick="openGlobalSearch()" title="Search (Ctrl+K)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"></circle>
+          <path d="m21 21-4.3-4.3"></path>
+        </svg>
+      </button>
       <div class="topnav-right" id="topnav-right" style="display:none">
       <div class="topnav-user" onclick="go('login')">
         <div class="topnav-avatar" id="topnav-avatar">A</div>
@@ -1336,6 +1577,12 @@ vNext-FULL-ActionsSLA:
                 <button class="btn primary" onclick="openCmdb('cmdb-section-assetviewer')">Open CMDB</button>
                 <button class="btn" onclick="navTo('tickets')">View All Tickets</button>
                 <button class="btn" onclick="navTo('wizard')">Admin Settings</button>
+                <button class="btn" onclick="openGlobalSearch()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;margin-right:6px;vertical-align:middle">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="m21 21-4.3-4.3"></path>
+                  </svg>Power Search
+                </button>
               </div>
             </div>
 
@@ -5849,6 +6096,42 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   </div>
 </div>
 
+<!-- Global Search Modal (Command Palette) -->
+<div id="global-search-modal" class="global-search-modal" onclick="if(event.target===this)closeGlobalSearch()">
+  <div class="global-search-container" onclick="event.stopPropagation()">
+    <div class="global-search-header">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"></circle>
+        <path d="m21 21-4.3-4.3"></path>
+      </svg>
+      <input type="text" id="global-search-input" class="global-search-input" placeholder="Search ServiFlow..." autocomplete="off" onkeydown="handleGlobalSearchKeydown(event)" oninput="onGlobalSearchInput(event)">
+      <span class="global-search-esc">Esc</span>
+    </div>
+    <div class="global-search-tabs">
+      <button class="global-search-tab active" data-category="all" onclick="setSearchCategory('all')">All</button>
+      <button class="global-search-tab" data-category="tickets" onclick="setSearchCategory('tickets')">Tickets</button>
+      <button class="global-search-tab" data-category="cmdb" onclick="setSearchCategory('cmdb')">CMDB</button>
+      <button class="global-search-tab" data-category="customers" onclick="setSearchCategory('customers')">Customers</button>
+      <button class="global-search-tab" data-category="sla" onclick="setSearchCategory('sla')">SLAs</button>
+    </div>
+    <div id="global-search-results" class="global-search-results">
+      <div class="global-search-empty">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="11" cy="11" r="8"></circle>
+          <path d="m21 21-4.3-4.3"></path>
+        </svg>
+        <div>Start typing to search...</div>
+      </div>
+    </div>
+    <div class="global-search-footer">
+      <span><kbd>↑</kbd><kbd>↓</kbd> Navigate</span>
+      <span><kbd>Enter</kbd> Open</span>
+      <span><kbd>Tab</kbd> Filter</span>
+      <span><kbd>Esc</kbd> Close</span>
+    </div>
+  </div>
+</div>
+
 <script>
   // ServiFlow Version: 2026-01-20-v2 - VERIFY THIS IN CONSOLE TO CHECK CACHING
   console.log('[ServiFlow] Loading version 2026-01-20-v2');
@@ -5878,7 +6161,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     }
 
     // Move modals to document.body to escape Ionic transform containers
-    ['sla-definition-modal', 'business-hours-modal', 'category-mapping-modal'].forEach(id => {
+    ['sla-definition-modal', 'business-hours-modal', 'category-mapping-modal', 'global-search-modal'].forEach(id => {
       const modal = document.getElementById(id);
       if (modal && modal.parentNode !== document.body) document.body.appendChild(modal);
     });
@@ -19641,6 +19924,485 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       console.error('Error submitting request:', err);
       alert('Error submitting request: ' + err.message);
     }
+  }
+
+  // ============================================================================
+  // GLOBAL SEARCH (Command Palette)
+  // ============================================================================
+
+  let globalSearchResults = [];
+  let globalSearchSelectedIndex = -1;
+  let globalSearchCategory = 'all';
+  let globalSearchDebounceTimer = null;
+
+  // Keyboard shortcut: Cmd+K / Ctrl+K to open search, Escape to close
+  document.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      e.preventDefault();
+      openGlobalSearch();
+    }
+    // Close global search on Escape
+    if (e.key === 'Escape') {
+      const modal = document.getElementById('global-search-modal');
+      if (modal && modal.classList.contains('active')) {
+        e.preventDefault();
+        closeGlobalSearch();
+      }
+    }
+  });
+
+  async function openGlobalSearch() {
+    // Role check - only Admin and Expert can use global search
+    const userRole = localStorage.getItem('role') || role;
+    if (userRole === 'Customer' || userRole === 'Master Admin') {
+      alert('Global search is only available for Admin and Expert users.');
+      return;
+    }
+
+    const modal = document.getElementById('global-search-modal');
+    modal.classList.add('active');
+
+    // Reset state
+    globalSearchResults = [];
+    globalSearchSelectedIndex = -1;
+    globalSearchCategory = 'all';
+
+    // Reset UI
+    const input = document.getElementById('global-search-input');
+    input.value = '';
+    input.focus();
+
+    // Reset tabs
+    document.querySelectorAll('.global-search-tab').forEach(tab => {
+      tab.classList.toggle('active', tab.dataset.category === 'all');
+    });
+
+    // Show loading state while data loads
+    document.getElementById('global-search-results').innerHTML = `
+      <div class="global-search-empty">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="11" cy="11" r="8"></circle>
+          <path d="m21 21-4.3-4.3"></path>
+        </svg>
+        <div>Loading data...</div>
+      </div>
+    `;
+
+    // Ensure all data sources are loaded
+    await ensureGlobalSearchDataLoaded();
+
+    // Show ready state
+    document.getElementById('global-search-results').innerHTML = `
+      <div class="global-search-empty">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="11" cy="11" r="8"></circle>
+          <path d="m21 21-4.3-4.3"></path>
+        </svg>
+        <div>Start typing to search...</div>
+      </div>
+    `;
+  }
+
+  async function ensureGlobalSearchDataLoaded() {
+    const token = localStorage.getItem('token');
+    const tenantCode = window.tenant || localStorage.getItem('tenantCode') || 'apoyar';
+    if (!token) return;
+
+    const loadPromises = [];
+
+    // Load CMDB items if empty
+    if (CMDB_ITEMS.length === 0 && !cmdbItemsLoaded) {
+      loadPromises.push(
+        fetch(`${API_BASE}/api/cmdb/${tenantCode}/items`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }).then(res => res.json()).then(data => {
+          if (data.success && data.items) {
+            CMDB_ITEMS = data.items.map(item => ({
+              cmdb_id: item.cmdb_id,
+              asset_name: item.asset_name,
+              name: item.asset_name,
+              customer_name: item.customer_name || '',
+              customer: item.customer_name || '',
+              asset_category: item.asset_category,
+              brand_name: item.brand_name,
+              model_name: item.model_name,
+              asset_location: item.asset_location,
+              status: item.status,
+              ci_count: item.ci_count || 0
+            }));
+            cmdbItemsLoaded = true;
+          }
+        }).catch(err => console.error('Error loading CMDB for search:', err))
+      );
+    }
+
+    // Load customers if empty
+    if (allCustomers.length === 0) {
+      loadPromises.push(
+        fetch(`${API_BASE}/api/customers`, {
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+        }).then(res => res.json()).then(data => {
+          if (data.success && data.customers) {
+            allCustomers = data.customers;
+            customers = data.customers.map(c => ({
+              id: c.id,
+              name: c.full_name || c.username,
+              contact: c.email,
+              company: c.company_name || c.full_name || c.username
+            }));
+          }
+        }).catch(err => console.error('Error loading customers for search:', err))
+      );
+    }
+
+    // Load SLA definitions if empty
+    if (slaDefinitions.length === 0) {
+      loadPromises.push(
+        fetch(`${API_BASE}/api/sla/${tenantCode}/definitions`, {
+          headers: { 'Authorization': 'Bearer ' + token }
+        }).then(res => res.json()).then(data => {
+          if (data.definitions) {
+            slaDefinitions = data.definitions;
+          }
+        }).catch(err => console.error('Error loading SLA definitions for search:', err))
+      );
+    }
+
+    // Wait for all data to load
+    await Promise.all(loadPromises);
+  }
+
+  function closeGlobalSearch() {
+    document.getElementById('global-search-modal').classList.remove('active');
+  }
+
+  function setSearchCategory(category) {
+    globalSearchCategory = category;
+
+    // Update tab UI
+    document.querySelectorAll('.global-search-tab').forEach(tab => {
+      tab.classList.toggle('active', tab.dataset.category === category);
+    });
+
+    // Re-run search with new filter
+    const query = document.getElementById('global-search-input').value.trim();
+    if (query) {
+      performGlobalSearch(query);
+    }
+  }
+
+  function onGlobalSearchInput(e) {
+    const query = e.target.value.trim();
+
+    // Clear existing debounce timer
+    if (globalSearchDebounceTimer) {
+      clearTimeout(globalSearchDebounceTimer);
+    }
+
+    if (!query) {
+      // Show empty state
+      document.getElementById('global-search-results').innerHTML = `
+        <div class="global-search-empty">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="11" cy="11" r="8"></circle>
+            <path d="m21 21-4.3-4.3"></path>
+          </svg>
+          <div>Start typing to search...</div>
+        </div>
+      `;
+      globalSearchResults = [];
+      globalSearchSelectedIndex = -1;
+      return;
+    }
+
+    // Debounce search by 200ms
+    globalSearchDebounceTimer = setTimeout(() => {
+      performGlobalSearch(query);
+    }, 200);
+  }
+
+  function performGlobalSearch(query) {
+    const q = query.toLowerCase();
+    const results = [];
+    const maxPerCategory = 10;
+
+    // Search Tickets
+    if (globalSearchCategory === 'all' || globalSearchCategory === 'tickets') {
+      const ticketResults = (tickets || [])
+        .filter(t => {
+          const searchable = [
+            String(t.id || ''),
+            t.title || '',
+            t.description || '',
+            t.customer_name || '',
+            t.company || ''
+          ].join(' ').toLowerCase();
+          return searchable.includes(q);
+        })
+        .slice(0, maxPerCategory)
+        .map(t => ({
+          type: 'ticket',
+          id: t.id,
+          title: `#${t.id} - ${t.title || 'Untitled'}`,
+          meta: t.customer_name || t.company || 'No customer',
+          badge: t.status || 'Open',
+          data: t
+        }));
+      results.push(...ticketResults);
+    }
+
+    // Search CMDB Items
+    if (globalSearchCategory === 'all' || globalSearchCategory === 'cmdb') {
+      const cmdbResults = (CMDB_ITEMS || [])
+        .filter(c => {
+          const searchable = [
+            String(c.cmdb_id || ''),
+            c.asset_name || c.name || '',
+            c.asset_category || '',
+            c.customer_name || '',
+            c.brand_name || '',
+            c.model_name || '',
+            c.asset_location || ''
+          ].join(' ').toLowerCase();
+          return searchable.includes(q);
+        })
+        .slice(0, maxPerCategory)
+        .map(c => ({
+          type: 'cmdb',
+          id: c.cmdb_id,
+          title: c.asset_name || c.name || 'Unnamed Asset',
+          meta: [c.asset_category, c.customer_name, c.brand_name].filter(Boolean).join(' | '),
+          badge: c.status || 'Active',
+          data: c
+        }));
+      results.push(...cmdbResults);
+    }
+
+    // Search Customers (use allCustomers which has full data)
+    if (globalSearchCategory === 'all' || globalSearchCategory === 'customers') {
+      const customerResults = (allCustomers || [])
+        .filter(c => {
+          const searchable = [
+            c.full_name || '',
+            c.username || '',
+            c.email || '',
+            c.company_name || ''
+          ].join(' ').toLowerCase();
+          return searchable.includes(q);
+        })
+        .slice(0, maxPerCategory)
+        .map(c => ({
+          type: 'customer',
+          id: c.id,
+          title: c.full_name || c.username || 'Unknown',
+          meta: [c.company_name, c.email].filter(Boolean).join(' | '),
+          badge: c.company_name || 'Customer',
+          data: c
+        }));
+      results.push(...customerResults);
+    }
+
+    // Search SLA Definitions
+    if (globalSearchCategory === 'all' || globalSearchCategory === 'sla') {
+      const slaResults = (slaDefinitions || [])
+        .filter(s => {
+          const searchable = [
+            s.name || '',
+            s.description || '',
+            s.priority || ''
+          ].join(' ').toLowerCase();
+          return searchable.includes(q);
+        })
+        .slice(0, maxPerCategory)
+        .map(s => ({
+          type: 'sla',
+          id: s.id,
+          title: s.name || 'Unnamed SLA',
+          meta: s.description || `Priority: ${s.priority || 'Any'}`,
+          badge: s.priority || 'SLA',
+          data: s
+        }));
+      results.push(...slaResults);
+    }
+
+    globalSearchResults = results;
+    globalSearchSelectedIndex = results.length > 0 ? 0 : -1;
+    renderGlobalSearchResults();
+  }
+
+  function renderGlobalSearchResults() {
+    const container = document.getElementById('global-search-results');
+
+    if (globalSearchResults.length === 0) {
+      container.innerHTML = `
+        <div class="global-search-empty">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="11" cy="11" r="8"></circle>
+            <path d="m21 21-4.3-4.3"></path>
+          </svg>
+          <div>No results found</div>
+        </div>
+      `;
+      return;
+    }
+
+    // Group results by type
+    const groups = {};
+    globalSearchResults.forEach((result, idx) => {
+      if (!groups[result.type]) {
+        groups[result.type] = [];
+      }
+      groups[result.type].push({ ...result, globalIndex: idx });
+    });
+
+    const typeLabels = {
+      ticket: 'Tickets',
+      cmdb: 'CMDB Items',
+      customer: 'Customers',
+      sla: 'SLA Definitions'
+    };
+
+    const typeIcons = {
+      ticket: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>',
+      cmdb: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>',
+      customer: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+      sla: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>'
+    };
+
+    let html = '';
+    const typeOrder = ['ticket', 'cmdb', 'customer', 'sla'];
+
+    typeOrder.forEach(type => {
+      if (!groups[type]) return;
+
+      html += `<div class="global-search-group">`;
+      html += `<div class="global-search-group-title">${typeLabels[type]} (${groups[type].length})</div>`;
+
+      groups[type].forEach(item => {
+        const isSelected = item.globalIndex === globalSearchSelectedIndex;
+        html += `
+          <div class="global-search-item ${isSelected ? 'selected' : ''}"
+               onclick="selectGlobalSearchResult(${item.globalIndex})"
+               onmouseover="globalSearchSelectedIndex=${item.globalIndex};updateGlobalSearchSelection()">
+            <div class="global-search-item-icon ${item.type}">${typeIcons[item.type]}</div>
+            <div class="global-search-item-content">
+              <div class="global-search-item-title">${escapeHtml(item.title)}</div>
+              <div class="global-search-item-meta">${escapeHtml(item.meta)}</div>
+            </div>
+            <div class="global-search-item-badge">${escapeHtml(item.badge)}</div>
+          </div>
+        `;
+      });
+
+      html += `</div>`;
+    });
+
+    container.innerHTML = html;
+  }
+
+  function updateGlobalSearchSelection() {
+    document.querySelectorAll('.global-search-item').forEach((item, idx) => {
+      item.classList.toggle('selected', idx === globalSearchSelectedIndex);
+    });
+
+    // Scroll selected item into view
+    const selectedItem = document.querySelector('.global-search-item.selected');
+    if (selectedItem) {
+      selectedItem.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }
+
+  function handleGlobalSearchKeydown(e) {
+    const resultsCount = globalSearchResults.length;
+
+    switch (e.key) {
+      case 'Escape':
+        e.preventDefault();
+        closeGlobalSearch();
+        break;
+
+      case 'ArrowDown':
+        e.preventDefault();
+        if (resultsCount > 0) {
+          globalSearchSelectedIndex = (globalSearchSelectedIndex + 1) % resultsCount;
+          updateGlobalSearchSelection();
+        }
+        break;
+
+      case 'ArrowUp':
+        e.preventDefault();
+        if (resultsCount > 0) {
+          globalSearchSelectedIndex = globalSearchSelectedIndex <= 0
+            ? resultsCount - 1
+            : globalSearchSelectedIndex - 1;
+          updateGlobalSearchSelection();
+        }
+        break;
+
+      case 'Enter':
+        e.preventDefault();
+        if (globalSearchSelectedIndex >= 0 && globalSearchSelectedIndex < resultsCount) {
+          selectGlobalSearchResult(globalSearchSelectedIndex);
+        }
+        break;
+
+      case 'Tab':
+        e.preventDefault();
+        // Cycle through categories
+        const categories = ['all', 'tickets', 'cmdb', 'customers', 'sla'];
+        const currentIdx = categories.indexOf(globalSearchCategory);
+        const nextIdx = e.shiftKey
+          ? (currentIdx - 1 + categories.length) % categories.length
+          : (currentIdx + 1) % categories.length;
+        setSearchCategory(categories[nextIdx]);
+        break;
+    }
+  }
+
+  function selectGlobalSearchResult(idx) {
+    const result = globalSearchResults[idx];
+    if (!result) return;
+
+    closeGlobalSearch();
+
+    switch (result.type) {
+      case 'ticket':
+        if (typeof openTicket === 'function') {
+          openTicket(result.id);
+        }
+        break;
+
+      case 'cmdb':
+        if (typeof openItem === 'function') {
+          openItem(result.id);
+        }
+        break;
+
+      case 'customer':
+        if (typeof viewCustomerTickets === 'function') {
+          viewCustomerTickets(result.id, result.data.full_name || result.data.username);
+        }
+        break;
+
+      case 'sla':
+        // Navigate to wizard section and open SLA modal
+        navTo('wizard');
+        setTimeout(() => {
+          if (typeof showSLADefinitionModal === 'function') {
+            showSLADefinitionModal(result.id);
+          }
+        }, 300);
+        break;
+    }
+  }
+
+  // Helper function to escape HTML (if not already defined)
+  if (typeof escapeHtml !== 'function') {
+    window.escapeHtml = function(text) {
+      const div = document.createElement('div');
+      div.textContent = text || '';
+      return div.innerHTML;
+    };
   }
 
   // ---- Chatbot ----
