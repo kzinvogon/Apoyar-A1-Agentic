@@ -7373,13 +7373,20 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   }
   // Filter change handlers that reset pagination
   function onTicketFilterChange() {
-    ticketPage = 1;
-    // Clear AI insight filter when user manually changes filters
-    window.insightTicketFilter = null;
-    window.insightTitle = null;
-    window.slaAtRiskFilter = false;
-    renderList();
-    saveFilterSettings('tickets');
+    console.log('[onTicketFilterChange] Called');
+    try {
+      ticketPage = 1;
+      // Clear AI insight filter when user manually changes filters
+      window.insightTicketFilter = null;
+      window.insightTitle = null;
+      window.slaAtRiskFilter = false;
+      console.log('[onTicketFilterChange] Calling renderList()');
+      renderList();
+      saveFilterSettings('tickets');
+      console.log('[onTicketFilterChange] Completed');
+    } catch (error) {
+      console.error('[onTicketFilterChange] ERROR:', error);
+    }
   }
   function onExpertFilterChange() {
     expertPage = 1;
@@ -13840,27 +13847,38 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   // Clear all ticket filters
   function clearTicketFilters() {
-    const searchInput = document.getElementById('ticket-search');
-    const statusFilter = document.getElementById('ticket-filter-status');
-    const priorityFilter = document.getElementById('ticket-filter-priority');
-    const assigneeFilter = document.getElementById('ticket-filter-assignee');
-    const companyFilter = document.getElementById('ticket-filter-company');
-    const customerFilter = document.getElementById('ticket-filter-customer');
-    const sortSelect = document.getElementById('ticket-sort');
+    console.log('[clearTicketFilters] Called');
+    try {
+      const searchInput = document.getElementById('ticket-search');
+      const statusFilter = document.getElementById('ticket-filter-status');
+      const priorityFilter = document.getElementById('ticket-filter-priority');
+      const assigneeFilter = document.getElementById('ticket-filter-assignee');
+      const companyFilter = document.getElementById('ticket-filter-company');
+      const customerFilter = document.getElementById('ticket-filter-customer');
+      const sortSelect = document.getElementById('ticket-sort');
 
-    if (searchInput) searchInput.value = '';
-    if (statusFilter) statusFilter.value = 'Open';
-    if (priorityFilter) priorityFilter.value = '';
-    if (assigneeFilter) assigneeFilter.value = '';
-    if (companyFilter) companyFilter.value = '';
-    if (customerFilter) customerFilter.value = '';
-    if (sortSelect) sortSelect.value = 'id-desc';
+      console.log('[clearTicketFilters] Before clear - status:', statusFilter?.value, 'priority:', priorityFilter?.value);
 
-    // Also clear insight filters
-    clearInsightFilter();
+      if (searchInput) searchInput.value = '';
+      if (statusFilter) statusFilter.value = 'Open';
+      if (priorityFilter) priorityFilter.value = '';
+      if (assigneeFilter) assigneeFilter.value = '';
+      if (companyFilter) companyFilter.value = '';
+      if (customerFilter) customerFilter.value = '';
+      if (sortSelect) sortSelect.value = 'id-desc';
 
-    saveFilterSettings('tickets');
-    renderList();
+      console.log('[clearTicketFilters] After clear - status:', statusFilter?.value);
+
+      // Also clear insight filters
+      clearInsightFilter();
+
+      saveFilterSettings('tickets');
+      console.log('[clearTicketFilters] About to call renderList()');
+      renderList();
+      console.log('[clearTicketFilters] renderList() completed');
+    } catch (error) {
+      console.error('[clearTicketFilters] ERROR:', error);
+    }
   }
 
   // Clear AI Insight filter
