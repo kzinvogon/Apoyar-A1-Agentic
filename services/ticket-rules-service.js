@@ -6,6 +6,21 @@ const DEFAULT_BATCH_DELAY_SECONDS = 2;
 const MIN_BATCH_DELAY_SECONDS = 3;
 const MAX_BATCH_SIZE = 10;
 
+// Retry and circuit breaker settings
+const MAX_RETRIES = 3;
+const RETRY_DELAY_MS = 1000;
+const CIRCUIT_BREAKER_THRESHOLD = 5; // Abort after N consecutive transient failures
+const TRANSIENT_ERROR_CODES = ['ECONNRESET', 'PROTOCOL_CONNECTION_LOST', 'ETIMEDOUT', 'ENOTFOUND', 'ECONNREFUSED'];
+
+/**
+ * Check if an error is transient (retryable)
+ */
+function isTransientError(error) {
+  if (!error) return false;
+  const code = error.code || error.errno;
+  return TRANSIENT_ERROR_CODES.includes(code);
+}
+
 /**
  * Fetch batch processing settings from tenant_settings table
  */
@@ -257,17 +272,17 @@ class TicketRulesService {
   async executeRuleOnTicket(ruleId, ticketId) {
     const connection = await getTenantConnection(this.tenantCode);
 
-    const rule = await this.getRuleById(ruleId);
-
-    if (!rule.enabled) {
-      return {
-        success: false,
-        message: 'Rule is disabled',
-        result: 'skipped'
-      };
-    }
-
     try {
+      const rule = await this.getRuleById(ruleId);
+
+      if (!rule.enabled) {
+        return {
+          success: false,
+          message: 'Rule is disabled',
+          result: 'skipped'
+        };
+      }
+
       // Execute the action based on action_type
       let actionResult;
 
@@ -329,19 +344,25 @@ class TicketRulesService {
       };
 
     } catch (error) {
-      // Log the failure
-      await connection.query(
-        `INSERT INTO ticket_rule_executions
-         (rule_id, ticket_id, action_taken, execution_result, error_message, executed_at)
-         VALUES (?, ?, ?, 'failure', ?, NOW())`,
-        [ruleId, ticketId, rule.action_type, error.message]
-      );
+      // Log the failure (use fresh connection query to avoid issues if connection errored)
+      try {
+        await connection.query(
+          `INSERT INTO ticket_rule_executions
+           (rule_id, ticket_id, action_taken, execution_result, error_message, executed_at)
+           VALUES (?, ?, ?, 'failure', ?, NOW())`,
+          [ruleId, ticketId, 'unknown', error.message]
+        );
+      } catch (logError) {
+        console.error(`[TicketRules] Failed to log execution error for ticket #${ticketId}:`, logError.message);
+      }
 
       return {
         success: false,
         result: 'failure',
         error: error.message
       };
+    } finally {
+      connection.release();
     }
   }
 
@@ -608,8 +629,15 @@ class TicketRulesService {
     const startTime = Date.now();
 
     // Get batch processing settings from tenant_settings (before background job starts)
-    const connection = await getTenantConnection(tenantCode);
-    const { batchSize, batchDelayMs } = await getBatchSettings(connection);
+    const settingsConnection = await getTenantConnection(tenantCode);
+    let batchSize, batchDelayMs;
+    try {
+      const settings = await getBatchSettings(settingsConnection);
+      batchSize = settings.batchSize;
+      batchDelayMs = settings.batchDelayMs;
+    } finally {
+      settingsConnection.release();
+    }
 
     console.log(`[TicketRules] Starting background job: rule ${ruleId} on ${ticketCount} tickets for tenant ${tenantCode} (batch size: ${batchSize}, delay: ${batchDelayMs}ms)`);
 
@@ -620,13 +648,15 @@ class TicketRulesService {
     setImmediate(async () => {
       let successCount = 0;
       let errorCount = 0;
+      let consecutiveTransientFailures = 0;
+      let circuitBroken = false;
       const errors = [];
 
       try {
         const service = new TicketRulesService(tenantCode);
 
         // Process in batches
-        for (let i = 0; i < matchingTickets.length; i += batchSize) {
+        batchLoop: for (let i = 0; i < matchingTickets.length; i += batchSize) {
           const batch = matchingTickets.slice(i, i + batchSize);
           const batchNum = Math.floor(i / batchSize) + 1;
           const totalBatches = Math.ceil(matchingTickets.length / batchSize);
@@ -635,60 +665,108 @@ class TicketRulesService {
 
           // Process tickets in this batch
           for (const ticket of batch) {
-            try {
-              const result = await service.executeRuleOnTicket(ruleId, ticket.id);
-              if (result.success && result.result === 'success') {
-                successCount++;
-              } else {
-                errorCount++;
-                errors.push(`#${ticket.id}: ${result.error || 'Unknown error'}`);
+            // Circuit breaker check
+            if (consecutiveTransientFailures >= CIRCUIT_BREAKER_THRESHOLD) {
+              console.error(`[TicketRules] Circuit breaker triggered: ${consecutiveTransientFailures} consecutive transient failures, aborting job`);
+              circuitBroken = true;
+              errors.push(`Circuit breaker triggered after ${consecutiveTransientFailures} consecutive connection failures`);
+              break batchLoop;
+            }
+
+            let lastError = null;
+            let succeeded = false;
+
+            // Retry loop for transient errors
+            for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+              try {
+                const result = await service.executeRuleOnTicket(ruleId, ticket.id);
+                if (result.success && result.result === 'success') {
+                  successCount++;
+                  consecutiveTransientFailures = 0; // Reset on success
+                  succeeded = true;
+                  break;
+                } else {
+                  // Non-transient failure (rule logic error)
+                  errorCount++;
+                  consecutiveTransientFailures = 0; // Reset on non-transient error
+                  errors.push(`#${ticket.id}: ${result.error || 'Unknown error'}`);
+                  succeeded = true; // Mark as handled (not retryable)
+                  break;
+                }
+              } catch (err) {
+                lastError = err;
+                if (isTransientError(err) && attempt < MAX_RETRIES) {
+                  console.warn(`[TicketRules] Transient error on ticket #${ticket.id} (attempt ${attempt}/${MAX_RETRIES}): ${err.code || err.message}`);
+                  await delay(RETRY_DELAY_MS * attempt); // Exponential backoff
+                  continue;
+                }
+                // Final attempt failed or non-transient error
+                break;
               }
-            } catch (err) {
+            }
+
+            // If we exhausted retries or hit a non-transient error
+            if (!succeeded && lastError) {
               errorCount++;
-              errors.push(`#${ticket.id}: ${err.message}`);
+              errors.push(`#${ticket.id}: ${lastError.message}`);
+              if (isTransientError(lastError)) {
+                consecutiveTransientFailures++;
+              } else {
+                consecutiveTransientFailures = 0;
+              }
             }
           }
 
           // Delay between batches to allow other requests to be processed
-          if (i + batchSize < matchingTickets.length) {
+          if (i + batchSize < matchingTickets.length && !circuitBroken) {
             await delay(batchDelayMs);
           }
         }
 
         const duration = Math.round((Date.now() - startTime) / 1000);
-        console.log(`[TicketRules] Background job completed: ${successCount} success, ${errorCount} errors in ${duration}s`);
+        const status = circuitBroken ? 'aborted (circuit breaker)' : 'completed';
+        console.log(`[TicketRules] Background job ${status}: ${successCount} success, ${errorCount} errors in ${duration}s`);
 
         // Create notification for user
-        const connection = await getTenantConnection(tenantCode);
-        const message = errorCount === 0
-          ? `Rule "${rule.rule_name}" completed: ${successCount} tickets processed successfully`
-          : `Rule "${rule.rule_name}" completed: ${successCount} successful, ${errorCount} failed`;
+        const notifConnection = await getTenantConnection(tenantCode);
+        try {
+          const severity = circuitBroken ? 'critical' : (errorCount === 0 ? 'info' : 'warning');
+          const message = circuitBroken
+            ? `Rule "${rule.rule_name}" aborted: connection failures (${successCount} processed before abort)`
+            : errorCount === 0
+              ? `Rule "${rule.rule_name}" completed: ${successCount} tickets processed successfully`
+              : `Rule "${rule.rule_name}" completed: ${successCount} successful, ${errorCount} failed`;
 
-        await connection.query(
-          `INSERT INTO notifications (ticket_id, type, severity, message, payload_json, created_at)
-           VALUES (NULL, 'RULE_EXECUTION_COMPLETE', ?, ?, ?, NOW())`,
-          [
-            errorCount === 0 ? 'info' : 'warning',
-            message,
-            JSON.stringify({
-              rule_id: ruleId,
-              rule_name: rule.rule_name,
-              success_count: successCount,
-              error_count: errorCount,
-              errors: errors.slice(0, 10),
-              duration_seconds: duration,
-              user_id: userId
-            })
-          ]
-        );
+          await notifConnection.query(
+            `INSERT INTO notifications (ticket_id, type, severity, message, payload_json, created_at)
+             VALUES (NULL, 'RULE_EXECUTION_COMPLETE', ?, ?, ?, NOW())`,
+            [
+              severity,
+              message,
+              JSON.stringify({
+                rule_id: ruleId,
+                rule_name: rule.rule_name,
+                success_count: successCount,
+                error_count: errorCount,
+                circuit_broken: circuitBroken,
+                errors: errors.slice(0, 10),
+                duration_seconds: duration,
+                user_id: userId
+              })
+            ]
+          );
+        } finally {
+          notifConnection.release();
+        }
 
       } catch (err) {
         console.error(`[TicketRules] Background job failed:`, err);
 
         // Create error notification
+        let errConnection;
         try {
-          const connection = await getTenantConnection(tenantCode);
-          await connection.query(
+          errConnection = await getTenantConnection(tenantCode);
+          await errConnection.query(
             `INSERT INTO notifications (ticket_id, type, severity, message, payload_json, created_at)
              VALUES (NULL, 'RULE_EXECUTION_COMPLETE', 'critical', ?, ?, NOW())`,
             [
@@ -698,6 +776,8 @@ class TicketRulesService {
           );
         } catch (notifErr) {
           console.error(`[TicketRules] Failed to create error notification:`, notifErr);
+        } finally {
+          if (errConnection) errConnection.release();
         }
       }
     });
