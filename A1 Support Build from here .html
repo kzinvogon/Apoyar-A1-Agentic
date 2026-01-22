@@ -7373,20 +7373,13 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   }
   // Filter change handlers that reset pagination
   function onTicketFilterChange() {
-    console.log('[onTicketFilterChange] Called');
-    try {
-      ticketPage = 1;
-      // Clear AI insight filter when user manually changes filters
-      window.insightTicketFilter = null;
-      window.insightTitle = null;
-      window.slaAtRiskFilter = false;
-      console.log('[onTicketFilterChange] Calling renderList()');
-      renderList();
-      saveFilterSettings('tickets');
-      console.log('[onTicketFilterChange] Completed');
-    } catch (error) {
-      console.error('[onTicketFilterChange] ERROR:', error);
-    }
+    ticketPage = 1;
+    // Clear AI insight filter when user manually changes filters
+    window.insightTicketFilter = null;
+    window.insightTitle = null;
+    window.slaAtRiskFilter = false;
+    renderList();
+    saveFilterSettings('tickets');
   }
   function onExpertFilterChange() {
     expertPage = 1;
@@ -13747,10 +13740,6 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const customerFilter = document.getElementById('ticket-filter-customer')?.value || '';
     const includeSystem = document.getElementById('ticket-filter-system')?.checked !== false;
 
-    console.log('[applyTicketFilters] Input count:', ticketList.length);
-    console.log('[applyTicketFilters] Filters:', { searchTerm, statusFilter, priorityFilter, assigneeFilter, companyFilter, customerFilter, includeSystem });
-    console.log('[applyTicketFilters] insightTicketFilter:', window.insightTicketFilter?.length || 0, 'slaAtRiskFilter:', window.slaAtRiskFilter);
-
     const result = ticketList.filter(t => {
       // System ticket filter
       if (!includeSystem && (t.is_system_source || t.source_metadata)) {
@@ -13812,7 +13801,6 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       return true;
     });
 
-    console.log('[applyTicketFilters] Output count:', result.length);
     return result;
   }
 
@@ -13847,38 +13835,27 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   // Clear all ticket filters
   function clearTicketFilters() {
-    console.log('[clearTicketFilters] Called');
-    try {
-      const searchInput = document.getElementById('ticket-search');
-      const statusFilter = document.getElementById('ticket-filter-status');
-      const priorityFilter = document.getElementById('ticket-filter-priority');
-      const assigneeFilter = document.getElementById('ticket-filter-assignee');
-      const companyFilter = document.getElementById('ticket-filter-company');
-      const customerFilter = document.getElementById('ticket-filter-customer');
-      const sortSelect = document.getElementById('ticket-sort');
+    const searchInput = document.getElementById('ticket-search');
+    const statusFilter = document.getElementById('ticket-filter-status');
+    const priorityFilter = document.getElementById('ticket-filter-priority');
+    const assigneeFilter = document.getElementById('ticket-filter-assignee');
+    const companyFilter = document.getElementById('ticket-filter-company');
+    const customerFilter = document.getElementById('ticket-filter-customer');
+    const sortSelect = document.getElementById('ticket-sort');
 
-      console.log('[clearTicketFilters] Before clear - status:', statusFilter?.value, 'priority:', priorityFilter?.value);
+    if (searchInput) searchInput.value = '';
+    if (statusFilter) statusFilter.value = 'Open';
+    if (priorityFilter) priorityFilter.value = '';
+    if (assigneeFilter) assigneeFilter.value = '';
+    if (companyFilter) companyFilter.value = '';
+    if (customerFilter) customerFilter.value = '';
+    if (sortSelect) sortSelect.value = 'id-desc';
 
-      if (searchInput) searchInput.value = '';
-      if (statusFilter) statusFilter.value = 'Open';
-      if (priorityFilter) priorityFilter.value = '';
-      if (assigneeFilter) assigneeFilter.value = '';
-      if (companyFilter) companyFilter.value = '';
-      if (customerFilter) customerFilter.value = '';
-      if (sortSelect) sortSelect.value = 'id-desc';
+    // Also clear insight filters
+    clearInsightFilter();
 
-      console.log('[clearTicketFilters] After clear - status:', statusFilter?.value);
-
-      // Also clear insight filters
-      clearInsightFilter();
-
-      saveFilterSettings('tickets');
-      console.log('[clearTicketFilters] About to call renderList()');
-      renderList();
-      console.log('[clearTicketFilters] renderList() completed');
-    } catch (error) {
-      console.error('[clearTicketFilters] ERROR:', error);
-    }
+    saveFilterSettings('tickets');
+    renderList();
   }
 
   // Clear AI Insight filter
