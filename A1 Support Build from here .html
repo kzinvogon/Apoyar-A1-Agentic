@@ -13842,6 +13842,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const companyFilter = document.getElementById('ticket-filter-company');
     const customerFilter = document.getElementById('ticket-filter-customer');
     const sortSelect = document.getElementById('ticket-sort');
+    const systemCheckbox = document.getElementById('ticket-filter-system');
 
     if (searchInput) searchInput.value = '';
     if (statusFilter) statusFilter.value = 'Open';
@@ -13850,6 +13851,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     if (companyFilter) companyFilter.value = '';
     if (customerFilter) customerFilter.value = '';
     if (sortSelect) sortSelect.value = 'id-desc';
+    if (systemCheckbox) systemCheckbox.checked = true; // Reset System checkbox to checked
 
     // Also clear insight filters
     clearInsightFilter();
