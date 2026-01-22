@@ -3086,6 +3086,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               <button id="btn-next" class="btn primary" onclick="advanceStatus()">Next status</button>
               <!-- Secondary (Reassign is admin-only) -->
               <button id="btn-reassign" class="btn ghost admin-only-btn" onclick="openCompletion('reassign')">Reassign</button>
+              <button id="btn-mark-system" class="btn ghost admin-only-btn" onclick="markAsSystemMonitor()" title="Mark this ticket as a system monitoring alert">📡 Mark as System</button>
               <button id="btn-ai-assist" class="btn ai-btn" onclick="loadAISuggestions()">AI Assist</button>
               <!-- Separator -->
               <span style="width:1px;height:24px;background:#e5e7eb;margin:0 4px"></span>
@@ -14388,6 +14389,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const currentRole = window.role || role;
     const isCustomer = currentRole === 'customer';
     const isResolved = t && t.status === 'Resolved';
+    const isSystemSource = t && (t.is_system_source || t.source_metadata);
 
     // Expert/Admin actions - hide for customers
     document.getElementById('expert-actions').style.display = isCustomer ? 'none' : 'flex';
@@ -14398,6 +14400,12 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     // Accept/Decline buttons - only show when ticket is Resolved
     document.getElementById('btn-accept-resolution').style.display = isResolved ? 'inline-block' : 'none';
     document.getElementById('btn-decline-resolution').style.display = isResolved ? 'inline-block' : 'none';
+
+    // Mark as System button - hide if already a system source (APO-48)
+    const markSystemBtn = document.getElementById('btn-mark-system');
+    if (markSystemBtn) {
+      markSystemBtn.style.display = isSystemSource ? 'none' : 'inline-block';
+    }
 
     // Customer view - extensive read-only mode
     if (isCustomer) {
@@ -17595,6 +17603,36 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     } catch (error) {
       console.error('Error self-assigning ticket:', error);
       alert('Error self-assigning ticket');
+    }
+  }
+
+  // Mark ticket as system monitor (manual action - APO-48)
+  async function markAsSystemMonitor() {
+    const ticketId = currentTicket.id;
+
+    if (!confirm('Mark this ticket as a System Monitor alert?\n\nThis will classify it as a monitoring/system source ticket.')) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const tenantCode = localStorage.getItem('tenantCode') || 'apoyar';
+
+      const response = await fetch(`/api/tickets/${tenantCode}/${ticketId}/mark-as-system`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        alert('Ticket marked as System Monitor');
+        await showTicketDetail(ticketId);
+        await loadTickets();
+      } else {
+        alert('Failed to mark as system: ' + (data.message || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error marking ticket as system:', error);
+      alert('Error marking ticket as system monitor');
     }
   }
 
