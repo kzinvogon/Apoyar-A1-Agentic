@@ -23,11 +23,17 @@ ServiFlow is a multi-tenant ITSM (IT Service Management) SaaS platform with AI-p
 
 ## Environments
 
-### Railway (Production)
+### Railway UAT (User Acceptance Testing)
+- **App URL:** https://web-uat-uat.up.railway.app
+- **Deploy:** `railway environment uat && railway up --detach`
+- **Logs:** `railway environment uat && railway logs --tail 50`
+- **Always deploy here first for testing before production**
+
+### Railway Production
 - **App URL:** https://app.serviflow.app
 - **MySQL Host:** tramway.proxy.rlwy.net:19355
-- **Deploy:** `railway up --detach`
-- **Logs:** `railway logs --tail 50`
+- **Deploy:** `railway environment production && railway up --detach`
+- **Logs:** `railway environment production && railway logs --tail 50`
 - **Redeploy:** `railway redeploy --yes`
 
 ### Localhost (Development)
