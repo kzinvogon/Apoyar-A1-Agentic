@@ -75,7 +75,7 @@ async function getTenantConnection(tenantCode) {
         password: tenant.database_password || process.env.MYSQLPASSWORD || process.env.MYSQL_PASSWORD,
         database: tenant.database_name,
         waitForConnections: true,
-        connectionLimit: 10,       // Lower limit, proxy-friendly (Railway MySQL proxy)
+        connectionLimit: 50,       // Increased for production load
         queueLimit: 0,             // 0 = unlimited queue (prevents "Queue limit reached" errors)
         connectTimeout: 10000,     // 10 seconds to establish connection
         enableKeepAlive: true,
