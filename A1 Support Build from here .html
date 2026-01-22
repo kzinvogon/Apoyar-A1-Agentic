@@ -1710,7 +1710,12 @@ vNext-FULL-ActionsSLA:
                 <h3 class="title" style="margin:0">Expert Dashboard</h3>
                 <div class="subtitle">Your queue & SLA focus</div>
               </div>
-              <button class="btn primary" onclick="navTo('raise')" style="gap:6px">➕ Raise Request</button>
+              <div class="row" style="gap:8px">
+                <button class="btn" onclick="navTo('tickets')" style="gap:6px">📥 Open Queue</button>
+                <button class="btn" onclick="navTo('cmdb')" style="gap:6px">🔍 Search CMDB</button>
+                <button class="btn" onclick="navTo('knowledge-base')" style="gap:6px">📚 Knowledge Base</button>
+                <button class="btn primary" onclick="navTo('raise')" style="gap:6px">➕ Log Request</button>
+              </div>
             </div>
 
             <!-- Power Search Bar -->
@@ -1790,16 +1795,6 @@ vNext-FULL-ActionsSLA:
                   </div>
                 </div>
 
-                <!-- Quick Actions -->
-                <div class="card p-16">
-                  <div class="row space mb-12"><strong>⚡ Quick Actions</strong></div>
-                  <div style="display:flex;flex-direction:column;gap:8px">
-                    <button class="btn" onclick="navTo('tickets')" style="justify-content:flex-start;gap:8px">📥 Open queue</button>
-                    <button class="btn" onclick="navTo('cmdb')" style="justify-content:flex-start;gap:8px">🔍 Search CMDB</button>
-                    <button class="btn" onclick="navTo('knowledge-base')" style="justify-content:flex-start;gap:8px">📚 Knowledge Base</button>
-                    <button class="btn" onclick="navTo('raise')" style="justify-content:flex-start;gap:8px">➕ Log request</button>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
