@@ -5582,6 +5582,70 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   </div>
 </div>
 
+<!-- Mark as System Monitor Modal (APO-48) -->
+<div id="mark-system-modal" class="modal" role="dialog" aria-modal="true" style="display:none">
+  <div class="sheet" style="max-width:550px">
+    <div class="head"><span>📡 Mark as System Monitor</span></div>
+    <div class="body">
+      <div class="mb-12" style="padding:12px;background:#f3e8ff;border-radius:8px;color:#6b21a8">
+        <strong>This will mark the ticket as a system/monitoring alert.</strong><br>
+        <span style="font-size:13px">Optionally create a rule to auto-classify similar future tickets.</span>
+      </div>
+
+      <!-- Ticket Info -->
+      <div class="mb-12" style="padding:10px;background:#f9fafb;border-radius:6px;font-size:13px">
+        <div><strong>Ticket:</strong> <span id="mark-system-ticket-title"></span></div>
+      </div>
+
+      <!-- Create Rule Checkbox -->
+      <div class="mb-12">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="mark-system-create-rule" checked onchange="toggleMarkSystemRuleFields()">
+          <span><strong>Create a rule to auto-classify similar tickets</strong></span>
+        </label>
+      </div>
+
+      <!-- Rule Configuration (shown when checkbox is checked) -->
+      <div id="mark-system-rule-fields">
+        <div class="mb-12">
+          <div class="subtitle">Rule Name *</div>
+          <input type="text" id="mark-system-rule-name" class="input" placeholder="e.g., Nagios Alerts">
+        </div>
+
+        <div class="mb-12">
+          <div class="subtitle">Search Text (pattern to match) *</div>
+          <input type="text" id="mark-system-search-text" class="input" placeholder="e.g., NAGIOS or [ALERT]">
+          <div class="subtitle" style="margin-top:4px;font-size:11px;color:#6b7280">
+            Tip: Use a keyword that appears in similar monitoring emails
+          </div>
+        </div>
+
+        <div class="mb-12">
+          <div class="subtitle">Search In</div>
+          <select id="mark-system-search-in" class="input">
+            <option value="title">Title only</option>
+            <option value="body">Description only</option>
+            <option value="both" selected>Both title and description</option>
+          </select>
+        </div>
+
+        <div class="mb-12">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="checkbox" id="mark-system-case-sensitive">
+            <span>Case sensitive matching</span>
+          </label>
+        </div>
+      </div>
+
+      <div id="mark-system-error" class="subtitle" style="color:#b91c1c;display:none"></div>
+    </div>
+    <div class="foot">
+      <button class="btn ghost" onclick="closeMarkSystemModal()">Cancel</button>
+      <button class="btn primary" onclick="submitMarkAsSystem()" style="background:#7c3aed">📡 Mark as System</button>
+    </div>
+  </div>
+</div>
+
 <!-- Decline Resolution Modal -->
 <div id="decline-resolution-modal" class="modal" role="dialog" aria-modal="true" style="display:none">
   <div class="sheet" style="max-width:600px">
@@ -17607,32 +17671,170 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   }
 
   // Mark ticket as system monitor (manual action - APO-48)
-  async function markAsSystemMonitor() {
-    const ticketId = currentTicket.id;
+  // Opens modal to mark ticket and optionally create a rule
+  function markAsSystemMonitor() {
+    const ticket = currentTicket;
+    if (!ticket) return;
 
-    if (!confirm('Mark this ticket as a System Monitor alert?\n\nThis will classify it as a monitoring/system source ticket.')) return;
+    // Populate modal fields
+    document.getElementById('mark-system-ticket-title').textContent = `#${ticket.id} - ${ticket.title}`;
+
+    // Suggest a rule name based on ticket title
+    const suggestedName = extractSuggestedRuleName(ticket.title);
+    document.getElementById('mark-system-rule-name').value = suggestedName ? `Auto: ${suggestedName}` : '';
+
+    // Suggest search text from title keywords
+    const suggestedSearch = extractSuggestedSearchText(ticket.title);
+    document.getElementById('mark-system-search-text').value = suggestedSearch;
+
+    // Reset other fields
+    document.getElementById('mark-system-search-in').value = 'both';
+    document.getElementById('mark-system-case-sensitive').checked = false;
+    document.getElementById('mark-system-create-rule').checked = true;
+    document.getElementById('mark-system-error').style.display = 'none';
+    toggleMarkSystemRuleFields();
+
+    // Show modal
+    document.getElementById('mark-system-modal').style.display = 'flex';
+  }
+
+  // Extract suggested rule name from ticket title
+  function extractSuggestedRuleName(title) {
+    // Look for common monitoring system names
+    const monitoringPatterns = [
+      /\b(nagios|zabbix|datadog|prtg|prometheus|grafana|newrelic|dynatrace|splunk|pingdom)\b/i,
+      /\b(alert|warning|critical|error|down|offline)\b/i,
+      /\[(.*?)\]/  // Text in brackets like [ALERT] or [CRITICAL]
+    ];
+
+    for (const pattern of monitoringPatterns) {
+      const match = title.match(pattern);
+      if (match) {
+        return match[1] || match[0];
+      }
+    }
+    return '';
+  }
+
+  // Extract suggested search text from ticket title
+  function extractSuggestedSearchText(title) {
+    // Priority 1: Look for bracketed text like [ALERT], [CRITICAL], [NAGIOS]
+    const bracketMatch = title.match(/\[([^\]]+)\]/);
+    if (bracketMatch) return bracketMatch[0];
+
+    // Priority 2: Look for monitoring system names
+    const systemMatch = title.match(/\b(nagios|zabbix|datadog|prtg|prometheus|grafana|newrelic|dynatrace|splunk|pingdom|icinga|checkmk)\b/i);
+    if (systemMatch) return systemMatch[0];
+
+    // Priority 3: Look for alert keywords with context
+    const alertMatch = title.match(/\b(alert|warning|critical|error|problem|down|offline|failed|failure)\b/i);
+    if (alertMatch) return alertMatch[0];
+
+    // Priority 4: First significant word (skip common words)
+    const words = title.split(/\s+/).filter(w => w.length > 3 && !['from', 'the', 'this', 'that', 'with'].includes(w.toLowerCase()));
+    return words[0] || '';
+  }
+
+  // Toggle rule configuration fields visibility
+  function toggleMarkSystemRuleFields() {
+    const createRule = document.getElementById('mark-system-create-rule').checked;
+    document.getElementById('mark-system-rule-fields').style.display = createRule ? 'block' : 'none';
+  }
+
+  // Close the mark as system modal
+  function closeMarkSystemModal() {
+    document.getElementById('mark-system-modal').style.display = 'none';
+  }
+
+  // Submit mark as system action (and optionally create rule)
+  async function submitMarkAsSystem() {
+    const ticket = currentTicket;
+    if (!ticket) return;
+
+    const createRule = document.getElementById('mark-system-create-rule').checked;
+    const errorEl = document.getElementById('mark-system-error');
+    errorEl.style.display = 'none';
+
+    // Validate rule fields if creating a rule
+    if (createRule) {
+      const ruleName = document.getElementById('mark-system-rule-name').value.trim();
+      const searchText = document.getElementById('mark-system-search-text').value.trim();
+
+      if (!ruleName) {
+        errorEl.textContent = 'Please enter a rule name';
+        errorEl.style.display = 'block';
+        return;
+      }
+      if (!searchText) {
+        errorEl.textContent = 'Please enter search text for the rule';
+        errorEl.style.display = 'block';
+        return;
+      }
+    }
 
     try {
       const token = localStorage.getItem('token');
       const tenantCode = localStorage.getItem('tenantCode') || 'apoyar';
 
-      const response = await fetch(`/api/tickets/${tenantCode}/${ticketId}/mark-as-system`, {
+      // Step 1: Mark the ticket as system
+      const markResponse = await fetch(`/api/tickets/${tenantCode}/${ticket.id}/mark-as-system`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
-      const data = await response.json();
+      const markData = await markResponse.json();
 
-      if (data.success) {
-        alert('Ticket marked as System Monitor');
-        await showTicketDetail(ticketId);
-        await loadTickets();
-      } else {
-        alert('Failed to mark as system: ' + (data.message || 'Unknown error'));
+      if (!markData.success) {
+        errorEl.textContent = 'Failed to mark ticket: ' + (markData.message || 'Unknown error');
+        errorEl.style.display = 'block';
+        return;
       }
+
+      // Step 2: Create the rule if requested
+      if (createRule) {
+        const ruleData = {
+          rule_name: document.getElementById('mark-system-rule-name').value.trim(),
+          search_text: document.getElementById('mark-system-search-text').value.trim(),
+          search_in: document.getElementById('mark-system-search-in').value,
+          case_sensitive: document.getElementById('mark-system-case-sensitive').checked,
+          action_type: 'add_to_monitoring',
+          action_params: {},
+          enabled: true
+        };
+
+        const ruleResponse = await fetch(`/api/ticket-rules/${tenantCode}`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(ruleData)
+        });
+
+        const ruleResult = await ruleResponse.json();
+
+        if (!ruleResult.success) {
+          // Ticket was marked but rule creation failed
+          alert(`Ticket marked as System Monitor, but rule creation failed: ${ruleResult.message || 'Unknown error'}`);
+          closeMarkSystemModal();
+          await showTicketDetail(ticket.id);
+          await loadTickets();
+          return;
+        }
+
+        alert(`Ticket marked as System Monitor.\n\nRule "${ruleData.rule_name}" created to auto-classify future tickets matching "${ruleData.search_text}".`);
+      } else {
+        alert('Ticket marked as System Monitor');
+      }
+
+      closeMarkSystemModal();
+      await showTicketDetail(ticket.id);
+      await loadTickets();
+
     } catch (error) {
-      console.error('Error marking ticket as system:', error);
-      alert('Error marking ticket as system monitor');
+      console.error('Error in mark as system:', error);
+      errorEl.textContent = 'An error occurred. Please try again.';
+      errorEl.style.display = 'block';
     }
   }
 
