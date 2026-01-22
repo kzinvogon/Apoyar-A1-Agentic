@@ -1036,6 +1036,76 @@ router.post('/:tenantId/:ticketId/self-assign', writeOperationsLimiter, requireR
   }
 });
 
+// Mark ticket as system monitor (manual action)
+router.post('/:tenantId/:ticketId/mark-as-system', writeOperationsLimiter, requireRole(['admin']), async (req, res) => {
+  try {
+    const { tenantId, ticketId } = req.params;
+    const tenantCode = tenantId.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    const connection = await getTenantConnection(tenantCode);
+
+    try {
+      // Get current ticket
+      const [currentTickets] = await connection.query(
+        'SELECT * FROM tickets WHERE id = ?',
+        [ticketId]
+      );
+
+      if (currentTickets.length === 0) {
+        return res.status(404).json({ success: false, message: 'Ticket not found' });
+      }
+
+      // Build the monitoring source metadata
+      const sourceMetadata = {
+        type: 'monitoring',
+        reason: 'manual_action',
+        classified_as: 'system_alert',
+        added_via: 'mark_as_system_action',
+        added_by: req.user.username,
+        added_at: new Date().toISOString()
+      };
+
+      // Update the ticket with source_metadata
+      await connection.query(
+        `UPDATE tickets
+         SET source_metadata = ?, updated_at = CURRENT_TIMESTAMP
+         WHERE id = ?`,
+        [JSON.stringify(sourceMetadata), ticketId]
+      );
+
+      // Log activity
+      await connection.query(
+        `INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
+         VALUES (?, ?, ?, ?)`,
+        [ticketId, req.user.userId, 'marked_as_system', `Ticket marked as system monitor by ${req.user.username}`]
+      );
+
+      // Get updated ticket
+      const [tickets] = await connection.query(
+        `SELECT t.*,
+                u1.full_name as assignee_name,
+                u2.full_name as requester_name,
+                (u2.username = 'system' OR u2.email = 'system@tenant.local') as is_system_source
+         FROM tickets t
+         LEFT JOIN users u1 ON t.assignee_id = u1.id
+         LEFT JOIN users u2 ON t.requester_id = u2.id
+         WHERE t.id = ?`,
+        [ticketId]
+      );
+
+      res.json({
+        success: true,
+        message: 'Ticket marked as system monitor',
+        ticket: tickets[0]
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error marking ticket as system:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
 // Update ticket (status change, assignment, etc.)
 router.put('/:tenantId/:ticketId', writeOperationsLimiter, validateTicketUpdate, async (req, res) => {
   try {
