@@ -1705,24 +1705,100 @@ vNext-FULL-ActionsSLA:
 
           <!-- Expert -->
           <div id="dash-expert" class="card p-16 mb-16" style="display:none">
-            <h3 class="title">Expert Dashboard</h3>
-            <div class="subtitle">Your queue & SLA focus</div>
-            <div class="grid3 mb-16">
-              <div class="card p-16"><div class="subtitle">My open</div><div id="ex-open" style="font-size:28px;font-weight:800">0</div></div>
-              <div class="card p-16"><div class="subtitle">Due today</div><div id="ex-today" style="font-size:28px;font-weight:800">0</div></div>
-              <div class="card p-16"><div class="subtitle">SLA at risk</div><div id="ex-risk" style="font-size:28px;font-weight:800">0</div></div>
-            </div>
-            <div class="grid2">
-              <div class="card p-16">
-                <div class="row space"><strong>My tickets</strong><button class="btn ghost" onclick="navTo('tickets')">View all</button></div>
-                <table><thead><tr><th>ID</th><th>Title</th><th>Date/Time</th><th>Status</th><th>SLA</th></tr></thead><tbody id="ex-list"></tbody></table>
+            <div class="row space mb-12">
+              <div>
+                <h3 class="title" style="margin:0">Expert Dashboard</h3>
+                <div class="subtitle">Your queue & SLA focus</div>
               </div>
-              <div class="card p-16">
-                <div class="row space"><strong>Quick actions</strong><span class="subtitle">Work faster</span></div>
-                <div class="row wrap">
-                  <button class="btn primary" onclick="navTo('tickets')">Open queue</button>
-                  <button class="btn" onclick="navTo('cmdb')">Search CMDB</button>
-                  <button class="btn" onclick="navTo('raise')">Log request</button>
+              <button class="btn primary" onclick="navTo('raise')" style="gap:6px">➕ Raise Request</button>
+            </div>
+
+            <!-- Power Search Bar -->
+            <div class="card p-12 mb-16" style="background:linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);">
+              <div class="row" style="gap:12px">
+                <input id="expert-power-search" class="input" style="flex:1;border:2px solid #0ea5e9" placeholder="🔍 Power Search - tickets, assets, knowledge base..." onkeyup="if(event.key==='Enter')expertPowerSearch()">
+                <button class="btn primary" onclick="expertPowerSearch()" style="background:#0ea5e9">Search</button>
+              </div>
+              <div id="expert-search-results" style="display:none;margin-top:12px"></div>
+            </div>
+
+            <!-- Stats Row -->
+            <div class="grid3 mb-16">
+              <div class="card p-16 clickable" onclick="filterExpertTickets('open')" style="cursor:pointer;transition:transform 0.1s" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
+                <div class="subtitle">My open</div>
+                <div id="ex-open" style="font-size:28px;font-weight:800;color:#2563eb">0</div>
+              </div>
+              <div class="card p-16 clickable" onclick="filterExpertTickets('today')" style="cursor:pointer;transition:transform 0.1s" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
+                <div class="subtitle">Due today</div>
+                <div id="ex-today" style="font-size:28px;font-weight:800;color:#d97706">0</div>
+              </div>
+              <div class="card p-16 clickable" onclick="filterExpertTickets('risk')" style="cursor:pointer;transition:transform 0.1s" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
+                <div class="subtitle">SLA at risk</div>
+                <div id="ex-risk" style="font-size:28px;font-weight:800;color:#dc2626">0</div>
+              </div>
+            </div>
+
+            <!-- Main Content: Left Tickets Panel + Right Panels -->
+            <div style="display:flex;gap:16px;align-items:flex-start">
+              <!-- Left: Tickets Panel -->
+              <div class="card p-16" style="flex:1;min-width:0">
+                <div class="row space mb-12">
+                  <strong>📋 My Tickets</strong>
+                  <div class="row" style="gap:8px">
+                    <select id="ex-ticket-filter" class="input" style="width:120px;padding:4px 8px;font-size:12px" onchange="renderExpertDash()">
+                      <option value="all">All Open</option>
+                      <option value="today">Due Today</option>
+                      <option value="risk">SLA Risk</option>
+                    </select>
+                    <button class="btn ghost" onclick="navTo('tickets')" style="font-size:12px">View all →</button>
+                  </div>
+                </div>
+                <div style="max-height:400px;overflow-y:auto">
+                  <table style="font-size:13px"><thead><tr><th>ID</th><th>Title</th><th>Date/Time</th><th>Status</th><th>SLA</th></tr></thead><tbody id="ex-list"></tbody></table>
+                </div>
+                <div id="ex-no-tickets" style="display:none;text-align:center;padding:40px;color:var(--muted)">
+                  <div style="font-size:32px;margin-bottom:8px">✅</div>
+                  <div>No tickets in queue</div>
+                </div>
+              </div>
+
+              <!-- Right: Stacked Panels -->
+              <div style="width:380px;flex-shrink:0;display:flex;flex-direction:column;gap:16px">
+                <!-- AI Insights Panel -->
+                <div class="card p-16" style="background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);color:white">
+                  <div class="row space mb-12">
+                    <strong style="display:flex;align-items:center;gap:6px">🤖 AI Insights</strong>
+                    <button class="btn ghost" onclick="refreshExpertAIInsights()" style="color:white;border-color:rgba(255,255,255,0.3);padding:4px 8px;font-size:11px">Refresh</button>
+                  </div>
+                  <div id="ex-ai-insights">
+                    <div id="ex-ai-loading" style="text-align:center;padding:12px;font-size:13px">Analyzing your queue...</div>
+                    <div id="ex-ai-content" style="display:none;font-size:13px">
+                      <div id="ex-ai-summary" style="margin-bottom:12px;line-height:1.5"></div>
+                      <div id="ex-ai-suggestions"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Asset Viewer Mini -->
+                <div class="card p-16">
+                  <div class="row space mb-12">
+                    <strong style="display:flex;align-items:center;gap:6px">🖥️ Recent Assets</strong>
+                    <button class="btn ghost" onclick="navTo('cmdb')" style="font-size:12px">View all →</button>
+                  </div>
+                  <div id="ex-assets-list" style="max-height:150px;overflow-y:auto;font-size:13px">
+                    <div style="color:var(--muted);text-align:center;padding:20px">Loading assets...</div>
+                  </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="card p-16">
+                  <div class="row space mb-12"><strong>⚡ Quick Actions</strong></div>
+                  <div style="display:flex;flex-direction:column;gap:8px">
+                    <button class="btn" onclick="navTo('tickets')" style="justify-content:flex-start;gap:8px">📥 Open queue</button>
+                    <button class="btn" onclick="navTo('cmdb')" style="justify-content:flex-start;gap:8px">🔍 Search CMDB</button>
+                    <button class="btn" onclick="navTo('knowledge-base')" style="justify-content:flex-start;gap:8px">📚 Knowledge Base</button>
+                    <button class="btn" onclick="navTo('raise')" style="justify-content:flex-start;gap:8px">➕ Log request</button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -3843,7 +3919,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         <!-- CMDB (original - content will be moved to hub) -->
         <div id="view-cmdb" style="display:none">
           <div class="row space mb-12">
-            <div class="row"><h3 class="title" style="margin:0">CMDB Items</h3></div>
+            <div class="row"><button class="btn ghost" onclick="switchView('dash')">← Back</button><h3 class="title" style="margin:0 0 0 8px">CMDB Items</h3></div>
             <div class="row" style="gap:8px">
               <a href="/public/cmdb-management.html" class="btn primary" target="_blank">Open CMDB Management</a>
               <input id="cmdb-search" class="input" style="min-width:260px" placeholder="Search by Item or Customer" oninput="onCMDBFilterChange()"/>
@@ -7650,7 +7726,236 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     switchView('cmdb');
   }
 
-  function renderExpertDash(){ const currentRole = window.role || role; if(currentRole!=='expert') return; const me='Jane Doe'; const my=tickets.filter(t=>t.assignee===me && t.status!=='Resolved'); const today=my.filter(t=>{ const now=new Date(); const due=parseDueEndOfDay(t.due); return due && now.toDateString()===due.toDateString(); }); const risk=my.filter(t=>getSLAState(t).cls!=='ok'); document.getElementById('ex-open').textContent=my.length; document.getElementById('ex-today').textContent=today.length; document.getElementById('ex-risk').textContent=risk.length; const tb=document.getElementById('ex-list'); tb.innerHTML=''; my.slice(0,6).forEach(t=>{ const tr=document.createElement('tr'); const sla=getSLAState(t); const dateTime=formatDateTime(t.created); tr.onclick=()=>openTicket(t.id); tr.innerHTML = `<td>#${t.id}</td><td>${t.title}</td><td>${dateTime}</td><td>${t.status}</td><td>${slaBadgeHTML(sla)}</td>`; tb.appendChild(tr); }); }
+  function renderExpertDash() {
+    const currentRole = window.role || role;
+    if (currentRole !== 'expert') return;
+
+    // Get tickets assigned to current user
+    const currentUsername = localStorage.getItem('username') || 'expert';
+    const my = tickets.filter(t =>
+      (t.assignee === currentUsername || t.assignee_name === currentUsername ||
+       t.assignee_id === parseInt(localStorage.getItem('userId'))) &&
+      t.status !== 'Resolved' && t.status !== 'Closed'
+    );
+
+    // Filter for today
+    const today = my.filter(t => {
+      const now = new Date();
+      const due = parseDueEndOfDay(t.due);
+      return due && now.toDateString() === due.toDateString();
+    });
+
+    // Filter for SLA risk
+    const risk = my.filter(t => {
+      const sla = getSLAState(t);
+      return sla.cls !== 'ok' && sla.cls !== '';
+    });
+
+    // Update stats
+    document.getElementById('ex-open').textContent = my.length;
+    document.getElementById('ex-today').textContent = today.length;
+    document.getElementById('ex-risk').textContent = risk.length;
+
+    // Determine which tickets to show based on filter
+    const filterSelect = document.getElementById('ex-ticket-filter');
+    const filterValue = filterSelect ? filterSelect.value : 'all';
+    let displayTickets = my;
+    if (filterValue === 'today') displayTickets = today;
+    else if (filterValue === 'risk') displayTickets = risk;
+
+    // Populate ticket table
+    const tb = document.getElementById('ex-list');
+    const noTickets = document.getElementById('ex-no-tickets');
+    tb.innerHTML = '';
+
+    if (displayTickets.length === 0) {
+      if (noTickets) noTickets.style.display = 'block';
+      tb.parentElement.querySelector('table').style.display = 'none';
+    } else {
+      if (noTickets) noTickets.style.display = 'none';
+      tb.parentElement.querySelector('table').style.display = 'table';
+      displayTickets.slice(0, 15).forEach(t => {
+        const tr = document.createElement('tr');
+        const sla = getSLAState(t);
+        const dateTime = formatDateTime(t.created);
+        tr.style.cursor = 'pointer';
+        tr.onclick = () => openTicket(t.id);
+        tr.innerHTML = `<td>#${t.id}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.title}</td><td>${dateTime}</td><td>${t.status}</td><td>${slaBadgeHTML(sla)}</td>`;
+        tb.appendChild(tr);
+      });
+    }
+
+    // Load AI insights and recent assets
+    loadExpertAIInsights(my, today, risk);
+    loadExpertRecentAssets();
+  }
+
+  // Filter expert tickets when clicking stat cards
+  function filterExpertTickets(type) {
+    const filterSelect = document.getElementById('ex-ticket-filter');
+    if (filterSelect) {
+      filterSelect.value = type === 'open' ? 'all' : type;
+      renderExpertDash();
+    }
+  }
+
+  // Load AI insights for expert dashboard
+  function loadExpertAIInsights(myTickets, todayTickets, riskTickets) {
+    const loadingEl = document.getElementById('ex-ai-loading');
+    const contentEl = document.getElementById('ex-ai-content');
+    const summaryEl = document.getElementById('ex-ai-summary');
+    const suggestionsEl = document.getElementById('ex-ai-suggestions');
+
+    if (!loadingEl || !contentEl) return;
+
+    // Generate insights based on current queue
+    let summary = '';
+    let suggestions = '';
+
+    if (myTickets.length === 0) {
+      summary = '🎉 Your queue is clear! Great job staying on top of tickets.';
+    } else {
+      summary = `You have <strong>${myTickets.length}</strong> open ticket${myTickets.length !== 1 ? 's' : ''}.`;
+
+      if (riskTickets.length > 0) {
+        summary += ` <span style="color:#fbbf24">⚠️ ${riskTickets.length} at SLA risk!</span>`;
+      }
+
+      if (todayTickets.length > 0) {
+        summary += `<br><span style="color:#fcd34d">📅 ${todayTickets.length} due today.</span>`;
+      }
+
+      // Prioritization suggestion
+      if (riskTickets.length > 0) {
+        const urgent = riskTickets[0];
+        suggestions = `<div style="background:rgba(255,255,255,0.15);border-radius:6px;padding:8px;margin-top:8px">
+          <strong>Suggested action:</strong><br>
+          Focus on <a href="#" onclick="openTicket(${urgent.id});return false" style="color:#fcd34d">#${urgent.id}</a> - ${urgent.title.substring(0, 40)}...
+        </div>`;
+      } else if (todayTickets.length > 0) {
+        const next = todayTickets[0];
+        suggestions = `<div style="background:rgba(255,255,255,0.15);border-radius:6px;padding:8px;margin-top:8px">
+          <strong>Next up:</strong><br>
+          <a href="#" onclick="openTicket(${next.id});return false" style="color:#fcd34d">#${next.id}</a> - ${next.title.substring(0, 40)}...
+        </div>`;
+      }
+    }
+
+    loadingEl.style.display = 'none';
+    contentEl.style.display = 'block';
+    summaryEl.innerHTML = summary;
+    suggestionsEl.innerHTML = suggestions;
+  }
+
+  // Refresh AI insights
+  function refreshExpertAIInsights() {
+    const loadingEl = document.getElementById('ex-ai-loading');
+    const contentEl = document.getElementById('ex-ai-content');
+    if (loadingEl) loadingEl.style.display = 'block';
+    if (contentEl) contentEl.style.display = 'none';
+    renderExpertDash();
+  }
+
+  // Load recent assets for expert dashboard
+  async function loadExpertRecentAssets() {
+    const assetsEl = document.getElementById('ex-assets-list');
+    if (!assetsEl) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const tenantCode = localStorage.getItem('tenantCode') || 'apoyar';
+
+      const response = await fetch(`/api/cmdb/${tenantCode}?limit=5`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (!response.ok) throw new Error('Failed to load assets');
+
+      const data = await response.json();
+      const items = data.items || [];
+
+      if (items.length === 0) {
+        assetsEl.innerHTML = '<div style="color:var(--muted);text-align:center;padding:20px">No assets found</div>';
+        return;
+      }
+
+      assetsEl.innerHTML = items.map(item => `
+        <div style="padding:8px;border-bottom:1px solid var(--border);cursor:pointer" onclick="openCMDBDetail(${item.cmdb_id || item.id})">
+          <div style="font-weight:500">${item.asset_name || item.name}</div>
+          <div style="font-size:11px;color:var(--muted)">${item.customer_name || ''} · ${item.asset_category || item.type || ''}</div>
+        </div>
+      `).join('');
+    } catch (error) {
+      console.error('Error loading assets:', error);
+      assetsEl.innerHTML = '<div style="color:var(--muted);text-align:center;padding:20px">Failed to load assets</div>';
+    }
+  }
+
+  // Power search for expert dashboard
+  async function expertPowerSearch() {
+    const searchInput = document.getElementById('expert-power-search');
+    const resultsEl = document.getElementById('expert-search-results');
+    const query = searchInput ? searchInput.value.trim() : '';
+
+    if (!query || !resultsEl) return;
+
+    resultsEl.style.display = 'block';
+    resultsEl.innerHTML = '<div style="padding:12px;color:var(--muted)">Searching...</div>';
+
+    try {
+      const token = localStorage.getItem('token');
+      const tenantCode = localStorage.getItem('tenantCode') || 'apoyar';
+
+      // Search tickets, CMDB, and KB in parallel
+      const [ticketRes, cmdbRes] = await Promise.all([
+        fetch(`/api/tickets/${tenantCode}?search=${encodeURIComponent(query)}&limit=5`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch(`/api/cmdb/${tenantCode}?search=${encodeURIComponent(query)}&limit=5`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+      ]);
+
+      const ticketData = await ticketRes.json();
+      const cmdbData = await cmdbRes.json();
+
+      const ticketResults = ticketData.tickets || [];
+      const cmdbResults = cmdbData.items || [];
+
+      if (ticketResults.length === 0 && cmdbResults.length === 0) {
+        resultsEl.innerHTML = '<div style="padding:12px;color:var(--muted)">No results found for "' + query + '"</div>';
+        return;
+      }
+
+      let html = '<div style="display:flex;flex-direction:column;gap:8px">';
+
+      if (ticketResults.length > 0) {
+        html += '<div style="font-weight:600;font-size:12px;color:#2563eb">📋 Tickets</div>';
+        ticketResults.forEach(t => {
+          html += `<div style="padding:6px 8px;background:white;border-radius:4px;cursor:pointer;border:1px solid #e5e7eb" onclick="openTicket(${t.id})">
+            <span style="color:#2563eb;font-weight:500">#${t.id}</span> ${t.title}
+          </div>`;
+        });
+      }
+
+      if (cmdbResults.length > 0) {
+        html += '<div style="font-weight:600;font-size:12px;color:#059669;margin-top:8px">🖥️ Assets</div>';
+        cmdbResults.forEach(c => {
+          html += `<div style="padding:6px 8px;background:white;border-radius:4px;cursor:pointer;border:1px solid #e5e7eb" onclick="openCMDBDetail(${c.cmdb_id || c.id})">
+            <span style="color:#059669;font-weight:500">${c.asset_name || c.name}</span> · ${c.customer_name || ''}
+          </div>`;
+        });
+      }
+
+      html += '<button class="btn ghost" style="margin-top:8px;font-size:12px" onclick="document.getElementById(\'expert-search-results\').style.display=\'none\'">Close results</button>';
+      html += '</div>';
+
+      resultsEl.innerHTML = html;
+    } catch (error) {
+      console.error('Power search error:', error);
+      resultsEl.innerHTML = '<div style="padding:12px;color:#dc2626">Search failed. Please try again.</div>';
+    }
+  }
   function renderCustomerDash(){ const currentRole = window.role || role; if(currentRole!=='customer') return; const items = CMDB_ITEMS.filter(i => !tenant || i.customer===tenant); const ciCount = items.reduce((a,i)=>a+(CIS_BY_ITEM[i.cmdb_id]?.length||0),0); const openTickets = tickets.filter(t => (!tenant || (t.customer===tenant)) && t.status!=='Resolved').length; document.getElementById('cu-open').textContent=openTickets; document.getElementById('cu-items').textContent=items.length; document.getElementById('cu-cis').textContent=ciCount; const tbody=document.getElementById('cu-ci-body'); tbody.innerHTML=''; const all=[]; items.forEach(i => (CIS_BY_ITEM[i.cmdb_id]||[]).forEach(ci => all.push({item:i, ci}))); all.slice(0,8).forEach(r => { const tr=document.createElement('tr'); const m=r.ci.Model||r.ci.model||''; const loc=r.ci.Location||r.ci.location||''; const life=r.ci.Lifecycle||r.ci.lifecycle||r.ci.life||''; tr.innerHTML = `<td>${r.item.name}</td><td>${r.ci.name}</td><td>${m}</td><td>${loc}</td><td>${life}</td>`; tbody.appendChild(tr); }); }
   function renderMasterDash(){
     const currentRole = window.role || role;
