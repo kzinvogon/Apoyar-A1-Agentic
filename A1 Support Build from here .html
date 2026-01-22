@@ -13740,6 +13740,10 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const customerFilter = document.getElementById('ticket-filter-customer')?.value || '';
     const includeSystem = document.getElementById('ticket-filter-system')?.checked !== false;
 
+    console.log('[applyTicketFilters] Input count:', ticketList.length);
+    console.log('[applyTicketFilters] Filters:', { searchTerm, statusFilter, priorityFilter, assigneeFilter, companyFilter, customerFilter, includeSystem });
+    console.log('[applyTicketFilters] insightTicketFilter:', window.insightTicketFilter?.length || 0, 'slaAtRiskFilter:', window.slaAtRiskFilter);
+
     const result = ticketList.filter(t => {
       // System ticket filter
       if (!includeSystem && (t.is_system_source || t.source_metadata)) {
@@ -13801,6 +13805,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       return true;
     });
 
+    console.log('[applyTicketFilters] Output count:', result.length);
     return result;
   }
 
