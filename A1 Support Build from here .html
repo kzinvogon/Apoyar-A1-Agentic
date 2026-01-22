@@ -3372,12 +3372,12 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               <table>
                 <thead>
                   <tr>
-                    <th>Real Name</th>
-                    <th>Username</th>
-                    <th>Location</th>
-                    <th>Email</th>
-                    <th>Open Tickets</th>
-                    <th>Last Login</th>
+                    <th style="cursor:pointer" onclick="sortExpertsBy('full_name')">Real Name <span id="expert-sort-full_name">▲</span></th>
+                    <th style="cursor:pointer" onclick="sortExpertsBy('username')">Username <span id="expert-sort-username"></span></th>
+                    <th style="cursor:pointer" onclick="sortExpertsBy('location')">Location <span id="expert-sort-location"></span></th>
+                    <th style="cursor:pointer" onclick="sortExpertsBy('email')">Email <span id="expert-sort-email"></span></th>
+                    <th style="cursor:pointer" onclick="sortExpertsBy('open_tickets')">Open Tickets <span id="expert-sort-open_tickets"></span></th>
+                    <th style="cursor:pointer" onclick="sortExpertsBy('last_login')">Last Login <span id="expert-sort-last_login"></span></th>
                     <th style="width:180px">Actions</th>
                   </tr>
                 </thead>
@@ -7374,6 +7374,10 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   // Filter change handlers that reset pagination
   function onTicketFilterChange() {
     ticketPage = 1;
+    // Clear AI insight filter when user manually changes filters
+    window.insightTicketFilter = null;
+    window.insightTitle = null;
+    window.slaAtRiskFilter = false;
     renderList();
     saveFilterSettings('tickets');
   }
@@ -15105,6 +15109,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   // ---- Experts & Customers ----
   let allExperts = []; // Store all experts for searching
+  let expertSortField = 'full_name'; // Default sort field
+  let expertSortAsc = true; // Sort direction
   let currentExpertId = null; // Store current expert for editing
   let currentTicket = null; // Store current ticket for operations
   let currentAISuggestions = null; // Store current AI suggestions
@@ -16130,7 +16136,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
         // Apply search filter
         const q=(document.getElementById('expert-search').value||'').toLowerCase();
-        const filteredExperts = allExperts.filter(e=>
+        let filteredExperts = allExperts.filter(e=>
           !q ||
           (e.full_name||'').toLowerCase().includes(q) ||
           (e.username||'').toLowerCase().includes(q) ||
@@ -16138,6 +16144,43 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           (e.postcode||'').toLowerCase().includes(q) ||
           (e.email||'').toLowerCase().includes(q)
         );
+
+        // Apply sorting
+        filteredExperts.sort((a, b) => {
+          let valA, valB;
+          switch (expertSortField) {
+            case 'full_name':
+              valA = (a.full_name || a.username || '').toLowerCase();
+              valB = (b.full_name || b.username || '').toLowerCase();
+              break;
+            case 'username':
+              valA = (a.username || '').toLowerCase();
+              valB = (b.username || '').toLowerCase();
+              break;
+            case 'location':
+              valA = (a.location || '').toLowerCase();
+              valB = (b.location || '').toLowerCase();
+              break;
+            case 'email':
+              valA = (a.email || '').toLowerCase();
+              valB = (b.email || '').toLowerCase();
+              break;
+            case 'open_tickets':
+              valA = a.open_tickets || 0;
+              valB = b.open_tickets || 0;
+              break;
+            case 'last_login':
+              valA = a.last_login ? new Date(a.last_login).getTime() : 0;
+              valB = b.last_login ? new Date(b.last_login).getTime() : 0;
+              break;
+            default:
+              valA = (a.full_name || '').toLowerCase();
+              valB = (b.full_name || '').toLowerCase();
+          }
+          if (valA < valB) return expertSortAsc ? -1 : 1;
+          if (valA > valB) return expertSortAsc ? 1 : -1;
+          return 0;
+        });
 
         // Store total count before pagination
         const totalFiltered = filteredExperts.length;
@@ -16169,7 +16212,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           if (cardsContainer) cardsContainer.innerHTML = '<div class="mobile-card"><div style="text-align:center;color:var(--muted)">No experts found</div></div>';
         } else {
           paginatedExperts.forEach(e=>{
-            const lastLogin = e.last_login ? new Date(e.last_login).toLocaleString() : 'Never';
+            const lastLogin = formatLastLogin(e.last_login);
             const openTickets = e.open_tickets || 0;
             const ticketBadge = openTickets > 0
               ? `<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:12px;font-weight:600">${openTickets}</span>`
@@ -16222,6 +16265,54 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       console.error('Error loading experts:', error);
       body.innerHTML='<tr><td colspan="7" style="text-align:center;color:red;">Error loading experts</td></tr>';
     }
+  }
+
+  // Sort experts by field
+  function sortExpertsBy(field) {
+    if (expertSortField === field) {
+      expertSortAsc = !expertSortAsc;
+    } else {
+      expertSortField = field;
+      expertSortAsc = true;
+    }
+    // Update sort indicators
+    ['full_name', 'username', 'location', 'email', 'open_tickets', 'last_login'].forEach(f => {
+      const el = document.getElementById('expert-sort-' + f);
+      if (el) el.textContent = f === expertSortField ? (expertSortAsc ? '▲' : '▼') : '';
+    });
+    renderExperts();
+  }
+
+  // Format last login with relative time
+  function formatLastLogin(lastLogin) {
+    if (!lastLogin) return '<span style="color:var(--muted)">Never</span>';
+
+    const date = new Date(lastLogin);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    // Format UTC time for tooltip (absolute reference)
+    const utcStr = date.toISOString().replace('T', ' ').substring(0, 16) + ' UTC';
+
+    let display;
+    if (diffMins < 1) {
+      display = 'Just now';
+    } else if (diffMins < 60) {
+      display = `${diffMins}m ago`;
+    } else if (diffHours < 24) {
+      display = `${diffHours}h ago`;
+    } else if (diffDays < 7) {
+      display = `${diffDays}d ago`;
+    } else {
+      // For older dates, show date in UTC
+      display = date.toLocaleDateString('en-GB', { timeZone: 'UTC', day: 'numeric', month: 'short' }) + ' UTC';
+    }
+
+    // Relative times don't need timezone, but tooltip shows UTC for reference
+    return `<span style="cursor:help" title="${utcStr}">${display}</span>`;
   }
 
   let showingDeletedExperts = false;
