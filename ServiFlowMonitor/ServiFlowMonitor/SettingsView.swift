@@ -20,8 +20,13 @@ struct SettingsView: View {
                 .tabItem {
                     Label("Notifications", systemImage: "bell")
                 }
+
+            AutoDiagnoseSettingsView(monitor: monitor)
+                .tabItem {
+                    Label("Auto-Diagnose", systemImage: "wand.and.stars")
+                }
         }
-        .frame(width: 450, height: 300)
+        .frame(width: 450, height: 350)
     }
 }
 
@@ -159,6 +164,79 @@ struct NotificationsSettingsView: View {
 }
 
 import UserNotifications
+
+struct AutoDiagnoseSettingsView: View {
+    @ObservedObject var monitor: ProductionMonitor
+
+    var body: some View {
+        Form {
+            Section {
+                Toggle("Enable Auto-Diagnose", isOn: $monitor.autoDiagnoseEnabled)
+
+                TextField("Project Path", text: $monitor.projectPath)
+                    .textFieldStyle(.roundedBorder)
+                    .disabled(!monitor.autoDiagnoseEnabled)
+
+                Stepper(
+                    "Cooldown: \(monitor.autoDiagnoseCooldownMinutes) min",
+                    value: $monitor.autoDiagnoseCooldownMinutes,
+                    in: 5...60,
+                    step: 5
+                )
+                .disabled(!monitor.autoDiagnoseEnabled)
+            } header: {
+                Text("Claude Code Integration")
+            } footer: {
+                Text("When enabled, Claude Code will automatically be invoked to diagnose and fix production issues.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            Section {
+                HStack {
+                    Text("Status:")
+                    Spacer()
+                    if monitor.isDiagnosing {
+                        ProgressView()
+                            .scaleEffect(0.7)
+                        Text(monitor.diagnoseStatus)
+                            .foregroundColor(.blue)
+                    } else if !monitor.diagnoseStatus.isEmpty {
+                        Text(monitor.diagnoseStatus)
+                            .foregroundColor(.secondary)
+                    } else {
+                        Text("Idle")
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                HStack {
+                    Text("Total Auto-Diagnoses:")
+                    Spacer()
+                    Text("\(monitor.totalAutoDiagnoses)")
+                }
+
+                if let lastTime = monitor.lastDiagnoseTime {
+                    HStack {
+                        Text("Last Triggered:")
+                        Spacer()
+                        Text(lastTime, style: .relative)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                Button("Test Auto-Diagnose Now") {
+                    monitor.manualDiagnose()
+                }
+                .disabled(monitor.isDiagnosing)
+            } header: {
+                Text("Diagnostics")
+            }
+        }
+        .formStyle(.grouped)
+        .padding()
+    }
+}
 
 #Preview {
     SettingsView(monitor: ProductionMonitor())

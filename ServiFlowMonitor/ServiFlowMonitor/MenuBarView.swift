@@ -93,6 +93,44 @@ struct MenuBarView: View {
                 }
             }
 
+            // Auto-Diagnose Status (when enabled or active)
+            if monitor.autoDiagnoseEnabled || monitor.isDiagnosing {
+                Divider()
+
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Image(systemName: "wand.and.stars")
+                            .foregroundColor(monitor.isDiagnosing ? .blue : .secondary)
+                        Text("Auto-Diagnose")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        if monitor.isDiagnosing {
+                            ProgressView()
+                                .scaleEffect(0.6)
+                        } else {
+                            Text(monitor.autoDiagnoseEnabled ? "Enabled" : "Disabled")
+                                .font(.caption)
+                                .foregroundColor(monitor.autoDiagnoseEnabled ? .green : .secondary)
+                        }
+                    }
+
+                    if monitor.isDiagnosing {
+                        Text(monitor.diagnoseStatus)
+                            .font(.caption)
+                            .foregroundColor(.blue)
+                    } else if let lastTime = monitor.lastDiagnoseTime {
+                        HStack {
+                            Text("Last run:")
+                                .foregroundColor(.secondary)
+                            Spacer()
+                            Text(lastTime, style: .relative)
+                        }
+                        .font(.caption)
+                    }
+                }
+            }
+
             Divider()
 
             // Actions
@@ -109,11 +147,20 @@ struct MenuBarView: View {
                 Spacer()
 
                 Button(action: {
+                    monitor.manualDiagnose()
+                }) {
+                    Label("Diagnose", systemImage: "wand.and.stars")
+                }
+                .disabled(monitor.isDiagnosing)
+
+                Spacer()
+
+                Button(action: {
                     if let url = URL(string: monitor.productionURL) {
                         NSWorkspace.shared.open(url)
                     }
                 }) {
-                    Label("Open App", systemImage: "safari")
+                    Label("Open", systemImage: "safari")
                 }
             }
             .buttonStyle(.bordered)
