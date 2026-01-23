@@ -81,6 +81,11 @@ class ProductionMonitor: ObservableObject {
     @AppStorage("notificationsEnabled") var notificationsEnabled = true
     @AppStorage("consecutiveFailuresBeforeAlert") var consecutiveFailuresBeforeAlert = 2
 
+    // Auto-diagnose configuration
+    @AppStorage("autoDiagnoseEnabled") var autoDiagnoseEnabled = false
+    @AppStorage("projectPath") var projectPath = "/Users/davidhamilton/Dev/Apoyar-A1-Agentic"
+    @AppStorage("autoDiagnoseCooldownMinutes") var autoDiagnoseCooldownMinutes = 10
+
     // State
     @Published var overallStatus: OverallStatus = .unknown
     @Published var checks: [HealthCheck] = []
@@ -89,6 +94,12 @@ class ProductionMonitor: ObservableObject {
     @Published var consecutiveFailures = 0
     @Published var totalChecks = 0
     @Published var totalFailures = 0
+
+    // Auto-diagnose state
+    @Published var lastDiagnoseTime: Date?
+    @Published var isDiagnosing = false
+    @Published var diagnoseStatus: String = ""
+    @Published var totalAutoDiagnoses = 0
 
     private var timer: Timer?
     private var authToken: String?
@@ -182,6 +193,9 @@ class ProductionMonitor: ObservableObject {
             if consecutiveFailures == consecutiveFailuresBeforeAlert {
                 let failedNames = checks.filter { $0.status == .error }.map { $0.name }.joined(separator: ", ")
                 sendNotification(title: "ServiFlow Down!", body: "Failed checks: \(failedNames)", isRecovery: false)
+
+                // Trigger auto-diagnose after alert threshold is reached
+                triggerAutoDiagnose()
             }
         }
     }
@@ -321,5 +335,196 @@ class ProductionMonitor: ObservableObject {
 
         let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
         UNUserNotificationCenter.current().add(request)
+    }
+
+    // MARK: - Auto-Diagnose Feature
+
+    func canAutoDiagnose() -> Bool {
+        guard autoDiagnoseEnabled else { return false }
+
+        // Check cooldown
+        if let lastTime = lastDiagnoseTime {
+            let cooldownSeconds = Double(autoDiagnoseCooldownMinutes * 60)
+            if Date().timeIntervalSince(lastTime) < cooldownSeconds {
+                return false
+            }
+        }
+
+        return true
+    }
+
+    func triggerAutoDiagnose() {
+        guard canAutoDiagnose() else {
+            print("Auto-diagnose skipped (cooldown or disabled)")
+            return
+        }
+
+        Task {
+            await invokeClaudeDiagnosis()
+        }
+    }
+
+    private func invokeClaudeDiagnosis() async {
+        isDiagnosing = true
+        diagnoseStatus = "Gathering diagnostics..."
+        lastDiagnoseTime = Date()
+        totalAutoDiagnoses += 1
+
+        // Build diagnostic context
+        let failedChecks = checks.filter { $0.status == .error }
+        let failedDetails = failedChecks.map { check in
+            "- \(check.name): \(check.details ?? "unknown error") (latency: \(check.latency)ms)"
+        }.joined(separator: "\n")
+
+        let timestamp = ISO8601DateFormatter().string(from: Date())
+
+        // Fetch Railway logs
+        diagnoseStatus = "Fetching Railway logs..."
+        let railwayLogs = await fetchRailwayLogs()
+
+        // Build the prompt for Claude
+        let prompt = """
+        URGENT: ServiFlow production site is DOWN and needs immediate diagnosis and fix.
+
+        ## Failure Details
+        - Timestamp: \(timestamp)
+        - Consecutive failures: \(consecutiveFailures)
+        - Production URL: \(productionURL)
+
+        ## Failed Health Checks
+        \(failedDetails)
+
+        ## Recent Railway Logs
+        ```
+        \(railwayLogs)
+        ```
+
+        ## Instructions
+        1. Analyze the logs and error details above
+        2. Identify the root cause of the outage
+        3. Apply the fix immediately (edit code, restart services, kill stale connections, etc.)
+        4. Verify the fix works by testing the login endpoint
+        5. Deploy to production if code changes were needed
+
+        This is an automated alert from ServiFlowMonitor. Please diagnose and fix ASAP.
+        """
+
+        diagnoseStatus = "Invoking Claude Code..."
+
+        // Write prompt to a temp file (Claude Code reads better from files for long prompts)
+        let tempFile = FileManager.default.temporaryDirectory.appendingPathComponent("serviflow-diagnose-\(UUID().uuidString).txt")
+        do {
+            try prompt.write(to: tempFile, atomically: true, encoding: .utf8)
+        } catch {
+            print("Failed to write prompt file: \(error)")
+            isDiagnosing = false
+            diagnoseStatus = "Failed to write prompt"
+            return
+        }
+
+        // Invoke Claude Code CLI
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        process.arguments = ["claude", "--print", "cat \(tempFile.path) && echo 'Please diagnose and fix this production issue immediately.'"]
+        process.currentDirectoryURL = URL(fileURLWithPath: projectPath)
+
+        // Set up environment
+        var env = ProcessInfo.processInfo.environment
+        env["PATH"] = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:\(env["PATH"] ?? "")"
+        process.environment = env
+
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = pipe
+
+        do {
+            diagnoseStatus = "Claude Code is diagnosing..."
+            try process.run()
+
+            // Don't wait for completion - Claude Code runs interactively
+            // Just notify that it's been triggered
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+                self?.isDiagnosing = false
+                self?.diagnoseStatus = "Claude Code invoked"
+                self?.sendNotification(
+                    title: "Auto-Diagnose Triggered",
+                    body: "Claude Code is investigating the production issue",
+                    isRecovery: false
+                )
+            }
+
+        } catch {
+            print("Failed to invoke Claude Code: \(error)")
+            isDiagnosing = false
+            diagnoseStatus = "Failed: \(error.localizedDescription)"
+
+            // Try alternative: open Terminal with claude command
+            await openTerminalWithClaude(prompt: prompt)
+        }
+
+        // Clean up temp file after a delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + 60) {
+            try? FileManager.default.removeItem(at: tempFile)
+        }
+    }
+
+    private func fetchRailwayLogs() async -> String {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/bash")
+        process.arguments = ["-c", """
+            cd "\(projectPath)" && source railway-env.sh prod 2>/dev/null && railway logs --tail 50 2>&1 | tail -50
+            """]
+
+        var env = ProcessInfo.processInfo.environment
+        env["PATH"] = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:\(env["PATH"] ?? "")"
+        process.environment = env
+
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = pipe
+
+        do {
+            try process.run()
+            process.waitUntilExit()
+
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            return String(data: data, encoding: .utf8) ?? "Failed to read logs"
+        } catch {
+            return "Failed to fetch logs: \(error.localizedDescription)"
+        }
+    }
+
+    private func openTerminalWithClaude(prompt: String) async {
+        // Fallback: Open Terminal app with the claude command
+        let script = """
+            tell application "Terminal"
+                activate
+                do script "cd '\(projectPath)' && claude"
+            end tell
+            """
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        process.arguments = ["-e", script]
+
+        do {
+            try process.run()
+            process.waitUntilExit()
+            diagnoseStatus = "Opened Terminal with Claude"
+        } catch {
+            diagnoseStatus = "Failed to open Terminal"
+        }
+    }
+
+    func manualDiagnose() {
+        // Allow manual trigger regardless of cooldown
+        let previousEnabled = autoDiagnoseEnabled
+        autoDiagnoseEnabled = true
+        lastDiagnoseTime = nil  // Reset cooldown
+
+        Task {
+            await invokeClaudeDiagnosis()
+            autoDiagnoseEnabled = previousEnabled
+        }
     }
 }
