@@ -6436,7 +6436,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           model_name: item.model_name,
           asset_location: item.asset_location,
           status: item.status,
-          ci_count: item.ci_count || 0
+          ci_count: item.ci_count || 0,
+          comment: item.comment || ''
         }));
       }
       renderCMDB();
@@ -20653,7 +20654,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               model_name: item.model_name,
               asset_location: item.asset_location,
               status: item.status,
-              ci_count: item.ci_count || 0
+              ci_count: item.ci_count || 0,
+              comment: item.comment || ''
             }));
             cmdbItemsLoaded = true;
           }
