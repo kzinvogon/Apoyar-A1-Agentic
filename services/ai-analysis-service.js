@@ -4,16 +4,251 @@ const { buildSLAFacts } = require('./sla-calculator');
 /**
  * AI Email Analysis Service
  * Analyzes emails and tickets using AI to extract insights, categorize, and detect trends
+ *
+ * Supports task-based routing with model selection per task type:
+ * - triage tasks: fast, cost-effective (Haiku)
+ * - reasoning tasks: balanced (Sonnet)
+ * - premium tasks: highest quality (Opus)
  */
+
+// =============================================================================
+// CONFIGURATION: Environment Variables with Defaults
+// =============================================================================
+
+const CONFIG = {
+  // Provider configuration (backwards compatible)
+  AI_PROVIDER_PRIMARY: process.env.AI_PROVIDER_PRIMARY || process.env.AI_PROVIDER || 'pattern',
+  AI_PROVIDER_SECONDARY: process.env.AI_PROVIDER_SECONDARY || 'pattern',
+
+  // Model selection per task tier
+  AI_MODEL_TRIAGE: process.env.AI_MODEL_TRIAGE || 'claude-3-haiku-20240307',
+  AI_MODEL_REASONING: process.env.AI_MODEL_REASONING || 'claude-3-5-sonnet-latest',
+  AI_MODEL_PREMIUM: process.env.AI_MODEL_PREMIUM || 'claude-3-opus-latest',
+
+  // OpenAI models (placeholders for future implementation)
+  OPENAI_MODEL_TRIAGE: process.env.OPENAI_MODEL_TRIAGE || 'gpt-4o-mini',
+  OPENAI_MODEL_REASONING: process.env.OPENAI_MODEL_REASONING || 'gpt-4o',
+  OPENAI_MODEL_PREMIUM: process.env.OPENAI_MODEL_PREMIUM || 'gpt-4o',
+
+  // Retry configuration
+  AI_MAX_RETRIES: parseInt(process.env.AI_MAX_RETRIES || '2', 10),
+  AI_RETRY_DELAY_MS: parseInt(process.env.AI_RETRY_DELAY_MS || '800', 10),
+
+  // JSON enforcement
+  AI_JSON_ONLY: process.env.AI_JSON_ONLY !== 'false' // default true
+};
+
+// =============================================================================
+// TASK TAXONOMY: Maps task names to model tiers
+// =============================================================================
+
+const TASK_TAXONOMY = {
+  // Triage tasks - fast, low cost
+  ticket_classify: 'triage',
+  cmdb_autolink: 'triage',
+
+  // Reasoning tasks - balanced
+  preview_summary: 'reasoning',
+  next_best_action: 'reasoning',
+  draft_customer_reply: 'reasoning',
+  kb_generate: 'reasoning',
+
+  // Premium tasks - highest quality
+  premium_customer_reply: 'premium'
+};
+
+// Default task for backwards compatibility
+const DEFAULT_TASK = 'ticket_classify';
+
+// =============================================================================
+// ERROR CODES
+// =============================================================================
+
+const AI_ERROR_CODES = {
+  AI_BAD_JSON: 'AI_BAD_JSON',
+  AI_PROVIDER_NOT_IMPLEMENTED: 'AI_PROVIDER_NOT_IMPLEMENTED',
+  AI_NO_VALID_PROVIDER: 'AI_NO_VALID_PROVIDER'
+};
+
+// Transient error codes that should trigger retry
+const TRANSIENT_ERROR_CODES = [
+  'ECONNRESET',
+  'ETIMEDOUT',
+  'ENOTFOUND',
+  'ECONNREFUSED',
+  'PROTOCOL_CONNECTION_LOST'
+];
+
+// =============================================================================
+// UTILITY FUNCTIONS
+// =============================================================================
+
+/**
+ * Safe JSON parsing with fallback extraction
+ * @param {string} text - Raw text to parse
+ * @returns {object} Parsed JSON object
+ * @throws {Error} With code AI_BAD_JSON if parsing fails
+ */
+function safeParseJson(text) {
+  if (!text || typeof text !== 'string') {
+    const error = new Error('Empty or invalid response text');
+    error.code = AI_ERROR_CODES.AI_BAD_JSON;
+    throw error;
+  }
+
+  // First, try direct parse
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    // Continue to fallback strategies
+  }
+
+  // Remove markdown code blocks if present
+  let cleanText = text;
+  if (text.includes('```')) {
+    cleanText = text.replace(/```json?\n?/g, '').replace(/```/g, '').trim();
+    try {
+      return JSON.parse(cleanText);
+    } catch (e) {
+      // Continue to next strategy
+    }
+  }
+
+  // Try to extract first JSON object { ... }
+  const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
+    try {
+      return JSON.parse(jsonMatch[0]);
+    } catch (e) {
+      // Continue to error
+    }
+  }
+
+  // All strategies failed
+  const error = new Error(`Failed to parse JSON response: ${text.substring(0, 200)}...`);
+  error.code = AI_ERROR_CODES.AI_BAD_JSON;
+  throw error;
+}
+
+/**
+ * Retry wrapper with exponential backoff and jitter
+ * @param {Function} fn - Async function to retry
+ * @param {string} providerName - Provider name for logging
+ * @param {number} maxRetries - Maximum retry attempts (default from CONFIG)
+ * @param {number} baseDelay - Base delay in ms (default from CONFIG)
+ * @returns {Promise<any>} Result from fn
+ */
+async function withRetry(fn, providerName, maxRetries = CONFIG.AI_MAX_RETRIES, baseDelay = CONFIG.AI_RETRY_DELAY_MS) {
+  let lastError;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+
+      // Check if error is retryable
+      const isTransient = TRANSIENT_ERROR_CODES.includes(error.code) ||
+                          TRANSIENT_ERROR_CODES.some(code => error.message?.includes(code));
+      const isBadJson = error.code === AI_ERROR_CODES.AI_BAD_JSON;
+
+      const shouldRetry = (isTransient || isBadJson) && attempt < maxRetries;
+
+      if (shouldRetry) {
+        // Exponential backoff with jitter
+        const delay = baseDelay * Math.pow(2, attempt) + Math.floor(Math.random() * 250);
+        console.warn(`⚠️ [${providerName}] Retry ${attempt + 1}/${maxRetries} after ${delay}ms - Error: ${error.code || error.message}`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      } else {
+        // Non-retryable error or max retries exceeded
+        throw error;
+      }
+    }
+  }
+
+  throw lastError;
+}
+
+/**
+ * Pick the appropriate model for a given provider and task
+ * @param {string} provider - 'anthropic', 'openai', or 'pattern'
+ * @param {string} taskName - Task name from TASK_TAXONOMY
+ * @returns {string|null} Model name or null for pattern provider
+ */
+function pickModelFor(provider, taskName) {
+  const tier = TASK_TAXONOMY[taskName] || 'triage';
+
+  if (provider === 'anthropic') {
+    switch (tier) {
+      case 'premium': return CONFIG.AI_MODEL_PREMIUM;
+      case 'reasoning': return CONFIG.AI_MODEL_REASONING;
+      case 'triage':
+      default: return CONFIG.AI_MODEL_TRIAGE;
+    }
+  }
+
+  if (provider === 'openai') {
+    switch (tier) {
+      case 'premium': return CONFIG.OPENAI_MODEL_PREMIUM;
+      case 'reasoning': return CONFIG.OPENAI_MODEL_REASONING;
+      case 'triage':
+      default: return CONFIG.OPENAI_MODEL_TRIAGE;
+    }
+  }
+
+  // Pattern matching has no model
+  return null;
+}
+
+/**
+ * Get ordered list of providers to try
+ * @returns {string[]} Array of provider names in priority order
+ */
+function getProviderOrder() {
+  const providers = [];
+
+  if (CONFIG.AI_PROVIDER_PRIMARY && CONFIG.AI_PROVIDER_PRIMARY !== 'pattern') {
+    providers.push(CONFIG.AI_PROVIDER_PRIMARY);
+  }
+
+  if (CONFIG.AI_PROVIDER_SECONDARY &&
+      CONFIG.AI_PROVIDER_SECONDARY !== 'pattern' &&
+      CONFIG.AI_PROVIDER_SECONDARY !== CONFIG.AI_PROVIDER_PRIMARY) {
+    providers.push(CONFIG.AI_PROVIDER_SECONDARY);
+  }
+
+  // Pattern is always the final fallback
+  providers.push('pattern');
+
+  return providers;
+}
+
+// =============================================================================
+// MAIN CLASS
+// =============================================================================
 
 class AIAnalysisService {
   constructor(tenantCode, options = {}) {
     this.tenantCode = tenantCode;
-    this.aiProvider = options.aiProvider || process.env.AI_PROVIDER || 'pattern'; // 'openai', 'anthropic', or 'pattern'
+
+    // Backwards compatible: aiProvider option or AI_PROVIDER env var
+    this.aiProvider = options.aiProvider || process.env.AI_PROVIDER || 'pattern';
     this.apiKey = options.apiKey || process.env.AI_API_KEY;
-    this.model = options.model || this.getDefaultModel();
+
+    // Task-based routing (new feature, default to ticket_classify for backwards compat)
+    this.task = options.task || DEFAULT_TASK;
+
+    // Model selection: explicit option > task-based > legacy default
+    if (options.model) {
+      this.model = options.model;
+    } else {
+      this.model = pickModelFor(this.aiProvider, this.task) || this.getDefaultModel();
+    }
   }
 
+  /**
+   * Get default model (backwards compatible)
+   */
   getDefaultModel() {
     switch (this.aiProvider) {
       case 'openai':
@@ -26,7 +261,308 @@ class AIAnalysisService {
   }
 
   /**
-   * Analyze an email/ticket and store results
+   * Set task and update model accordingly
+   * @param {string} taskName - Task name from TASK_TAXONOMY
+   */
+  setTask(taskName) {
+    if (!TASK_TAXONOMY[taskName]) {
+      console.warn(`⚠️ Unknown task "${taskName}", defaulting to ${DEFAULT_TASK}`);
+      taskName = DEFAULT_TASK;
+    }
+    this.task = taskName;
+    this.model = pickModelFor(this.aiProvider, taskName) || this.model;
+  }
+
+  /**
+   * Check if we have a valid API key for the given provider
+   * @param {string} provider - Provider name
+   * @returns {boolean}
+   */
+  hasValidApiKey(provider) {
+    if (!this.apiKey) return false;
+    if (this.apiKey === 'your_anthropic_api_key_here') return false;
+
+    // Anthropic keys start with sk-ant-
+    if (provider === 'anthropic' && this.apiKey.startsWith('sk-ant-')) return true;
+    // Also accept generic sk- keys for anthropic
+    if (provider === 'anthropic' && this.apiKey.startsWith('sk-')) return true;
+
+    // OpenAI keys start with sk-
+    if (provider === 'openai' && this.apiKey.startsWith('sk-')) return true;
+
+    return false;
+  }
+
+  // ===========================================================================
+  // TASK-AWARE ANALYSIS (NEW)
+  // ===========================================================================
+
+  /**
+   * Analyze email/ticket data with task-based routing and provider fallback
+   * @param {object} emailData - Email/ticket data to analyze
+   * @param {object} options - Options including { task }
+   * @returns {Promise<object>} Analysis result
+   */
+  async analyze(emailData, options = {}) {
+    // Update task if provided
+    if (options.task) {
+      this.setTask(options.task);
+    }
+
+    const providers = getProviderOrder();
+    let lastError;
+
+    for (const provider of providers) {
+      try {
+        // Skip provider if it requires API key and we don't have one
+        if (provider !== 'pattern' && !this.hasValidApiKey(provider)) {
+          console.log(`⏭️ Skipping ${provider} - no valid API key`);
+          continue;
+        }
+
+        // Select model for this provider and task
+        const model = pickModelFor(provider, this.task);
+
+        console.log(`🤖 Analyzing with ${provider}/${model || 'pattern'} for task: ${this.task}`);
+
+        if (provider === 'anthropic') {
+          return await withRetry(
+            () => this.analyzeWithAnthropicTaskAware(emailData, model),
+            'anthropic'
+          );
+        } else if (provider === 'openai') {
+          // OpenAI is still stubbed - throw specific error to trigger fallback
+          const error = new Error('OpenAI integration not yet implemented');
+          error.code = AI_ERROR_CODES.AI_PROVIDER_NOT_IMPLEMENTED;
+          throw error;
+        } else {
+          // Pattern matching fallback
+          return await this.analyzeWithPatterns(emailData);
+        }
+      } catch (error) {
+        lastError = error;
+
+        // If it's a "not implemented" error, try next provider
+        if (error.code === AI_ERROR_CODES.AI_PROVIDER_NOT_IMPLEMENTED) {
+          console.log(`⏭️ ${provider} not implemented, trying next provider`);
+          continue;
+        }
+
+        // Log and try next provider for other errors
+        console.warn(`⚠️ ${provider} failed: ${error.message}, trying next provider`);
+      }
+    }
+
+    // All providers failed - final fallback to pattern matching
+    console.warn('⚠️ All AI providers failed, using pattern matching fallback');
+    try {
+      return await this.analyzeWithPatterns(emailData);
+    } catch (patternError) {
+      // If even pattern matching fails, throw the last meaningful error
+      throw lastError || patternError;
+    }
+  }
+
+  /**
+   * Task-aware Anthropic analysis with JSON enforcement
+   * @param {object} emailData - Email/ticket data
+   * @param {string} modelOverride - Model to use (from task router)
+   * @returns {Promise<object>} Parsed JSON analysis result
+   */
+  async analyzeWithAnthropicTaskAware(emailData, modelOverride) {
+    const Anthropic = require('@anthropic-ai/sdk');
+    const anthropic = new Anthropic({ apiKey: this.apiKey });
+
+    const model = modelOverride || this.model || CONFIG.AI_MODEL_TRIAGE;
+    const prompt = this.buildPromptForTask(emailData);
+    const systemPrompt = this.buildSystemPromptForTask();
+
+    const response = await anthropic.messages.create({
+      model: model,
+      max_tokens: 2048,
+      messages: [{
+        role: 'user',
+        content: prompt
+      }],
+      system: systemPrompt
+    });
+
+    // Extract all text blocks and join
+    const responseText = response.content
+      .filter(block => block.type === 'text')
+      .map(block => block.text)
+      .join('\n');
+
+    // Parse with safe JSON parser (throws AI_BAD_JSON on failure)
+    return safeParseJson(responseText);
+  }
+
+  /**
+   * Build system prompt for the current task
+   * @returns {string} System prompt
+   */
+  buildSystemPromptForTask() {
+    const jsonEnforcement = CONFIG.AI_JSON_ONLY
+      ? '\n\nCRITICAL: Return JSON only. No markdown. No extra text. No code blocks.'
+      : '';
+
+    const basePrompt = `You are an expert IT support assistant specializing in ITSM ticket analysis.${jsonEnforcement}`;
+
+    const taskPrompts = {
+      ticket_classify: `${basePrompt}
+
+Classify the support ticket and extract key information.
+
+Required JSON output:
+{
+  "category": "Infrastructure|Database|Network|Storage|Performance|Security|Application|General",
+  "sentiment": "urgent|negative|neutral|positive",
+  "urgency": "critical|high|medium|low",
+  "summary": "1-2 sentence summary",
+  "extracted_entities": ["entity1", "entity2"]
+}`,
+
+      preview_summary: `${basePrompt}
+
+Analyze the ticket and provide a comprehensive preview summary for the support agent.
+
+Required JSON output:
+{
+  "summary": "Concise summary of the issue",
+  "key_facts": ["fact1", "fact2", "fact3"],
+  "missing_info": ["what additional info would help"],
+  "risk_flags": ["potential risks or concerns"],
+  "recommended_intent": "accept_and_own|request_more_info|suggest_escalation|decline",
+  "rationale": "Why this recommendation",
+  "suggested_questions": ["question to ask customer"]
+}`,
+
+      next_best_action: `${basePrompt}
+
+Determine the next best actions for handling this ticket.
+
+Required JSON output:
+{
+  "risk_flags": ["identified risks"],
+  "next_actions": [
+    {
+      "action": "Action to take",
+      "why": "Reason for this action",
+      "effort_estimate": "low|medium|high"
+    }
+  ],
+  "suggested_customer_update": "Message to send to customer",
+  "internal_notes": "Notes for internal team"
+}`,
+
+      draft_customer_reply: `${basePrompt}
+
+Draft a professional customer reply (max 160 words). Do not speculate or make promises you cannot keep.
+
+Required JSON output:
+{
+  "subject": "Reply subject line",
+  "body": "Professional reply body (max 160 words)"
+}`,
+
+      kb_generate: `${basePrompt}
+
+Generate a knowledge base article from this resolved ticket.
+
+Required JSON output:
+{
+  "title": "KB article title",
+  "problem": "Description of the problem",
+  "environment": "Affected environment/systems",
+  "resolution_steps": ["step1", "step2", "step3"],
+  "prevention": "How to prevent this in the future",
+  "references": ["related KB articles or documentation"]
+}`,
+
+      cmdb_autolink: `${basePrompt}
+
+Identify configuration items (CIs) mentioned in or related to this ticket.
+
+Required JSON output:
+{
+  "candidate_cis": [
+    {
+      "ci_name": "Name of the CI",
+      "confidence_0_100": 85,
+      "reason": "Why this CI is relevant"
+    }
+  ]
+}`,
+
+      premium_customer_reply: `${basePrompt}
+
+Draft a premium, highly polished customer reply. Be empathetic, thorough, and professional.
+Consider the customer's frustration level and business impact.
+
+Required JSON output:
+{
+  "subject": "Reply subject line",
+  "body": "Premium quality reply (appropriate length for the situation)"
+}`
+    };
+
+    return taskPrompts[this.task] || taskPrompts.ticket_classify;
+  }
+
+  /**
+   * Build user prompt for the current task
+   * @param {object} emailData - Email/ticket data
+   * @returns {string} User prompt
+   */
+  buildPromptForTask(emailData) {
+    const baseInfo = `
+TICKET INFORMATION:
+Subject: ${emailData.subject || 'N/A'}
+Description: ${emailData.body || 'N/A'}
+Customer: ${emailData.customerName || 'Unknown'}
+Company: ${emailData.companyName || 'Unknown'}
+Created: ${emailData.createdAt || 'Unknown'}
+Status: ${emailData.currentStatus || 'Unknown'}
+Priority: ${emailData.currentPriority || 'Unknown'}
+Assignee: ${emailData.currentAssignee || 'Unassigned'}`;
+
+    const slaInfo = emailData.slaFacts ? `
+
+SLA STATUS:
+- SLA Name: ${emailData.slaFacts.sla_name || 'None'}
+- Phase: ${emailData.slaFacts.phase}
+- Response: ${emailData.slaFacts.response?.state || 'N/A'}
+- Resolve: ${emailData.slaFacts.resolve?.state || 'N/A'}` : '';
+
+    const activityInfo = emailData.activityHistory?.length > 0 ? `
+
+RECENT ACTIVITY:
+${emailData.activityHistory.slice(0, 5).map(a =>
+  `- [${a.type}] ${a.user}: ${(a.description || '').substring(0, 100)}`
+).join('\n')}` : '';
+
+    const taskInstructions = {
+      ticket_classify: 'Classify this ticket and extract key entities.',
+      preview_summary: 'Provide a preview summary to help the agent understand this ticket quickly.',
+      next_best_action: 'Determine the best next actions for this ticket.',
+      draft_customer_reply: 'Draft a professional reply to the customer (max 160 words).',
+      kb_generate: 'Generate a knowledge base article from this ticket.',
+      cmdb_autolink: 'Identify any configuration items or infrastructure mentioned.',
+      premium_customer_reply: 'Draft a premium, empathetic customer reply.'
+    };
+
+    return `${taskInstructions[this.task] || 'Analyze this ticket.'}
+${baseInfo}${slaInfo}${activityInfo}
+
+Respond with JSON only.`;
+  }
+
+  // ===========================================================================
+  // LEGACY METHODS (Preserved for backwards compatibility)
+  // ===========================================================================
+
+  /**
+   * Analyze an email/ticket and store results (LEGACY - preserved for backwards compat)
    */
   async analyzeTicket(ticketId, emailData) {
     const startTime = Date.now();
@@ -92,12 +628,14 @@ class AIAnalysisService {
   }
 
   /**
-   * Analyze with OpenAI
+   * Analyze with OpenAI (LEGACY - still stubbed)
    */
   async analyzeWithOpenAI(emailData) {
     // This would require the OpenAI SDK: npm install openai
     // For now, returning a structured response format
-    throw new Error('OpenAI integration requires installing the openai package');
+    const error = new Error('OpenAI integration requires installing the openai package');
+    error.code = AI_ERROR_CODES.AI_PROVIDER_NOT_IMPLEMENTED;
+    throw error;
 
     /* Example implementation:
     const OpenAI = require('openai');
@@ -120,13 +658,13 @@ class AIAnalysisService {
   }
 
   /**
-   * Analyze with Anthropic Claude
+   * Analyze with Anthropic Claude (LEGACY - preserved for backwards compat)
    */
   async analyzeWithAnthropic(emailData) {
     const Anthropic = require('@anthropic-ai/sdk');
     const anthropic = new Anthropic({ apiKey: this.apiKey });
 
-    const systemPrompt = `You are an expert IT support ticket analyzer. Analyze support tickets and provide structured recommendations.
+    let systemPrompt = `You are an expert IT support ticket analyzer. Analyze support tickets and provide structured recommendations.
 
 Your response must be valid JSON with this exact structure:
 {
@@ -156,6 +694,11 @@ Your response must be valid JSON with this exact structure:
 
 Available action types: assign_expert, set_priority, set_category, add_response, escalate, link_cmdb, close_ticket`;
 
+    // Add JSON enforcement if enabled
+    if (CONFIG.AI_JSON_ONLY) {
+      systemPrompt += '\n\nReturn JSON only. No markdown. No extra text.';
+    }
+
     const response = await anthropic.messages.create({
       model: this.model || 'claude-3-haiku-20240307',
       max_tokens: 2048,
@@ -177,15 +720,13 @@ Respond with valid JSON only, no markdown formatting.`
       system: systemPrompt
     });
 
-    const responseText = response.content[0].text;
+    // Extract text and parse with safe parser
+    const responseText = response.content
+      .filter(block => block.type === 'text')
+      .map(block => block.text)
+      .join('\n');
 
-    // Parse JSON, handling potential markdown code blocks
-    let jsonText = responseText;
-    if (responseText.includes('```')) {
-      jsonText = responseText.replace(/```json?\n?/g, '').replace(/```/g, '').trim();
-    }
-
-    return JSON.parse(jsonText);
+    return safeParseJson(responseText);
   }
 
   /**
@@ -275,11 +816,7 @@ Respond with valid JSON only, no markdown formatting.`
       let analysis;
 
       // Only use Claude if we have a valid API key (not placeholder)
-      const hasValidApiKey = this.apiKey &&
-                             this.apiKey !== 'your_anthropic_api_key_here' &&
-                             this.apiKey.startsWith('sk-');
-
-      if (this.aiProvider === 'anthropic' && hasValidApiKey) {
+      if (this.aiProvider === 'anthropic' && this.hasValidApiKey('anthropic')) {
         try {
           analysis = await this.getClaudeSuggestions(emailData, experts);
         } catch (error) {
@@ -334,7 +871,7 @@ SLA Status:
 - Resolve: ${slaFacts.resolve.state} (${slaFacts.resolve.percent_used}% used${slaFacts.resolve.remaining_minutes !== null ? ', ' + slaFacts.resolve.remaining_minutes + ' mins remaining' : ''})
 ` : 'SLA Status: No SLA assigned';
 
-    const systemPrompt = `You are an expert IT support assistant helping agents triage and resolve tickets efficiently.
+    let systemPrompt = `You are an expert IT support assistant helping agents triage and resolve tickets efficiently.
 
 ## SLA Rules (MUST follow these strictly):
 1. NEVER recommend changing the SLA. SLA is auto-computed by the system and locked.
@@ -388,6 +925,11 @@ For assign actions, include assignee_id from the expert list.
 For respond actions, include a professional draft response.
 If SLA is near_breach or breached, include a warning and prioritize actions that help meet SLA.`;
 
+    // Add JSON enforcement if enabled
+    if (CONFIG.AI_JSON_ONLY) {
+      systemPrompt += '\n\nReturn JSON only. No markdown. No extra text.';
+    }
+
     const response = await anthropic.messages.create({
       model: this.model || 'claude-3-haiku-20240307',
       max_tokens: 2048,
@@ -416,13 +958,12 @@ Provide JSON suggestions for efficient ticket handling.`
       system: systemPrompt
     });
 
-    const responseText = response.content[0].text;
-    let jsonText = responseText;
-    if (responseText.includes('```')) {
-      jsonText = responseText.replace(/```json?\n?/g, '').replace(/```/g, '').trim();
-    }
+    const responseText = response.content
+      .filter(block => block.type === 'text')
+      .map(block => block.text)
+      .join('\n');
 
-    return JSON.parse(jsonText);
+    return safeParseJson(responseText);
   }
 
   /**
@@ -624,7 +1165,7 @@ Provide JSON suggestions for efficient ticket handling.`
    * Analyze with pattern matching (fallback, no API needed)
    */
   async analyzeWithPatterns(emailData) {
-    const text = `${emailData.subject} ${emailData.body}`.toLowerCase();
+    const text = `${emailData.subject || ''} ${emailData.body || ''}`.toLowerCase();
 
     // Sentiment analysis
     const urgentKeywords = ['urgent', 'critical', 'emergency', 'asap', 'down', 'outage', 'failing', 'broken'];
@@ -677,7 +1218,8 @@ Provide JSON suggestions for efficient ticket handling.`
 
     // Extract key phrases
     const keyPhrases = [];
-    const lines = emailData.body.split('\n').filter(l => l.trim());
+    const body = emailData.body || '';
+    const lines = body.split('\n').filter(l => l.trim());
     lines.forEach(line => {
       if (/(critical|warning|error|problem|issue|alert)/i.test(line)) {
         keyPhrases.push(line.trim().substring(0, 100));
@@ -694,7 +1236,7 @@ Provide JSON suggestions for efficient ticket handling.`
     ];
 
     technicalPatterns.forEach(pattern => {
-      const matches = emailData.body.match(pattern);
+      const matches = body.match(pattern);
       if (matches) {
         technicalTerms.push(...matches.slice(0, 5));
       }
@@ -702,7 +1244,8 @@ Provide JSON suggestions for efficient ticket handling.`
 
     // Extract host/service name
     let suggestedAssignee = null;
-    const hostMatch = emailData.subject.match(/Host:\s*([A-Za-z0-9\-_]+)/i);
+    const subject = emailData.subject || '';
+    const hostMatch = subject.match(/Host:\s*([A-Za-z0-9\-_]+)/i);
     if (hostMatch) {
       // In a real system, this would map to an assignee based on host ownership
       suggestedAssignee = `${category}-team`;
@@ -729,6 +1272,19 @@ Provide JSON suggestions for efficient ticket handling.`
 
       const similarTicketIds = similarTickets.map(t => t.id);
 
+      // Return format depends on task
+      // For new task-based routing, return task-appropriate format
+      if (this.task === 'ticket_classify') {
+        return {
+          category,
+          sentiment,
+          urgency: impactLevel,
+          summary: `${category} issue detected with ${sentiment} sentiment`,
+          extracted_entities: technicalTerms.slice(0, 5)
+        };
+      }
+
+      // Legacy format for backwards compatibility
       return {
         sentiment,
         confidence,
@@ -1132,11 +1688,7 @@ Provide JSON suggestions for efficient ticket handling.`
       let matches;
 
       // Use Claude if available, otherwise pattern matching
-      const hasValidApiKey = this.apiKey &&
-                             this.apiKey !== 'your_anthropic_api_key_here' &&
-                             this.apiKey.startsWith('sk-');
-
-      if (this.aiProvider === 'anthropic' && hasValidApiKey) {
+      if (this.aiProvider === 'anthropic' && this.hasValidApiKey('anthropic')) {
         try {
           matches = await this.matchWithClaude(ticket, cmdbItems, configItems);
         } catch (error) {
@@ -1194,7 +1746,7 @@ Provide JSON suggestions for efficient ticket handling.`
       `ID:${ci.id} | ${ci.ci_name}: ${ci.category_field_value || 'N/A'} | Parent: ${ci.parent_asset_name || 'N/A'}`
     ).join('\n');
 
-    const systemPrompt = `You are an IT infrastructure expert that matches support tickets to Configuration Management Database (CMDB) items.
+    let systemPrompt = `You are an IT infrastructure expert that matches support tickets to Configuration Management Database (CMDB) items.
 
 Analyze the ticket and identify which CMDB items (servers, services, applications) and Configuration Items (CIs like IP addresses, credentials, settings) are relevant.
 
@@ -1221,6 +1773,11 @@ Respond with valid JSON:
 
 Only include items with confidence >= 60. Order by confidence descending.`;
 
+    // Add JSON enforcement if enabled
+    if (CONFIG.AI_JSON_ONLY) {
+      systemPrompt += '\n\nReturn JSON only. No markdown. No extra text.';
+    }
+
     const response = await anthropic.messages.create({
       model: this.model || 'claude-3-haiku-20240307',
       max_tokens: 2048,
@@ -1245,13 +1802,12 @@ Find all relevant infrastructure items. Respond with JSON only.`
       system: systemPrompt
     });
 
-    const responseText = response.content[0].text;
-    let jsonText = responseText;
-    if (responseText.includes('```')) {
-      jsonText = responseText.replace(/```json?\n?/g, '').replace(/```/g, '').trim();
-    }
+    const responseText = response.content
+      .filter(block => block.type === 'text')
+      .map(block => block.text)
+      .join('\n');
 
-    const result = JSON.parse(jsonText);
+    const result = safeParseJson(responseText);
 
     // Map results to full item data
     const cmdbMatches = (result.cmdb_matches || []).map(match => {
@@ -1546,4 +2102,18 @@ Find all relevant infrastructure items. Respond with JSON only.`
   }
 }
 
-module.exports = { AIAnalysisService };
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+module.exports = {
+  AIAnalysisService,
+  // Export utilities for testing
+  safeParseJson,
+  withRetry,
+  pickModelFor,
+  getProviderOrder,
+  CONFIG,
+  TASK_TAXONOMY,
+  AI_ERROR_CODES
+};
