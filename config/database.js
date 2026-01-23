@@ -19,11 +19,13 @@ const masterConfig = {
   password: process.env.MASTER_DB_PASSWORD || process.env.MYSQLPASSWORD || process.env.MYSQL_PASSWORD || '',
   database: process.env.MASTER_DB_NAME || process.env.MYSQLDATABASE || process.env.MYSQL_DATABASE || 'a1_master',
   waitForConnections: true,
-  connectionLimit: 30,
+  connectionLimit: 10,       // Reduced: Railway MySQL has ~100 connection limit shared across replicas
   queueLimit: 0,             // 0 = unlimited queue (prevents "Queue limit reached" errors)
   connectTimeout: 10000,     // 10 seconds to establish connection
   enableKeepAlive: true,
-  keepAliveInitialDelay: 10000
+  keepAliveInitialDelay: 10000,
+  idleTimeout: 60000,        // Close idle connections after 60 seconds to prevent pool exhaustion
+  maxIdle: 5                 // Keep max 5 idle connections
 };
 
 console.log(`🔧 Using database host: ${masterConfig.host}:${masterConfig.port}`);
@@ -75,11 +77,13 @@ async function getTenantConnection(tenantCode) {
         password: tenant.database_password || process.env.MYSQLPASSWORD || process.env.MYSQL_PASSWORD,
         database: tenant.database_name,
         waitForConnections: true,
-        connectionLimit: 50,       // Increased for production load
+        connectionLimit: 15,       // Reduced: Railway MySQL has ~100 connection limit shared across replicas
         queueLimit: 0,             // 0 = unlimited queue (prevents "Queue limit reached" errors)
         connectTimeout: 10000,     // 10 seconds to establish connection
         enableKeepAlive: true,
-        keepAliveInitialDelay: 10000
+        keepAliveInitialDelay: 10000,
+        idleTimeout: 60000,        // Close idle connections after 60 seconds to prevent pool exhaustion
+        maxIdle: 5                 // Keep max 5 idle connections
       };
 
       const tenantPool = mysql.createPool(tenantConfig);
