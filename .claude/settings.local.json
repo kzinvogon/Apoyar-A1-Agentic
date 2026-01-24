@@ -166,7 +166,8 @@
       "Bash(railway variables:*)",
       "Bash(railway domain:*)",
       "Bash(railway projects:*)",
-      "Bash(railway:*)"
+      "Bash(railway:*)",
+      "Bash(npm run smoke:uat:*)"
     ],
     "deny": [],
     "ask": []
