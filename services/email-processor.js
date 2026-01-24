@@ -124,8 +124,15 @@ class EmailProcessor {
 
   /**
    * Fetch emails via IMAP
+   *
+   * IMPORTANT: Uses queue-based sequential processing to prevent DB pool exhaustion.
+   * 1. Collect phase: Parse all emails from IMAP (no DB operations)
+   * 2. Process phase: Process emails one-by-one with delays using single DB connection
    */
   async fetchEmailsViaIMAP(connection, config) {
+    const self = this;
+    const EMAIL_PROCESS_DELAY_MS = parseInt(process.env.EMAIL_PROCESS_DELAY_MS) || 2000; // 2 second delay between emails
+
     return new Promise((resolve, reject) => {
       // Configure IMAP connection
       const imap = new Imap({
@@ -137,10 +144,60 @@ class EmailProcessor {
         tlsOptions: { rejectUnauthorized: false }
       });
 
+      // Queue to collect emails before processing
+      const emailQueue = [];
       const processedEmails = [];
+      let pendingParses = 0;
+      let fetchEnded = false;
+
+      // Helper to delay execution
+      const delay = (ms) => new Promise(r => setTimeout(r, ms));
+
+      // Process queue sequentially after all emails are collected
+      const processQueue = async () => {
+        if (emailQueue.length === 0) {
+          console.log(`No emails in queue to process for tenant: ${self.tenantCode}`);
+          return;
+        }
+
+        console.log(`📋 Processing queue of ${emailQueue.length} email(s) sequentially...`);
+
+        for (let i = 0; i < emailQueue.length; i++) {
+          const emailData = emailQueue[i];
+
+          try {
+            console.log(`📧 [${i + 1}/${emailQueue.length}] Processing: ${emailData.subject}`);
+            const result = await self.processEmail(connection, emailData);
+            processedEmails.push(result);
+          } catch (processError) {
+            console.error(`Error processing email ${i + 1}:`, processError.message);
+            processedEmails.push({ success: false, error: processError.message });
+          }
+
+          // Delay between emails (except after the last one)
+          if (i < emailQueue.length - 1) {
+            console.log(`⏳ Waiting ${EMAIL_PROCESS_DELAY_MS}ms before next email...`);
+            await delay(EMAIL_PROCESS_DELAY_MS);
+          }
+        }
+
+        console.log(`✅ Finished processing ${processedEmails.length} email(s)`);
+      };
+
+      // Check if we should start processing (all emails collected and parsed)
+      const checkAndProcess = async () => {
+        if (fetchEnded && pendingParses === 0) {
+          try {
+            await processQueue();
+          } catch (err) {
+            console.error('Error in queue processing:', err);
+          }
+          imap.end();
+        }
+      };
 
       imap.once('ready', () => {
-        console.log(`✅ IMAP connected for tenant: ${this.tenantCode}`);
+        console.log(`✅ IMAP connected for tenant: ${self.tenantCode}`);
 
         // Open [Gmail]/All Mail to catch emails filtered by Gmail screener
         imap.openBox('[Gmail]/All Mail', false, (err, box) => {
@@ -159,18 +216,18 @@ class EmailProcessor {
             }
 
             if (!results || results.length === 0) {
-              console.log(`No new emails found for tenant: ${this.tenantCode}`);
+              console.log(`No new emails found for tenant: ${self.tenantCode}`);
               imap.end();
               return resolve(processedEmails);
             }
 
-            console.log(`📧 Found ${results.length} new email(s) for tenant: ${this.tenantCode}`);
+            console.log(`📧 Found ${results.length} new email(s) for tenant: ${self.tenantCode}`);
 
-            // Fetch email messages
+            // Fetch email messages - COLLECT PHASE (no DB operations)
             const fetch = imap.fetch(results, { bodies: '', markSeen: true });
 
             fetch.on('message', (msg, seqno) => {
-              console.log(`Processing email #${seqno}`);
+              pendingParses++;
 
               msg.on('body', (stream, info) => {
                 let buffer = '';
@@ -181,7 +238,7 @@ class EmailProcessor {
 
                 stream.once('end', async () => {
                   try {
-                    // Parse the email
+                    // Parse the email (no DB operations here)
                     const parsed = await simpleParser(buffer);
 
                     const emailData = {
@@ -189,17 +246,18 @@ class EmailProcessor {
                       subject: parsed.subject || '(No Subject)',
                       body: parsed.text || parsed.html || '(No content)',
                       messageId: parsed.messageId || `msg-${Date.now()}`,
-                      date: parsed.date
+                      date: parsed.date,
+                      seqno: seqno
                     };
 
-                    console.log(`📨 Email from: ${emailData.from}, Subject: ${emailData.subject}`);
-
-                    // Process the email using existing logic
-                    const result = await this.processEmail(connection, emailData);
-                    processedEmails.push(result);
+                    console.log(`📨 Queued email #${seqno}: ${emailData.from} - ${emailData.subject}`);
+                    emailQueue.push(emailData);
 
                   } catch (parseError) {
                     console.error(`Error parsing email #${seqno}:`, parseError);
+                  } finally {
+                    pendingParses--;
+                    checkAndProcess();
                   }
                 });
               });
@@ -211,20 +269,21 @@ class EmailProcessor {
             });
 
             fetch.once('end', () => {
-              console.log(`✅ Finished processing ${processedEmails.length} email(s)`);
-              imap.end();
+              console.log(`📥 All emails fetched from IMAP, waiting for parsing to complete...`);
+              fetchEnded = true;
+              checkAndProcess();
             });
           });
         });
       });
 
       imap.once('error', (err) => {
-        console.error(`❌ IMAP connection error for tenant ${this.tenantCode}:`, err.message);
+        console.error(`❌ IMAP connection error for tenant ${self.tenantCode}:`, err.message);
         reject(err);
       });
 
       imap.once('end', () => {
-        console.log(`IMAP connection closed for tenant: ${this.tenantCode}`);
+        console.log(`IMAP connection closed for tenant: ${self.tenantCode}`);
         resolve(processedEmails);
       });
 
