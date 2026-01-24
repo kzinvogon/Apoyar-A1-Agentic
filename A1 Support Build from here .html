@@ -3270,7 +3270,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               </div>
 
               <!-- Admin-only: SLA Details -->
-              <div id="admin-section-sla" class="admin-section">
+              <div id="ticket-sla-details" class="admin-section">
                 <div class="subtitle">SLA Details</div>
                 <div id="td-sla-name" style="font-weight:600;margin-bottom:4px"></div>
                 <div class="row wrap" style="align-items:center;gap:8px">
@@ -9682,6 +9682,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       loadBatchProcessingSettings();
     }
     if (sectionId === 'admin-section-cmdb-fields') loadCustomFieldDefinitions();
+    if (sectionId === 'admin-section-sla') loadSLAData();
   }
 
   function initWizardSection() {
