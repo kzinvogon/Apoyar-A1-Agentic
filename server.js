@@ -218,39 +218,182 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Database status endpoint
+// Database status endpoint (enhanced with pool stats)
 app.get('/api/db/status', async (req, res) => {
   try {
-    const { getMasterConnection } = require('./config/database');
-    const connection = await getMasterConnection();
-    
-    try {
-      const [tenantCount] = await connection.query("SELECT COUNT(*) as count FROM tenants WHERE status = 'active'");
-      const [userCount] = await connection.query('SELECT COUNT(*) as count FROM master_users WHERE is_active = TRUE');
-      
-      res.json({
-        success: true,
-        master_db: 'connected',
-        active_tenants: tenantCount[0].count,
-        master_users: userCount[0].count,
-        timestamp: new Date().toISOString()
-      });
-    } finally {
-      connection.release();
-    }
+    const { masterQuery, getPoolStats, healthCheck } = require('./config/database');
+
+    // Get basic counts using the new query method
+    const tenantCount = await masterQuery("SELECT COUNT(*) as count FROM tenants WHERE status = 'active'");
+    const userCount = await masterQuery('SELECT COUNT(*) as count FROM master_users WHERE is_active = TRUE');
+
+    // Get pool statistics
+    const poolStats = getPoolStats();
+
+    // Get health check results
+    const health = await healthCheck();
+
+    res.json({
+      success: true,
+      master_db: 'connected',
+      active_tenants: tenantCount[0].count,
+      master_users: userCount[0].count,
+      pool: {
+        stats: poolStats,
+        health: health,
+      },
+      timestamp: new Date().toISOString()
+    });
   } catch (error) {
     res.status(500).json({
       success: false,
       master_db: 'error',
       error: error.message,
+      isSchemaError: error.isSchemaError || false,
+      isFatalConnectionError: error.isFatalConnectionError || false,
       timestamp: new Date().toISOString()
     });
   }
 });
 
+// Pool status endpoint for monitoring/alerting (protected)
+app.get('/api/pool/status', async (req, res) => {
+  // Security: require POOL_STATUS_KEY to be configured
+  const expectedKey = process.env.POOL_STATUS_KEY;
+  if (!expectedKey) {
+    return res.status(404).json({ error: 'Not found' });
+  }
+
+  // Validate header matches configured key
+  if (req.headers['x-pool-status-key'] !== expectedKey) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  try {
+    const { getPoolStats, healthCheck } = require('./config/database');
+
+    const stats = getPoolStats();
+    const health = await healthCheck();
+
+    // Calculate if pool is healthy
+    const isHealthy = health.master === true &&
+      Object.values(health.tenants).every(v => v === true);
+
+    // Sanitize stats - remove sensitive info (hostnames, DB names, credentials)
+    const sanitizedStats = {
+      masterPool: stats.masterPool ? {
+        queries: stats.masterPool.queries,
+        errors: stats.masterPool.errors,
+        reconnects: stats.masterPool.reconnects,
+        schemaErrors: stats.masterPool.schemaErrors,
+        queueWarnings: stats.masterPool.queueWarnings,
+        created: stats.masterPool.created,
+        lastQuery: stats.masterPool.lastQuery,
+        lastError: stats.masterPool.lastError,
+      } : null,
+      tenantCount: Object.keys(stats.tenantPools).length,
+      tenants: Object.fromEntries(
+        Object.entries(stats.tenantPools).map(([key, val]) => [
+          key,
+          {
+            queries: val.queries,
+            errors: val.errors,
+            reconnects: val.reconnects,
+            schemaErrors: val.schemaErrors,
+            queueWarnings: val.queueWarnings,
+            created: val.created,
+            lastQuery: val.lastQuery,
+            lastError: val.lastError,
+          }
+        ])
+      ),
+    };
+
+    // Sanitize health - just boolean status, no error messages with paths
+    const sanitizedHealth = {
+      master: health.master === true,
+      tenants: Object.fromEntries(
+        Object.entries(health.tenants).map(([key, val]) => [key, val === true])
+      ),
+    };
+
+    res.json({
+      success: true,
+      healthy: isHealthy,
+      stats: sanitizedStats,
+      health: sanitizedHealth,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      healthy: false,
+      error: 'Internal error',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Run all tenant migrations (only when RUN_MIGRATIONS=true)
+async function runAllMigrations(tenantCode) {
+  console.log(`📋 Running migrations for tenant: ${tenantCode}...`);
+
+  const migrations = [
+    { name: 'CMDB schema', fn: async () => { const { runCMDBMigration } = require('./scripts/migrate-cmdb-inline'); await runCMDBMigration(tenantCode); }},
+    { name: 'Ticket-CMDB relations', fn: async () => { const { runMigration } = require('./migrations/add-ticket-cmdb-relations'); await runMigration(tenantCode); }},
+    { name: 'Knowledge Base', fn: async () => { const { runMigration } = require('./migrations/add-knowledge-base'); await runMigration(tenantCode); }},
+    { name: 'Email notifications column', fn: async () => { const { runMigration } = require('./migrations/add-email-notifications-column'); await runMigration(tenantCode); }},
+    { name: 'Must reset password', fn: async () => { const { runMigration } = require('./migrations/add-must-reset-password'); await runMigration(tenantCode); }},
+    { name: 'Invitation columns', fn: async () => { const { runMigration } = require('./migrations/add-invitation-columns'); await runMigration(tenantCode); }},
+    { name: 'Soft delete columns', fn: async () => { const { runMigration } = require('./migrations/add-soft-delete-columns'); await runMigration(tenantCode); }},
+    { name: 'Teams user preferences', fn: async () => { const { runMigration } = require('./migrations/add-teams-user-preferences'); await runMigration(tenantCode); }},
+    { name: 'SLA definitions', fn: async () => { const { runMigration } = require('./migrations/add-sla-definitions'); await runMigration(tenantCode); }},
+    { name: 'Resolve after response', fn: async () => { const { runMigration } = require('./migrations/add-resolve-after-response'); await runMigration(tenantCode); }},
+    { name: 'SLA ticket fields', fn: async () => { const { runMigration } = require('./migrations/add-sla-ticket-fields'); await runMigration(tenantCode); }},
+    { name: 'SLA notification fields', fn: async () => { const { runMigration } = require('./migrations/add-sla-notification-fields'); await runMigration(tenantCode); }},
+    { name: 'SLA source fields', fn: async () => { const { runMigration } = require('./migrations/add-sla-source-fields'); await runMigration(tenantCode); }},
+    { name: 'Ticket SLA source', fn: async () => { const { runMigration } = require('./migrations/add-ticket-sla-source'); await runMigration(tenantCode); }},
+    { name: 'Category SLA mappings', fn: async () => { const { runMigration } = require('./migrations/add-category-sla-mappings'); await runMigration(tenantCode); }},
+    { name: 'Tenant settings', fn: async () => { const { migrate } = require('./migrations/add-tenant-settings'); await migrate(tenantCode); }},
+    { name: 'Customer SLA override', fn: async () => { const { migrate } = require('./migrations/add-customer-sla-override'); await migrate(tenantCode); }},
+    { name: 'Last login column', fn: async () => { const { migrate } = require('./migrations/add-last-login-column'); await migrate(tenantCode); }},
+    { name: 'Tenant features', fn: async () => { const { migrate } = require('./migrations/add-tenant-features'); await migrate(tenantCode, 'professional'); }},
+    { name: 'CMDB V2', fn: async () => { const { runMigration } = require('./migrations/add-cmdb-v2-tables'); await runMigration(tenantCode); }},
+  ];
+
+  let successCount = 0;
+  let failCount = 0;
+
+  for (const migration of migrations) {
+    try {
+      await migration.fn();
+      successCount++;
+    } catch (error) {
+      failCount++;
+      console.warn(`⚠️  Migration "${migration.name}" failed:`, error.message);
+    }
+  }
+
+  console.log(`✅ Migrations complete: ${successCount} succeeded, ${failCount} failed`);
+}
+
 // Initialize database and start server
 async function startServer() {
   console.log('🚀 Starting ServiFlow Support Platform...');
+
+  // Check if migrations should run
+  const shouldRunMigrations = process.env.RUN_MIGRATIONS === 'true';
+  if (shouldRunMigrations) {
+    console.log('📋 RUN_MIGRATIONS=true - migrations will run at startup');
+  } else {
+    console.log('ℹ️  Migrations disabled (set RUN_MIGRATIONS=true to enable)');
+  }
+
+  // Check if email processing should run in this process
+  const shouldRunEmailProcessing = process.env.DISABLE_EMAIL_PROCESSING !== 'true';
+  if (!shouldRunEmailProcessing) {
+    console.log('ℹ️  Email processing disabled (DISABLE_EMAIL_PROCESSING=true)');
+  }
 
   // Start the HTTP server FIRST so health checks work
   app.listen(PORT, '0.0.0.0', async () => {
@@ -263,7 +406,7 @@ async function startServer() {
     console.log('📊 Initializing database connections...');
 
     try {
-      // Initialize master database
+      // Initialize master database (creates tables if needed - idempotent)
       await initializeMasterDatabase();
       console.log('✅ Master database initialized');
       dbStatus.initialized = true;
@@ -273,192 +416,19 @@ async function startServer() {
         await initializeTenantDatabase('apoyar');
         console.log('✅ Tenant database "apoyar" initialized');
 
-        // Run CMDB migration to ensure schema is up to date
-        try {
-          const { runCMDBMigration } = require('./scripts/migrate-cmdb-inline');
-          await runCMDBMigration('apoyar');
-          console.log('✅ CMDB schema migration completed');
-        } catch (migrationError) {
-          console.warn(`⚠️  Warning: CMDB migration:`, migrationError.message);
+        // Run migrations only if explicitly enabled
+        if (shouldRunMigrations) {
+          await runAllMigrations('apoyar');
         }
 
-        // Run ticket-CMDB relations migration
-        try {
-          const { runMigration: runTicketCMDBMigration } = require('./migrations/add-ticket-cmdb-relations');
-          await runTicketCMDBMigration('apoyar');
-          console.log('✅ Ticket-CMDB relations migration completed');
-        } catch (migrationError) {
-          console.warn(`⚠️  Warning: Ticket-CMDB migration:`, migrationError.message);
-        }
-
-        // Run Knowledge Base migration
-        try {
-          const { runMigration: runKBMigration } = require('./migrations/add-knowledge-base');
-          await runKBMigration('apoyar');
-          console.log('✅ Knowledge Base migration completed');
-        } catch (migrationError) {
-          console.warn(`⚠️  Warning: Knowledge Base migration:`, migrationError.message);
-        }
-
-        // Run email notifications column migration
-        try {
-          const { runMigration: runEmailNotificationsMigration } = require('./migrations/add-email-notifications-column');
-          await runEmailNotificationsMigration('apoyar');
-          console.log('✅ Email notifications column migration completed');
-        } catch (migrationError) {
-          console.warn(`⚠️  Warning: Email notifications migration:`, migrationError.message);
-        }
-
-        // Run must_reset_password column migration
-        try {
-          const { runMigration: runMustResetPasswordMigration } = require('./migrations/add-must-reset-password');
-          await runMustResetPasswordMigration('apoyar');
-          console.log('✅ Must reset password column migration completed');
-        } catch (migrationError) {
-          console.warn(`⚠️  Warning: Must reset password migration:`, migrationError.message);
-        }
-
-        // Run invitation columns migration
-        try {
-          const { runMigration: runInvitationMigration } = require('./migrations/add-invitation-columns');
-          await runInvitationMigration('apoyar');
-          console.log('✅ Invitation columns migration completed');
-        } catch (migrationError) {
-          console.warn(`⚠️  Warning: Invitation columns migration:`, migrationError.message);
-        }
-
-        // Run soft delete columns migration
-        try {
-          const { runMigration: runSoftDeleteMigration } = require('./migrations/add-soft-delete-columns');
-          await runSoftDeleteMigration('apoyar');
-          console.log('✅ Soft delete columns migration completed');
-        } catch (migrationError) {
-          console.warn(`⚠️  Warning: Soft delete columns migration:`, migrationError.message);
-        }
-
-        // Run Teams user preferences migration
-        try {
-          const { runMigration: runTeamsUserPrefsMigration } = require('./migrations/add-teams-user-preferences');
-          await runTeamsUserPrefsMigration('apoyar');
-          console.log('✅ Teams user preferences migration completed');
-        } catch (migrationError) {
-          console.warn(`⚠️  Warning: Teams user preferences migration:`, migrationError.message);
-        }
-
-        // Run SLA definitions migration
-        try {
-          const { runMigration: runSLAMigration } = require('./migrations/add-sla-definitions');
-          await runSLAMigration('apoyar');
-          console.log('✅ SLA definitions migration completed');
-        } catch (migrationError) {
-          console.warn(`⚠️  Warning: SLA definitions migration:`, migrationError.message);
-        }
-
-        // Run resolve_after_response_minutes migration
-        try {
-          const { runMigration: runResolveAfterResponseMigration } = require('./migrations/add-resolve-after-response');
-          await runResolveAfterResponseMigration('apoyar');
-          console.log('✅ Resolve after response migration completed');
-        } catch (migrationError) {
-          console.warn(`⚠️  Warning: Resolve after response migration:`, migrationError.message);
-        }
-
-        // Run SLA ticket fields migration
-        try {
-          const { runMigration: runSLATicketFieldsMigration } = require('./migrations/add-sla-ticket-fields');
-          await runSLATicketFieldsMigration('apoyar');
-          console.log('✅ SLA ticket fields migration completed');
-        } catch (migrationError) {
-          console.warn(`⚠️  Warning: SLA ticket fields migration:`, migrationError.message);
-        }
-
-        // Run SLA notification fields migration
-        try {
-          const { runMigration: runSLANotificationFieldsMigration } = require('./migrations/add-sla-notification-fields');
-          await runSLANotificationFieldsMigration('apoyar');
-          console.log('✅ SLA notification fields migration completed');
-        } catch (migrationError) {
-          console.warn(`⚠️  Warning: SLA notification fields migration:`, migrationError.message);
-        }
-
-        // Run SLA source fields migration (customer_companies, cmdb_items)
-        try {
-          const { runMigration: runSLASourceFieldsMigration } = require('./migrations/add-sla-source-fields');
-          await runSLASourceFieldsMigration('apoyar');
-          console.log('✅ SLA source fields migration completed');
-        } catch (migrationError) {
-          console.warn(`⚠️  Warning: SLA source fields migration:`, migrationError.message);
-        }
-
-        // Run ticket sla_source migration
-        try {
-          const { runMigration: runTicketSLASourceMigration } = require('./migrations/add-ticket-sla-source');
-          await runTicketSLASourceMigration('apoyar');
-          console.log('✅ Ticket SLA source migration completed');
-        } catch (migrationError) {
-          console.warn(`⚠️  Warning: Ticket SLA source migration:`, migrationError.message);
-        }
-
-        // Run category SLA mappings migration
-        try {
-          const { runMigration: runCategorySLAMigration } = require('./migrations/add-category-sla-mappings');
-          await runCategorySLAMigration('apoyar');
-          console.log('✅ Category SLA mappings migration completed');
-        } catch (migrationError) {
-          console.warn(`⚠️  Warning: Category SLA mappings migration:`, migrationError.message);
-        }
-
-        // Run tenant settings migration
-        try {
-          const { migrate: runTenantSettingsMigration } = require('./migrations/add-tenant-settings');
-          await runTenantSettingsMigration('apoyar');
-          console.log('✅ Tenant settings migration completed');
-        } catch (migrationError) {
-          console.warn(`⚠️  Warning: Tenant settings migration:`, migrationError.message);
-        }
-
-        // Run customer SLA override migration
-        try {
-          const { migrate: runCustomerSLAOverrideMigration } = require('./migrations/add-customer-sla-override');
-          await runCustomerSLAOverrideMigration('apoyar');
-          console.log('✅ Customer SLA override migration completed');
-        } catch (migrationError) {
-          console.warn(`⚠️  Warning: Customer SLA override migration:`, migrationError.message);
-        }
-
-        // Run last_login column migration
-        try {
-          const { migrate: runLastLoginMigration } = require('./migrations/add-last-login-column');
-          await runLastLoginMigration('apoyar');
-          console.log('✅ Last login column migration completed');
-        } catch (migrationError) {
-          console.warn(`⚠️  Warning: Last login column migration:`, migrationError.message);
-        }
-
-        // Run tenant features migration
-        try {
-          const { migrate: runTenantFeaturesMigration } = require('./migrations/add-tenant-features');
-          await runTenantFeaturesMigration('apoyar', 'professional');
-          console.log('✅ Tenant features migration completed');
-        } catch (migrationError) {
-          console.warn(`⚠️  Warning: Tenant features migration:`, migrationError.message);
-        }
-
-        // Run CMDB V2 migration (custom fields, relationships, history)
-        try {
-          const { runMigration: runCMDBV2Migration } = require('./migrations/add-cmdb-v2-tables');
-          await runCMDBV2Migration('apoyar');
-          console.log('✅ CMDB V2 migration completed');
-        } catch (migrationError) {
-          console.warn(`⚠️  Warning: CMDB V2 migration:`, migrationError.message);
-        }
-
-        // Start email processing for apoyar tenant
-        try {
-          await startEmailProcessing('apoyar');
-          console.log('✅ Email processing service started for tenant "apoyar"');
-        } catch (emailError) {
-          console.warn(`⚠️  Warning: Could not start email processing:`, emailError.message);
+        // Start email processing only if not disabled
+        if (shouldRunEmailProcessing) {
+          try {
+            await startEmailProcessing('apoyar');
+            console.log('✅ Email processing service started for tenant "apoyar"');
+          } catch (emailError) {
+            console.warn(`⚠️  Warning: Could not start email processing:`, emailError.message);
+          }
         }
 
         // Start SLA notification scheduler (unless disabled for separate worker deployment)
