@@ -8060,7 +8060,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
       closeClaimPreviewModal();
       switchExpertView('my');  // Switch to My Tickets view
-      await loadTickets();      // Refresh tickets
+      await fetchTicketsFromAPI();      // Refresh tickets
       openTicket(data.ticket.id);  // Open the ticket
     } catch (error) {
       console.error('Error accepting ownership:', error);
@@ -8126,7 +8126,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         throw new Error(data.message || 'Failed to set waiting on customer');
       }
 
-      await loadTickets();
+      await fetchTicketsFromAPI();
       if (currentTicketId === ticketId) {
         const t = tickets.find(x => x.id === ticketId);
         if (t) renderTicketDetail(t);
@@ -8154,7 +8154,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         throw new Error(data.message || 'Failed to resume ticket');
       }
 
-      await loadTickets();
+      await fetchTicketsFromAPI();
       if (currentTicketId === ticketId) {
         const t = tickets.find(x => x.id === ticketId);
         if (t) renderTicketDetail(t);
@@ -8188,7 +8188,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         throw new Error(data.message || 'Failed to escalate ticket');
       }
 
-      await loadTickets();
+      await fetchTicketsFromAPI();
       closeTicketModal();
       switchExpertView('pool');
     } catch (error) {
