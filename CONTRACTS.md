@@ -55,18 +55,60 @@ Authorization: Bearer <token>
 
 ## Knowledge Base API
 
-| UI Component | Endpoint | Method | Response Shape |
-|--------------|----------|--------|----------------|
-| KB Categories | `GET /api/kb/:tenant/categories` | GET | `{ success: bool, categories: array }` |
-| KB Articles | `GET /api/kb/:tenant/articles` | GET | `{ success: bool, articles: array }` |
-| KB Stats | `GET /api/kb/:tenant/stats` | GET | `{ success: bool, stats: object }` |
-| Single Article | `GET /api/kb/:tenant/articles/:id` | GET | `{ success: bool, article: object }` |
-| Create Article | `POST /api/kb/:tenant/articles` | POST | `{ success: bool, article: object }` |
-| Update Article | `PUT /api/kb/:tenant/articles/:id` | PUT | `{ success: bool, article: object }` |
-| Delete Article | `DELETE /api/kb/:tenant/articles/:id` | DELETE | `{ success: bool }` |
-| Article Feedback | `POST /api/kb/:tenant/articles/:id/feedback` | POST | `{ success: bool }` |
-| Merge Suggestions | `GET /api/kb/:tenant/merge-suggestions` | GET | `{ success: bool, suggestions: array }` |
-| Suggest for Ticket | `GET /api/kb/:tenant/suggest-for-ticket/:ticketId` | GET | `{ success: bool, suggestions: array }` |
+**Route file:** `routes/knowledge-base.js`
+**Mount point:** `app.use('/api/kb', knowledgeBaseRoutes)` (server.js:126)
+
+### Articles CRUD
+
+| UI Component | Endpoint | Method | Auth | Response Shape |
+|--------------|----------|--------|------|----------------|
+| KB List | `GET /api/kb/:tenant/articles` | GET | token | `{ success, articles[], pagination }` |
+| KB Article View | `GET /api/kb/:tenant/articles/:id` | GET | token | `{ success, article }` |
+| KB Create | `POST /api/kb/:tenant/articles` | POST | admin/expert | `{ success, article }` |
+| KB Edit | `PUT /api/kb/:tenant/articles/:id` | PUT | admin/expert | `{ success, article }` |
+| KB Delete | `DELETE /api/kb/:tenant/articles/:id` | DELETE | admin | `{ success, message }` |
+
+### Categories & Stats
+
+| UI Component | Endpoint | Method | Auth | Response Shape |
+|--------------|----------|--------|------|----------------|
+| KB Sidebar | `GET /api/kb/:tenant/categories` | GET | token | `{ success, categories[] }` |
+| KB Dashboard | `GET /api/kb/:tenant/stats` | GET | admin/expert | `{ success, stats }` |
+
+### Search & Suggestions
+
+| UI Component | Endpoint | Method | Auth | Response Shape |
+|--------------|----------|--------|------|----------------|
+| KB Search | `GET /api/kb/:tenant/search?q=` | GET | token | `{ success, query, results[] }` |
+| Ticket Sidebar | `GET /api/kb/:tenant/suggest-for-ticket/:ticketId` | GET | token | `{ success, suggestions[] }` |
+| Ticket KB Panel | `GET /api/kb/:tenant/tickets/:ticketId/suggestions` | GET | admin/expert | `{ success, suggestions[] }` |
+| Create from Ticket | `POST /api/kb/:tenant/tickets/:ticketId/create-article` | POST | admin/expert | `{ success, article }` |
+
+### Merge & Deduplication
+
+| UI Component | Endpoint | Method | Auth | Response Shape |
+|--------------|----------|--------|------|----------------|
+| Merge Queue | `GET /api/kb/:tenant/merge-suggestions` | GET | admin/expert | `{ success, count, suggestions[] }` |
+| Merge Action | `POST /api/kb/:tenant/merge` | POST | admin | `{ success, merged_article }` |
+| Dismiss Merge | `POST /api/kb/:tenant/merge-suggestions/:id/dismiss` | POST | admin/expert | `{ success, message }` |
+
+### Feedback
+
+| UI Component | Endpoint | Method | Auth | Response Shape |
+|--------------|----------|--------|------|----------------|
+| Article Footer | `POST /api/kb/:tenant/articles/:id/feedback` | POST | token | `{ success, message }` |
+
+### Database Tables
+
+| Table | Purpose |
+|-------|---------|
+| `kb_articles` | Main articles (title, content, status, category) |
+| `kb_categories` | Article categories with hierarchy |
+| `kb_article_versions` | Version history for rollback |
+| `kb_article_similarities` | AI-detected duplicate/merge candidates |
+| `kb_article_feedback` | User helpful/not-helpful votes |
+| `kb_article_embeddings` | Vector embeddings for semantic search |
+| `ticket_kb_articles` | Links between tickets and articles |
 
 ---
 
