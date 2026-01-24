@@ -7126,7 +7126,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
     // Update Ionic menu visibility based on role
     if (typeof updateIonicMenu === 'function') {
-      updateIonicMenu();
+      updateIonicMenu(); // eslint-disable-line no-undef -- function defined later, guarded by typeof
     }
 
     // Initialize collapsible nav groups
@@ -8189,7 +8189,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       }
 
       await fetchTicketsFromAPI();
-      closeTicketModal();
+      switchView('dash');  // Return to dashboard from ticket-detail view
       switchExpertView('pool');
     } catch (error) {
       console.error('Error escalating ticket:', error);
@@ -9932,7 +9932,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   // Company Profile Functions
   async function loadCompanyProfile() {
     try {
-      const tenantCode = currentUser.tenantCode || 'apoyar';
+      const tenantCode = window.currentUser?.tenantCode || 'apoyar';
       const response = await fetch(window.location.protocol + '//' + window.location.host + `/api/profile/${tenantCode}/profile`, {
         headers: {
           'Authorization': 'Bearer ' + localStorage.getItem('token')
@@ -9983,7 +9983,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     }
 
     try {
-      const tenantCode = currentUser.tenantCode || 'apoyar';
+      const tenantCode = window.currentUser?.tenantCode || 'apoyar';
       const response = await fetch(window.location.protocol + '//' + window.location.host + `/api/profile/${tenantCode}/profile`, {
         method: 'PUT',
         headers: {
@@ -10060,7 +10060,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   async function loadTeamsIntegrationStatus() {
     try {
-      const tenantCode = currentUser?.tenantCode || window.tenant || 'apoyar';
+      const tenantCode = window.currentUser?.tenantCode || window.tenant || 'apoyar';
       const response = await fetch(`/api/integrations/${tenantCode}/teams/status`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
@@ -10117,7 +10117,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   async function connectTeams() {
     try {
-      const tenantCode = currentUser?.tenantCode || window.tenant || 'apoyar';
+      const tenantCode = window.currentUser?.tenantCode || window.tenant || 'apoyar';
       const response = await fetch(`/api/integrations/${tenantCode}/teams/connect`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
@@ -10142,7 +10142,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     }
 
     try {
-      const tenantCode = currentUser?.tenantCode || window.tenant || 'apoyar';
+      const tenantCode = window.currentUser?.tenantCode || window.tenant || 'apoyar';
       const response = await fetch(`/api/integrations/${tenantCode}/teams/disconnect`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
@@ -10172,7 +10172,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     }
 
     try {
-      const tenantCode = currentUser?.tenantCode || window.tenant || 'apoyar';
+      const tenantCode = window.currentUser?.tenantCode || window.tenant || 'apoyar';
       const response = await fetch(`/api/integrations/${tenantCode}/teams/email-domain`, {
         method: 'POST',
         headers: {
@@ -10201,7 +10201,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     if (!confirm(`Remove domain "${domain}"?`)) return;
 
     try {
-      const tenantCode = currentUser?.tenantCode || window.tenant || 'apoyar';
+      const tenantCode = window.currentUser?.tenantCode || window.tenant || 'apoyar';
       const response = await fetch(`/api/integrations/${tenantCode}/teams/email-domain/${domain}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
@@ -10273,7 +10273,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   async function loadSlackIntegrationStatus() {
     try {
-      const tenantCode = currentUser?.tenantCode || window.tenant || 'apoyar';
+      const tenantCode = window.currentUser?.tenantCode || window.tenant || 'apoyar';
       const response = await fetch(`/api/integrations/${tenantCode}/slack/status`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
@@ -10328,7 +10328,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   async function connectSlack() {
     try {
-      const tenantCode = currentUser?.tenantCode || window.tenant || 'apoyar';
+      const tenantCode = window.currentUser?.tenantCode || window.tenant || 'apoyar';
       const response = await fetch(`/api/integrations/${tenantCode}/slack/connect`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
@@ -10353,7 +10353,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     }
 
     try {
-      const tenantCode = currentUser?.tenantCode || window.tenant || 'apoyar';
+      const tenantCode = window.currentUser?.tenantCode || window.tenant || 'apoyar';
       const response = await fetch(`/api/integrations/${tenantCode}/slack/disconnect`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
@@ -10383,7 +10383,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     }
 
     try {
-      const tenantCode = currentUser?.tenantCode || window.tenant || 'apoyar';
+      const tenantCode = window.currentUser?.tenantCode || window.tenant || 'apoyar';
       const response = await fetch(`/api/integrations/${tenantCode}/slack/email-domain`, {
         method: 'POST',
         headers: {
@@ -10412,7 +10412,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     if (!confirm(`Remove domain "${domain}"?`)) return;
 
     try {
-      const tenantCode = currentUser?.tenantCode || window.tenant || 'apoyar';
+      const tenantCode = window.currentUser?.tenantCode || window.tenant || 'apoyar';
       const response = await fetch(`/api/integrations/${tenantCode}/slack/email-domain/${domain}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
@@ -10475,7 +10475,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   // Expert Registration Settings Functions
   async function loadExpertRegSettings() {
     try {
-      const tenantCode = currentUser.tenantCode || 'apoyar';
+      const tenantCode = window.currentUser?.tenantCode || 'apoyar';
       const response = await fetch(`/api/tickets/settings/${tenantCode}`, {
         headers: {
           'Authorization': 'Bearer ' + localStorage.getItem('token')
@@ -10505,7 +10505,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     }
 
     try {
-      const tenantCode = currentUser.tenantCode || 'apoyar';
+      const tenantCode = window.currentUser?.tenantCode || 'apoyar';
       const response = await fetch(`/api/tickets/settings/${tenantCode}`, {
         method: 'POST',
         headers: {
@@ -10558,7 +10558,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     msgEl.style.display = 'none';
 
     try {
-      const tenantCode = currentUser.tenantCode || 'apoyar';
+      const tenantCode = window.currentUser?.tenantCode || 'apoyar';
       const response = await fetch(`/api/email-ingest/${tenantCode}/process-now`, {
         method: 'POST',
         headers: {
@@ -10588,7 +10588,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   // Support Settings Functions
   async function loadSupportSettings() {
     try {
-      const tenantCode = currentUser.tenantCode || 'apoyar';
+      const tenantCode = window.currentUser?.tenantCode || 'apoyar';
       const response = await fetch(`/api/tickets/settings/${tenantCode}`, {
         headers: {
           'Authorization': 'Bearer ' + localStorage.getItem('token')
@@ -10612,7 +10612,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const requiresAcceptance = checkbox ? checkbox.checked : true;
 
     try {
-      const tenantCode = currentUser.tenantCode || 'apoyar';
+      const tenantCode = window.currentUser?.tenantCode || 'apoyar';
       const response = await fetch(`/api/tickets/settings/${tenantCode}`, {
         method: 'POST',
         headers: {
@@ -10666,7 +10666,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   async function loadBatchProcessingSettings() {
     try {
-      const tenantCode = currentUser.tenantCode || 'apoyar';
+      const tenantCode = window.currentUser?.tenantCode || 'apoyar';
       const response = await fetch(`/api/tenant-settings/${tenantCode}/settings`, {
         headers: {
           'Authorization': 'Bearer ' + localStorage.getItem('token')
@@ -10725,7 +10725,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     }
 
     try {
-      const tenantCode = currentUser.tenantCode || 'apoyar';
+      const tenantCode = window.currentUser?.tenantCode || 'apoyar';
 
       // Save sla_check_interval_seconds
       const intervalResponse = await fetch(`/api/tenant-settings/${tenantCode}/settings/sla_check_interval_seconds`, {
@@ -10814,7 +10814,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   let slaDefinitions = [];
 
   async function loadSLAData() {
-    const tenantCode = window.tenant || currentUser?.tenantCode || 'apoyar';
+    const tenantCode = window.tenant || window.currentUser?.tenantCode || 'apoyar';
     const token = localStorage.getItem('token');
 
     try {
@@ -11066,7 +11066,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       return;
     }
 
-    const tenantCode = window.tenant || currentUser?.tenantCode || 'apoyar';
+    const tenantCode = window.tenant || window.currentUser?.tenantCode || 'apoyar';
     const token = localStorage.getItem('token');
     const url = id ? `${API_BASE}/api/sla/${tenantCode}/business-hours/${id}` : `${API_BASE}/api/sla/${tenantCode}/business-hours`;
     const method = id ? 'PUT' : 'POST';
@@ -11089,7 +11089,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   async function deleteBusinessHours(id) {
     if (!confirm('Delete this business hours profile?')) return;
-    const tenantCode = window.tenant || currentUser?.tenantCode || 'apoyar';
+    const tenantCode = window.tenant || window.currentUser?.tenantCode || 'apoyar';
     const token = localStorage.getItem('token');
 
     try {
@@ -11232,7 +11232,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       return;
     }
 
-    const tenantCode = window.tenant || currentUser?.tenantCode || 'apoyar';
+    const tenantCode = window.tenant || window.currentUser?.tenantCode || 'apoyar';
     const token = localStorage.getItem('token');
     const url = id ? `${API_BASE}/api/sla/${tenantCode}/definitions/${id}` : `${API_BASE}/api/sla/${tenantCode}/definitions`;
     const method = id ? 'PUT' : 'POST';
@@ -11255,7 +11255,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   async function deleteSLADefinition(id) {
     if (!confirm('Delete this SLA definition?')) return;
-    const tenantCode = window.tenant || currentUser?.tenantCode || 'apoyar';
+    const tenantCode = window.tenant || window.currentUser?.tenantCode || 'apoyar';
     const token = localStorage.getItem('token');
 
     try {
@@ -11277,7 +11277,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   let categoryMappings = [];
 
   async function loadCategoryMappings() {
-    const tenantCode = window.tenant || currentUser?.tenantCode || 'apoyar';
+    const tenantCode = window.tenant || window.currentUser?.tenantCode || 'apoyar';
     const token = localStorage.getItem('token');
 
     try {
@@ -11405,7 +11405,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       return;
     }
 
-    const tenantCode = window.tenant || currentUser?.tenantCode || 'apoyar';
+    const tenantCode = window.tenant || window.currentUser?.tenantCode || 'apoyar';
     const token = localStorage.getItem('token');
     const url = id
       ? `${API_BASE}/api/sla/${tenantCode}/category-mappings/${id}`
@@ -11430,7 +11430,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   async function deleteCategoryMapping(id) {
     if (!confirm('Delete this category mapping?')) return;
-    const tenantCode = window.tenant || currentUser?.tenantCode || 'apoyar';
+    const tenantCode = window.tenant || window.currentUser?.tenantCode || 'apoyar';
     const token = localStorage.getItem('token');
 
     try {
@@ -11816,7 +11816,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   // Email Ingest Functions
   async function loadEmailIngestSettings() {
     try {
-      const tenantCode = currentUser.tenantCode || 'apoyar';
+      const tenantCode = window.currentUser?.tenantCode || 'apoyar';
       const response = await fetch(window.location.protocol + '//' + window.location.host + `/api/email-ingest/${tenantCode}/settings`, {
         headers: {
           'Authorization': 'Bearer ' + localStorage.getItem('token')
@@ -11892,7 +11892,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     }
 
     try {
-      const tenantCode = currentUser.tenantCode || 'apoyar';
+      const tenantCode = window.currentUser?.tenantCode || 'apoyar';
       const response = await fetch(window.location.protocol + '//' + window.location.host + `/api/email-ingest/${tenantCode}/settings`, {
         method: 'PUT',
         headers: {
@@ -11944,7 +11944,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   async function testEmailConnection() {
     try {
-      const tenantCode = currentUser.tenantCode || 'apoyar';
+      const tenantCode = window.currentUser?.tenantCode || 'apoyar';
       const response = await fetch(window.location.protocol + '//' + window.location.host + `/api/email-ingest/${tenantCode}/test-connection`, {
         method: 'POST',
         headers: {
@@ -12010,7 +12010,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   async function loadSystemSenders() {
     try {
-      const tenantCode = window.tenant || currentUser?.tenantCode || 'apoyar';
+      const tenantCode = window.tenant || window.currentUser?.tenantCode || 'apoyar';
       const response = await fetch(`${window.location.protocol}//${window.location.host}/api/tickets/settings/${tenantCode}`, {
         headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
       });
@@ -12087,7 +12087,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   async function saveSystemSenders() {
     try {
-      const tenantCode = window.tenant || currentUser?.tenantCode || 'apoyar';
+      const tenantCode = window.tenant || window.currentUser?.tenantCode || 'apoyar';
       const response = await fetch(`${window.location.protocol}//${window.location.host}/api/tickets/settings/${tenantCode}`, {
         method: 'POST',
         headers: {
@@ -12990,10 +12990,10 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       return;
     }
 
-    const tenant = currentUser.role === 'master' ? window.tenant : currentUser.tenant;
+    const tenant = window.currentUser?.role === 'master' ? window.tenant : window.currentUser?.tenant;
 
     // Create a link and trigger download
-    const url = `${API_BASE_URL}/api/tickets/${tenant}/export/csv`;
+    const url = `${API_BASE}/api/tickets/${tenant}/export/csv`;
     const link = document.createElement('a');
     link.href = url;
     link.download = `tickets_${tenant}_${Date.now()}.csv`;
@@ -13033,11 +13033,11 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       return;
     }
 
-    const tenant = currentUser.role === 'master' ? window.tenant : currentUser.tenant;
+    const tenant = window.currentUser?.role === 'master' ? window.tenant : window.currentUser?.tenant;
     const period = 30; // Default to 30 days
 
     // Fetch and download
-    fetch(`${API_BASE_URL}/api/analytics/${tenant}/export/csv?period=${period}`, {
+    fetch(`${API_BASE}/api/analytics/${tenant}/export/csv?period=${period}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`
@@ -16596,6 +16596,34 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     }
   }
 
+  // Generic modal show function
+  function showModal(title, content, buttons = []) {
+    // Create or reuse generic modal
+    let modal = document.getElementById('generic-modal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'generic-modal';
+      modal.className = 'modal';
+      modal.innerHTML = `
+        <div class="modal-content" style="max-width:600px">
+          <div class="modal-header">
+            <h3 id="generic-modal-title"></h3>
+            <button class="btn ghost" onclick="closeModal('generic-modal')">&times;</button>
+          </div>
+          <div class="modal-body" id="generic-modal-body"></div>
+          <div class="modal-footer" id="generic-modal-footer"></div>
+        </div>`;
+      document.body.appendChild(modal);
+    }
+    document.getElementById('generic-modal-title').textContent = title;
+    document.getElementById('generic-modal-body').innerHTML = content;
+    const footer = document.getElementById('generic-modal-footer');
+    footer.innerHTML = buttons.map(b =>
+      `<button class="btn ${b.class || ''}" onclick="${b.action || "closeModal('generic-modal')"}">${b.label}</button>`
+    ).join('');
+    modal.style.display = 'flex';
+  }
+
   // Generic modal close function
   function closeModal(modalId) {
     const modal = document.getElementById(modalId);
@@ -18362,7 +18390,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
       if (data.success) {
         alert(data.message);
-        await showTicketDetail(ticketId);
+        await openTicket(ticketId);
         await fetchTicketsFromAPI();
       } else {
         alert('Failed to self-assign: ' + (data.message || 'Unknown error'));
@@ -18520,7 +18548,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           // Ticket was marked but rule creation failed
           alert(`Ticket marked as System Monitor, but rule creation failed: ${ruleResult.message || 'Unknown error'}`);
           closeMarkSystemModal();
-          await showTicketDetail(ticket.id);
+          await openTicket(ticket.id);
           await fetchTicketsFromAPI();
           return;
         }
@@ -18531,7 +18559,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       }
 
       closeMarkSystemModal();
-      await showTicketDetail(ticket.id);
+      await openTicket(ticket.id);
       await fetchTicketsFromAPI();
 
     } catch (error) {
@@ -21425,8 +21453,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         // Navigate to wizard section and open SLA modal
         navTo('wizard');
         setTimeout(() => {
-          if (typeof showSLADefinitionModal === 'function') {
-            showSLADefinitionModal(result.id);
+          if (typeof openSLADefinitionModal === 'function') {
+            openSLADefinitionModal(result.id);
           }
         }, 300);
         break;
@@ -23230,7 +23258,7 @@ function renderKBArticles(articles) {
         <td>${statusBadge}</td>
         <td>${article.view_count || 0}</td>
         <td>${helpfulRate}</td>
-        <td>${formatDate(article.updated_at)}</td>
+        <td>${formatDateTime(article.updated_at)}</td>
         <td>
           <button class="btn ghost" style="padding:4px 8px" onclick="event.stopPropagation(); editKBArticle(${article.id})">Edit</button>
           <button class="btn ghost" style="padding:4px 8px;color:#dc2626" onclick="event.stopPropagation(); deleteKBArticle(${article.id})">Delete</button>

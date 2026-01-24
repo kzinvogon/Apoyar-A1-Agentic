@@ -218,6 +218,26 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Version endpoint with git SHA and build info
+const BUILD_TIME = new Date().toISOString();
+const GIT_SHA = process.env.RAILWAY_GIT_COMMIT_SHA || process.env.GIT_SHA || 'unknown';
+const ENVIRONMENT = process.env.RAILWAY_ENVIRONMENT || process.env.NODE_ENV || 'development';
+
+app.get('/api/version', (req, res) => {
+  res.json({
+    success: true,
+    version: {
+      app: '2.1.0',
+      git_sha: GIT_SHA,
+      git_sha_short: GIT_SHA.substring(0, 7),
+      build_time: BUILD_TIME,
+      environment: ENVIRONMENT,
+      node_version: process.version,
+      deployment_id: process.env.RAILWAY_DEPLOYMENT_ID || null
+    }
+  });
+});
+
 // Database status endpoint (enhanced with pool stats)
 app.get('/api/db/status', async (req, res) => {
   try {

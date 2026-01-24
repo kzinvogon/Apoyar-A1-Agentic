@@ -14,6 +14,13 @@
     "migrate": "RUN_MIGRATIONS=true node server.js",
     "setup-db": "node scripts/setup-database.js",
     "setup-email": "node setup-email.js",
+    "lint": "eslint --no-eslintrc -c .eslintrc.json *.js services/*.js routes/*.js config/*.js scripts/*.js --ignore-pattern node_modules",
+    "lint:html": "eslint --no-eslintrc -c .eslintrc.json 'A1 Support Build from here .html'",
+    "lint:all": "npm run lint && npm run lint:html",
+    "smoke": "node scripts/smoke-test.js",
+    "smoke:uat": "node scripts/smoke-test.js https://web-uat-uat.up.railway.app",
+    "smoke:prod": "node scripts/smoke-test.js https://app.serviflow.app",
+    "precommit": "npm run lint",
     "cap:init": "npx cap init ServiFlow com.serviflow.app --web-dir .",
     "cap:add:ios": "npx cap add ios",
     "cap:add:android": "npx cap add android",
@@ -71,6 +78,8 @@
   },
   "devDependencies": {
     "bcryptjs": "^3.0.3",
+    "eslint": "^8.57.0",
+    "eslint-plugin-html": "^8.1.4",
     "sharp": "^0.34.5",
     "typescript": "^5.9.3"
   }
