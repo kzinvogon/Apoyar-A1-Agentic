@@ -1745,10 +1745,14 @@ vNext-FULL-ActionsSLA:
 
             <!-- Main Content: Left Tickets Panel + Right Panels -->
             <div style="display:flex;gap:16px;align-items:flex-start">
-              <!-- Left: Tickets Panel -->
+              <!-- Left: Tickets Panel with Pool/My Tickets Tabs -->
               <div class="card p-16" style="flex:1;min-width:0">
+                <!-- Tab Switcher -->
                 <div class="row space mb-12">
-                  <strong>📋 My Tickets</strong>
+                  <div class="row" style="gap:4px;background:var(--badge-bg);padding:4px;border-radius:8px">
+                    <button id="pool-tab-btn" class="btn" onclick="switchExpertView('pool')" style="padding:8px 16px;font-size:13px;border-radius:6px">🎯 Ticket Pool</button>
+                    <button id="my-tickets-tab-btn" class="btn primary" onclick="switchExpertView('my')" style="padding:8px 16px;font-size:13px;border-radius:6px">📋 My Tickets</button>
+                  </div>
                   <div class="row" style="gap:8px">
                     <select id="ex-ticket-filter" class="input" style="width:120px;padding:4px 8px;font-size:12px" onchange="renderExpertDash()">
                       <option value="all">All Open</option>
@@ -1758,12 +1762,31 @@ vNext-FULL-ActionsSLA:
                     <button class="btn ghost" onclick="navTo('tickets')" style="font-size:12px">View all →</button>
                   </div>
                 </div>
-                <div style="max-height:400px;overflow-y:auto">
-                  <table style="font-size:13px"><thead><tr><th>ID</th><th>Title</th><th>Date/Time</th><th>Status</th><th>SLA</th></tr></thead><tbody id="ex-list"></tbody></table>
+
+                <!-- Pool View (Hidden by default) -->
+                <div id="expert-pool-view" style="display:none">
+                  <div class="row space mb-8">
+                    <span style="font-size:13px;color:var(--muted)">AI-ranked tickets available for claim</span>
+                    <button class="btn ghost" onclick="refreshPoolView()" style="font-size:12px">↻ Refresh</button>
+                  </div>
+                  <div style="max-height:400px;overflow-y:auto">
+                    <table style="font-size:13px"><thead><tr><th>Score</th><th>ID</th><th>Title</th><th>Customer</th><th>SLA</th><th>Action</th></tr></thead><tbody id="pool-list"></tbody></table>
+                  </div>
+                  <div id="pool-no-tickets" style="display:none;text-align:center;padding:40px;color:var(--muted)">
+                    <div style="font-size:32px;margin-bottom:8px">✨</div>
+                    <div>All tickets have been claimed!</div>
+                  </div>
                 </div>
-                <div id="ex-no-tickets" style="display:none;text-align:center;padding:40px;color:var(--muted)">
-                  <div style="font-size:32px;margin-bottom:8px">✅</div>
-                  <div>No tickets in queue</div>
+
+                <!-- My Tickets View (Shown by default) -->
+                <div id="expert-my-view">
+                  <div style="max-height:400px;overflow-y:auto">
+                    <table style="font-size:13px"><thead><tr><th>ID</th><th>Title</th><th>Date/Time</th><th>Status</th><th>SLA</th></tr></thead><tbody id="ex-list"></tbody></table>
+                  </div>
+                  <div id="ex-no-tickets" style="display:none;text-align:center;padding:40px;color:var(--muted)">
+                    <div style="font-size:32px;margin-bottom:8px">✅</div>
+                    <div>No tickets in queue</div>
+                  </div>
                 </div>
               </div>
 
@@ -7798,6 +7821,363 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     }
   }
 
+  // ========== TICKET POOL WORKFLOW ==========
+  let expertViewMode = 'my';  // 'pool' or 'my'
+  let poolTickets = [];       // Tickets from pool API
+  let currentClaimedTicket = null;  // Ticket being previewed
+  let claimTimer = null;      // Countdown timer for claim expiry
+
+  // Switch between pool and my tickets view
+  function switchExpertView(mode) {
+    expertViewMode = mode;
+    const poolBtn = document.getElementById('pool-tab-btn');
+    const myBtn = document.getElementById('my-tickets-tab-btn');
+    const poolView = document.getElementById('expert-pool-view');
+    const myView = document.getElementById('expert-my-view');
+    const filterEl = document.getElementById('ex-ticket-filter');
+
+    if (mode === 'pool') {
+      poolBtn.classList.add('primary');
+      myBtn.classList.remove('primary');
+      poolView.style.display = 'block';
+      myView.style.display = 'none';
+      if (filterEl) filterEl.style.display = 'none';
+      refreshPoolView();
+    } else {
+      poolBtn.classList.remove('primary');
+      myBtn.classList.add('primary');
+      poolView.style.display = 'none';
+      myView.style.display = 'block';
+      if (filterEl) filterEl.style.display = 'block';
+      renderExpertDash();
+    }
+  }
+
+  // Fetch and render ticket pool
+  async function refreshPoolView() {
+    const tb = document.getElementById('pool-list');
+    const noTickets = document.getElementById('pool-no-tickets');
+    if (!tb) return;
+
+    tb.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px">Loading pool...</td></tr>';
+
+    try {
+      const res = await fetch(`/api/tickets/${window.tenant}/pool`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Failed to load pool');
+      }
+
+      poolTickets = data.pool || [];
+      renderPoolTable();
+    } catch (error) {
+      console.error('Error loading pool:', error);
+      tb.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--danger)">Error: ${error.message}</td></tr>`;
+    }
+  }
+
+  // Render pool table
+  function renderPoolTable() {
+    const tb = document.getElementById('pool-list');
+    const noTickets = document.getElementById('pool-no-tickets');
+    const tableEl = tb ? tb.closest('table') : null;
+
+    if (!tb) return;
+    tb.innerHTML = '';
+
+    if (poolTickets.length === 0) {
+      if (noTickets) noTickets.style.display = 'block';
+      if (tableEl) tableEl.style.display = 'none';
+      return;
+    }
+
+    if (noTickets) noTickets.style.display = 'none';
+    if (tableEl) tableEl.style.display = 'table';
+
+    poolTickets.forEach(t => {
+      const tr = document.createElement('tr');
+      const score = t.pool_score ? Math.round(t.pool_score) : '—';
+      const scoreColor = score >= 80 ? 'var(--danger)' : score >= 60 ? 'var(--warn)' : 'var(--muted)';
+      const sla = t.sla_status || {};
+      const slaText = sla.phase === 'in_pool' ? 'In Pool' : (sla.response?.state || 'N/A');
+      const customer = t.company_name || t.requester_name || 'Unknown';
+      const isClaimed = t.pool_status === 'CLAIMED_LOCKED' && t.claimed_by_expert_id;
+
+      let actionBtn = '';
+      if (isClaimed && t.claimed_by_expert_id === parseInt(localStorage.getItem('userId'))) {
+        actionBtn = `<button class="btn primary" onclick="openClaimedPreview(${t.id})" style="font-size:11px;padding:4px 8px">Preview</button>`;
+      } else if (isClaimed) {
+        actionBtn = `<span style="font-size:11px;color:var(--muted)">${t.claimed_by_name || 'Claimed'}</span>`;
+      } else {
+        actionBtn = `<button class="btn" onclick="claimTicket(${t.id})" style="font-size:11px;padding:4px 8px">Claim</button>`;
+      }
+
+      tr.innerHTML = `
+        <td style="font-weight:600;color:${scoreColor}">${score}</td>
+        <td>#${t.id}</td>
+        <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(t.title)}</td>
+        <td style="max-width:100px;overflow:hidden;text-overflow:ellipsis">${escapeHtml(customer)}</td>
+        <td>${slaText}</td>
+        <td>${actionBtn}</td>
+      `;
+      tb.appendChild(tr);
+    });
+  }
+
+  // Claim a ticket for preview
+  async function claimTicket(ticketId) {
+    try {
+      const res = await fetch(`/api/tickets/${window.tenant}/${ticketId}/claim`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        }
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Failed to claim ticket');
+      }
+
+      currentClaimedTicket = data.ticket;
+      openClaimPreviewModal(data);
+    } catch (error) {
+      console.error('Error claiming ticket:', error);
+      alert('Could not claim ticket: ' + error.message);
+    }
+  }
+
+  // Open the claim preview modal
+  function openClaimPreviewModal(claimData) {
+    const ticket = claimData.ticket;
+    const expiresAt = new Date(claimData.claim_expires_at);
+
+    // Create modal if doesn't exist
+    let modal = document.getElementById('claim-preview-modal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'claim-preview-modal';
+      modal.className = 'modal';
+      modal.innerHTML = `
+        <div class="modal-content" style="max-width:600px">
+          <div class="modal-header">
+            <h3 id="claim-preview-title">Ticket Preview</h3>
+            <span id="claim-countdown" style="background:#fef3c7;color:#b45309;padding:4px 12px;border-radius:999px;font-size:12px;font-weight:600"></span>
+          </div>
+          <div class="modal-body" id="claim-preview-body"></div>
+          <div class="modal-footer">
+            <button class="btn" onclick="releaseClaim()">Release</button>
+            <button class="btn primary" onclick="acceptOwnership()">Accept & Own</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+    }
+
+    // Populate content
+    document.getElementById('claim-preview-title').textContent = `#${ticket.id} - ${ticket.title}`;
+    document.getElementById('claim-preview-body').innerHTML = `
+      <div style="margin-bottom:16px">
+        <label class="label">Customer</label>
+        <div>${escapeHtml(ticket.company_name || ticket.requester_name || 'Unknown')}</div>
+      </div>
+      <div style="margin-bottom:16px">
+        <label class="label">Priority</label>
+        <div><span class="badge">${ticket.priority}</span></div>
+      </div>
+      <div style="margin-bottom:16px">
+        <label class="label">Description</label>
+        <div style="background:var(--badge-bg);padding:12px;border-radius:8px;max-height:200px;overflow-y:auto">${escapeHtml(ticket.description || 'No description')}</div>
+      </div>
+      ${ticket.sla_status ? `
+      <div style="margin-bottom:16px">
+        <label class="label">SLA Status</label>
+        <div>Response: ${ticket.sla_status.response?.state || 'N/A'} | Resolve: ${ticket.sla_status.resolve?.state || 'N/A'}</div>
+      </div>` : ''}
+    `;
+
+    // Start countdown timer
+    if (claimTimer) clearInterval(claimTimer);
+    claimTimer = setInterval(() => {
+      const now = new Date();
+      const remaining = Math.max(0, Math.floor((expiresAt - now) / 1000));
+      document.getElementById('claim-countdown').textContent = `${remaining}s remaining`;
+      if (remaining <= 0) {
+        clearInterval(claimTimer);
+        closeClaimPreviewModal();
+        refreshPoolView();
+      }
+    }, 1000);
+
+    modal.style.display = 'flex';
+  }
+
+  function closeClaimPreviewModal() {
+    const modal = document.getElementById('claim-preview-modal');
+    if (modal) modal.style.display = 'none';
+    if (claimTimer) clearInterval(claimTimer);
+    currentClaimedTicket = null;
+  }
+
+  // Accept ownership of claimed ticket
+  async function acceptOwnership() {
+    if (!currentClaimedTicket) return;
+
+    try {
+      const res = await fetch(`/api/tickets/${window.tenant}/${currentClaimedTicket.id}/accept-ownership`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        }
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Failed to accept ownership');
+      }
+
+      closeClaimPreviewModal();
+      switchExpertView('my');  // Switch to My Tickets view
+      await loadTickets();      // Refresh tickets
+      openTicket(data.ticket.id);  // Open the ticket
+    } catch (error) {
+      console.error('Error accepting ownership:', error);
+      alert('Could not accept ownership: ' + error.message);
+    }
+  }
+
+  // Release claim (return to pool)
+  async function releaseClaim() {
+    if (!currentClaimedTicket) {
+      closeClaimPreviewModal();
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/tickets/${window.tenant}/${currentClaimedTicket.id}/release-claim`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        }
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Failed to release claim');
+      }
+
+      closeClaimPreviewModal();
+      refreshPoolView();
+    } catch (error) {
+      console.error('Error releasing claim:', error);
+      alert('Could not release claim: ' + error.message);
+    }
+  }
+
+  // Open claimed ticket preview (when already claimed)
+  function openClaimedPreview(ticketId) {
+    const ticket = poolTickets.find(t => t.id === ticketId);
+    if (ticket) {
+      currentClaimedTicket = ticket;
+      // Re-claim to extend timer
+      claimTicket(ticketId);
+    }
+  }
+
+  // Set ticket to Waiting on Customer (pause SLA)
+  async function setWaitingOnCustomer(ticketId, reason = '') {
+    try {
+      const res = await fetch(`/api/tickets/${window.tenant}/${ticketId}/waiting-on-customer`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ reason })
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Failed to set waiting on customer');
+      }
+
+      await loadTickets();
+      if (currentTicketId === ticketId) {
+        const t = tickets.find(x => x.id === ticketId);
+        if (t) renderTicketDetail(t);
+      }
+    } catch (error) {
+      console.error('Error setting waiting on customer:', error);
+      alert('Error: ' + error.message);
+    }
+  }
+
+  // Resume ticket from Waiting on Customer
+  async function resumeTicket(ticketId) {
+    try {
+      const res = await fetch(`/api/tickets/${window.tenant}/${ticketId}/resume`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        }
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Failed to resume ticket');
+      }
+
+      await loadTickets();
+      if (currentTicketId === ticketId) {
+        const t = tickets.find(x => x.id === ticketId);
+        if (t) renderTicketDetail(t);
+      }
+    } catch (error) {
+      console.error('Error resuming ticket:', error);
+      alert('Error: ' + error.message);
+    }
+  }
+
+  // Escalate ticket (return to pool or transfer)
+  async function escalateTicket(ticketId, reason, transferToUserId = null) {
+    if (!reason) {
+      reason = prompt('Please provide a reason for escalation:');
+      if (!reason) return;
+    }
+
+    try {
+      const res = await fetch(`/api/tickets/${window.tenant}/${ticketId}/escalate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ reason, transfer_to_user_id: transferToUserId })
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Failed to escalate ticket');
+      }
+
+      await loadTickets();
+      closeTicketModal();
+      switchExpertView('pool');
+    } catch (error) {
+      console.error('Error escalating ticket:', error);
+      alert('Error: ' + error.message);
+    }
+  }
+
+  // ========== END TICKET POOL WORKFLOW ==========
+
   // Load AI insights for expert dashboard
   function loadExpertAIInsights(myTickets, todayTickets, riskTickets) {
     const loadingEl = document.getElementById('ex-ai-loading');
@@ -11742,7 +12122,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   // Usage Dashboard Functions
   async function loadUsageDashboard() {
     try {
-      const tenantId = window.currentTenant || 'apoyar'; // Default to apoyar for now
+      const tenantId = window.tenant || 'apoyar'; // Default to apoyar for now
       const response = await fetch(window.location.protocol + '//' + window.location.host + `/api/usage/${tenantId}`, {
         headers: {
           'Authorization': 'Bearer ' + localStorage.getItem('token')
@@ -11844,7 +12224,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   
   async function testUsageLimit(type, amount) {
     try {
-      const tenantId = window.currentTenant || 'apoyar';
+      const tenantId = window.tenant || 'apoyar';
       const response = await fetch(window.location.protocol + '//' + window.location.host + `/api/tenant/${tenantId}/usage/update`, {
         method: 'POST',
         headers: {
@@ -11879,7 +12259,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   // Customer Portal Functions
   async function loadCustomerPlans() {
     try {
-      const tenantId = window.currentTenant || 'apoyar';
+      const tenantId = window.tenant || 'apoyar';
       
       // Load current subscription
       const usageResponse = await fetch(window.location.protocol + '//' + window.location.host + `/api/tenant/${tenantId}/usage`, {
@@ -12277,7 +12657,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   // Customer Billing Functions
   async function loadCustomerBilling() {
     try {
-      const tenantId = window.currentTenant || 'apoyar';
+      const tenantId = window.tenant || 'apoyar';
       
       // Load subscription details
       const masterData = await fetch(window.location.protocol + '//' + window.location.host + '/api/master/subscriptions', {
@@ -12367,7 +12747,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     console.log('loadAnalytics() called');
 
     try {
-      const tenantId = window.currentTenant || 'apoyar';
+      const tenantId = window.tenant || 'apoyar';
       const url = window.location.protocol + '//' + window.location.host + `/api/analytics/${tenantId}?period=30`;
 
       console.log('Fetching analytics from:', url);
@@ -12588,7 +12968,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       return;
     }
 
-    const tenant = currentUser.role === 'master' ? currentTenant : currentUser.tenant;
+    const tenant = currentUser.role === 'master' ? window.tenant : currentUser.tenant;
 
     // Create a link and trigger download
     const url = `${API_BASE_URL}/api/tickets/${tenant}/export/csv`;
@@ -12631,7 +13011,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       return;
     }
 
-    const tenant = currentUser.role === 'master' ? currentTenant : currentUser.tenant;
+    const tenant = currentUser.role === 'master' ? window.tenant : currentUser.tenant;
     const period = 30; // Default to 30 days
 
     // Fetch and download
@@ -15310,8 +15690,16 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   }
 
   // ---- Status transitions ----
-  // First item is "Next status" default for linear triage flow: Open → In Progress → Resolved
-  const TRANSITIONS = { 'Open': ['In Progress','Pending','Resolved'], 'In Progress': ['Resolved','Pending'], 'Pending': ['In Progress','Resolved'], 'Resolved': ['Closed'], 'Closed': [] };
+  // Ownership workflow: Open tickets must go through claim flow (pool view)
+  // In Progress/Pending tickets support standard transitions
+  // 'Pending' is used for 'Waiting on Customer' - SLA is paused
+  const TRANSITIONS = {
+    'Open': [],  // Must use claim flow from pool view - no direct transitions
+    'In Progress': ['Pending', 'Resolved'],  // Pending = Waiting on Customer (SLA pause)
+    'Pending': ['In Progress', 'Resolved'],  // Resume from waiting
+    'Resolved': ['Closed', 'In Progress'],  // Can reopen
+    'Closed': []
+  };
   function advanceStatus(){ const t=tickets.find(x=>x.id===currentTicketId); if(!t) return; const opts = TRANSITIONS[t.status] || []; if(!opts.length) return alert('No further transitions.'); const next = opts[0]; if(next==='Resolved') { openCompletion('resolve'); } else { setStatus(next); } }
   function setResolved(){ openCompletion('resolve'); }
   async function setStatus(newStatus, comment=null, silent=false){
@@ -21368,7 +21756,7 @@ async function loadAIInsights() {
   console.log('loadAIInsights() called');
 
   const period = document.getElementById('ai-period')?.value || 7;
-  const tenantCode = window.currentTenant || 'apoyar';
+  const tenantCode = window.tenant || 'apoyar';
   const token = localStorage.getItem('token');
 
   try {
@@ -21492,7 +21880,7 @@ async function displayAIInsights(data) {
 
 // Enrich insights with ticket details
 async function enrichInsightsWithTicketDetails(insights) {
-  const tenantCode = window.currentTenant || 'apoyar';
+  const tenantCode = window.tenant || 'apoyar';
   const token = localStorage.getItem('token');
 
   for (const insight of insights) {
@@ -21766,7 +22154,7 @@ async function refreshAIInsights() {
 }
 
 async function triggerTrendDetection(evt) {
-  const tenantCode = window.currentTenant || 'apoyar';
+  const tenantCode = window.tenant || 'apoyar';
   const token = localStorage.getItem('token');
 
   // Get the button element
@@ -21808,7 +22196,7 @@ async function triggerTrendDetection(evt) {
 }
 
 async function acknowledgeInsight(insightId) {
-  const tenantCode = window.currentTenant || 'apoyar';
+  const tenantCode = window.tenant || 'apoyar';
   const token = localStorage.getItem('token');
 
   try {
@@ -21832,7 +22220,7 @@ async function acknowledgeInsight(insightId) {
 }
 
 async function dismissInsight(insightId) {
-  const tenantCode = window.currentTenant || 'apoyar';
+  const tenantCode = window.tenant || 'apoyar';
   const token = localStorage.getItem('token');
 
   try {
@@ -21866,7 +22254,7 @@ async function dismissInsight(insightId) {
 let cmdbSuggestionsData = [];
 
 async function loadCMDBSuggestionsCount() {
-  const tenantCode = window.currentTenant || 'apoyar';
+  const tenantCode = window.tenant || 'apoyar';
   const token = localStorage.getItem('token');
 
   try {
@@ -21897,7 +22285,7 @@ async function loadCMDBSuggestionsCount() {
 }
 
 async function showCMDBSuggestionsModal() {
-  const tenantCode = window.currentTenant || 'apoyar';
+  const tenantCode = window.tenant || 'apoyar';
   const token = localStorage.getItem('token');
 
   // Load latest suggestions
@@ -21972,7 +22360,7 @@ async function showCMDBSuggestionsModal() {
 }
 
 async function approveCMDBSuggestion(suggestionId) {
-  const tenantCode = window.currentTenant || 'apoyar';
+  const tenantCode = window.tenant || 'apoyar';
   const token = localStorage.getItem('token');
 
   try {
@@ -22012,7 +22400,7 @@ async function approveCMDBSuggestion(suggestionId) {
 }
 
 async function rejectCMDBSuggestion(suggestionId) {
-  const tenantCode = window.currentTenant || 'apoyar';
+  const tenantCode = window.tenant || 'apoyar';
   const token = localStorage.getItem('token');
 
   try {
@@ -22061,7 +22449,7 @@ let ruleCustomers = [];
 
 // Load all rules for the current tenant
 async function loadTicketRules() {
-  const tenantCode = window.currentTenant || 'apoyar';
+  const tenantCode = window.tenant || 'apoyar';
   const token = localStorage.getItem('token');
 
   try {
@@ -22197,7 +22585,7 @@ function formatActionParams(actionType, params) {
 
 // Load experts and customers for dropdowns
 async function loadExpertsAndCustomers() {
-  const tenantCode = window.currentTenant || 'apoyar';
+  const tenantCode = window.tenant || 'apoyar';
   const token = localStorage.getItem('token');
 
   try {
@@ -22340,7 +22728,7 @@ function updateActionParams() {
 async function saveRule(event) {
   event.preventDefault();
 
-  const tenantCode = window.currentTenant || window.tenant || 'apoyar';
+  const tenantCode = window.tenant || window.tenant || 'apoyar';
   const token = localStorage.getItem('token');
   const ruleId = document.getElementById('rule-id').value;
 
@@ -22429,7 +22817,7 @@ function getActionParams() {
 
 // Edit rule
 async function editRule(ruleId) {
-  const tenantCode = window.currentTenant || 'apoyar';
+  const tenantCode = window.tenant || 'apoyar';
   const token = localStorage.getItem('token');
 
   try {
@@ -22510,7 +22898,7 @@ async function deleteRule(ruleId) {
     return;
   }
 
-  const tenantCode = window.currentTenant || 'apoyar';
+  const tenantCode = window.tenant || 'apoyar';
   const token = localStorage.getItem('token');
 
   try {
@@ -22536,7 +22924,7 @@ async function deleteRule(ruleId) {
 
 // Test rule
 async function testRule(ruleId) {
-  const tenantCode = window.currentTenant || 'apoyar';
+  const tenantCode = window.tenant || 'apoyar';
   const token = localStorage.getItem('token');
 
   try {
@@ -22570,7 +22958,7 @@ async function testRule(ruleId) {
 
 // Run rule on all matching tickets (background execution)
 async function runRule(ruleId) {
-  const tenantCode = window.currentTenant || 'apoyar';
+  const tenantCode = window.tenant || 'apoyar';
   const token = localStorage.getItem('token');
 
   try {
@@ -22692,7 +23080,7 @@ function debounceKBSearch() {
 
 // Load KB categories
 async function loadKBCategories() {
-  const tenantCode = window.currentTenant || 'apoyar';
+  const tenantCode = window.tenant || 'apoyar';
   const token = localStorage.getItem('token');
 
   try {
@@ -22722,7 +23110,7 @@ async function loadKBCategories() {
 
 // Load KB stats
 async function loadKBStats() {
-  const tenantCode = window.currentTenant || 'apoyar';
+  const tenantCode = window.tenant || 'apoyar';
   const token = localStorage.getItem('token');
 
   try {
@@ -22745,7 +23133,7 @@ async function loadKBStats() {
 
 // Load KB articles
 async function loadKBArticles() {
-  const tenantCode = window.currentTenant || 'apoyar';
+  const tenantCode = window.tenant || 'apoyar';
   const token = localStorage.getItem('token');
 
   const search = document.getElementById('kb-search').value;
@@ -22837,7 +23225,7 @@ function closeKBArticleModal() {
 
 // Edit KB article
 async function editKBArticle(articleId) {
-  const tenantCode = window.currentTenant || 'apoyar';
+  const tenantCode = window.tenant || 'apoyar';
   const token = localStorage.getItem('token');
 
   try {
@@ -22870,7 +23258,7 @@ async function editKBArticle(articleId) {
 
 // Save KB article
 async function saveKBArticle(asDraft = false) {
-  const tenantCode = window.currentTenant || 'apoyar';
+  const tenantCode = window.tenant || 'apoyar';
   const token = localStorage.getItem('token');
   const errorEl = document.getElementById('kb-article-error');
 
@@ -22932,7 +23320,7 @@ async function saveKBArticle(asDraft = false) {
 async function deleteKBArticle(articleId) {
   if (!confirm('Are you sure you want to delete this article?')) return;
 
-  const tenantCode = window.currentTenant || 'apoyar';
+  const tenantCode = window.tenant || 'apoyar';
   const token = localStorage.getItem('token');
 
   try {
@@ -22958,7 +23346,7 @@ async function deleteKBArticle(articleId) {
 
 // View KB article
 async function viewKBArticle(articleId) {
-  const tenantCode = window.currentTenant || 'apoyar';
+  const tenantCode = window.tenant || 'apoyar';
   const token = localStorage.getItem('token');
 
   try {
@@ -23019,7 +23407,7 @@ function editKBArticleFromView() {
 
 // Submit KB feedback
 async function submitKBFeedback(helpful) {
-  const tenantCode = window.currentTenant || 'apoyar';
+  const tenantCode = window.tenant || 'apoyar';
   const token = localStorage.getItem('token');
 
   if (!currentKBArticleId) return;
@@ -23053,7 +23441,7 @@ async function submitKBFeedback(helpful) {
 
 // Show KB merge modal
 async function showKBMergeModal() {
-  const tenantCode = window.currentTenant || 'apoyar';
+  const tenantCode = window.tenant || 'apoyar';
   const token = localStorage.getItem('token');
 
   document.getElementById('kb-merge-modal').style.display = 'flex';
@@ -23118,7 +23506,7 @@ function closeKBMergeModal() {
 async function mergeKBArticles(primaryId, secondaryId) {
   if (!confirm('Merge these articles? The secondary article will be archived.')) return;
 
-  const tenantCode = window.currentTenant || 'apoyar';
+  const tenantCode = window.tenant || 'apoyar';
   const token = localStorage.getItem('token');
 
   try {
@@ -23149,7 +23537,7 @@ async function mergeKBArticles(primaryId, secondaryId) {
 
 // Dismiss merge suggestion
 async function dismissMergeSuggestion(suggestionId) {
-  const tenantCode = window.currentTenant || 'apoyar';
+  const tenantCode = window.tenant || 'apoyar';
   const token = localStorage.getItem('token');
 
   try {
@@ -23184,7 +23572,7 @@ async function loadKBSuggestions() {
   const ticketId = window.currentTicketId;
   if (!ticketId) return;
 
-  const tenantCode = window.currentTenant || 'apoyar';
+  const tenantCode = window.tenant || 'apoyar';
   const token = localStorage.getItem('token');
 
   // Show loading state
