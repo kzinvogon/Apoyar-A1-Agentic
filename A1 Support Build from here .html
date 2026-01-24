@@ -7869,6 +7869,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   // Fetch and render ticket pool
   async function refreshPoolView() {
+    const token = localStorage.getItem('token');
     const tb = document.getElementById('pool-list');
     const noTickets = document.getElementById('pool-no-tickets');
     if (!tb) return;
@@ -7943,6 +7944,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   // Claim a ticket for preview
   async function claimTicket(ticketId) {
+    const token = localStorage.getItem('token');
     try {
       const res = await fetch(`/api/tickets/${window.tenant}/${ticketId}/claim`, {
         method: 'POST',
@@ -8039,6 +8041,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   // Accept ownership of claimed ticket
   async function acceptOwnership() {
+    const token = localStorage.getItem('token');
     if (!currentClaimedTicket) return;
 
     try {
@@ -8067,6 +8070,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   // Release claim (return to pool)
   async function releaseClaim() {
+    const token = localStorage.getItem('token');
     if (!currentClaimedTicket) {
       closeClaimPreviewModal();
       return;
@@ -8106,6 +8110,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   // Set ticket to Waiting on Customer (pause SLA)
   async function setWaitingOnCustomer(ticketId, reason = '') {
+    const token = localStorage.getItem('token');
     try {
       const res = await fetch(`/api/tickets/${window.tenant}/${ticketId}/waiting-on-customer`, {
         method: 'POST',
@@ -8134,6 +8139,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   // Resume ticket from Waiting on Customer
   async function resumeTicket(ticketId) {
+    const token = localStorage.getItem('token');
     try {
       const res = await fetch(`/api/tickets/${window.tenant}/${ticketId}/resume`, {
         method: 'POST',
@@ -8161,6 +8167,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   // Escalate ticket (return to pool or transfer)
   async function escalateTicket(ticketId, reason, transferToUserId = null) {
+    const token = localStorage.getItem('token');
     if (!reason) {
       reason = prompt('Please provide a reason for escalation:');
       if (!reason) return;
