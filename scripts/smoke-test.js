@@ -3,8 +3,21 @@
  * Smoke Test Script
  * Exercises critical dashboard flows to catch runtime errors before deploy.
  *
- * Usage: npm run smoke [baseUrl]
+ * Usage: npm run smoke [baseUrl] [--readonly]
  * Default baseUrl: http://localhost:3000
+ *
+ * Environment variables:
+ *   SMOKE_TENANT     - Tenant code (default: apoyar)
+ *   SMOKE_USER       - Test username (default: expert)
+ *   SMOKE_PASS       - Test password (default: password123)
+ *   SMOKE_TICKET_ID  - Specific ticket ID for claim/accept tests (UAT only)
+ *   SMOKE_READONLY   - Set to "true" to skip mutating tests
+ *
+ * Production safety (MANDATORY):
+ *   - Production (app.serviflow.app) is ALWAYS read-only, no exceptions
+ *   - Only GET endpoints are called on production
+ *   - Login POST is allowed (required for auth token)
+ *   - No claim/accept/escalate/delete/import operations on prod
  *
  * Exit codes:
  *   0 = All tests passed
@@ -14,10 +27,30 @@
 const http = require('http');
 const https = require('https');
 
-const BASE_URL = process.argv[2] || 'http://localhost:3000';
-const TENANT = 'apoyar';
-const TEST_USER = 'expert';
-const TEST_PASS = 'password123';
+// Parse command line args
+const args = process.argv.slice(2);
+const BASE_URL = args.find(a => !a.startsWith('--')) || 'http://localhost:3000';
+const CLI_READONLY = args.includes('--readonly');
+
+// Configuration from env vars with defaults
+const TENANT = process.env.SMOKE_TENANT || 'apoyar';
+const TEST_USER = process.env.SMOKE_USER || 'expert';
+const TEST_PASS = process.env.SMOKE_PASS || 'password123';
+const SMOKE_TICKET_ID = process.env.SMOKE_TICKET_ID || null;
+
+// PRODUCTION SAFETY LATCH - mandatory readonly, no exceptions
+const IS_PROD = BASE_URL.includes('app.serviflow.app');
+
+// Hard safety check: refuse to run destructive tests against production
+if (IS_PROD && process.env.SMOKE_READONLY === 'false') {
+  console.error('\n❌ SAFETY ERROR: Refusing to run destructive tests against production');
+  console.error('   Production smoke tests are ALWAYS read-only. This is not configurable.');
+  console.error('   Remove SMOKE_READONLY=false and try again.\n');
+  process.exit(1);
+}
+
+// Production forces readonly - no override possible
+const READONLY = IS_PROD || CLI_READONLY || process.env.SMOKE_READONLY === 'true';
 
 let token = null;
 let userId = null;
@@ -87,18 +120,41 @@ async function test(name, fn) {
 }
 
 async function runTests() {
-  console.log(`\n🧪 Smoke Tests - ${BASE_URL}\n`);
+  console.log(`\n🧪 Smoke Tests\n`);
 
-  // Fetch version info first
+  // ============================================================================
+  // AUDIT HEADER - provides evidence of test configuration
+  // ============================================================================
+  console.log('┌─────────────────────────────────────────────────┐');
+  console.log('│ SMOKE TEST AUDIT LOG                            │');
+  console.log('├─────────────────────────────────────────────────┤');
+  console.log(`│ Target URL:    ${BASE_URL.padEnd(32)}│`);
+  console.log(`│ Tenant:        ${TENANT.padEnd(32)}│`);
+  console.log(`│ Test User:     ${TEST_USER.padEnd(32)}│`);
+  console.log(`│ READ-ONLY:     ${String(READONLY).padEnd(32)}│`);
+  if (IS_PROD) {
+    console.log('│ MODE:          PRODUCTION (mandatory read-only) │');
+  } else if (READONLY) {
+    console.log('│ MODE:          READ-ONLY (mutating tests skip)  │');
+  } else {
+    console.log('│ MODE:          FULL (includes state changes)    │');
+  }
+  console.log('└─────────────────────────────────────────────────┘');
+  console.log('');
+
+  // Fetch version info for audit trail
   try {
     const versionRes = await request('GET', '/api/version');
     if (versionRes.status === 200 && versionRes.data.success) {
       versionInfo = versionRes.data.version;
-      console.log('📋 Version Info:');
-      console.log(`   Git SHA: ${versionInfo.git_sha_short || 'unknown'}`);
-      console.log(`   Build Time: ${versionInfo.build_time || 'unknown'}`);
-      console.log(`   Environment: ${versionInfo.environment || 'unknown'}`);
-      console.log(`   Node: ${versionInfo.node_version || 'unknown'}`);
+      console.log('┌─────────────────────────────────────────────────┐');
+      console.log('│ SERVER VERSION                                  │');
+      console.log('├─────────────────────────────────────────────────┤');
+      console.log(`│ Git SHA:       ${(versionInfo.git_sha_short || 'unknown').padEnd(32)}│`);
+      console.log(`│ Build Time:    ${(versionInfo.build_time || 'unknown').substring(0, 32).padEnd(32)}│`);
+      console.log(`│ Environment:   ${(versionInfo.environment || 'unknown').padEnd(32)}│`);
+      console.log(`│ Node:          ${(versionInfo.node_version || 'unknown').padEnd(32)}│`);
+      console.log('└─────────────────────────────────────────────────┘');
       console.log('');
     }
   } catch (e) {
@@ -157,48 +213,60 @@ async function runTests() {
     poolTickets = res.data.pool;
   });
 
-  // Test 6: Claim and accept ownership (if pool has tickets)
+  // Test 6: Claim and accept ownership (mutating tests - skipped in readonly mode)
   let claimedTicketId = null;
-  if (poolTickets.length > 0) {
-    const testTicket = poolTickets[0];
-    claimedTicketId = testTicket.id;
 
-    await test(`Claim ticket #${claimedTicketId}`, async () => {
-      const res = await request('POST', `/api/tickets/${TENANT}/${claimedTicketId}/claim`);
-      if (res.status !== 200) throw new Error(`Status ${res.status}: ${JSON.stringify(res.data)}`);
-      if (!res.data.success) throw new Error(`API error: ${res.data.message}`);
-      if (!res.data.ticket) throw new Error('No ticket in response');
-    });
-
-    await test(`Accept ownership of ticket #${claimedTicketId}`, async () => {
-      const res = await request('POST', `/api/tickets/${TENANT}/${claimedTicketId}/accept-ownership`);
-      if (res.status !== 200) throw new Error(`Status ${res.status}: ${JSON.stringify(res.data)}`);
-      if (!res.data.success) throw new Error(`API error: ${res.data.message}`);
-      if (!res.data.ticket) throw new Error('No ticket in response');
-      // Verify ownership was set
-      if (res.data.ticket.owner_id !== userId && res.data.ticket.status !== 'In Progress') {
-        throw new Error('Ticket not properly owned or status not updated');
-      }
-    });
-
-    await test('Verify ticket removed from pool after ownership', async () => {
-      const res = await request('GET', `/api/tickets/${TENANT}/pool`);
-      if (res.status !== 200) throw new Error(`Status ${res.status}`);
-      if (!res.data.success) throw new Error(`API error: ${res.data.message}`);
-      const stillInPool = res.data.pool.find(t => t.id === claimedTicketId);
-      if (stillInPool) throw new Error('Owned ticket still appears in pool');
-    });
-
-    // Cleanup: Release ownership by escalating back to pool
-    await test(`Cleanup: Escalate ticket #${claimedTicketId} back to pool`, async () => {
-      const res = await request('POST', `/api/tickets/${TENANT}/${claimedTicketId}/escalate`, {
-        reason: 'Smoke test cleanup'
-      });
-      if (res.status !== 200) throw new Error(`Status ${res.status}: ${JSON.stringify(res.data)}`);
-      if (!res.data.success) throw new Error(`API error: ${res.data.message}`);
-    });
+  if (READONLY) {
+    console.log('  ⏭️  Skipping claim/accept/escalate tests (readonly mode)');
   } else {
-    console.log('  ⚠️  No tickets in pool - skipping claim/accept tests');
+    // Determine which ticket to use
+    if (SMOKE_TICKET_ID) {
+      // Use dedicated test ticket from env var
+      claimedTicketId = parseInt(SMOKE_TICKET_ID, 10);
+      console.log(`  📌 Using dedicated test ticket #${claimedTicketId}`);
+    } else if (poolTickets.length > 0) {
+      // Use first ticket from pool
+      claimedTicketId = poolTickets[0].id;
+    }
+
+    if (claimedTicketId) {
+      await test(`Claim ticket #${claimedTicketId}`, async () => {
+        const res = await request('POST', `/api/tickets/${TENANT}/${claimedTicketId}/claim`);
+        if (res.status !== 200) throw new Error(`Status ${res.status}: ${JSON.stringify(res.data)}`);
+        if (!res.data.success) throw new Error(`API error: ${res.data.message}`);
+        if (!res.data.ticket) throw new Error('No ticket in response');
+      });
+
+      await test(`Accept ownership of ticket #${claimedTicketId}`, async () => {
+        const res = await request('POST', `/api/tickets/${TENANT}/${claimedTicketId}/accept-ownership`);
+        if (res.status !== 200) throw new Error(`Status ${res.status}: ${JSON.stringify(res.data)}`);
+        if (!res.data.success) throw new Error(`API error: ${res.data.message}`);
+        if (!res.data.ticket) throw new Error('No ticket in response');
+        // Verify ownership was set
+        if (res.data.ticket.owner_id !== userId && res.data.ticket.status !== 'In Progress') {
+          throw new Error('Ticket not properly owned or status not updated');
+        }
+      });
+
+      await test('Verify ticket removed from pool after ownership', async () => {
+        const res = await request('GET', `/api/tickets/${TENANT}/pool`);
+        if (res.status !== 200) throw new Error(`Status ${res.status}`);
+        if (!res.data.success) throw new Error(`API error: ${res.data.message}`);
+        const stillInPool = res.data.pool.find(t => t.id === claimedTicketId);
+        if (stillInPool) throw new Error('Owned ticket still appears in pool');
+      });
+
+      // Cleanup: Release ownership by escalating back to pool
+      await test(`Cleanup: Escalate ticket #${claimedTicketId} back to pool`, async () => {
+        const res = await request('POST', `/api/tickets/${TENANT}/${claimedTicketId}/escalate`, {
+          reason: 'Smoke test cleanup'
+        });
+        if (res.status !== 200) throw new Error(`Status ${res.status}: ${JSON.stringify(res.data)}`);
+        if (!res.data.success) throw new Error(`API error: ${res.data.message}`);
+      });
+    } else {
+      console.log('  ⚠️  No tickets in pool - skipping claim/accept tests');
+    }
   }
 
   // Test 7: Get system control settings
