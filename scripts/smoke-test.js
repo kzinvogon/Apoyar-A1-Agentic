@@ -326,6 +326,35 @@ async function runTests() {
     }
   });
 
+  // ============================================================================
+  // Knowledge Base Endpoints
+  // ============================================================================
+  console.log('\n--- Knowledge Base Endpoints ---');
+
+  // Test 12: Get KB categories
+  await test('Fetch KB categories', async () => {
+    const res = await request('GET', `/api/kb/${TENANT}/categories`);
+    if (res.status !== 200) throw new Error(`Status ${res.status}`);
+    if (!res.data.success) throw new Error(`API error: ${res.data.message}`);
+    if (!Array.isArray(res.data.categories)) throw new Error('categories is not an array');
+  });
+
+  // Test 13: Get KB articles
+  await test('Fetch KB articles', async () => {
+    const res = await request('GET', `/api/kb/${TENANT}/articles`);
+    if (res.status !== 200) throw new Error(`Status ${res.status}`);
+    if (!res.data.success) throw new Error(`API error: ${res.data.message}`);
+    if (!Array.isArray(res.data.articles)) throw new Error('articles is not an array');
+  });
+
+  // Test 14: Get KB stats
+  await test('Fetch KB stats', async () => {
+    const res = await request('GET', `/api/kb/${TENANT}/stats`);
+    if (res.status !== 200) throw new Error(`Status ${res.status}`);
+    if (!res.data.success) throw new Error(`API error: ${res.data.message}`);
+    if (typeof res.data.stats !== 'object') throw new Error('stats is not an object');
+  });
+
   console.log('=' .repeat(50));
   console.log(`\n📊 Results: ${passed} passed, ${failed} failed`);
 
