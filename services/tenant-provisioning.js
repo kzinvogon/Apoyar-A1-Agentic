@@ -432,12 +432,26 @@ async function createTenantTables(connection) {
       notified_resolve_breached_at TIMESTAMP NULL,
       notified_resolve_past_at TIMESTAMP NULL,
       sla_source VARCHAR(16),
+      pool_status VARCHAR(30) NOT NULL DEFAULT 'OPEN_POOL',
+      claimed_by_expert_id INT NULL,
+      claimed_until_at TIMESTAMP NULL,
+      owned_by_expert_id INT NULL,
+      ownership_started_at TIMESTAMP NULL,
+      ownership_released_at TIMESTAMP NULL,
+      waiting_since_at TIMESTAMP NULL,
+      sla_paused_at TIMESTAMP NULL,
+      sla_pause_total_seconds INT NOT NULL DEFAULT 0,
+      pool_score DECIMAL(5,2) NULL,
+      pool_score_updated_at TIMESTAMP NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       FOREIGN KEY (requester_id) REFERENCES users(id),
       FOREIGN KEY (assignee_id) REFERENCES users(id) ON DELETE SET NULL,
       FOREIGN KEY (cmdb_item_id) REFERENCES cmdb_items(id) ON DELETE SET NULL,
-      INDEX idx_sla_definition_id (sla_definition_id)
+      INDEX idx_sla_definition_id (sla_definition_id),
+      INDEX idx_tickets_pool_status (pool_status),
+      INDEX idx_tickets_owned_by (owned_by_expert_id),
+      INDEX idx_tickets_claimed_by (claimed_by_expert_id)
     )
   `);
 

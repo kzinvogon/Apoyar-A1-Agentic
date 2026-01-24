@@ -403,7 +403,8 @@ router.get('/settings/:tenantId', async (req, res) => {
       const settingsObj = {
         send_emails_experts: 'true',
         send_emails_customers: 'true',
-        process_emails: 'true'
+        process_emails: 'true',
+        process_sla: 'true'
       };
 
       // Override with actual values from database

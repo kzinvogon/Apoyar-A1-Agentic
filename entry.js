@@ -15,6 +15,9 @@ if (process.env.APP_MODE === 'teams') {
 } else if (process.env.APP_MODE === 'sla-worker') {
   console.log('⏰ Starting SLA Worker...');
   require('./sla-worker.js');
+} else if (process.env.APP_MODE === 'email-worker') {
+  console.log('📧 Starting Email Worker...');
+  require('./email-worker.js');
 } else {
   console.log('🚀 Starting ServiFlow Main App...');
   require('./server.js');

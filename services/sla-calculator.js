@@ -325,6 +325,97 @@ function computeResolveDeadline(sla, firstRespondedAt) {
 }
 
 /**
+ * Compute resolve deadline from ownership acceptance (pool workflow)
+ * In the ownership workflow, resolve timer starts when expert accepts ownership,
+ * not when ticket is first responded to.
+ * @param {Object} sla - SLA definition (with business hours fields)
+ * @param {Date} ownershipStartedAt - When expert accepted ownership
+ * @returns {Date} resolve_due_at
+ */
+function computeOwnershipResolveDeadline(sla, ownershipStartedAt) {
+  const ownershipStart = new Date(ownershipStartedAt);
+  const profile = buildProfile(sla);
+  const resolveMinutes = sla.resolve_after_response_minutes || sla.resolve_target_minutes;
+  return addBusinessMinutes(ownershipStart, resolveMinutes, profile);
+}
+
+/**
+ * Calculate resolve state with pause time deduction (pool workflow)
+ * Takes into account SLA pause time accumulated during "Waiting on Customer" status
+ * @param {Date|null} dueAt - Resolution deadline
+ * @param {Date|null} ownershipStartedAt - When ownership was accepted
+ * @param {Date|null} resolvedAt - When resolved (null if not yet)
+ * @param {number} nearBreachPercent - Threshold for near breach
+ * @param {Object} profile - Business hours profile
+ * @param {number} pauseTotalSeconds - Total SLA pause time in seconds
+ * @param {boolean} isPaused - Whether SLA is currently paused
+ * @returns {Object} { state, percent_elapsed, effective_due_at }
+ */
+function calculateResolveStateWithPause(
+  dueAt,
+  ownershipStartedAt,
+  resolvedAt,
+  nearBreachPercent,
+  profile = null,
+  pauseTotalSeconds = 0,
+  isPaused = false
+) {
+  // Resolve clock only starts after ownership is accepted
+  if (!ownershipStartedAt) {
+    return { state: 'pending', percent_elapsed: 0, effective_due_at: null };
+  }
+
+  if (!dueAt) return { state: 'no_sla', percent_elapsed: 0, effective_due_at: null };
+
+  // Calculate effective due_at by adding pause time
+  const originalDue = new Date(dueAt);
+  const effectiveDue = new Date(originalDue.getTime() + pauseTotalSeconds * 1000);
+
+  const now = new Date();
+  const ownershipStart = new Date(ownershipStartedAt);
+
+  // If currently paused, SLA timer is frozen
+  if (isPaused) {
+    return {
+      state: 'paused',
+      percent_elapsed: 0,
+      effective_due_at: effectiveDue,
+      paused: true
+    };
+  }
+
+  // If already resolved
+  if (resolvedAt) {
+    const resolved = new Date(resolvedAt);
+    if (resolved <= effectiveDue) {
+      return { state: 'met', percent_elapsed: 100, effective_due_at: effectiveDue };
+    } else {
+      return { state: 'breached', percent_elapsed: 100, effective_due_at: effectiveDue };
+    }
+  }
+
+  // Calculate elapsed vs total
+  let elapsed, total;
+  if (profile && !profile.is_24x7) {
+    elapsed = elapsedBusinessMinutes(ownershipStart, now, profile);
+    total = elapsedBusinessMinutes(ownershipStart, effectiveDue, profile);
+  } else {
+    elapsed = (now.getTime() - ownershipStart.getTime()) / 60000;
+    total = (effectiveDue.getTime() - ownershipStart.getTime()) / 60000;
+  }
+
+  const percent_elapsed = total > 0 ? Math.round((elapsed / total) * 100) : 0;
+
+  if (now > effectiveDue) {
+    return { state: 'breached', percent_elapsed: Math.min(percent_elapsed, 999), effective_due_at: effectiveDue };
+  } else if (percent_elapsed >= (nearBreachPercent || 85)) {
+    return { state: 'near_breach', percent_elapsed, effective_due_at: effectiveDue };
+  } else {
+    return { state: 'on_track', percent_elapsed, effective_due_at: effectiveDue };
+  }
+}
+
+/**
  * Calculate SLA state for response
  * @param {Date|null} dueAt - Response deadline
  * @param {Date|null} respondedAt - When first responded (null if not yet)
@@ -425,6 +516,7 @@ function calculateResolveState(dueAt, firstRespondedAt, resolvedAt, nearBreachPe
 
 /**
  * Compute full SLA status for a ticket
+ * Supports both traditional SLA (first_responded_at based) and ownership workflow (ownership_started_at based)
  * @param {Object} ticket - Ticket with SLA fields
  * @param {Object} slaDef - SLA definition (optional, with business hours)
  * @returns {Object} SLA status object
@@ -433,6 +525,10 @@ function computeSLAStatus(ticket, slaDef = null) {
   const nearBreachPercent = slaDef?.near_breach_percent || 85;
   const profile = slaDef ? buildProfile(slaDef) : null;
 
+  // Determine if using ownership workflow (pool_status field exists and ownership_started_at is set)
+  const useOwnershipWorkflow = ticket.pool_status && ticket.ownership_started_at;
+
+  // Calculate response state (same for both workflows)
   const responseState = calculateResponseState(
     ticket.response_due_at,
     ticket.first_responded_at,
@@ -441,20 +537,43 @@ function computeSLAStatus(ticket, slaDef = null) {
     profile
   );
 
-  const resolveState = calculateResolveState(
-    ticket.resolve_due_at,
-    ticket.first_responded_at,
-    ticket.resolved_at,
-    nearBreachPercent,
-    profile
-  );
+  // Calculate resolve state - use ownership workflow if applicable
+  let resolveState;
+  if (useOwnershipWorkflow) {
+    // Check if SLA is currently paused (Waiting on Customer)
+    const isPaused = ticket.pool_status === 'WAITING_CUSTOMER' || Boolean(ticket.sla_paused_at);
+    const pauseTotalSeconds = ticket.sla_pause_total_seconds || 0;
+
+    resolveState = calculateResolveStateWithPause(
+      ticket.resolve_due_at,
+      ticket.ownership_started_at,
+      ticket.resolved_at,
+      nearBreachPercent,
+      profile,
+      pauseTotalSeconds,
+      isPaused
+    );
+  } else {
+    // Traditional SLA based on first_responded_at
+    resolveState = calculateResolveState(
+      ticket.resolve_due_at,
+      ticket.first_responded_at,
+      ticket.resolved_at,
+      nearBreachPercent,
+      profile
+    );
+  }
 
   // Determine SLA phase
   let sla_phase = 'awaiting_response';
-  if (ticket.resolved_at) {
+  if (ticket.resolved_at || ticket.pool_status === 'RESOLVED') {
     sla_phase = 'resolved';
-  } else if (ticket.first_responded_at) {
+  } else if (ticket.pool_status === 'WAITING_CUSTOMER') {
+    sla_phase = 'paused';
+  } else if (ticket.ownership_started_at || ticket.first_responded_at) {
     sla_phase = 'in_progress';
+  } else if (ticket.pool_status === 'OPEN_POOL' || ticket.pool_status === 'CLAIMED_LOCKED') {
+    sla_phase = 'in_pool';
   }
 
   // Check if currently outside business hours
@@ -468,8 +587,12 @@ function computeSLAStatus(ticket, slaDef = null) {
     sla_name: slaDef?.name || null,
     sla_phase,
     outside_business_hours,
+    pool_status: ticket.pool_status || null,
+    ownership_started_at: ticket.ownership_started_at || null,
+    sla_paused: resolveState.paused || false,
+    sla_pause_total_seconds: ticket.sla_pause_total_seconds || 0,
     response_due_at: ticket.response_due_at,
-    resolve_due_at: ticket.resolve_due_at,
+    resolve_due_at: resolveState.effective_due_at || ticket.resolve_due_at,
     response: {
       due_at: ticket.response_due_at,
       first_responded_at: ticket.first_responded_at,
@@ -477,10 +600,11 @@ function computeSLAStatus(ticket, slaDef = null) {
       percent_elapsed: responseState.percent_elapsed
     },
     resolve: {
-      due_at: ticket.resolve_due_at,
+      due_at: resolveState.effective_due_at || ticket.resolve_due_at,
       resolved_at: ticket.resolved_at,
       state: resolveState.state,
-      percent_elapsed: resolveState.percent_elapsed
+      percent_elapsed: resolveState.percent_elapsed,
+      ownership_started_at: ticket.ownership_started_at || null
     }
   };
 }
@@ -513,6 +637,7 @@ function remainingBusinessMinutes(dueAt, profile) {
 /**
  * Build SLA facts object for AI context
  * Uses computeSLAStatus output and adds remaining_minutes and timezone
+ * Supports both traditional and ownership-based workflows
  * @param {Object} ticket - Ticket with SLA fields (including sla_source)
  * @param {Object} slaDef - SLA definition (optional, with business hours)
  * @returns {Object} sla_facts for AI prompts
@@ -529,9 +654,11 @@ function buildSLAFacts(ticket, slaDef = null) {
     ? remainingBusinessMinutes(status.response.due_at, profile)
     : null;
 
-  const resolveRemaining = status.resolve.state !== 'met' && status.resolve.state !== 'pending' && status.resolve.state !== 'no_sla'
-    ? remainingBusinessMinutes(status.resolve.due_at, profile)
-    : null;
+  // For resolve, handle paused state
+  let resolveRemaining = null;
+  if (!['met', 'pending', 'no_sla', 'paused'].includes(status.resolve.state)) {
+    resolveRemaining = remainingBusinessMinutes(status.resolve.due_at, profile);
+  }
 
   return {
     sla_name: status.sla_name,
@@ -539,6 +666,11 @@ function buildSLAFacts(ticket, slaDef = null) {
     timezone,
     outside_business_hours: status.outside_business_hours,
     phase: status.sla_phase,
+    // Ownership workflow fields
+    pool_status: status.pool_status,
+    ownership_started_at: status.ownership_started_at,
+    sla_paused: status.sla_paused,
+    sla_pause_total_minutes: Math.round((status.sla_pause_total_seconds || 0) / 60),
     response: {
       state: status.response.state,
       percent_used: status.response.percent_elapsed,
@@ -549,7 +681,8 @@ function buildSLAFacts(ticket, slaDef = null) {
       state: status.resolve.state,
       percent_used: status.resolve.percent_elapsed,
       due_at: status.resolve.due_at,
-      remaining_minutes: resolveRemaining
+      remaining_minutes: resolveRemaining,
+      ownership_started_at: status.resolve.ownership_started_at
     }
   };
 }
@@ -559,8 +692,10 @@ module.exports = {
   getDefaultSLA,
   computeInitialDeadlines,
   computeResolveDeadline,
+  computeOwnershipResolveDeadline,
   calculateResponseState,
   calculateResolveState,
+  calculateResolveStateWithPause,
   computeSLAStatus,
   buildSLAFacts,
   // Business hours utilities (for testing)
