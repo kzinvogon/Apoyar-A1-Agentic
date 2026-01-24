@@ -127,24 +127,42 @@ function calculateResponsePercent(ticket, profile) {
 
 /**
  * Calculate percent used for resolve phase
+ * Supports both traditional workflow (first_responded_at) and ownership workflow (ownership_started_at)
+ * Also accounts for SLA pause time
  */
 function calculateResolvePercent(ticket, profile) {
-  if (!ticket.resolve_due_at || !ticket.first_responded_at) return 0;
+  // Use ownership_started_at if available (pool workflow), otherwise fall back to first_responded_at
+  const resolveStartTime = ticket.ownership_started_at || ticket.first_responded_at;
+  if (!ticket.resolve_due_at || !resolveStartTime) return 0;
 
   const now = new Date();
-  const responded = new Date(ticket.first_responded_at);
-  const due = new Date(ticket.resolve_due_at);
+  const started = new Date(resolveStartTime);
+
+  // Apply pause time to due date
+  const pauseSeconds = ticket.sla_pause_total_seconds || 0;
+  const originalDue = new Date(ticket.resolve_due_at);
+  const adjustedDue = new Date(originalDue.getTime() + pauseSeconds * 1000);
 
   let elapsed, total;
   if (profile && !profile.is_24x7) {
-    elapsed = elapsedBusinessMinutes(responded, now, profile);
-    total = elapsedBusinessMinutes(responded, due, profile);
+    elapsed = elapsedBusinessMinutes(started, now, profile);
+    total = elapsedBusinessMinutes(started, adjustedDue, profile);
   } else {
-    elapsed = (now.getTime() - responded.getTime()) / 60000;
-    total = (due.getTime() - responded.getTime()) / 60000;
+    elapsed = (now.getTime() - started.getTime()) / 60000;
+    total = (adjustedDue.getTime() - started.getTime()) / 60000;
   }
 
   return total > 0 ? Math.round((elapsed / total) * 100) : 0;
+}
+
+/**
+ * Check if ticket SLA is currently paused (Waiting on Customer)
+ */
+function isSlaPaused(ticket) {
+  // Check pool_status or sla_paused_at
+  if (ticket.pool_status === 'WAITING_CUSTOMER') return true;
+  if (ticket.sla_paused_at) return true;
+  return false;
 }
 
 /**
@@ -165,6 +183,24 @@ async function markNotified(connection, ticketId, field) {
 }
 
 /**
+ * Check if SLA processing is enabled (kill switch)
+ */
+async function isSlaProcessingEnabled(connection) {
+  try {
+    const [settings] = await connection.query(
+      'SELECT setting_value FROM tenant_settings WHERE setting_key = ?',
+      ['process_sla']
+    );
+    // Default to enabled if setting not found
+    if (settings.length === 0) return true;
+    return settings[0].setting_value !== 'false';
+  } catch (error) {
+    // Default to enabled if error (table doesn't exist, etc.)
+    return true;
+  }
+}
+
+/**
  * Process a single tenant's tickets
  */
 async function processTenant(tenantCode) {
@@ -172,12 +208,20 @@ async function processTenant(tenantCode) {
   try {
     connection = await getTenantConnection(tenantCode);
 
+    // Check if SLA processing is enabled (kill switch)
+    const processingEnabled = await isSlaProcessingEnabled(connection);
+    if (!processingEnabled) {
+      console.log(`🔴 KILL SWITCH: SLA processing is disabled for tenant: ${tenantCode}`);
+      return;
+    }
+
     // Use fixed internal batch values for SLA notifier (not user-configurable)
     // User-configurable batch settings are only for bulk operations like ticket rules
     const batchSize = DEFAULT_BATCH_SIZE;
     const batchDelayMs = DEFAULT_BATCH_DELAY_SECONDS * 1000;
 
     // Fetch candidate tickets with SLA and business hours in one query
+    // Includes ownership workflow columns and excludes paused tickets
     const [tickets] = await connection.query(`
       SELECT
         t.id, t.title, t.status, t.created_at,
@@ -185,6 +229,7 @@ async function processTenant(tenantCode) {
         t.first_responded_at, t.resolved_at,
         t.notified_response_near_at, t.notified_response_breached_at, t.notified_response_past_at,
         t.notified_resolve_near_at, t.notified_resolve_breached_at, t.notified_resolve_past_at,
+        t.pool_status, t.ownership_started_at, t.sla_paused_at, t.sla_pause_total_seconds,
         s.name AS sla_name, s.near_breach_percent, s.past_breach_percent,
         s.business_hours_profile_id,
         b.timezone AS bh_timezone, b.days_of_week AS bh_days_of_week,
@@ -195,6 +240,8 @@ async function processTenant(tenantCode) {
       WHERE t.sla_definition_id IS NOT NULL
         AND t.status NOT IN ('Resolved', 'Closed')
         AND (t.resolved_at IS NULL)
+        AND (t.pool_status IS NULL OR t.pool_status != 'WAITING_CUSTOMER')
+        AND t.sla_paused_at IS NULL
       ORDER BY t.id ASC
       LIMIT ?
     `, [batchSize]);
@@ -268,8 +315,10 @@ async function processTenant(tenantCode) {
         }
       }
 
-      // RESOLVE phase checks (only if responded but not resolved)
-      if (ticket.first_responded_at && !ticket.resolved_at) {
+      // RESOLVE phase checks (only if ownership accepted or responded, but not resolved)
+      // Use ownership_started_at for pool workflow, first_responded_at for traditional workflow
+      const resolveStarted = ticket.ownership_started_at || ticket.first_responded_at;
+      if (resolveStarted && !ticket.resolved_at && !isSlaPaused(ticket)) {
         const resolvePercent = calculateResolvePercent(ticket, profile);
 
         // Check thresholds in order: past > breached > near

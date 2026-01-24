@@ -5,7 +5,14 @@
  * priority order: ticket → user → company → category → cmdb → default
  */
 
-const { getTenantConnection } = require('../config/database');
+// Lazy-load shared pool only when needed (not in worker mode)
+let _sharedGetTenantConnection = null;
+function getSharedTenantConnection(tenantCode) {
+  if (!_sharedGetTenantConnection) {
+    _sharedGetTenantConnection = require('../config/database').getTenantConnection;
+  }
+  return _sharedGetTenantConnection(tenantCode);
+}
 
 /**
  * Resolve the applicable SLA for a ticket
@@ -25,14 +32,21 @@ const { getTenantConnection } = require('../config/database');
  * @param {number} [options.ticketPayload.requester_id] - Requester user ID (for customer lookup)
  * @param {string} [options.ticketPayload.category] - Category string
  * @param {number} [options.ticketPayload.cmdb_item_id] - CMDB item ID
+ * @param {Object} [options.connection] - Optional: existing DB connection (caller manages lifecycle)
  *
  * @returns {Promise<{slaId: number|null, source: string}>}
  */
-async function resolveApplicableSLA({ tenantCode, ticketPayload = {} }) {
+async function resolveApplicableSLA({ tenantCode, ticketPayload = {}, connection: providedConnection }) {
   let connection;
+  let ownConnection = false;
 
   try {
-    connection = await getTenantConnection(tenantCode);
+    if (providedConnection) {
+      connection = providedConnection;
+    } else {
+      connection = await getSharedTenantConnection(tenantCode);
+      ownConnection = true;
+    }
 
     // 1) Explicit ticket override - highest priority
     if (ticketPayload.sla_definition_id) {
@@ -83,7 +97,8 @@ async function resolveApplicableSLA({ tenantCode, ticketPayload = {} }) {
     console.error('[SLA_SELECTOR] Error resolving SLA:', error.message);
     return { slaId: null, source: 'error' };
   } finally {
-    if (connection) connection.release();
+    // Only release if we created the connection (not if caller provided it)
+    if (ownConnection && connection) connection.release();
   }
 }
 

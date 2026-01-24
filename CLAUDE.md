@@ -21,20 +21,40 @@ ServiFlow is a multi-tenant ITSM (IT Service Management) SaaS platform with AI-p
 - `services/sla-notifier.js` - SLA notification scheduler
 - `A1 Support Build from here .html` - Main SPA frontend
 
-## Environments
+## Environments & Deployment Workflow
+
+### CRITICAL: Deployment Process
+**ALWAYS follow this workflow - no exceptions:**
+1. **Commit changes locally** (do NOT push to git yet)
+2. **Deploy to UAT:** `railway up --detach` (CLI defaults to UAT)
+3. **Test on UAT:** https://web-uat-uat.up.railway.app
+4. **Wait for user approval**
+5. **After approval, deploy to production:**
+   ```bash
+   source railway-env.sh prod   # Switch to production
+   railway redeploy --yes       # Deploy
+   source railway-env.sh uat    # Switch back to UAT default
+   ```
+6. **Push to git:** `git push` (only after production is approved)
+
+### Railway CLI Setup
+The CLI is configured to default to UAT. Use the helper script:
+```bash
+source railway-env.sh uat      # Switch to UAT (default)
+source railway-env.sh prod     # Switch to Production
+source railway-env.sh status   # Show current environment
+```
 
 ### Railway UAT (User Acceptance Testing)
 - **App URL:** https://web-uat-uat.up.railway.app
-- **Deploy:** `railway environment uat && railway up --detach`
-- **Logs:** `railway environment uat && railway logs --tail 50`
-- **Always deploy here first for testing before production**
+- **Service:** web-uat
+- **This is the DEFAULT environment**
 
 ### Railway Production
 - **App URL:** https://app.serviflow.app
+- **Service:** web
 - **MySQL Host:** tramway.proxy.rlwy.net:19355
-- **Deploy:** `railway environment production && railway up --detach`
-- **Logs:** `railway environment production && railway logs --tail 50`
-- **Redeploy:** `railway redeploy --yes`
+- **Only deploy here AFTER UAT approval**
 
 ### Localhost (Development)
 - **App URL:** http://localhost:3000

@@ -5417,6 +5417,20 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
                 </div>
                 <div id="sc-process-emails-status" class="subtitle" style="margin-top:8px;padding:8px;border-radius:4px"></div>
               </div>
+
+              <div class="card p-16 mb-12" style="border:2px solid #e2e8f0">
+                <div class="row space" style="align-items:center">
+                  <div>
+                    <div style="font-weight:600;font-size:16px">Process SLA Notifications</div>
+                    <div class="subtitle">Enable/disable SLA breach checking and notifications</div>
+                  </div>
+                  <label class="toggle-switch">
+                    <input type="checkbox" id="sc-process-sla" onchange="toggleSystemSetting('process_sla', this.checked)">
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+                <div id="sc-process-sla-status" class="subtitle" style="margin-top:8px;padding:8px;border-radius:4px"></div>
+              </div>
             </div>
 
             <div class="card p-16">
@@ -21566,18 +21580,32 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           processEmailsCheckbox.checked = processEmailsEnabled;
         }
         updateSystemSettingStatus('process_emails', processEmailsEnabled);
+
+        // Update Process SLA toggle - check explicitly for 'false' string
+        const processSlaCheckbox = document.getElementById('sc-process-sla');
+        const processSlaValue = data.settings.process_sla;
+        // Only disabled if explicitly set to 'false'
+        const processSlaEnabled = processSlaValue !== 'false';
+        console.log('process_sla value:', processSlaValue, 'enabled:', processSlaEnabled);
+        if (processSlaCheckbox) {
+          processSlaCheckbox.checked = processSlaEnabled;
+        }
+        updateSystemSettingStatus('process_sla', processSlaEnabled);
       } else {
         console.log('No settings found, defaulting to enabled');
         // Default to enabled if no settings found
         const sendExpertsCheckbox = document.getElementById('sc-send-emails-experts');
         const sendCustomersCheckbox = document.getElementById('sc-send-emails-customers');
         const processCheckbox = document.getElementById('sc-process-emails');
+        const processSlaCheckbox = document.getElementById('sc-process-sla');
         if (sendExpertsCheckbox) sendExpertsCheckbox.checked = true;
         if (sendCustomersCheckbox) sendCustomersCheckbox.checked = true;
         if (processCheckbox) processCheckbox.checked = true;
+        if (processSlaCheckbox) processSlaCheckbox.checked = true;
         updateSystemSettingStatus('send_emails_experts', true);
         updateSystemSettingStatus('send_emails_customers', true);
         updateSystemSettingStatus('process_emails', true);
+        updateSystemSettingStatus('process_sla', true);
       }
 
       // Update status log

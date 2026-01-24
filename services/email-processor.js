@@ -1,4 +1,12 @@
-const { getTenantConnection } = require('../config/database');
+// Lazy-load shared pool only when needed (not in worker mode)
+let _sharedGetTenantConnection = null;
+function getSharedTenantConnection(tenantCode) {
+  if (!_sharedGetTenantConnection) {
+    _sharedGetTenantConnection = require('../config/database').getTenantConnection;
+  }
+  return _sharedGetTenantConnection(tenantCode);
+}
+
 const { sendNotificationEmail } = require('../config/email');
 const { createTicketAccessToken } = require('../utils/tokenGenerator');
 const { resolveApplicableSLA } = require('./sla-selector');
@@ -11,13 +19,25 @@ const crypto = require('crypto');
 /**
  * Email Processor Service
  * Handles fetching emails from inbox and creating tickets
+ *
+ * Supports dependency injection of connection getter for worker isolation:
+ *   new EmailProcessor(tenantCode, { getConnection: myGetterFn })
  */
 
 class EmailProcessor {
-  constructor(tenantCode) {
+  constructor(tenantCode, options = {}) {
     this.tenantCode = tenantCode;
     this.isProcessing = false;
     this.imap = null;
+    // Use injected getter or fall back to shared pool (lazy-loaded)
+    this._getConnection = options.getConnection || (() => getSharedTenantConnection(this.tenantCode));
+  }
+
+  /**
+   * Get a database connection (uses injected getter or shared pool)
+   */
+  async getConnection() {
+    return this._getConnection();
   }
 
   /**
@@ -25,7 +45,7 @@ class EmailProcessor {
    */
   async isEmailProcessingEnabled() {
     try {
-      const connection = await getTenantConnection(this.tenantCode);
+      const connection = await this.getConnection();
       try {
         const [settings] = await connection.query(
           'SELECT setting_value FROM tenant_settings WHERE setting_key = ?',
@@ -62,7 +82,7 @@ class EmailProcessor {
     this.isProcessing = true;
 
     try {
-      const connection = await getTenantConnection(this.tenantCode);
+      const connection = await this.getConnection();
 
       try {
         // Get email ingest settings
@@ -985,7 +1005,8 @@ class EmailProcessor {
         ticketPayload: {
           requester_id: requesterId,
           category: 'Email'
-        }
+        },
+        connection  // Pass existing connection to avoid shared pool
       });
 
       if (slaId) {

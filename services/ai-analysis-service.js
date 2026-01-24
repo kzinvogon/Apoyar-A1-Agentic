@@ -46,6 +46,7 @@ const TASK_TAXONOMY = {
   // Triage tasks - fast, low cost
   ticket_classify: 'triage',
   cmdb_autolink: 'triage',
+  pool_ranking: 'triage',  // Fast ranking for ticket pool prioritization
 
   // Reasoning tasks - balanced
   preview_summary: 'reasoning',
@@ -493,6 +494,26 @@ Required JSON output:
     }
   ]
 }`,
+
+      pool_ranking: `${basePrompt}
+
+Rank this ticket for expert pool prioritization. Consider urgency, SLA proximity, customer tier, and technical complexity.
+
+Required JSON output:
+{
+  "pool_score": 75,
+  "urgency_factors": ["factor1", "factor2"],
+  "recommended_skills": ["skill1", "skill2"],
+  "complexity_estimate": "low|medium|high",
+  "reasoning": "Brief explanation of the ranking"
+}
+
+Scoring guidelines:
+- 90-100: Critical system down, P1 customer, SLA breach imminent
+- 70-89: High impact, important customer, SLA at risk
+- 50-69: Standard priority, normal business impact
+- 30-49: Low priority, minor issue, ample SLA time
+- 0-29: Informational, no urgency`,
 
       premium_customer_reply: `${basePrompt}
 

@@ -149,12 +149,37 @@ async function getSlaCheckInterval(connection) {
 }
 
 /**
+ * Check if SLA processing is enabled (kill switch)
+ */
+async function isSlaProcessingEnabled(connection) {
+  try {
+    const [settings] = await connection.query(
+      'SELECT setting_value FROM tenant_settings WHERE setting_key = ?',
+      ['process_sla']
+    );
+    // Default to enabled if setting not found
+    if (settings.length === 0) return true;
+    return settings[0].setting_value !== 'false';
+  } catch (error) {
+    // Default to enabled if error (table doesn't exist, etc.)
+    return true;
+  }
+}
+
+/**
  * Process a single tenant's SLA notifications
  */
 async function processTenant(tenantCode) {
   let connection;
   try {
     connection = await getTenantConnection(tenantCode);
+
+    // Check if SLA processing is enabled (kill switch)
+    const processingEnabled = await isSlaProcessingEnabled(connection);
+    if (!processingEnabled) {
+      console.log(`🔴 KILL SWITCH: SLA processing is disabled for tenant: ${tenantCode}`);
+      return;
+    }
 
     // Fetch tickets with active SLAs
     const [tickets] = await connection.query(`
