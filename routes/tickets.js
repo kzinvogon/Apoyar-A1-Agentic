@@ -28,6 +28,13 @@ const {
   computeSLAStatus
 } = require('../services/sla-calculator');
 
+// Pool ranking service
+const {
+  enrichTicketWithSLAStatus,
+  enrichTicketsWithSLAStatus,
+  onTicketEnterPool
+} = require('../services/pool-ranking-service');
+
 // SLA selector service
 const { resolveApplicableSLA } = require('../services/sla-selector');
 
@@ -548,6 +555,113 @@ router.get('/:tenantId', readOperationsLimiter, validateTicketGet, async (req, r
   }
 });
 
+// ========== TICKET POOL ENDPOINTS (must be before /:ticketId routes) ==========
+
+// Claim lock duration in seconds (30s preview window)
+const CLAIM_LOCK_DURATION_SECONDS = 30;
+
+// Get ticket pool (AI-ranked unowned tickets)
+router.get('/:tenantId/pool', readOperationsLimiter, requireRole(['expert', 'admin']), async (req, res) => {
+  try {
+    const { tenantId } = req.params;
+    const tenantCode = tenantId.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    const connection = await getTenantConnection(tenantCode);
+
+    try {
+      // Expire stale claims first
+      await connection.query(`
+        UPDATE tickets
+        SET pool_status = 'OPEN_POOL',
+            claimed_by_expert_id = NULL,
+            claimed_until_at = NULL
+        WHERE pool_status = 'CLAIMED_LOCKED'
+          AND claimed_until_at < NOW()
+      `);
+
+      // Get tickets in pool (OPEN_POOL status, not owned)
+      const [poolTickets] = await connection.query(`
+        SELECT t.*,
+               u1.full_name as requester_name,
+               u1.email as requester_email,
+               c.customer_company_id,
+               cc.company_name,
+               ci.asset_name as cmdb_item_name,
+               claimer.full_name as claimed_by_name
+        FROM tickets t
+        LEFT JOIN users u1 ON t.requester_id = u1.id
+        LEFT JOIN customers c ON t.requester_id = c.user_id
+        LEFT JOIN customer_companies cc ON c.customer_company_id = cc.id
+        LEFT JOIN cmdb_items ci ON t.cmdb_item_id = ci.id
+        LEFT JOIN users claimer ON t.claimed_by_expert_id = claimer.id
+        WHERE t.pool_status IN ('OPEN_POOL', 'CLAIMED_LOCKED')
+          AND t.status NOT IN ('Resolved', 'Closed')
+        ORDER BY t.pool_score IS NULL, t.pool_score DESC, t.created_at ASC
+      `);
+
+      // Enrich with SLA status
+      await enrichTicketsWithSLAStatus(poolTickets, connection);
+
+      res.json({
+        success: true,
+        pool: poolTickets,
+        count: poolTickets.length
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error fetching ticket pool:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// Get my owned tickets (expert's current workload)
+router.get('/:tenantId/my-tickets', readOperationsLimiter, requireRole(['expert', 'admin']), async (req, res) => {
+  try {
+    const { tenantId } = req.params;
+    const tenantCode = tenantId.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    const connection = await getTenantConnection(tenantCode);
+
+    try {
+      const [myTickets] = await connection.query(`
+        SELECT t.*,
+               u1.full_name as requester_name,
+               c.customer_company_id,
+               cc.company_name,
+               ci.asset_name as cmdb_item_name
+        FROM tickets t
+        LEFT JOIN users u1 ON t.requester_id = u1.id
+        LEFT JOIN customers c ON t.requester_id = c.user_id
+        LEFT JOIN customer_companies cc ON c.customer_company_id = cc.id
+        LEFT JOIN cmdb_items ci ON t.cmdb_item_id = ci.id
+        WHERE t.owned_by_expert_id = ?
+          AND t.pool_status IN ('IN_PROGRESS_OWNED', 'WAITING_CUSTOMER')
+        ORDER BY
+          CASE t.pool_status
+            WHEN 'IN_PROGRESS_OWNED' THEN 1
+            WHEN 'WAITING_CUSTOMER' THEN 2
+          END,
+          t.resolve_due_at IS NULL, t.resolve_due_at ASC
+      `, [req.user.userId]);
+
+      await enrichTicketsWithSLAStatus(myTickets, connection);
+
+      res.json({
+        success: true,
+        tickets: myTickets,
+        count: myTickets.length
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error fetching my tickets:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// ========== END POOL ENDPOINTS (before /:ticketId) ==========
+
 // Get a specific ticket
 router.get('/:tenantId/:ticketId', readOperationsLimiter, validateTicketGet, async (req, res) => {
   try {
@@ -1035,6 +1149,525 @@ router.post('/:tenantId/:ticketId/self-assign', writeOperationsLimiter, requireR
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
+
+// ========== TICKET OWNERSHIP WORKFLOW ENDPOINTS (claim, accept, release, etc.) ==========
+
+// Claim a ticket (30s soft lock for preview)
+router.post('/:tenantId/:ticketId/claim', writeOperationsLimiter, requireRole(['expert', 'admin']), async (req, res) => {
+  try {
+    const { tenantId, ticketId } = req.params;
+    const tenantCode = tenantId.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    const connection = await getTenantConnection(tenantCode);
+
+    try {
+      // Get current ticket state
+      const [tickets] = await connection.query(
+        `SELECT t.*, u.full_name as claimed_by_name
+         FROM tickets t
+         LEFT JOIN users u ON t.claimed_by_expert_id = u.id
+         WHERE t.id = ?`,
+        [ticketId]
+      );
+
+      if (tickets.length === 0) {
+        return res.status(404).json({ success: false, message: 'Ticket not found' });
+      }
+
+      const ticket = tickets[0];
+
+      // Check if ticket is available for claiming
+      if (ticket.pool_status === 'CLAIMED_LOCKED') {
+        // Check if claim has expired
+        const claimExpiry = ticket.claimed_until_at ? new Date(ticket.claimed_until_at) : null;
+        if (claimExpiry && claimExpiry > new Date()) {
+          // Someone else has an active claim
+          if (ticket.claimed_by_expert_id !== req.user.userId) {
+            return res.status(409).json({
+              success: false,
+              message: `Ticket is currently being previewed by ${ticket.claimed_by_name}`,
+              claimed_by: ticket.claimed_by_name,
+              claim_expires_at: ticket.claimed_until_at
+            });
+          }
+          // User already has the claim - extend it
+        }
+      } else if (ticket.pool_status !== 'OPEN_POOL') {
+        return res.status(400).json({
+          success: false,
+          message: `Ticket is not available for claiming (status: ${ticket.pool_status})`
+        });
+      }
+
+      // Create/extend claim lock
+      const claimUntil = new Date(Date.now() + CLAIM_LOCK_DURATION_SECONDS * 1000);
+
+      await connection.query(`
+        UPDATE tickets
+        SET pool_status = 'CLAIMED_LOCKED',
+            claimed_by_expert_id = ?,
+            claimed_until_at = ?
+        WHERE id = ?
+      `, [req.user.userId, claimUntil, ticketId]);
+
+      // Get updated ticket with full details for preview
+      const [updatedTickets] = await connection.query(`
+        SELECT t.*,
+               u1.full_name as requester_name,
+               u1.email as requester_email,
+               c.customer_company_id,
+               cc.company_name,
+               ci.asset_name as cmdb_item_name
+        FROM tickets t
+        LEFT JOIN users u1 ON t.requester_id = u1.id
+        LEFT JOIN customers c ON t.requester_id = c.user_id
+        LEFT JOIN customer_companies cc ON c.customer_company_id = cc.id
+        LEFT JOIN cmdb_items ci ON t.cmdb_item_id = ci.id
+        WHERE t.id = ?
+      `, [ticketId]);
+
+      // Enrich with SLA status
+      await enrichTicketWithSLAStatus(updatedTickets[0], connection);
+
+      // Get ticket activity for preview
+      const [activities] = await connection.query(`
+        SELECT ta.*, u.full_name as user_full_name
+        FROM ticket_activity ta
+        LEFT JOIN users u ON ta.user_id = u.id
+        WHERE ta.ticket_id = ?
+        ORDER BY ta.created_at DESC
+        LIMIT 10
+      `, [ticketId]);
+
+      res.json({
+        success: true,
+        message: 'Ticket claimed for preview',
+        ticket: updatedTickets[0],
+        activities,
+        claim_expires_at: claimUntil,
+        claim_duration_seconds: CLAIM_LOCK_DURATION_SECONDS
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error claiming ticket:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// Accept ownership (finalize claim, start SLA resolve timer)
+router.post('/:tenantId/:ticketId/accept-ownership', writeOperationsLimiter, requireRole(['expert', 'admin']), async (req, res) => {
+  try {
+    const { tenantId, ticketId } = req.params;
+    const tenantCode = tenantId.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    const connection = await getTenantConnection(tenantCode);
+
+    try {
+      // Get current ticket
+      const [tickets] = await connection.query(
+        'SELECT * FROM tickets WHERE id = ?',
+        [ticketId]
+      );
+
+      if (tickets.length === 0) {
+        return res.status(404).json({ success: false, message: 'Ticket not found' });
+      }
+
+      const ticket = tickets[0];
+
+      // Verify user has the claim or ticket is in OPEN_POOL
+      if (ticket.pool_status === 'CLAIMED_LOCKED') {
+        if (ticket.claimed_by_expert_id !== req.user.userId) {
+          return res.status(403).json({
+            success: false,
+            message: 'You do not have a claim on this ticket'
+          });
+        }
+      } else if (ticket.pool_status !== 'OPEN_POOL') {
+        return res.status(400).json({
+          success: false,
+          message: `Cannot accept ownership of ticket in status: ${ticket.pool_status}`
+        });
+      }
+
+      const now = new Date();
+
+      // Update to owned status
+      await connection.query(`
+        UPDATE tickets
+        SET pool_status = 'IN_PROGRESS_OWNED',
+            status = 'In Progress',
+            owned_by_expert_id = ?,
+            assignee_id = ?,
+            ownership_started_at = ?,
+            claimed_by_expert_id = NULL,
+            claimed_until_at = NULL,
+            first_responded_at = COALESCE(first_responded_at, ?)
+        WHERE id = ?
+      `, [req.user.userId, req.user.userId, now, now, ticketId]);
+
+      // Recompute resolve deadline from ownership start if SLA exists
+      if (ticket.sla_definition_id) {
+        const [slaDefs] = await connection.query(
+          'SELECT resolve_after_response_minutes, resolve_target_minutes FROM sla_definitions WHERE id = ?',
+          [ticket.sla_definition_id]
+        );
+        if (slaDefs.length > 0) {
+          const resolveMinutes = slaDefs[0].resolve_after_response_minutes || slaDefs[0].resolve_target_minutes;
+          if (resolveMinutes) {
+            await connection.query(
+              'UPDATE tickets SET resolve_due_at = DATE_ADD(?, INTERVAL ? MINUTE) WHERE id = ?',
+              [now, resolveMinutes, ticketId]
+            );
+          }
+        }
+      }
+
+      // Log activity
+      await connection.query(`
+        INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
+        VALUES (?, ?, 'assigned', ?)
+      `, [ticketId, req.user.userId, `Ownership accepted by ${req.user.username} from ticket pool`]);
+
+      // Get updated ticket
+      const [updatedTickets] = await connection.query(`
+        SELECT t.*,
+               u1.full_name as assignee_name,
+               u2.full_name as requester_name,
+               owner.full_name as owner_name
+        FROM tickets t
+        LEFT JOIN users u1 ON t.assignee_id = u1.id
+        LEFT JOIN users u2 ON t.requester_id = u2.id
+        LEFT JOIN users owner ON t.owned_by_expert_id = owner.id
+        WHERE t.id = ?
+      `, [ticketId]);
+
+      await enrichTicketWithSLAStatus(updatedTickets[0], connection);
+
+      res.json({
+        success: true,
+        message: 'Ownership accepted successfully',
+        ticket: updatedTickets[0]
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error accepting ownership:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// Release claim (return ticket to pool)
+router.post('/:tenantId/:ticketId/release-claim', writeOperationsLimiter, requireRole(['expert', 'admin']), async (req, res) => {
+  try {
+    const { tenantId, ticketId } = req.params;
+    const tenantCode = tenantId.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    const connection = await getTenantConnection(tenantCode);
+
+    try {
+      const [tickets] = await connection.query(
+        'SELECT * FROM tickets WHERE id = ?',
+        [ticketId]
+      );
+
+      if (tickets.length === 0) {
+        return res.status(404).json({ success: false, message: 'Ticket not found' });
+      }
+
+      const ticket = tickets[0];
+
+      // Can only release if user has the claim
+      if (ticket.pool_status !== 'CLAIMED_LOCKED') {
+        return res.status(400).json({
+          success: false,
+          message: 'Ticket is not currently claimed'
+        });
+      }
+
+      if (ticket.claimed_by_expert_id !== req.user.userId) {
+        return res.status(403).json({
+          success: false,
+          message: 'You do not have a claim on this ticket'
+        });
+      }
+
+      // Release back to pool
+      await connection.query(`
+        UPDATE tickets
+        SET pool_status = 'OPEN_POOL',
+            claimed_by_expert_id = NULL,
+            claimed_until_at = NULL
+        WHERE id = ?
+      `, [ticketId]);
+
+      res.json({
+        success: true,
+        message: 'Claim released, ticket returned to pool'
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error releasing claim:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// Set ticket to Waiting on Customer (pauses SLA)
+router.post('/:tenantId/:ticketId/waiting-on-customer', writeOperationsLimiter, requireRole(['expert', 'admin']), async (req, res) => {
+  try {
+    const { tenantId, ticketId } = req.params;
+    const { reason } = req.body;
+    const tenantCode = tenantId.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    const connection = await getTenantConnection(tenantCode);
+
+    try {
+      const [tickets] = await connection.query(
+        'SELECT * FROM tickets WHERE id = ?',
+        [ticketId]
+      );
+
+      if (tickets.length === 0) {
+        return res.status(404).json({ success: false, message: 'Ticket not found' });
+      }
+
+      const ticket = tickets[0];
+
+      // Must be owned to set waiting
+      if (ticket.pool_status !== 'IN_PROGRESS_OWNED') {
+        return res.status(400).json({
+          success: false,
+          message: 'Ticket must be In Progress to set Waiting on Customer'
+        });
+      }
+
+      // Verify ownership
+      if (ticket.owned_by_expert_id !== req.user.userId && req.user.role !== 'admin') {
+        return res.status(403).json({
+          success: false,
+          message: 'Only the ticket owner can set Waiting on Customer'
+        });
+      }
+
+      const now = new Date();
+
+      // Update to waiting status and pause SLA
+      await connection.query(`
+        UPDATE tickets
+        SET pool_status = 'WAITING_CUSTOMER',
+            status = 'Pending',
+            waiting_since_at = ?,
+            sla_paused_at = ?
+        WHERE id = ?
+      `, [now, now, ticketId]);
+
+      // Log activity
+      const activityDesc = reason
+        ? `Set to Waiting on Customer: ${reason}`
+        : 'Set to Waiting on Customer';
+
+      await connection.query(`
+        INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
+        VALUES (?, ?, 'updated', ?)
+      `, [ticketId, req.user.userId, activityDesc]);
+
+      res.json({
+        success: true,
+        message: 'Ticket set to Waiting on Customer, SLA paused',
+        sla_paused_at: now
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error setting waiting on customer:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// Resume ticket from Waiting on Customer
+router.post('/:tenantId/:ticketId/resume', writeOperationsLimiter, requireRole(['expert', 'admin']), async (req, res) => {
+  try {
+    const { tenantId, ticketId } = req.params;
+    const tenantCode = tenantId.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    const connection = await getTenantConnection(tenantCode);
+
+    try {
+      const [tickets] = await connection.query(
+        'SELECT * FROM tickets WHERE id = ?',
+        [ticketId]
+      );
+
+      if (tickets.length === 0) {
+        return res.status(404).json({ success: false, message: 'Ticket not found' });
+      }
+
+      const ticket = tickets[0];
+
+      if (ticket.pool_status !== 'WAITING_CUSTOMER') {
+        return res.status(400).json({
+          success: false,
+          message: 'Ticket is not in Waiting on Customer status'
+        });
+      }
+
+      // Calculate pause duration
+      let pauseSeconds = 0;
+      if (ticket.sla_paused_at) {
+        const pausedAt = new Date(ticket.sla_paused_at);
+        const now = new Date();
+        pauseSeconds = Math.floor((now - pausedAt) / 1000);
+      }
+
+      // Update status and accumulate pause time
+      await connection.query(`
+        UPDATE tickets
+        SET pool_status = 'IN_PROGRESS_OWNED',
+            status = 'In Progress',
+            waiting_since_at = NULL,
+            sla_paused_at = NULL,
+            sla_pause_total_seconds = sla_pause_total_seconds + ?
+        WHERE id = ?
+      `, [pauseSeconds, ticketId]);
+
+      // Adjust resolve_due_at by pause duration
+      if (ticket.resolve_due_at && pauseSeconds > 0) {
+        await connection.query(`
+          UPDATE tickets
+          SET resolve_due_at = DATE_ADD(resolve_due_at, INTERVAL ? SECOND)
+          WHERE id = ?
+        `, [pauseSeconds, ticketId]);
+      }
+
+      // Log activity
+      const pauseMinutes = Math.round(pauseSeconds / 60);
+      await connection.query(`
+        INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
+        VALUES (?, ?, 'updated', ?)
+      `, [ticketId, req.user.userId, `Resumed from Waiting on Customer (paused ${pauseMinutes} minutes)`]);
+
+      res.json({
+        success: true,
+        message: 'Ticket resumed',
+        pause_duration_seconds: pauseSeconds,
+        pause_duration_minutes: pauseMinutes
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error resuming ticket:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// Escalate ticket (release ownership, return to pool or transfer)
+router.post('/:tenantId/:ticketId/escalate', writeOperationsLimiter, requireRole(['expert', 'admin']), async (req, res) => {
+  try {
+    const { tenantId, ticketId } = req.params;
+    const { reason, transfer_to_user_id } = req.body;
+    const tenantCode = tenantId.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    const connection = await getTenantConnection(tenantCode);
+
+    try {
+      if (!reason) {
+        return res.status(400).json({
+          success: false,
+          message: 'Escalation reason is required'
+        });
+      }
+
+      const [tickets] = await connection.query(
+        'SELECT * FROM tickets WHERE id = ?',
+        [ticketId]
+      );
+
+      if (tickets.length === 0) {
+        return res.status(404).json({ success: false, message: 'Ticket not found' });
+      }
+
+      const ticket = tickets[0];
+
+      // Must be owned to escalate
+      if (ticket.pool_status !== 'IN_PROGRESS_OWNED' && ticket.pool_status !== 'WAITING_CUSTOMER') {
+        return res.status(400).json({
+          success: false,
+          message: 'Can only escalate owned tickets'
+        });
+      }
+
+      const now = new Date();
+
+      if (transfer_to_user_id) {
+        // Transfer ownership to specific user
+        await connection.query(`
+          UPDATE tickets
+          SET pool_status = 'IN_PROGRESS_OWNED',
+              owned_by_expert_id = ?,
+              assignee_id = ?,
+              ownership_released_at = ?
+          WHERE id = ?
+        `, [transfer_to_user_id, transfer_to_user_id, now, ticketId]);
+
+        // Get transfer target name
+        const [targetUser] = await connection.query(
+          'SELECT full_name FROM users WHERE id = ?',
+          [transfer_to_user_id]
+        );
+        const targetName = targetUser[0]?.full_name || `User ${transfer_to_user_id}`;
+
+        // Log activity
+        await connection.query(`
+          INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
+          VALUES (?, ?, 'updated', ?)
+        `, [ticketId, req.user.userId, `Escalated to ${targetName}: ${reason}`]);
+
+        res.json({
+          success: true,
+          message: `Ticket transferred to ${targetName}`,
+          transferred_to: targetName
+        });
+      } else {
+        // Return to pool
+        await connection.query(`
+          UPDATE tickets
+          SET pool_status = 'ESCALATED',
+              status = 'Open',
+              owned_by_expert_id = NULL,
+              assignee_id = NULL,
+              ownership_released_at = ?
+          WHERE id = ?
+        `, [now, ticketId]);
+
+        // Log activity
+        await connection.query(`
+          INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
+          VALUES (?, ?, 'updated', ?)
+        `, [ticketId, req.user.userId, `Escalated to pool: ${reason}`]);
+
+        // After brief delay, move to OPEN_POOL so it's visible again
+        await connection.query(`
+          UPDATE tickets
+          SET pool_status = 'OPEN_POOL'
+          WHERE id = ?
+        `, [ticketId]);
+
+        res.json({
+          success: true,
+          message: 'Ticket escalated and returned to pool'
+        });
+      }
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error escalating ticket:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// ========== END TICKET OWNERSHIP WORKFLOW ENDPOINTS ==========
 
 // Mark ticket as system monitor (manual action)
 router.post('/:tenantId/:ticketId/mark-as-system', writeOperationsLimiter, requireRole(['admin']), async (req, res) => {
@@ -1625,43 +2258,7 @@ router.post('/:tenantId/bulk-delete', writeOperationsLimiter, requireRole(['admi
   }
 });
 
-/**
- * Helper: Enrich ticket object with computed SLA status
- * @param {Object} ticket - Ticket row from database
- * @param {Object} connection - Database connection (optional, for SLA name lookup)
- * @returns {Object} Ticket with sla_status field
- */
-async function enrichTicketWithSLAStatus(ticket, connection = null) {
-  if (!ticket) return ticket;
-
-  // Get SLA definition with business hours profile
-  let slaDef = null;
-  if (ticket.sla_definition_id && connection) {
-    try {
-      const [defs] = await connection.query(`
-        SELECT s.name, s.near_breach_percent, s.business_hours_profile_id,
-               b.timezone, b.days_of_week, b.start_time, b.end_time, b.is_24x7
-        FROM sla_definitions s
-        LEFT JOIN business_hours_profiles b ON s.business_hours_profile_id = b.id
-        WHERE s.id = ?
-      `, [ticket.sla_definition_id]);
-      if (defs.length > 0) slaDef = defs[0];
-    } catch (e) {
-      // Ignore SLA lookup errors
-    }
-  }
-
-  // Compute SLA status
-  ticket.sla_status = computeSLAStatus(ticket, slaDef);
-  return ticket;
-}
-
-/**
- * Helper: Enrich multiple tickets with SLA status
- */
-async function enrichTicketsWithSLAStatus(tickets, connection = null) {
-  return Promise.all(tickets.map(t => enrichTicketWithSLAStatus(t, connection)));
-}
+// Note: enrichTicketWithSLAStatus and enrichTicketsWithSLAStatus are imported from pool-ranking-service.js
 
 // Re-apply SLA to a single ticket or all tickets without SLA
 router.post('/:tenantId/reapply-sla', writeOperationsLimiter, requireRole(['admin']), async (req, res) => {
