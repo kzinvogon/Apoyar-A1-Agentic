@@ -214,11 +214,13 @@ async function runTests() {
   console.log('\n--- CMDB Endpoints ---');
 
   // Test 8: Get CMDB items
+  let cmdbItems = [];
   await test('Fetch CMDB items list', async () => {
     const res = await request('GET', `/api/cmdb/${TENANT}/items`);
     if (res.status !== 200) throw new Error(`Status ${res.status}`);
     if (!res.data.success) throw new Error(`API error: ${res.data.message}`);
     if (!Array.isArray(res.data.items)) throw new Error('items is not an array');
+    cmdbItems = res.data.items;
   });
 
   // Test 9: Get CMDB item types
@@ -235,6 +237,25 @@ async function runTests() {
     if (res.status !== 200) throw new Error(`Status ${res.status}`);
     if (!res.data.success) throw new Error(`API error: ${res.data.message}`);
     if (!Array.isArray(res.data.fields)) throw new Error('fields is not an array');
+  });
+
+  // Test 11: Get CMDB item relationships (must never return 500)
+  await test('Fetch CMDB relationships (no 500)', async () => {
+    // Use real CMDB ID if available, otherwise use dummy
+    const testCmdbId = cmdbItems.length > 0 ? cmdbItems[0].cmdb_id : 'DUMMY-SMOKE-TEST';
+    const res = await request('GET', `/api/cmdb/${TENANT}/items/${testCmdbId}/relationships`);
+
+    // 500 is always a failure - indicates server error
+    if (res.status === 500) throw new Error('Got 500 Internal Server Error');
+
+    // 200 with arrays or 404 not found are acceptable
+    if (res.status === 200) {
+      if (!res.data.success) throw new Error(`API error: ${res.data.message}`);
+      if (!Array.isArray(res.data.outgoing)) throw new Error('outgoing is not an array');
+      if (!Array.isArray(res.data.incoming)) throw new Error('incoming is not an array');
+    } else if (res.status !== 404) {
+      throw new Error(`Unexpected status ${res.status}`);
+    }
   });
 
   console.log('=' .repeat(50));
