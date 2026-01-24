@@ -402,6 +402,45 @@ async function createTenantTables(connection) {
     )
   `);
 
+  // CMDB Item Types table (for categorizing CMDB items)
+  await connection.execute(`
+    CREATE TABLE IF NOT EXISTS cmdb_item_types (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      name VARCHAR(100) NOT NULL,
+      description TEXT,
+      is_active BOOLEAN DEFAULT TRUE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      UNIQUE KEY unique_name (name),
+      INDEX idx_is_active (is_active)
+    )
+  `);
+
+  // CI Types table (sub-types within CMDB Item Types)
+  await connection.execute(`
+    CREATE TABLE IF NOT EXISTS ci_types (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      cmdb_item_type_id INT NOT NULL,
+      name VARCHAR(100) NOT NULL,
+      description TEXT,
+      is_active BOOLEAN DEFAULT TRUE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_cmdb_item_type_id (cmdb_item_type_id),
+      FOREIGN KEY (cmdb_item_type_id) REFERENCES cmdb_item_types(id) ON DELETE CASCADE
+    )
+  `);
+
+  // Seed default CMDB Item Types
+  await connection.execute(`
+    INSERT IGNORE INTO cmdb_item_types (name, description, is_active) VALUES
+    ('Hardware', 'Physical hardware assets', TRUE),
+    ('Software', 'Software applications and licenses', TRUE),
+    ('Network', 'Network equipment and infrastructure', TRUE),
+    ('Service', 'Business and IT services', TRUE),
+    ('Cloud', 'Cloud resources and subscriptions', TRUE)
+  `);
+
   // Tickets table
   await connection.execute(`
     CREATE TABLE IF NOT EXISTS tickets (

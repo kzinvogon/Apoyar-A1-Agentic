@@ -208,6 +208,35 @@ async function runTests() {
     if (!res.data.success) throw new Error(`API error: ${res.data.message}`);
   });
 
+  // ============================================================================
+  // CMDB/Asset Endpoints
+  // ============================================================================
+  console.log('\n--- CMDB Endpoints ---');
+
+  // Test 8: Get CMDB items
+  await test('Fetch CMDB items list', async () => {
+    const res = await request('GET', `/api/cmdb/${TENANT}/items`);
+    if (res.status !== 200) throw new Error(`Status ${res.status}`);
+    if (!res.data.success) throw new Error(`API error: ${res.data.message}`);
+    if (!Array.isArray(res.data.items)) throw new Error('items is not an array');
+  });
+
+  // Test 9: Get CMDB item types
+  await test('Fetch CMDB item types', async () => {
+    const res = await request('GET', `/api/cmdb-types/${TENANT}/item-types`);
+    if (res.status !== 200) throw new Error(`Status ${res.status}`);
+    if (!res.data.success) throw new Error(`API error: ${res.data.message}`);
+    if (!Array.isArray(res.data.itemTypes)) throw new Error('itemTypes is not an array');
+  });
+
+  // Test 10: Get custom field definitions
+  await test('Fetch custom field definitions', async () => {
+    const res = await request('GET', `/api/cmdb/${TENANT}/custom-fields`);
+    if (res.status !== 200) throw new Error(`Status ${res.status}`);
+    if (!res.data.success) throw new Error(`API error: ${res.data.message}`);
+    if (!Array.isArray(res.data.fields)) throw new Error('fields is not an array');
+  });
+
   console.log('=' .repeat(50));
   console.log(`\n📊 Results: ${passed} passed, ${failed} failed`);
 
