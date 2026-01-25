@@ -330,29 +330,89 @@ async function runTests() {
   // Knowledge Base Endpoints
   // ============================================================================
   console.log('\n--- Knowledge Base Endpoints ---');
+  console.log(`  📚 KB smoke checks enabled: ${READONLY ? 'READ-ONLY' : 'FULL'}`);
+
+  // Helper: Check if response is HTML (indicates missing route - always a failure)
+  const isHtmlResponse = (data) => {
+    if (typeof data === 'string') {
+      return data.includes('<!DOCTYPE') || data.includes('<html');
+    }
+    if (data && data.error && typeof data.error === 'string') {
+      return data.error.includes('<!DOCTYPE') || data.error.includes('<html');
+    }
+    return false;
+  };
 
   // Test 12: Get KB categories
-  await test('Fetch KB categories', async () => {
+  await test('KB categories (200 + JSON)', async () => {
     const res = await request('GET', `/api/kb/${TENANT}/categories`);
+    if (isHtmlResponse(res.data)) throw new Error('Got HTML instead of JSON');
+    if (res.status === 500) throw new Error('500 Internal Server Error');
     if (res.status !== 200) throw new Error(`Status ${res.status}`);
     if (!res.data.success) throw new Error(`API error: ${res.data.message}`);
     if (!Array.isArray(res.data.categories)) throw new Error('categories is not an array');
+    console.log(`     → ${res.data.categories.length} categories`);
   });
 
-  // Test 13: Get KB articles
-  await test('Fetch KB articles', async () => {
+  // Test 13: Get KB articles with pagination
+  await test('KB articles (200 + JSON + pagination)', async () => {
     const res = await request('GET', `/api/kb/${TENANT}/articles`);
+    if (isHtmlResponse(res.data)) throw new Error('Got HTML instead of JSON');
+    if (res.status === 500) throw new Error('500 Internal Server Error');
     if (res.status !== 200) throw new Error(`Status ${res.status}`);
     if (!res.data.success) throw new Error(`API error: ${res.data.message}`);
     if (!Array.isArray(res.data.articles)) throw new Error('articles is not an array');
+    if (!res.data.pagination) throw new Error('pagination object missing');
+    console.log(`     → ${res.data.articles.length} articles, page ${res.data.pagination.page}/${res.data.pagination.pages}`);
   });
 
-  // Test 14: Get KB stats
-  await test('Fetch KB stats', async () => {
-    const res = await request('GET', `/api/kb/${TENANT}/stats`);
+  // Test 14: KB search
+  await test('KB search (200 + JSON)', async () => {
+    const res = await request('GET', `/api/kb/${TENANT}/search?q=test`);
+    if (isHtmlResponse(res.data)) throw new Error('Got HTML instead of JSON');
+    if (res.status === 500) throw new Error('500 Internal Server Error');
     if (res.status !== 200) throw new Error(`Status ${res.status}`);
     if (!res.data.success) throw new Error(`API error: ${res.data.message}`);
-    if (typeof res.data.stats !== 'object') throw new Error('stats is not an object');
+    if (!Array.isArray(res.data.results)) throw new Error('results is not an array');
+    console.log(`     → ${res.data.results.length} search results`);
+  });
+
+  // Test 15: KB suggest-for-ticket (accepts 200 or 404, fails on 500)
+  await test('KB suggest-for-ticket (no 500)', async () => {
+    // Use first ticket ID if available, otherwise use dummy
+    const testTicketId = ticketsBefore.length > 0 ? ticketsBefore[0].id : 99999;
+    const res = await request('GET', `/api/kb/${TENANT}/suggest-for-ticket/${testTicketId}`);
+    if (isHtmlResponse(res.data)) throw new Error('Got HTML instead of JSON');
+    if (res.status === 500) throw new Error('500 Internal Server Error');
+    // 200 with suggestions or 404 not found are acceptable
+    if (res.status === 200) {
+      // success: false means ticket not found (no message in current API)
+      if (res.data.success === false) {
+        console.log(`     → ticket #${testTicketId} not found or no suggestions`);
+      } else {
+        console.log(`     → ${(res.data.suggestions || []).length} suggestions for ticket #${testTicketId}`);
+      }
+    } else if (res.status === 404) {
+      console.log(`     → 404 (ticket not found) - OK`);
+    } else {
+      throw new Error(`Unexpected status ${res.status}`);
+    }
+  });
+
+  // Test 16: KB stats (admin/expert only - accepts 200 or 403, fails on 500)
+  await test('KB stats (200/403, no 500)', async () => {
+    const res = await request('GET', `/api/kb/${TENANT}/stats`);
+    if (isHtmlResponse(res.data)) throw new Error('Got HTML instead of JSON');
+    if (res.status === 500) throw new Error('500 Internal Server Error');
+    if (res.status === 200) {
+      if (!res.data.success) throw new Error(`API error: ${res.data.message}`);
+      if (typeof res.data.stats !== 'object') throw new Error('stats is not an object');
+      console.log(`     → ${res.data.stats.totalViews || 0} views, ${res.data.stats.pendingMerges || 0} pending merges`);
+    } else if (res.status === 403) {
+      console.log(`     → 403 (requires admin/expert) - OK`);
+    } else {
+      throw new Error(`Unexpected status ${res.status}`);
+    }
   });
 
   console.log('=' .repeat(50));
