@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ServiFlow Ticket Rules &amp; Automation Guide</title>
+  <style>
+    @page {
+      margin: 2cm;
+      size: A4;
+    }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 40px;
+      background: #fff;
+    }
+    .header {
+      border-bottom: 3px solid #059669;
+      padding-bottom: 20px;
+      margin-bottom: 30px;
+    }
+    .header h1 {
+      color: #047857;
+      margin: 0;
+      font-size: 28px;
+    }
+    .header .subtitle {
+      color: #64748b;
+      font-size: 16px;
+      margin-top: 5px;
+    }
+    .header .date {
+      color: #94a3b8;
+      font-size: 12px;
+      margin-top: 10px;
+    }
+    h2 {
+      color: #047857;
+      border-left: 4px solid #059669;
+      padding-left: 15px;
+      margin-top: 35px;
+    }
+    h3 {
+      color: #475569;
+      margin-top: 25px;
+    }
+    .intro-box {
+      background: #ecfdf5;
+      border: 1px solid #a7f3d0;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 20px 0;
+    }
+    .intro-box p {
+      margin: 0;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      font-size: 14px;
+    }
+    th {
+      background: #047857;
+      color: white;
+      padding: 12px;
+      text-align: left;
+    }
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    tr:nth-child(even) {
+      background: #f8fafc;
+    }
+    .action-card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 15px;
+      margin: 10px 0;
+    }
+    .action-card .title {
+      font-weight: bold;
+      color: #047857;
+      font-size: 16px;
+      margin-bottom: 8px;
+    }
+    .action-card .desc {
+      color: #475569;
+      margin-bottom: 10px;
+    }
+    .action-card .params {
+      background: #f0fdf4;
+      border-radius: 4px;
+      padding: 10px;
+      font-family: monospace;
+      font-size: 13px;
+    }
+    .example-box {
+      background: #fef3c7;
+      border: 1px solid #fde047;
+      border-radius: 8px;
+      padding: 15px;
+      margin: 15px 0;
+    }
+    .example-box::before {
+      content: "Example:";
+      font-weight: bold;
+      color: #a16207;
+      display: block;
+      margin-bottom: 8px;
+    }
+    .benefit-box {
+      background: #ecfdf5;
+      border: 1px solid #86efac;
+      border-radius: 8px;
+      padding: 15px;
+      margin: 15px 0;
+    }
+    .benefit-box::before {
+      content: "Business Benefit:";
+      font-weight: bold;
+      color: #166534;
+      display: block;
+      margin-bottom: 8px;
+    }
+    .warning-box {
+      background: #fef2f2;
+      border: 1px solid #fca5a5;
+      border-radius: 8px;
+      padding: 15px;
+      margin: 15px 0;
+    }
+    .warning-box::before {
+      content: "Important:";
+      font-weight: bold;
+      color: #dc2626;
+      display: block;
+      margin-bottom: 8px;
+    }
+    .tip-box {
+      background: #eff6ff;
+      border: 1px solid #93c5fd;
+      border-radius: 8px;
+      padding: 15px;
+      margin: 15px 0;
+    }
+    .tip-box::before {
+      content: "Tip:";
+      font-weight: bold;
+      color: #1d4ed8;
+      display: block;
+      margin-bottom: 8px;
+    }
+    .workflow-diagram {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 20px 0;
+      text-align: center;
+    }
+    .workflow-step {
+      display: inline-block;
+      background: white;
+      border: 2px solid #059669;
+      border-radius: 8px;
+      padding: 10px 15px;
+      margin: 5px;
+      font-weight: 500;
+    }
+    .workflow-step.trigger {
+      background: #ecfdf5;
+    }
+    .workflow-step.action {
+      background: #fef3c7;
+    }
+    .workflow-arrow {
+      display: inline-block;
+      color: #059669;
+      font-size: 20px;
+      margin: 0 5px;
+    }
+    .code-block {
+      background: #1e293b;
+      color: #e2e8f0;
+      border-radius: 6px;
+      padding: 15px;
+      font-family: 'Consolas', monospace;
+      font-size: 13px;
+      overflow-x: auto;
+      margin: 15px 0;
+    }
+    .code-block .comment {
+      color: #94a3b8;
+    }
+    .code-block .string {
+      color: #86efac;
+    }
+    .code-block .key {
+      color: #93c5fd;
+    }
+    .footer {
+      margin-top: 50px;
+      padding-top: 20px;
+      border-top: 1px solid #e2e8f0;
+      color: #64748b;
+      font-size: 12px;
+      text-align: center;
+    }
+    .page-break {
+      page-break-before: always;
+    }
+    .two-col {
+      display: flex;
+      gap: 20px;
+    }
+    .two-col > div {
+      flex: 1;
+    }
+    ul.check-list {
+      list-style: none;
+      padding-left: 0;
+    }
+    ul.check-list li {
+      padding-left: 25px;
+      position: relative;
+      margin-bottom: 8px;
+    }
+    ul.check-list li::before {
+      content: "✓";
+      position: absolute;
+      left: 0;
+      color: #059669;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>Ticket Rules &amp; Automation Guide</h1>
+    <div class="subtitle">Automate Ticket Processing with Pattern-Based Rules</div>
+    <div class="date">Document Version 1.0 | January 2026</div>
+  </div>
+
+  <div class="intro-box">
+    <p><strong>Purpose:</strong> This guide explains ServiFlow's Ticket Rules system—a powerful automation engine that processes incoming tickets based on text patterns, automatically performing actions like assignment, deletion, priority changes, and customer routing. Rules eliminate repetitive manual work and ensure consistent ticket handling.</p>
+  </div>
+
+  <h2>What Are Ticket Rules?</h2>
+  <p>Ticket Rules are "if-this-then-that" automations that run whenever a new ticket is created. Each rule has two parts:</p>
+
+  <ol>
+    <li><strong>Search Criteria:</strong> A text pattern to look for in the ticket title, description, or both</li>
+    <li><strong>Action:</strong> What to do when a match is found (delete, assign, forward, etc.)</li>
+  </ol>
+
+  <div class="workflow-diagram">
+    <div class="workflow-step trigger">New Ticket Created</div>
+    <span class="workflow-arrow">→</span>
+    <div class="workflow-step">Check All Enabled Rules</div>
+    <span class="workflow-arrow">→</span>
+    <div class="workflow-step">Pattern Match?</div>
+    <span class="workflow-arrow">→</span>
+    <div class="workflow-step action">Execute Action</div>
+  </div>
+
+  <div class="benefit-box">
+    Rules run automatically in the background. Staff don't need to remember which tickets need special handling—the system handles it consistently every time.
+  </div>
+
+  <h2>Rule Components</h2>
+
+  <h3>Search Settings</h3>
+  <table>
+    <tr>
+      <th>Setting</th>
+      <th>Options</th>
+      <th>Description</th>
+    </tr>
+    <tr>
+      <td><strong>Search In</strong></td>
+      <td>Title, Body, Both</td>
+      <td>Where to look for the pattern</td>
+    </tr>
+    <tr>
+      <td><strong>Search Text</strong></td>
+      <td>Any text</td>
+      <td>The pattern to match (partial match, not exact)</td>
+    </tr>
+    <tr>
+      <td><strong>Case Sensitive</strong></td>
+      <td>Yes / No</td>
+      <td>Whether "NAGIOS" matches "nagios"</td>
+    </tr>
+  </table>
+
+  <div class="tip-box">
+    Search uses partial matching. The pattern "backup" will match "MySQL Backup Failed", "Backup complete", and "backup-server-01".
+  </div>
+
+  <h2>Available Actions</h2>
+
+  <div class="action-card">
+    <div class="title">Delete Ticket</div>
+    <div class="desc">Permanently removes matching tickets. Use for known spam, test messages, or alerts you don't want to track.</div>
+    <div class="params">action_type: "delete"<br>action_params: {}</div>
+  </div>
+
+  <div class="action-card">
+    <div class="title">Assign to Expert</div>
+    <div class="desc">Automatically assigns the ticket to a specific technician and sets status to "In Progress".</div>
+    <div class="params">action_type: "assign_to_expert"<br>action_params: { "expert_id": 40, "expert_name": "John Smith" }</div>
+  </div>
+
+  <div class="action-card">
+    <div class="title">Create for Customer</div>
+    <div class="desc">Creates a copy of the ticket assigned to a different customer. Original is prefixed with "[Forwarded]". Useful for routing monitoring alerts to the correct client.</div>
+    <div class="params">action_type: "create_for_customer"<br>action_params: { "customer_id": 41 }</div>
+  </div>
+
+  <div class="action-card">
+    <div class="title">Set Priority</div>
+    <div class="desc">Changes the ticket priority level (low, medium, high, critical).</div>
+    <div class="params">action_type: "set_priority"<br>action_params: { "priority": "critical" }</div>
+  </div>
+
+  <div class="action-card">
+    <div class="title">Set Status</div>
+    <div class="desc">Changes the ticket status (Open, In Progress, Pending, Resolved, Closed).</div>
+    <div class="params">action_type: "set_status"<br>action_params: { "status": "Resolved" }</div>
+  </div>
+
+  <div class="action-card">
+    <div class="title">Add Tag</div>
+    <div class="desc">Adds a tag/label to the ticket for categorisation and filtering.</div>
+    <div class="params">action_type: "add_tag"<br>action_params: { "tag": "monitoring" }</div>
+  </div>
+
+  <div class="action-card">
+    <div class="title">Add to Monitoring Sources</div>
+    <div class="desc">Marks the ticket as originating from a monitoring system. Affects how it appears in dashboards and reports.</div>
+    <div class="params">action_type: "add_to_monitoring"<br>action_params: {}</div>
+  </div>
+
+  <div class="page-break"></div>
+
+  <h2>Real-World Examples</h2>
+
+  <h3>Example 1: Delete Nagios Test Alerts</h3>
+  <div class="example-box">
+    <strong>Problem:</strong> Nagios sends test/heartbeat emails that create unnecessary tickets.<br><br>
+    <strong>Rule Configuration:</strong>
+    <ul>
+      <li>Rule Name: "Delete Nagios Tests"</li>
+      <li>Search In: Both</li>
+      <li>Search Text: "Nagios"</li>
+      <li>Action: Delete</li>
+    </ul>
+    <strong>Result:</strong> All tickets containing "Nagios" are automatically deleted before staff see them.
+  </div>
+
+  <h3>Example 2: Route P1 Security Issues to Specialist</h3>
+  <div class="example-box">
+    <strong>Problem:</strong> Security-related tickets prefixed with "P1" need immediate attention from a security specialist.<br><br>
+    <strong>Rule Configuration:</strong>
+    <ul>
+      <li>Rule Name: "P1 Security Issue"</li>
+      <li>Search In: Title</li>
+      <li>Search Text: "P1 "</li>
+      <li>Action: Assign to Expert</li>
+      <li>Expert: Tharuni Reddy (ID: 40)</li>
+    </ul>
+    <strong>Result:</strong> Tickets with "P1 " in the title are auto-assigned to Tharuni and moved to "In Progress".
+  </div>
+
+  <h3>Example 3: Route MySQL Backups to Client</h3>
+  <div class="example-box">
+    <strong>Problem:</strong> MySQL backup reports from a monitoring system need to be tracked under a specific customer account.<br><br>
+    <strong>Rule Configuration:</strong>
+    <ul>
+      <li>Rule Name: "MySQL Backup from Bleckmann"</li>
+      <li>Search In: Both</li>
+      <li>Search Text: "MySQL Backup "</li>
+      <li>Action: Create for Customer</li>
+      <li>Customer ID: 41</li>
+    </ul>
+    <strong>Result:</strong> A customer-facing ticket is created for tracking and billing purposes.
+  </div>
+
+  <h3>Example 4: Clean Up Forwarded Duplicates</h3>
+  <div class="example-box">
+    <strong>Problem:</strong> The "Create for Customer" action creates copies prefixed with "[Forwarded]". These duplicates clutter the queue.<br><br>
+    <strong>Rule Configuration:</strong>
+    <ul>
+      <li>Rule Name: "[Forwarded] remove these"</li>
+      <li>Search In: Both</li>
+      <li>Search Text: "[Forwarded]"</li>
+      <li>Action: Delete</li>
+    </ul>
+    <strong>Result:</strong> Forwarded copies are deleted, leaving only the properly-routed original.
+  </div>
+
+  <h2>Rule Execution</h2>
+
+  <h3>When Rules Run</h3>
+  <ul class="check-list">
+    <li>Automatically when a new ticket is created (via email, API, or manual entry)</li>
+    <li>Manually via "Run Rule" button in the admin interface</li>
+    <li>In batch mode for processing historical tickets</li>
+  </ul>
+
+  <h3>Execution Order</h3>
+  <p>All enabled rules are checked against each new ticket. If multiple rules match, they all execute in sequence. This allows chaining actions (e.g., tag a ticket AND assign it).</p>
+
+  <div class="warning-box">
+    Be careful with Delete rules—if a ticket matches a Delete rule, it will be removed even if other rules also matched. Consider the order of your rules carefully.
+  </div>
+
+  <h3>Batch Processing</h3>
+  <p>When running rules against many tickets, ServiFlow processes them in batches to avoid overloading the system:</p>
+  <ul>
+    <li><strong>Batch Size:</strong> 5 tickets at a time (configurable up to 10)</li>
+    <li><strong>Delay Between Batches:</strong> 2-3 seconds</li>
+    <li><strong>Circuit Breaker:</strong> Automatically stops if 5+ consecutive connection errors occur</li>
+  </ul>
+
+  <h2>Monitoring &amp; Audit Trail</h2>
+
+  <h3>Execution History</h3>
+  <p>Every rule execution is logged in the <code>ticket_rule_executions</code> table, recording:</p>
+  <ul>
+    <li>Which rule fired</li>
+    <li>Which ticket was affected</li>
+    <li>What action was taken</li>
+    <li>Success or failure status</li>
+    <li>Timestamp</li>
+  </ul>
+
+  <h3>Rule Statistics</h3>
+  <p>Each rule tracks:</p>
+  <table>
+    <tr>
+      <th>Metric</th>
+      <th>Description</th>
+    </tr>
+    <tr>
+      <td>Times Triggered</td>
+      <td>Total number of times the rule has executed</td>
+    </tr>
+    <tr>
+      <td>Last Triggered</td>
+      <td>Date/time of most recent execution</td>
+    </tr>
+    <tr>
+      <td>Enabled/Disabled</td>
+      <td>Current status</td>
+    </tr>
+  </table>
+
+  <h3>Notifications</h3>
+  <p>When batch processing completes, a notification is created showing:</p>
+  <ul>
+    <li>Number of tickets processed successfully</li>
+    <li>Number of failures (if any)</li>
+    <li>Total duration</li>
+    <li>Any error messages</li>
+  </ul>
+
+  <h2>Best Practices</h2>
+
+  <div class="two-col">
+    <div>
+      <h3>Do:</h3>
+      <ul class="check-list">
+        <li>Test rules using "Test Rule" before enabling</li>
+        <li>Use specific search patterns to avoid false matches</li>
+        <li>Document why each rule exists in the description</li>
+        <li>Review execution history regularly</li>
+        <li>Disable rules rather than deleting them</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Don't:</h3>
+      <ul style="color: #dc2626;">
+        <li>Create overly broad Delete rules</li>
+        <li>Use case-sensitive unless necessary</li>
+        <li>Create conflicting rules</li>
+        <li>Run batch jobs during peak hours</li>
+        <li>Forget to monitor rule statistics</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>Database Tables</h2>
+
+  <table>
+    <tr>
+      <th>Table</th>
+      <th>Purpose</th>
+    </tr>
+    <tr>
+      <td><code>ticket_processing_rules</code></td>
+      <td>Rule definitions (name, search criteria, action type, parameters)</td>
+    </tr>
+    <tr>
+      <td><code>ticket_rule_executions</code></td>
+      <td>Audit log of every rule execution with results</td>
+    </tr>
+  </table>
+
+  <h2>Current Production Rules</h2>
+  <p>As of January 2026, these rules are configured:</p>
+
+  <table>
+    <tr>
+      <th>Rule Name</th>
+      <th>Search Text</th>
+      <th>Action</th>
+      <th>Status</th>
+    </tr>
+    <tr>
+      <td>MySQL Backup from Bleckmann</td>
+      <td>"MySQL Backup "</td>
+      <td>Create for Customer #41</td>
+      <td>Enabled</td>
+    </tr>
+    <tr>
+      <td>P1 Security Issue</td>
+      <td>"P1 " (title only)</td>
+      <td>Assign to Tharuni Reddy</td>
+      <td>Enabled</td>
+    </tr>
+    <tr>
+      <td>[Forwarded] remove these</td>
+      <td>"[Forwarded]"</td>
+      <td>Delete</td>
+      <td>Enabled</td>
+    </tr>
+    <tr>
+      <td>Cert Renewed</td>
+      <td>"Cert was renewed;"</td>
+      <td>Create for Customer #41</td>
+      <td>Enabled</td>
+    </tr>
+    <tr>
+      <td>Nagios</td>
+      <td>"Nagios"</td>
+      <td>Delete</td>
+      <td>Enabled</td>
+    </tr>
+    <tr>
+      <td>Nldtc1bopfep01</td>
+      <td>"Nldtc1bopfep01"</td>
+      <td>Add to Monitoring</td>
+      <td>Enabled</td>
+    </tr>
+    <tr>
+      <td>Bleckmann</td>
+      <td>"Bleckmann"</td>
+      <td>Create for Customer #10</td>
+      <td>Disabled</td>
+    </tr>
+  </table>
+
+  <div class="footer">
+    <p><strong>ServiFlow</strong> | IT Service Management Platform</p>
+    <p>For technical support, contact your system administrator.</p>
+  </div>
+
+</body>
+</html>

@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ServiFlow SLA Assignment Guide</title>
+  <style>
+    @page {
+      margin: 2cm;
+      size: A4;
+    }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 40px;
+      background: #fff;
+    }
+    .header {
+      border-bottom: 3px solid #2563eb;
+      padding-bottom: 20px;
+      margin-bottom: 30px;
+    }
+    .header h1 {
+      color: #1e40af;
+      margin: 0;
+      font-size: 28px;
+    }
+    .header .subtitle {
+      color: #64748b;
+      font-size: 16px;
+      margin-top: 5px;
+    }
+    .header .date {
+      color: #94a3b8;
+      font-size: 12px;
+      margin-top: 10px;
+    }
+    h2 {
+      color: #1e40af;
+      border-left: 4px solid #2563eb;
+      padding-left: 15px;
+      margin-top: 35px;
+    }
+    h3 {
+      color: #475569;
+      margin-top: 25px;
+    }
+    .intro-box {
+      background: #f0f9ff;
+      border: 1px solid #bae6fd;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 20px 0;
+    }
+    .intro-box p {
+      margin: 0;
+    }
+    .priority-list {
+      counter-reset: priority;
+      list-style: none;
+      padding: 0;
+    }
+    .priority-list li {
+      counter-increment: priority;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 15px 15px 15px 60px;
+      margin: 10px 0;
+      position: relative;
+    }
+    .priority-list li::before {
+      content: counter(priority);
+      position: absolute;
+      left: 15px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: #2563eb;
+      color: white;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+    }
+    .priority-list li strong {
+      color: #1e40af;
+    }
+    .example-box {
+      background: #fefce8;
+      border: 1px solid #fde047;
+      border-radius: 8px;
+      padding: 15px;
+      margin: 15px 0;
+    }
+    .example-box::before {
+      content: "Example:";
+      font-weight: bold;
+      color: #a16207;
+      display: block;
+      margin-bottom: 8px;
+    }
+    .benefit-box {
+      background: #f0fdf4;
+      border: 1px solid #86efac;
+      border-radius: 8px;
+      padding: 15px;
+      margin: 15px 0;
+    }
+    .benefit-box::before {
+      content: "Business Benefit:";
+      font-weight: bold;
+      color: #166534;
+      display: block;
+      margin-bottom: 8px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      font-size: 14px;
+    }
+    th {
+      background: #1e40af;
+      color: white;
+      padding: 12px;
+      text-align: left;
+    }
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    tr:nth-child(even) {
+      background: #f8fafc;
+    }
+    .flowchart {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 20px 0;
+      text-align: center;
+    }
+    .flowchart-step {
+      display: inline-block;
+      background: white;
+      border: 2px solid #2563eb;
+      border-radius: 8px;
+      padding: 10px 20px;
+      margin: 5px;
+      font-weight: 500;
+    }
+    .flowchart-step.highlight {
+      background: #2563eb;
+      color: white;
+    }
+    .flowchart-arrow {
+      display: block;
+      color: #64748b;
+      font-size: 20px;
+      margin: 5px 0;
+    }
+    .summary-table td:first-child {
+      font-weight: 600;
+      color: #1e40af;
+    }
+    .footer {
+      margin-top: 50px;
+      padding-top: 20px;
+      border-top: 1px solid #e2e8f0;
+      color: #64748b;
+      font-size: 12px;
+      text-align: center;
+    }
+    .page-break {
+      page-break-before: always;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>ServiFlow SLA Assignment Guide</h1>
+    <div class="subtitle">How Service Level Agreements Are Automatically Applied to Support Tickets</div>
+    <div class="date">Document Version 1.0 | January 2026</div>
+  </div>
+
+  <div class="intro-box">
+    <p><strong>Purpose:</strong> This guide explains how ServiFlow automatically determines which Service Level Agreement (SLA) applies to each support ticket. Understanding this process helps ensure your customers receive the appropriate response and resolution times based on their service contracts.</p>
+  </div>
+
+  <h2>What is an SLA?</h2>
+  <p>A Service Level Agreement defines the expected response and resolution times for support tickets. For example, a "Premium SLA" might guarantee a 1-hour response time and 4-hour resolution, while a "Standard SLA" might offer 4-hour response and 24-hour resolution.</p>
+
+  <p>ServiFlow automatically assigns the correct SLA to each ticket based on a priority system, ensuring your premium customers always receive premium service without manual intervention.</p>
+
+  <h2>The Priority System</h2>
+  <p>When a new ticket arrives, ServiFlow checks multiple sources to determine the appropriate SLA. It follows a strict priority order, stopping at the first match:</p>
+
+  <ol class="priority-list">
+    <li>
+      <strong>Ticket-Level Override</strong><br>
+      If someone explicitly sets an SLA when creating the ticket, that choice takes precedence over everything else. This allows staff to handle exceptional situations.
+      <div class="example-box">
+        A support agent creates a ticket for a critical outage and manually selects the "Emergency SLA" to ensure immediate attention.
+      </div>
+    </li>
+
+    <li>
+      <strong>Individual User Agreement</strong><br>
+      Some customers may have personal service agreements that differ from their company's standard. If the ticket requester has an individual SLA assigned to their profile, it applies automatically.
+      <div class="example-box">
+        John Smith at Acme Corp has a VIP support agreement. Even though Acme Corp has a Standard SLA, John's tickets automatically receive Premium SLA treatment.
+      </div>
+    </li>
+
+    <li>
+      <strong>Company Agreement</strong><br>
+      Most commonly, SLAs are assigned at the company level. All employees of a company inherit the SLA defined in their company's contract.
+      <div class="example-box">
+        Acme Corp has contracted for Premium Support. Any ticket from an Acme Corp employee automatically receives the Premium SLA.
+      </div>
+    </li>
+
+    <li>
+      <strong>Category-Based SLA</strong><br>
+      Certain ticket categories may have specific SLA requirements regardless of who submits them. For instance, security issues might always require urgent handling.
+      <div class="example-box">
+        All tickets categorized as "Security Incident" automatically receive the Critical SLA, ensuring rapid response regardless of the customer's contract level.
+      </div>
+    </li>
+
+    <li>
+      <strong>Asset/Equipment SLA</strong><br>
+      If a ticket is linked to a specific piece of equipment in your CMDB (Configuration Management Database), the SLA assigned to that equipment applies.
+      <div class="example-box">
+        A production database server has a Critical SLA assigned. Any ticket linked to that server inherits the Critical SLA.
+      </div>
+    </li>
+
+    <li>
+      <strong>Default SLA</strong><br>
+      If none of the above criteria match, ServiFlow applies your organisation's default SLA. This ensures no ticket is left without service level expectations.
+      <div class="example-box">
+        A ticket arrives from an unknown sender. ServiFlow applies the Standard SLA as a baseline.
+      </div>
+    </li>
+  </ol>
+
+  <div class="page-break"></div>
+
+  <h2>Visual Decision Flow</h2>
+
+  <div class="flowchart">
+    <div class="flowchart-step">New Ticket Arrives</div>
+    <span class="flowchart-arrow">&#8595;</span>
+    <div class="flowchart-step">Explicit SLA Set?</div>
+    <span class="flowchart-arrow">No &#8595;</span>
+    <div class="flowchart-step">User Has Personal SLA?</div>
+    <span class="flowchart-arrow">No &#8595;</span>
+    <div class="flowchart-step">Company Has SLA?</div>
+    <span class="flowchart-arrow">No &#8595;</span>
+    <div class="flowchart-step">Category Has SLA?</div>
+    <span class="flowchart-arrow">No &#8595;</span>
+    <div class="flowchart-step">Linked Asset Has SLA?</div>
+    <span class="flowchart-arrow">No &#8595;</span>
+    <div class="flowchart-step highlight">Apply Default SLA</div>
+  </div>
+
+  <p style="text-align: center; color: #64748b; font-style: italic;">At each step, if the answer is "Yes", that SLA is applied and the process stops.</p>
+
+  <h2>Quick Reference Table</h2>
+
+  <table class="summary-table">
+    <tr>
+      <th>Priority</th>
+      <th>SLA Source</th>
+      <th>When It's Used</th>
+    </tr>
+    <tr>
+      <td>1st (Highest)</td>
+      <td>Ticket Override</td>
+      <td>Staff manually selects SLA during ticket creation</td>
+    </tr>
+    <tr>
+      <td>2nd</td>
+      <td>User Agreement</td>
+      <td>Individual customer has VIP or special contract</td>
+    </tr>
+    <tr>
+      <td>3rd</td>
+      <td>Company Agreement</td>
+      <td>Customer's company has contracted SLA</td>
+    </tr>
+    <tr>
+      <td>4th</td>
+      <td>Category Rules</td>
+      <td>Ticket type requires specific handling (e.g., Security)</td>
+    </tr>
+    <tr>
+      <td>5th</td>
+      <td>Asset/Equipment</td>
+      <td>Ticket linked to critical infrastructure</td>
+    </tr>
+    <tr>
+      <td>6th (Lowest)</td>
+      <td>Default</td>
+      <td>Fallback when no other rules match</td>
+    </tr>
+  </table>
+
+  <h2>Business Benefits</h2>
+
+  <div class="benefit-box">
+    <strong>Automated Compliance:</strong> Premium customers automatically receive premium service without staff needing to remember contract details.
+  </div>
+
+  <div class="benefit-box">
+    <strong>Flexibility:</strong> The layered system allows for exceptions at every level - from company-wide agreements down to individual users.
+  </div>
+
+  <div class="benefit-box">
+    <strong>Audit Trail:</strong> Every ticket records which SLA was applied and why (stored in the <em>sla_source</em> field), enabling compliance reporting.
+  </div>
+
+  <div class="benefit-box">
+    <strong>Revenue Protection:</strong> Customers paying for premium support genuinely receive faster service, justifying their investment.
+  </div>
+
+  <h2>Where to Configure SLAs</h2>
+
+  <table>
+    <tr>
+      <th>What to Configure</th>
+      <th>Where in ServiFlow</th>
+    </tr>
+    <tr>
+      <td>SLA Definitions (response/resolution times)</td>
+      <td>Settings &rarr; SLA Definitions</td>
+    </tr>
+    <tr>
+      <td>Company SLA Assignments</td>
+      <td>Customers &rarr; Companies &rarr; Edit Company</td>
+    </tr>
+    <tr>
+      <td>Individual User SLA Overrides</td>
+      <td>Customers &rarr; Contacts &rarr; Edit Contact</td>
+    </tr>
+    <tr>
+      <td>Category-based SLA Rules</td>
+      <td>Settings &rarr; Category SLA Mappings</td>
+    </tr>
+    <tr>
+      <td>Asset/Equipment SLAs</td>
+      <td>CMDB &rarr; Edit Item &rarr; SLA Assignment</td>
+    </tr>
+    <tr>
+      <td>Default SLA</td>
+      <td>First active SLA in Settings &rarr; SLA Definitions</td>
+    </tr>
+  </table>
+
+  <h2>Frequently Asked Questions</h2>
+
+  <h3>What happens if a customer's company doesn't have an SLA assigned?</h3>
+  <p>The system continues down the priority list. If no match is found at any level, the default SLA applies. We recommend always having a sensible default SLA configured.</p>
+
+  <h3>Can I see which SLA was applied to a ticket and why?</h3>
+  <p>Yes. Every ticket displays its assigned SLA, and the <em>sla_source</em> field records whether it came from "company", "user", "category", "cmdb", or "default".</p>
+
+  <h3>What if I need to override the automatic assignment?</h3>
+  <p>Staff with appropriate permissions can manually change a ticket's SLA at any time. The system will record this as a "ticket" source override.</p>
+
+  <h3>How do I give one person at a company better SLA than their colleagues?</h3>
+  <p>Edit the individual contact and assign them a personal SLA override. This takes precedence over their company's SLA.</p>
+
+  <div class="footer">
+    <p><strong>ServiFlow</strong> | IT Service Management Platform</p>
+    <p>For technical support, contact your system administrator.</p>
+  </div>
+
+</body>
+</html>
