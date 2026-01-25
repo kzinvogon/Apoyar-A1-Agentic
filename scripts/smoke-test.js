@@ -415,6 +415,95 @@ async function runTests() {
     }
   });
 
+  // ============================================================================
+  // Ticket Rules Endpoints
+  // ============================================================================
+  console.log('\n--- Ticket Rules Endpoints ---');
+  console.log(`  📋 Ticket Rules smoke checks: ${READONLY ? 'READ-ONLY' : 'FULL'}`);
+
+  // Test 17: List ticket rules (200 + JSON, fail on 500)
+  let rulesList = [];
+  await test('Ticket Rules list (200/403, no 500)', async () => {
+    const res = await request('GET', `/api/ticket-rules/${TENANT}`);
+    if (isHtmlResponse(res.data)) throw new Error('Got HTML instead of JSON');
+    if (res.status === 500) throw new Error(`500 Internal Server Error: ${res.data.message || 'unknown'}`);
+    if (res.status === 200) {
+      if (!res.data.success) throw new Error(`API error: ${res.data.message}`);
+      if (!Array.isArray(res.data.rules)) throw new Error('rules is not an array');
+      rulesList = res.data.rules;
+      console.log(`     → ${rulesList.length} rules`);
+    } else if (res.status === 403) {
+      console.log(`     → 403 (requires admin/expert) - OK`);
+    } else {
+      throw new Error(`Unexpected status ${res.status}`);
+    }
+  });
+
+  // Test 18: Ticket Rules statistics (200/403, no 500)
+  await test('Ticket Rules statistics (200/403, no 500)', async () => {
+    const res = await request('GET', `/api/ticket-rules/${TENANT}/statistics`);
+    if (isHtmlResponse(res.data)) throw new Error('Got HTML instead of JSON');
+    if (res.status === 500) throw new Error(`500 Internal Server Error: ${res.data.message || 'unknown'}`);
+    if (res.status === 200) {
+      if (!res.data.success) throw new Error(`API error: ${res.data.message}`);
+      console.log(`     → stats fetched`);
+    } else if (res.status === 403) {
+      console.log(`     → 403 (requires admin/expert) - OK`);
+    } else {
+      throw new Error(`Unexpected status ${res.status}`);
+    }
+  });
+
+  // Test 19-21: Mutating tests (create, history, delete) - FULL mode only
+  if (READONLY) {
+    console.log('  ⏭️  Skipping rule create/delete tests (readonly mode)');
+  } else {
+    let testRuleId = null;
+
+    // Create a test rule
+    await test('Create test rule', async () => {
+      const res = await request('POST', `/api/ticket-rules/${TENANT}`, {
+        rule_name: 'SMOKE_TEST_RULE_' + Date.now(),
+        description: 'Smoke test rule - safe to delete',
+        enabled: false,
+        search_in: 'title',
+        search_text: 'SMOKE_TEST_NEVER_MATCH_XYZ123',
+        case_sensitive: false,
+        action_type: 'set_priority',
+        action_params: { priority: 'low' }
+      });
+      if (isHtmlResponse(res.data)) throw new Error('Got HTML instead of JSON');
+      if (res.status === 500) throw new Error(`500 Internal Server Error: ${res.data.message || 'unknown'}`);
+      if (res.status !== 200 && res.status !== 201) throw new Error(`Status ${res.status}`);
+      if (!res.data.success) throw new Error(`API error: ${res.data.message}`);
+      testRuleId = res.data.rule?.id || res.data.ruleId;
+      if (!testRuleId) throw new Error('No rule ID returned');
+      console.log(`     → created rule #${testRuleId}`);
+    });
+
+    // Get rule history (if rule was created)
+    if (testRuleId) {
+      await test(`Rule #${testRuleId} history (200, no 500)`, async () => {
+        const res = await request('GET', `/api/ticket-rules/${TENANT}/${testRuleId}/history`);
+        if (isHtmlResponse(res.data)) throw new Error('Got HTML instead of JSON');
+        if (res.status === 500) throw new Error(`500 Internal Server Error: ${res.data.message || 'unknown'}`);
+        if (res.status !== 200) throw new Error(`Status ${res.status}`);
+        if (!res.data.success) throw new Error(`API error: ${res.data.message}`);
+        console.log(`     → ${(res.data.history || []).length} history entries`);
+      });
+
+      // Delete the test rule
+      await test(`Delete test rule #${testRuleId}`, async () => {
+        const res = await request('DELETE', `/api/ticket-rules/${TENANT}/${testRuleId}`);
+        if (isHtmlResponse(res.data)) throw new Error('Got HTML instead of JSON');
+        if (res.status === 500) throw new Error(`500 Internal Server Error: ${res.data.message || 'unknown'}`);
+        if (res.status !== 200) throw new Error(`Status ${res.status}`);
+        if (!res.data.success) throw new Error(`API error: ${res.data.message}`);
+        console.log(`     → deleted`);
+      });
+    }
+  }
+
   console.log('=' .repeat(50));
   console.log(`\n📊 Results: ${passed} passed, ${failed} failed`);
 

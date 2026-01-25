@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ServiFlow Expert Pool &amp; Triage Guide</title>
+  <style>
+    @page {
+      margin: 2cm;
+      size: A4;
+    }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 40px;
+      background: #fff;
+    }
+    .header {
+      border-bottom: 3px solid #7c3aed;
+      padding-bottom: 20px;
+      margin-bottom: 30px;
+    }
+    .header h1 {
+      color: #5b21b6;
+      margin: 0;
+      font-size: 28px;
+    }
+    .header .subtitle {
+      color: #64748b;
+      font-size: 16px;
+      margin-top: 5px;
+    }
+    .header .date {
+      color: #94a3b8;
+      font-size: 12px;
+      margin-top: 10px;
+    }
+    h2 {
+      color: #5b21b6;
+      border-left: 4px solid #7c3aed;
+      padding-left: 15px;
+      margin-top: 35px;
+    }
+    h3 {
+      color: #475569;
+      margin-top: 25px;
+    }
+    .intro-box {
+      background: #faf5ff;
+      border: 1px solid #e9d5ff;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 20px 0;
+    }
+    .intro-box p {
+      margin: 0;
+    }
+    .status-flow {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      margin: 20px 0;
+      padding: 20px;
+      background: #f8fafc;
+      border-radius: 8px;
+    }
+    .status-box {
+      background: white;
+      border: 2px solid #7c3aed;
+      border-radius: 8px;
+      padding: 10px 15px;
+      text-align: center;
+      min-width: 120px;
+    }
+    .status-box.pool {
+      background: #faf5ff;
+      border-color: #a78bfa;
+    }
+    .status-box.owned {
+      background: #ecfdf5;
+      border-color: #34d399;
+    }
+    .status-box.waiting {
+      background: #fef3c7;
+      border-color: #fbbf24;
+    }
+    .status-box.final {
+      background: #f1f5f9;
+      border-color: #94a3b8;
+    }
+    .status-box .name {
+      font-weight: bold;
+      font-size: 14px;
+    }
+    .status-box .desc {
+      font-size: 11px;
+      color: #64748b;
+      margin-top: 4px;
+    }
+    .arrow {
+      display: flex;
+      align-items: center;
+      color: #7c3aed;
+      font-size: 20px;
+    }
+    .workflow-step {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 15px;
+      margin: 10px 0;
+      display: flex;
+      align-items: flex-start;
+      gap: 15px;
+    }
+    .workflow-step .number {
+      background: #7c3aed;
+      color: white;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      flex-shrink: 0;
+    }
+    .workflow-step .content {
+      flex: 1;
+    }
+    .workflow-step .content strong {
+      color: #5b21b6;
+    }
+    .score-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      font-size: 14px;
+    }
+    .score-table th {
+      background: #5b21b6;
+      color: white;
+      padding: 12px;
+      text-align: left;
+    }
+    .score-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .score-table tr:nth-child(even) {
+      background: #f8fafc;
+    }
+    .score-example {
+      background: #fef3c7;
+      border: 1px solid #fde047;
+      border-radius: 8px;
+      padding: 15px;
+      margin: 15px 0;
+    }
+    .score-example::before {
+      content: "Scoring Example:";
+      font-weight: bold;
+      color: #a16207;
+      display: block;
+      margin-bottom: 8px;
+    }
+    .benefit-box {
+      background: #f0fdf4;
+      border: 1px solid #86efac;
+      border-radius: 8px;
+      padding: 15px;
+      margin: 15px 0;
+    }
+    .benefit-box::before {
+      content: "Business Benefit:";
+      font-weight: bold;
+      color: #166534;
+      display: block;
+      margin-bottom: 8px;
+    }
+    .ai-box {
+      background: #eff6ff;
+      border: 1px solid #93c5fd;
+      border-radius: 8px;
+      padding: 15px;
+      margin: 15px 0;
+    }
+    .ai-box::before {
+      content: "AI-Powered:";
+      font-weight: bold;
+      color: #1d4ed8;
+      display: block;
+      margin-bottom: 8px;
+    }
+    .timer-info {
+      background: #fef2f2;
+      border: 1px solid #fca5a5;
+      border-radius: 8px;
+      padding: 15px;
+      margin: 15px 0;
+    }
+    .timer-info::before {
+      content: "Time-Sensitive:";
+      font-weight: bold;
+      color: #dc2626;
+      display: block;
+      margin-bottom: 8px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      font-size: 14px;
+    }
+    th {
+      background: #5b21b6;
+      color: white;
+      padding: 12px;
+      text-align: left;
+    }
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    tr:nth-child(even) {
+      background: #f8fafc;
+    }
+    .footer {
+      margin-top: 50px;
+      padding-top: 20px;
+      border-top: 1px solid #e2e8f0;
+      color: #64748b;
+      font-size: 12px;
+      text-align: center;
+    }
+    .page-break {
+      page-break-before: always;
+    }
+    .two-col {
+      display: flex;
+      gap: 20px;
+    }
+    .two-col > div {
+      flex: 1;
+    }
+    .highlight-stat {
+      text-align: center;
+      padding: 15px;
+      background: #faf5ff;
+      border-radius: 8px;
+      margin: 10px 0;
+    }
+    .highlight-stat .number {
+      font-size: 32px;
+      font-weight: bold;
+      color: #7c3aed;
+    }
+    .highlight-stat .label {
+      font-size: 12px;
+      color: #64748b;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>Expert Pool &amp; AI Triage System</h1>
+    <div class="subtitle">Intelligent Ticket Routing and Workload Management</div>
+    <div class="date">Document Version 1.0 | January 2026</div>
+  </div>
+
+  <div class="intro-box">
+    <p><strong>Purpose:</strong> This guide explains ServiFlow's Expert Pool system—an AI-powered approach to ticket distribution that ensures urgent issues reach the right experts quickly, while giving technicians visibility into incoming work before committing to ownership.</p>
+  </div>
+
+  <h2>The Traditional Problem</h2>
+  <p>In conventional helpdesk systems, tickets are either randomly assigned or manually dispatched by a manager. This creates several issues:</p>
+  <ul>
+    <li><strong>Blind assignment</strong> — Technicians receive tickets without context, leading to reassignments</li>
+    <li><strong>Uneven workload</strong> — Some staff get overloaded while others wait for work</li>
+    <li><strong>Priority confusion</strong> — Urgent tickets can sit unnoticed in queues</li>
+    <li><strong>Manager bottleneck</strong> — Dispatchers become a single point of failure</li>
+  </ul>
+
+  <h2>The Expert Pool Solution</h2>
+  <p>ServiFlow's Expert Pool operates like an intelligent "pick list" where:</p>
+  <ol>
+    <li>New tickets land in a shared pool visible to all qualified experts</li>
+    <li>AI ranks tickets by urgency, SLA risk, and complexity</li>
+    <li>Experts preview tickets before claiming them</li>
+    <li>SLA timers start when ownership is accepted, not when the ticket is created</li>
+  </ol>
+
+  <div class="benefit-box">
+    This model empowers technicians to self-select work they're best suited for, while ensuring critical issues rise to the top automatically.
+  </div>
+
+  <h2>Ticket Lifecycle in the Pool</h2>
+
+  <div class="status-flow">
+    <div class="status-box pool">
+      <div class="name">OPEN_POOL</div>
+      <div class="desc">Visible to all experts</div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="status-box pool">
+      <div class="name">CLAIMED_LOCKED</div>
+      <div class="desc">30-second preview</div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="status-box owned">
+      <div class="name">IN_PROGRESS_OWNED</div>
+      <div class="desc">Expert working on it</div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="status-box final">
+      <div class="name">Resolved / Closed</div>
+      <div class="desc">Complete</div>
+    </div>
+  </div>
+
+  <div class="status-flow">
+    <div class="status-box owned">
+      <div class="name">IN_PROGRESS_OWNED</div>
+    </div>
+    <div class="arrow">↔</div>
+    <div class="status-box waiting">
+      <div class="name">WAITING_CUSTOMER</div>
+      <div class="desc">SLA paused</div>
+    </div>
+    <div class="arrow" style="margin-left: 20px;">↓</div>
+    <div class="status-box pool">
+      <div class="name">ESCALATED</div>
+      <div class="desc">Returns to pool</div>
+    </div>
+  </div>
+
+  <h2>The Expert Workflow</h2>
+
+  <div class="workflow-step">
+    <div class="number">1</div>
+    <div class="content">
+      <strong>Browse the Pool</strong><br>
+      Experts see all unowned tickets ranked by AI priority score. Higher scores appear at the top. Each ticket shows a preview: title, customer, priority, and time in pool.
+    </div>
+  </div>
+
+  <div class="workflow-step">
+    <div class="number">2</div>
+    <div class="content">
+      <strong>Claim for Preview</strong><br>
+      Clicking a ticket creates a 30-second "soft lock." During this time, the expert sees the full ticket details, history, and AI suggestions. Other experts see "Being Claimed..." but cannot take the ticket.
+    </div>
+  </div>
+
+  <div class="timer-info">
+    The 30-second preview window prevents "ticket hoarding" while giving experts enough time to make an informed decision.
+  </div>
+
+  <div class="workflow-step">
+    <div class="number">3</div>
+    <div class="content">
+      <strong>Accept or Release</strong><br>
+      <ul style="margin: 5px 0;">
+        <li><strong>Accept Ownership:</strong> The expert becomes the owner. SLA resolution timer starts. Ticket moves to "My Tickets."</li>
+        <li><strong>Release:</strong> The ticket returns to the pool immediately, available for others.</li>
+        <li><strong>Timeout:</strong> If 30 seconds pass without action, the claim expires and the ticket returns to the pool.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="workflow-step">
+    <div class="number">4</div>
+    <div class="content">
+      <strong>Work the Ticket</strong><br>
+      Once owned, the expert works toward resolution. They can:
+      <ul style="margin: 5px 0;">
+        <li>Set "Waiting on Customer" to pause SLA while awaiting a reply</li>
+        <li>Escalate back to pool if they need to hand off</li>
+        <li>Transfer to a specific colleague</li>
+        <li>Resolve and close</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="page-break"></div>
+
+  <h2>AI-Powered Pool Scoring</h2>
+
+  <p>Every ticket in the pool receives a score from 0–100. Higher scores indicate greater urgency and appear first in the list.</p>
+
+  <div class="ai-box">
+    ServiFlow uses AI to analyse each ticket's content, customer context, and SLA status to calculate an intelligent priority score. When AI is unavailable, the system falls back to rule-based heuristics.
+  </div>
+
+  <h3>Scoring Factors</h3>
+
+  <table class="score-table">
+    <tr>
+      <th>Factor</th>
+      <th>Impact on Score</th>
+      <th>Example</th>
+    </tr>
+    <tr>
+      <td><strong>Priority Level</strong></td>
+      <td>Critical: +30, High: +20, Low: -15</td>
+      <td>A "Critical" ticket starts at 80 points</td>
+    </tr>
+    <tr>
+      <td><strong>SLA Breach Risk</strong></td>
+      <td>Already breached: +25<br>Under 1 hour: +20<br>Under 4 hours: +10</td>
+      <td>Ticket due in 45 minutes gets +20</td>
+    </tr>
+    <tr>
+      <td><strong>Ticket Age</strong></td>
+      <td>+2 per day (max +10)</td>
+      <td>A 5-day-old ticket gets +10</td>
+    </tr>
+    <tr>
+      <td><strong>Customer Tier</strong></td>
+      <td>AI considers VIP/Premium status</td>
+      <td>Premium customer tickets score higher</td>
+    </tr>
+    <tr>
+      <td><strong>Content Analysis</strong></td>
+      <td>AI detects urgency keywords</td>
+      <td>"Production down" triggers higher score</td>
+    </tr>
+  </table>
+
+  <div class="score-example">
+    <strong>Ticket:</strong> "Email server not sending - URGENT"<br>
+    <strong>Priority:</strong> High (+20)<br>
+    <strong>SLA:</strong> Due in 2 hours (+10)<br>
+    <strong>Age:</strong> 3 hours (no bonus)<br>
+    <strong>AI Analysis:</strong> Detects "server" and "not sending" as service outage (+5)<br>
+    <strong>Final Score:</strong> 50 (base) + 20 + 10 + 5 = <strong>85</strong>
+  </div>
+
+  <h3>Score Refresh</h3>
+  <p>Pool scores are recalculated:</p>
+  <ul>
+    <li>When a ticket enters the pool</li>
+    <li>Every 5 minutes for tickets still in pool</li>
+    <li>When SLA deadlines approach (urgency increases automatically)</li>
+  </ul>
+
+  <h2>Pool Status Reference</h2>
+
+  <table>
+    <tr>
+      <th>Pool Status</th>
+      <th>Meaning</th>
+      <th>SLA Timer</th>
+    </tr>
+    <tr>
+      <td><strong>OPEN_POOL</strong></td>
+      <td>Available for any expert to claim</td>
+      <td>Response timer running</td>
+    </tr>
+    <tr>
+      <td><strong>CLAIMED_LOCKED</strong></td>
+      <td>Expert previewing (30-second hold)</td>
+      <td>Response timer running</td>
+    </tr>
+    <tr>
+      <td><strong>IN_PROGRESS_OWNED</strong></td>
+      <td>Owned by expert, actively working</td>
+      <td>Resolution timer running</td>
+    </tr>
+    <tr>
+      <td><strong>WAITING_CUSTOMER</strong></td>
+      <td>Blocked on customer response</td>
+      <td>SLA paused</td>
+    </tr>
+    <tr>
+      <td><strong>ESCALATED</strong></td>
+      <td>Released back to pool</td>
+      <td>Returns to pool scoring</td>
+    </tr>
+  </table>
+
+  <h2>Business Benefits</h2>
+
+  <div class="two-col">
+    <div>
+      <div class="benefit-box">
+        <strong>Faster Response:</strong> AI surfaces urgent tickets automatically—no manager needed to spot emergencies.
+      </div>
+      <div class="benefit-box">
+        <strong>Fair Workload:</strong> Self-selection prevents overloading individual staff members.
+      </div>
+    </div>
+    <div>
+      <div class="benefit-box">
+        <strong>Better Matching:</strong> Experts choose tickets they're confident handling, reducing reassignments.
+      </div>
+      <div class="benefit-box">
+        <strong>SLA Accuracy:</strong> Resolution timers start at ownership, not creation—measuring actual work time.
+      </div>
+    </div>
+  </div>
+
+  <h2>Key Metrics to Monitor</h2>
+
+  <table>
+    <tr>
+      <th>Metric</th>
+      <th>What It Tells You</th>
+      <th>Healthy Range</th>
+    </tr>
+    <tr>
+      <td>Average Time in Pool</td>
+      <td>How quickly tickets get claimed</td>
+      <td>&lt; 15 minutes for high priority</td>
+    </tr>
+    <tr>
+      <td>Claim-to-Accept Rate</td>
+      <td>How often previews result in ownership</td>
+      <td>&gt; 80%</td>
+    </tr>
+    <tr>
+      <td>Escalation Rate</td>
+      <td>How often tickets return to pool</td>
+      <td>&lt; 10%</td>
+    </tr>
+    <tr>
+      <td>Pool Score Distribution</td>
+      <td>Balance of urgent vs routine work</td>
+      <td>Bell curve around 50</td>
+    </tr>
+  </table>
+
+  <h2>Frequently Asked Questions</h2>
+
+  <h3>What if no one claims a ticket?</h3>
+  <p>Tickets left in the pool continue to rise in score as SLA deadlines approach. The system can be configured to alert managers when tickets exceed a threshold age or score.</p>
+
+  <h3>Can managers still assign tickets directly?</h3>
+  <p>Yes. Admins can bypass the pool and assign tickets to specific experts when needed. The ticket will appear in the assignee's "My Tickets" view immediately.</p>
+
+  <h3>What happens to the SLA if I set "Waiting on Customer"?</h3>
+  <p>The SLA resolution timer pauses. When you resume work, the pause time is deducted from your resolution calculation, ensuring you're not penalised for customer delays.</p>
+
+  <h3>Can I see who else is looking at a ticket?</h3>
+  <p>When a ticket is claimed for preview, other experts see "Being Claimed by [Name]..." so they know to wait or look at other tickets.</p>
+
+  <div class="footer">
+    <p><strong>ServiFlow</strong> | IT Service Management Platform</p>
+    <p>For technical support, contact your system administrator.</p>
+  </div>
+
+</body>
+</html>

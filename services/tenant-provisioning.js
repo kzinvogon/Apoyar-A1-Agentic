@@ -579,6 +579,72 @@ async function createTenantTables(connection) {
       ('sla_check_interval_seconds', '300', 'number', 'How often to check for SLA breaches in seconds (minimum 60)')
   `);
 
+  // Email ingest settings table
+  await connection.execute(`
+    CREATE TABLE IF NOT EXISTS email_ingest_settings (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      enabled TINYINT(1) NOT NULL DEFAULT 0,
+      server_type ENUM('imap', 'pop3') NOT NULL DEFAULT 'imap',
+      server_host VARCHAR(255) NOT NULL DEFAULT 'imap.gmail.com',
+      server_port INT NOT NULL DEFAULT 993,
+      use_ssl TINYINT(1) NOT NULL DEFAULT 1,
+      username VARCHAR(255) NOT NULL DEFAULT '',
+      password VARCHAR(255) NOT NULL DEFAULT '',
+      check_interval_minutes INT NOT NULL DEFAULT 5,
+      last_checked_at TIMESTAMP NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Insert default email ingest settings row
+  await connection.execute(`
+    INSERT IGNORE INTO email_ingest_settings (enabled, server_type, server_host, server_port, use_ssl, username, password, check_interval_minutes)
+    VALUES (FALSE, 'imap', 'imap.gmail.com', 993, TRUE, '', '', 5)
+  `);
+
+  // Ticket processing rules table
+  await connection.execute(`
+    CREATE TABLE IF NOT EXISTS ticket_processing_rules (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      tenant_code VARCHAR(50) NOT NULL,
+      rule_name VARCHAR(255) NOT NULL,
+      description TEXT,
+      enabled TINYINT(1) DEFAULT 1,
+      search_in ENUM('title', 'body', 'both') DEFAULT 'both',
+      search_text VARCHAR(500) NOT NULL,
+      case_sensitive TINYINT(1) DEFAULT 0,
+      action_type ENUM('delete', 'create_for_customer', 'assign_to_expert', 'set_priority', 'set_status', 'add_tag', 'add_to_monitoring') NOT NULL,
+      action_params JSON,
+      times_triggered INT DEFAULT 0,
+      last_triggered_at DATETIME,
+      created_by INT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_tenant (tenant_code),
+      INDEX idx_enabled (enabled),
+      INDEX idx_search (search_text)
+    )
+  `);
+
+  // Ticket rule executions table
+  await connection.execute(`
+    CREATE TABLE IF NOT EXISTS ticket_rule_executions (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      rule_id INT NOT NULL,
+      ticket_id INT NOT NULL,
+      action_taken VARCHAR(100) NOT NULL,
+      execution_result ENUM('success', 'failure', 'skipped') NOT NULL,
+      error_message TEXT,
+      executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_rule (rule_id),
+      INDEX idx_ticket (ticket_id),
+      INDEX idx_executed (executed_at),
+      FOREIGN KEY (rule_id) REFERENCES ticket_processing_rules(id) ON DELETE CASCADE,
+      FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE
+    )
+  `);
+
   // Business hours profiles table
   await connection.execute(`
     CREATE TABLE IF NOT EXISTS business_hours_profiles (
