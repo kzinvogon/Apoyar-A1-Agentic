@@ -30,16 +30,20 @@ async function loadCurrencies() {
   }
 
   const masterConn = await getMasterConnection();
-  const [currencies] = await masterConn.query(`
-    SELECT code, name, symbol, exchange_rate, round_to, is_base
-    FROM currencies
-    WHERE is_active = TRUE
-    ORDER BY display_order ASC
-  `);
+  try {
+    const [currencies] = await masterConn.query(`
+      SELECT code, name, symbol, exchange_rate, round_to, is_base
+      FROM currencies
+      WHERE is_active = TRUE
+      ORDER BY display_order ASC
+    `);
 
-  currenciesCache = currencies;
-  currenciesCacheTime = Date.now();
-  return currencies;
+    currenciesCache = currencies;
+    currenciesCacheTime = Date.now();
+    return currencies;
+  } finally {
+    masterConn.release();
+  }
 }
 
 /**
@@ -80,16 +84,15 @@ router.get('/currencies', async (req, res) => {
  * Supports ?currency=USD for regional pricing
  */
 router.get('/', async (req, res) => {
+  const requestedCurrency = (req.query.currency || 'USD').toUpperCase();
+
+  // Check cache for this currency
+  if (plansCache[requestedCurrency] && (Date.now() - (plansCacheTime[requestedCurrency] || 0)) < CACHE_TTL) {
+    return res.json(plansCache[requestedCurrency]);
+  }
+
+  const masterConn = await getMasterConnection();
   try {
-    const requestedCurrency = (req.query.currency || 'USD').toUpperCase();
-
-    // Check cache for this currency
-    if (plansCache[requestedCurrency] && (Date.now() - (plansCacheTime[requestedCurrency] || 0)) < CACHE_TTL) {
-      return res.json(plansCache[requestedCurrency]);
-    }
-
-    const masterConn = await getMasterConnection();
-
     // Load currencies and find requested one
     const currencies = await loadCurrencies();
     const currency = currencies.find(c => c.code === requestedCurrency) || currencies.find(c => c.is_base);
@@ -206,6 +209,8 @@ router.get('/', async (req, res) => {
   } catch (error) {
     console.error('[Plans API] Error fetching plans:', error);
     res.status(500).json({ error: 'Failed to fetch plans' });
+  } finally {
+    masterConn.release();
   }
 });
 
@@ -214,9 +219,8 @@ router.get('/', async (req, res) => {
  * Returns feature catalog grouped by category
  */
 router.get('/features', async (req, res) => {
+  const masterConn = await getMasterConnection();
   try {
-    const masterConn = await getMasterConnection();
-
     const [features] = await masterConn.query(`
       SELECT
         feature_key,
@@ -259,6 +263,8 @@ router.get('/features', async (req, res) => {
   } catch (error) {
     console.error('[Plans API] Error fetching features:', error);
     res.status(500).json({ error: 'Failed to fetch features' });
+  } finally {
+    masterConn.release();
   }
 });
 
@@ -267,9 +273,8 @@ router.get('/features', async (req, res) => {
  * Returns feature comparison matrix for pricing page
  */
 router.get('/compare', async (req, res) => {
+  const masterConn = await getMasterConnection();
   try {
-    const masterConn = await getMasterConnection();
-
     // Get per-technician plans only (per-client has same features as MSP)
     const [plans] = await masterConn.query(`
       SELECT slug, display_name, features
@@ -330,6 +335,8 @@ router.get('/compare', async (req, res) => {
   } catch (error) {
     console.error('[Plans API] Error building comparison:', error);
     res.status(500).json({ error: 'Failed to build comparison' });
+  } finally {
+    masterConn.release();
   }
 });
 
@@ -339,10 +346,9 @@ router.get('/compare', async (req, res) => {
  */
 router.get('/:slug', async (req, res) => {
   const { slug } = req.params;
+  const masterConn = await getMasterConnection();
 
   try {
-    const masterConn = await getMasterConnection();
-
     const [plans] = await masterConn.query(`
       SELECT
         slug,
@@ -403,6 +409,8 @@ router.get('/:slug', async (req, res) => {
   } catch (error) {
     console.error('[Plans API] Error fetching plan:', error);
     res.status(500).json({ error: 'Failed to fetch plan' });
+  } finally {
+    masterConn.release();
   }
 });
 
