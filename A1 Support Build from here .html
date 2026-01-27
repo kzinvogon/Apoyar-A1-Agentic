@@ -13315,6 +13315,22 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     }
   }
   
+  // Expose tenant management functions globally for onclick handlers
+  window.editTenant = editTenant;
+  window.deleteTenant = deleteTenant;
+  window.manageTenantSubscription = manageTenantSubscription;
+  window.confirmDeleteTenant = confirmDeleteTenant;
+  window.cancelDeleteTenant = cancelDeleteTenant;
+  window.showEditTenantForm = showEditTenantForm;
+  window.hideEditTenantForm = hideEditTenantForm;
+  window.updateTenant = updateTenant;
+  window.saveTenantSubscription = saveTenantSubscription;
+  window.hideTenantSubscriptionModal = hideTenantSubscriptionModal;
+  window.cancelTenantSubscription = cancelTenantSubscription;
+  window.showCreateTenantForm = showCreateTenantForm;
+  window.hideCreateTenantForm = hideCreateTenantForm;
+  window.createTenant = createTenant;
+
   // Subscription Management Functions
   async function loadSubscriptions() {
     try {
