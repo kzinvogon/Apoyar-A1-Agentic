@@ -8465,9 +8465,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
                 <td><span class="badge ${subBadgeClass}">${subDisplay}</span></td>
                 <td>${createdDate}</td>
                 <td>
-                  <button onclick="editTenant(${tenant.id})" class="btn btn-sm">Edit</button>
-                  <button onclick="manageTenantSubscription(${tenant.id})" class="btn btn-sm">Subscription</button>
-                  <button onclick="deleteTenant(${tenant.id})" class="btn btn-sm btn-danger">Delete</button>
+                  <button data-action="edit" data-tenant-id="${tenant.id}" class="btn btn-sm">Edit</button>
+                  <button data-action="subscription" data-tenant-id="${tenant.id}" class="btn btn-sm">Subscription</button>
+                  <button data-action="delete" data-tenant-id="${tenant.id}" class="btn btn-sm btn-danger">Delete</button>
                 </td>
               `;
               tbody.appendChild(tr);
@@ -8479,7 +8479,26 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       console.error('Error loading tenants:', error);
     }
   }
-  
+
+  // Event delegation for tenant action buttons
+  document.addEventListener('click', function(e) {
+    const btn = e.target.closest('[data-action][data-tenant-id]');
+    if (!btn) return;
+
+    const action = btn.getAttribute('data-action');
+    const tenantId = parseInt(btn.getAttribute('data-tenant-id'), 10);
+
+    console.log('Tenant action clicked:', action, tenantId);
+
+    if (action === 'edit') {
+      editTenant(tenantId);
+    } else if (action === 'subscription') {
+      manageTenantSubscription(tenantId);
+    } else if (action === 'delete') {
+      deleteTenant(tenantId);
+    }
+  });
+
   function showCreateTenantForm() {
     document.getElementById('create-tenant-form').style.display = 'block';
   }
