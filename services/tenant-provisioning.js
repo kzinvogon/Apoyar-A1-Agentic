@@ -244,17 +244,21 @@ async function createTenantTables(connection) {
     CREATE TABLE IF NOT EXISTS customer_companies (
       id INT AUTO_INCREMENT PRIMARY KEY,
       company_name VARCHAR(100) NOT NULL,
-      company_domain VARCHAR(100),
-      contact_email VARCHAR(255),
+      company_domain VARCHAR(255) NOT NULL,
+      admin_user_id INT,
+      admin_email VARCHAR(100) NOT NULL DEFAULT '',
       contact_phone VARCHAR(20),
       address TEXT,
       sla_level ENUM('basic', 'premium', 'enterprise') DEFAULT 'basic',
-      notes TEXT,
       is_active BOOLEAN DEFAULT TRUE,
+      notes TEXT,
+      sla_definition_id INT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      INDEX idx_company_domain (company_domain),
-      INDEX idx_is_active (is_active)
+      UNIQUE KEY unique_domain (company_domain),
+      INDEX idx_admin_user (admin_user_id),
+      INDEX idx_is_active (is_active),
+      INDEX idx_sla_definition (sla_definition_id)
     )
   `);
 
@@ -267,15 +271,17 @@ async function createTenantTables(connection) {
       is_company_admin BOOLEAN DEFAULT FALSE,
       job_title VARCHAR(100),
       company_name VARCHAR(100),
-      company_domain VARCHAR(100),
       contact_phone VARCHAR(20),
       address TEXT,
       sla_level ENUM('basic', 'premium', 'enterprise') DEFAULT 'basic',
+      company_domain VARCHAR(255),
+      sla_override_id INT COMMENT 'Per-user SLA override, takes precedence over company SLA',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
       FOREIGN KEY (customer_company_id) REFERENCES customer_companies(id) ON DELETE SET NULL,
-      INDEX idx_customer_company_id (customer_company_id)
+      INDEX idx_customer_company_id (customer_company_id),
+      INDEX idx_sla_override (sla_override_id)
     )
   `);
 
@@ -614,7 +620,7 @@ async function createTenantTables(connection) {
       search_in ENUM('title', 'body', 'both') DEFAULT 'both',
       search_text VARCHAR(500) NOT NULL,
       case_sensitive TINYINT(1) DEFAULT 0,
-      action_type ENUM('delete', 'create_for_customer', 'assign_to_expert', 'set_priority', 'set_status', 'add_tag', 'add_to_monitoring') NOT NULL,
+      action_type ENUM('delete', 'create_for_customer', 'assign_to_expert', 'set_priority', 'set_status', 'add_tag', 'add_to_monitoring', 'set_sla_deadlines', 'set_sla_definition') NOT NULL,
       action_params JSON,
       times_triggered INT DEFAULT 0,
       last_triggered_at DATETIME,
@@ -938,7 +944,7 @@ async function provisionTenant(options) {
       stripeCustomerId,
       authToken: token,
       trialEndsAt: trialEnd.toISOString(),
-      redirectUrl: '/'
+      redirectUrl: process.env.APP_URL || 'https://app.serviflow.app'
     };
 
   } catch (error) {
