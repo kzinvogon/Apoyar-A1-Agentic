@@ -43,13 +43,24 @@ async function isUserEmailNotificationsEnabled(tenantCode, userEmail) {
   try {
     const connection = await getTenantConnection(tenantCode);
     try {
+      // First check if column exists to avoid query errors
+      const [cols] = await connection.query(`
+        SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'users' AND COLUMN_NAME = 'receive_email_updates'
+      `, [`a1_tenant_${tenantCode}`]);
+
+      // If column doesn't exist, default to enabled
+      if (cols.length === 0) {
+        return true;
+      }
+
       const [users] = await connection.query(
         'SELECT receive_email_updates FROM users WHERE email = ?',
         [userEmail]
       );
       // Default to enabled if user not found
       if (users.length === 0) return true;
-      // If column doesn't exist or is null, default to enabled
+      // If value is null, default to enabled
       if (users[0].receive_email_updates === undefined || users[0].receive_email_updates === null) return true;
       return users[0].receive_email_updates === 1;
     } finally {
