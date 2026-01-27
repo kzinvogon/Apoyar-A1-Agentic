@@ -404,8 +404,8 @@ router.get('/subscriptions', requireMasterAuth, async (req, res) => {
     try {
       const [subscriptions] = await connection.query(`
         SELECT
-          s.id, s.tenant_id, s.plan_id, s.status, s.trial_ends_at,
-          s.billing_cycle, s.next_billing_date, s.created_at, s.updated_at,
+          s.id, s.tenant_id, s.plan_id, s.status, s.trial_end,
+          s.billing_cycle, s.current_period_end, s.created_at, s.updated_at,
           t.company_name, t.tenant_code,
           p.name as plan_name, p.price_monthly as monthly_price,
           pp.name as previous_plan_name
