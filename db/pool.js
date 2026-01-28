@@ -269,30 +269,33 @@ async function getTenantPool(tenantCode) {
     throw new Error('Pool is shutting down');
   }
 
+  // Normalize tenant code to lowercase (databases are a1_tenant_<lowercase>)
+  const normalizedCode = tenantCode.toLowerCase();
+
   // Fast path: pool exists
-  if (tenantPools.has(tenantCode)) {
-    return tenantPools.get(tenantCode);
+  if (tenantPools.has(normalizedCode)) {
+    return tenantPools.get(normalizedCode);
   }
 
   // Single-flight: if creation in progress for this tenant, wait for it
-  if (tenantPoolPromises.has(tenantCode)) {
-    return tenantPoolPromises.get(tenantCode);
+  if (tenantPoolPromises.has(normalizedCode)) {
+    return tenantPoolPromises.get(normalizedCode);
   }
 
   // Start pool creation
-  const promise = createTenantPool(tenantCode)
+  const promise = createTenantPool(normalizedCode)
     .then(pool => {
-      tenantPools.set(tenantCode, pool);
-      tenantPoolPromises.delete(tenantCode);
+      tenantPools.set(normalizedCode, pool);
+      tenantPoolPromises.delete(normalizedCode);
       return pool;
     })
     .catch(err => {
-      log.error('Failed to create tenant pool', { tenant: tenantCode, error: err.message });
-      tenantPoolPromises.delete(tenantCode);
+      log.error('Failed to create tenant pool', { tenant: normalizedCode, error: err.message });
+      tenantPoolPromises.delete(normalizedCode);
       throw err;
     });
 
-  tenantPoolPromises.set(tenantCode, promise);
+  tenantPoolPromises.set(normalizedCode, promise);
   return promise;
 }
 
@@ -401,39 +404,42 @@ async function masterQuery(sql, params = []) {
  * Multiple concurrent fatal errors share one reconnection attempt
  */
 async function ensureTenantReconnected(tenantCode) {
+  // Normalize tenant code to lowercase
+  const normalizedCode = tenantCode.toLowerCase();
+
   // If reconnection already in progress for this tenant, wait for it
-  if (tenantReconnectPromises.has(tenantCode)) {
-    return tenantReconnectPromises.get(tenantCode);
+  if (tenantReconnectPromises.has(normalizedCode)) {
+    return tenantReconnectPromises.get(normalizedCode);
   }
 
-  log.reconnectAttempt(`tenant:${tenantCode}`);
+  log.reconnectAttempt(`tenant:${normalizedCode}`);
 
   const promise = (async () => {
     // Close old pool
-    const oldPool = tenantPools.get(tenantCode);
+    const oldPool = tenantPools.get(normalizedCode);
     if (oldPool) {
       try {
         await oldPool.end();
       } catch (e) {
         // Ignore errors during cleanup
       }
-      tenantPools.delete(tenantCode);
+      tenantPools.delete(normalizedCode);
     }
 
     // Create new pool
-    const newPool = await getTenantPool(tenantCode);
-    log.reconnectSuccess(`tenant:${tenantCode}`);
+    const newPool = await getTenantPool(normalizedCode);
+    log.reconnectSuccess(`tenant:${normalizedCode}`);
     return newPool;
   })()
     .catch(err => {
-      log.reconnectFailed(`tenant:${tenantCode}`, err);
+      log.reconnectFailed(`tenant:${normalizedCode}`, err);
       throw err;
     })
     .finally(() => {
-      tenantReconnectPromises.delete(tenantCode);
+      tenantReconnectPromises.delete(normalizedCode);
     });
 
-  tenantReconnectPromises.set(tenantCode, promise);
+  tenantReconnectPromises.set(normalizedCode, promise);
   return promise;
 }
 
