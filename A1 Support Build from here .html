@@ -1769,6 +1769,37 @@ vNext-FULL-ActionsSLA:
                     <span style="font-size:13px;color:var(--muted)">AI-ranked tickets available for claim</span>
                     <button class="btn ghost" onclick="refreshPoolView()" style="font-size:12px">↻ Refresh</button>
                   </div>
+                  <!-- Pool Filters -->
+                  <div id="pool-filters" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;padding:8px;background:var(--badge-bg);border-radius:8px">
+                    <select id="pool-filter-work-type" onchange="applyPoolFilters()" style="padding:4px 8px;font-size:12px;border-radius:4px;border:1px solid var(--border)">
+                      <option value="">All Types</option>
+                      <option value="incident">Incident</option>
+                      <option value="request">Request</option>
+                      <option value="problem">Problem</option>
+                      <option value="change_request">Change Request</option>
+                      <option value="operational_action">Operational</option>
+                      <option value="question">Question</option>
+                      <option value="feedback">Feedback</option>
+                      <option value="unknown">Unknown</option>
+                    </select>
+                    <select id="pool-filter-exec-mode" onchange="applyPoolFilters()" style="padding:4px 8px;font-size:12px;border-radius:4px;border:1px solid var(--border)">
+                      <option value="">All Modes</option>
+                      <option value="escalation_required">Escalation Required</option>
+                      <option value="expert_required">Expert Required</option>
+                      <option value="human_review">Human Review</option>
+                      <option value="mixed">Mixed</option>
+                      <option value="automated">Automated</option>
+                    </select>
+                    <div style="display:flex;align-items:center;gap:4px">
+                      <input type="text" id="pool-filter-tag" placeholder="Tag..." style="width:80px;padding:4px 8px;font-size:12px;border-radius:4px;border:1px solid var(--border)" onkeypress="if(event.key==='Enter'){addPoolTagFilter();event.preventDefault()}">
+                      <div id="pool-tag-chips" style="display:flex;gap:4px;flex-wrap:wrap"></div>
+                    </div>
+                    <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer">
+                      <input type="checkbox" id="pool-filter-needs-triage" onchange="applyPoolFilters()">
+                      <span>Needs Triage</span>
+                    </label>
+                    <button class="btn ghost" onclick="clearPoolFilters()" style="font-size:11px;padding:2px 8px">Clear</button>
+                  </div>
                   <div style="max-height:400px;overflow-y:auto">
                     <table style="font-size:13px"><thead><tr><th>Score</th><th>ID</th><th>Title</th><th>Customer</th><th>SLA</th><th>Action</th></tr></thead><tbody id="pool-list"></tbody></table>
                   </div>
@@ -3278,6 +3309,69 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
                   <div class="progress" id="td-sla-progress-container" style="flex:1;min-width:160px"><span id="td-sla-progress" style="width:0%"></span></div>
                 </div>
                 <div class="subtitle" id="td-sla-text" style="margin-top:6px"></div>
+              </div>
+
+              <!-- Classification Section (Admin Only) -->
+              <div id="ticket-classification-section" class="admin-section" style="margin-top:16px;border-top:1px solid var(--border);padding-top:16px">
+                <div class="row space mb-8">
+                  <div class="subtitle" style="margin:0">Classification</div>
+                  <button id="btn-edit-classification" class="btn ghost" onclick="toggleClassificationEdit()" style="font-size:11px;padding:2px 8px">Edit</button>
+                </div>
+                <!-- Display Mode -->
+                <div id="classification-display">
+                  <div class="row wrap" style="gap:6px;align-items:center">
+                    <span id="td-work-type-badge"></span>
+                    <span id="td-exec-mode-badge" class="badge" style="background:var(--badge-bg);color:var(--muted);font-size:10px"></span>
+                    <span id="td-confidence-badge" class="badge" style="background:var(--badge-bg);color:var(--muted);font-size:10px"></span>
+                    <span id="td-classified-by" style="font-size:10px;color:var(--muted)"></span>
+                  </div>
+                  <div id="td-system-tags-display" style="margin-top:6px"></div>
+                </div>
+                <!-- Edit Mode -->
+                <div id="classification-edit" style="display:none">
+                  <div class="row mb-8" style="gap:8px">
+                    <div style="flex:1">
+                      <div style="font-size:11px;color:var(--muted);margin-bottom:2px">Work Type</div>
+                      <select id="td-work-type" class="input" style="font-size:12px;padding:4px 8px">
+                        <option value="">-- Select --</option>
+                        <option value="request">Request</option>
+                        <option value="incident">Incident</option>
+                        <option value="problem">Problem</option>
+                        <option value="change_request">Change Request</option>
+                        <option value="operational_action">Operational Action</option>
+                        <option value="question">Question</option>
+                        <option value="feedback">Feedback</option>
+                        <option value="unknown">Unknown</option>
+                      </select>
+                    </div>
+                    <div style="flex:1">
+                      <div style="font-size:11px;color:var(--muted);margin-bottom:2px">Execution Mode</div>
+                      <select id="td-exec-mode" class="input" style="font-size:12px;padding:4px 8px">
+                        <option value="">-- Select --</option>
+                        <option value="automated">Automated</option>
+                        <option value="human_review">Human Review</option>
+                        <option value="expert_required">Expert Required</option>
+                        <option value="escalation_required">Escalation Required</option>
+                        <option value="mixed">Mixed</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="mb-8">
+                    <div style="font-size:11px;color:var(--muted);margin-bottom:2px">System Tags</div>
+                    <div class="row" style="gap:4px;flex-wrap:wrap">
+                      <div id="td-tags-chips" style="display:flex;gap:4px;flex-wrap:wrap"></div>
+                      <input type="text" id="td-tag-input" class="input" placeholder="Add tag..." style="width:80px;font-size:11px;padding:2px 6px" onkeypress="if(event.key==='Enter'){addClassificationTag();event.preventDefault()}">
+                    </div>
+                  </div>
+                  <div class="mb-8">
+                    <div style="font-size:11px;color:var(--muted);margin-bottom:2px">Reason (optional)</div>
+                    <input type="text" id="td-classification-reason" class="input" placeholder="Why are you changing this?" style="font-size:12px;padding:4px 8px">
+                  </div>
+                  <div class="row" style="gap:8px">
+                    <button class="btn primary" onclick="saveClassification()" style="font-size:11px;padding:4px 12px">Save</button>
+                    <button class="btn ghost" onclick="cancelClassificationEdit()" style="font-size:11px;padding:4px 12px">Cancel</button>
+                  </div>
+                </div>
               </div>
             </div>
             <div class="card p-16" style="background:#fafafa;border-color:#e5e7eb">
@@ -7489,6 +7583,193 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     return html;
   }
 
+  // Classification edit state
+  let classificationEditTags = [];
+
+  // Display classification data in ticket detail
+  function displayClassification(ticket) {
+    // Work type badge
+    const workTypeBadgeEl = document.getElementById('td-work-type-badge');
+    if (workTypeBadgeEl) {
+      workTypeBadgeEl.innerHTML = workTypeBadgeHTML(ticket.work_type) || '<span style="color:var(--muted);font-size:11px">Not classified</span>';
+    }
+
+    // Execution mode badge
+    const execModeEl = document.getElementById('td-exec-mode-badge');
+    if (execModeEl) {
+      const modeLabels = {
+        automated: 'Auto',
+        human_review: 'Review',
+        expert_required: 'Expert',
+        escalation_required: 'Escalate',
+        mixed: 'Mixed'
+      };
+      const mode = ticket.execution_mode || '';
+      execModeEl.textContent = modeLabels[mode] || mode || '';
+      execModeEl.style.display = mode ? 'inline-block' : 'none';
+    }
+
+    // Confidence badge
+    const confEl = document.getElementById('td-confidence-badge');
+    if (confEl) {
+      const conf = ticket.classification_confidence;
+      if (conf !== null && conf !== undefined) {
+        const pct = Math.round(conf * 100);
+        confEl.textContent = `${pct}% conf`;
+        confEl.style.display = 'inline-block';
+      } else {
+        confEl.style.display = 'none';
+      }
+    }
+
+    // Classified by
+    const byEl = document.getElementById('td-classified-by');
+    if (byEl) {
+      if (ticket.classified_by) {
+        const at = ticket.classified_at ? new Date(ticket.classified_at).toLocaleString() : '';
+        byEl.textContent = `by ${ticket.classified_by}${at ? ' • ' + at : ''}`;
+        byEl.style.display = 'inline';
+      } else {
+        byEl.style.display = 'none';
+      }
+    }
+
+    // System tags display
+    const tagsDisplayEl = document.getElementById('td-system-tags-display');
+    if (tagsDisplayEl) {
+      let tags = ticket.system_tags;
+      if (typeof tags === 'string') {
+        try { tags = JSON.parse(tags); } catch(e) { tags = []; }
+      }
+      tagsDisplayEl.innerHTML = systemTagsHTML(tags, 6);
+    }
+
+    // Store current values for edit mode
+    classificationEditTags = [];
+    let tags = ticket.system_tags;
+    if (typeof tags === 'string') {
+      try { tags = JSON.parse(tags); } catch(e) { tags = []; }
+    }
+    if (Array.isArray(tags)) classificationEditTags = [...tags];
+
+    // Pre-populate edit form
+    const workTypeSelect = document.getElementById('td-work-type');
+    const execModeSelect = document.getElementById('td-exec-mode');
+    if (workTypeSelect) workTypeSelect.value = ticket.work_type || '';
+    if (execModeSelect) execModeSelect.value = ticket.execution_mode || '';
+  }
+
+  // Toggle between display and edit mode
+  function toggleClassificationEdit() {
+    const displayEl = document.getElementById('classification-display');
+    const editEl = document.getElementById('classification-edit');
+    const btn = document.getElementById('btn-edit-classification');
+
+    if (editEl.style.display === 'none') {
+      displayEl.style.display = 'none';
+      editEl.style.display = 'block';
+      btn.textContent = 'Cancel';
+      renderClassificationTagChips();
+    } else {
+      cancelClassificationEdit();
+    }
+  }
+
+  // Cancel edit mode
+  function cancelClassificationEdit() {
+    const displayEl = document.getElementById('classification-display');
+    const editEl = document.getElementById('classification-edit');
+    const btn = document.getElementById('btn-edit-classification');
+    const reasonEl = document.getElementById('td-classification-reason');
+
+    displayEl.style.display = 'block';
+    editEl.style.display = 'none';
+    btn.textContent = 'Edit';
+    if (reasonEl) reasonEl.value = '';
+  }
+
+  // Render tag chips in edit mode
+  function renderClassificationTagChips() {
+    const container = document.getElementById('td-tags-chips');
+    if (!container) return;
+    container.innerHTML = classificationEditTags.map(tag => `
+      <span style="display:inline-flex;align-items:center;gap:2px;padding:2px 6px;background:var(--accent);color:white;border-radius:4px;font-size:10px">
+        ${escapeHtml(tag)}
+        <button onclick="removeClassificationTag('${escapeHtml(tag)}')" style="background:none;border:none;color:white;cursor:pointer;padding:0;font-size:12px;line-height:1">&times;</button>
+      </span>
+    `).join('');
+  }
+
+  // Add a classification tag
+  function addClassificationTag() {
+    const input = document.getElementById('td-tag-input');
+    const tag = input?.value?.trim().toLowerCase().replace(/\s+/g, '_');
+    if (!tag || classificationEditTags.includes(tag)) {
+      if (input) input.value = '';
+      return;
+    }
+    if (classificationEditTags.length >= 6) {
+      showToast('Maximum 6 tags allowed', 'warn');
+      return;
+    }
+    classificationEditTags.push(tag);
+    input.value = '';
+    renderClassificationTagChips();
+  }
+
+  // Remove a classification tag
+  function removeClassificationTag(tag) {
+    classificationEditTags = classificationEditTags.filter(t => t !== tag);
+    renderClassificationTagChips();
+  }
+
+  // Save classification changes
+  async function saveClassification() {
+    const workType = document.getElementById('td-work-type')?.value;
+    const execMode = document.getElementById('td-exec-mode')?.value;
+    const reason = document.getElementById('td-classification-reason')?.value?.trim();
+
+    if (!workType || !execMode) {
+      showToast('Please select work type and execution mode', 'error');
+      return;
+    }
+
+    const token = localStorage.getItem('token');
+    const tenantCode = window.tenant || 'apoyar';
+
+    try {
+      const response = await fetch(`/api/tickets/${tenantCode}/${currentTicketId}/classification`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          work_type: workType,
+          execution_mode: execMode,
+          system_tags: classificationEditTags,
+          reason: reason || undefined
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || 'Failed to save classification');
+      }
+
+      showToast('Classification updated', 'success');
+      cancelClassificationEdit();
+
+      // Refresh ticket detail to show updated classification
+      renderTicketDetail();
+
+    } catch (error) {
+      console.error('Error saving classification:', error);
+      showToast(error.message || 'Failed to save classification', 'error');
+    }
+  }
+
   let slaInterval = null;
   const DEFAULT_REFRESH_INTERVAL = 60000; // 60 seconds default
   function getRefreshInterval() {
@@ -7904,7 +8185,10 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     }
   }
 
-  // Fetch and render ticket pool
+  // Pool filter state
+  let poolFilterTags = [];
+
+  // Fetch and render ticket pool with optional filters
   async function refreshPoolView() {
     const token = localStorage.getItem('token');
     const tb = document.getElementById('pool-list');
@@ -7914,7 +8198,29 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     tb.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px">Loading pool...</td></tr>';
 
     try {
-      const res = await fetch(`/api/tickets/${window.tenant}/pool`, {
+      // Build query params from filter controls
+      const params = new URLSearchParams();
+
+      const workType = document.getElementById('pool-filter-work-type')?.value;
+      if (workType) params.set('work_type', workType);
+
+      const execMode = document.getElementById('pool-filter-exec-mode')?.value;
+      if (execMode) params.set('execution_mode', execMode);
+
+      if (poolFilterTags.length > 0) {
+        params.set('tags', poolFilterTags.join(','));
+      }
+
+      const needsTriage = document.getElementById('pool-filter-needs-triage')?.checked;
+      if (needsTriage) {
+        params.set('confidence_lt', '0.5');
+        params.set('show_unknown', 'true');
+      }
+
+      const queryString = params.toString();
+      const url = `/api/tickets/${window.tenant}/pool${queryString ? '?' + queryString : ''}`;
+
+      const res = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
@@ -7929,6 +8235,61 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       console.error('Error loading pool:', error);
       tb.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--danger)">Error: ${error.message}</td></tr>`;
     }
+  }
+
+  // Apply pool filters - called when any filter control changes
+  function applyPoolFilters() {
+    refreshPoolView();
+  }
+
+  // Add a tag filter chip
+  function addPoolTagFilter() {
+    const input = document.getElementById('pool-filter-tag');
+    const tag = input?.value?.trim().toLowerCase().replace(/\s+/g, '_');
+    if (!tag || poolFilterTags.includes(tag)) {
+      if (input) input.value = '';
+      return;
+    }
+    poolFilterTags.push(tag);
+    input.value = '';
+    renderPoolTagChips();
+    refreshPoolView();
+  }
+
+  // Remove a tag filter chip
+  function removePoolTagFilter(tag) {
+    poolFilterTags = poolFilterTags.filter(t => t !== tag);
+    renderPoolTagChips();
+    refreshPoolView();
+  }
+
+  // Render tag filter chips
+  function renderPoolTagChips() {
+    const container = document.getElementById('pool-tag-chips');
+    if (!container) return;
+    container.innerHTML = poolFilterTags.map(tag => `
+      <span style="display:inline-flex;align-items:center;gap:2px;padding:2px 6px;background:var(--accent);color:white;border-radius:4px;font-size:11px">
+        ${escapeHtml(tag)}
+        <button onclick="removePoolTagFilter('${escapeHtml(tag)}')" style="background:none;border:none;color:white;cursor:pointer;padding:0;font-size:14px;line-height:1">&times;</button>
+      </span>
+    `).join('');
+  }
+
+  // Clear all pool filters
+  function clearPoolFilters() {
+    const workTypeEl = document.getElementById('pool-filter-work-type');
+    const execModeEl = document.getElementById('pool-filter-exec-mode');
+    const tagInput = document.getElementById('pool-filter-tag');
+    const needsTriageEl = document.getElementById('pool-filter-needs-triage');
+
+    if (workTypeEl) workTypeEl.value = '';
+    if (execModeEl) execModeEl.value = '';
+    if (tagInput) tagInput.value = '';
+    if (needsTriageEl) needsTriageEl.checked = false;
+
+    poolFilterTags = [];
+    renderPoolTagChips();
+    refreshPoolView();
   }
 
   // Render pool table
@@ -15163,6 +15524,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           div.textContent = 'No activity recorded yet';
           act.appendChild(div);
         }
+
+        // Display classification data
+        displayClassification(ticket);
       }
     } catch (error) {
       console.error('Error loading ticket details:', error);

@@ -24,6 +24,46 @@ require('dotenv').config();
 const { getTenantConnection } = require('../config/database');
 const { AIAnalysisService, safeParseJson } = require('../services/ai-analysis-service');
 
+// ============================================================================
+// CONCURRENCY LIMITER (Simple semaphore for fire-and-forget classification)
+// ============================================================================
+const MAX_CONCURRENT_CLASSIFICATIONS = 2;
+let activeClassifications = 0;
+const classificationQueue = [];
+
+function enqueueClassification(task) {
+  return new Promise((resolve, reject) => {
+    const wrappedTask = async () => {
+      try {
+        const result = await task();
+        resolve(result);
+      } catch (error) {
+        reject(error);
+      } finally {
+        activeClassifications--;
+        processQueue();
+      }
+    };
+
+    if (activeClassifications < MAX_CONCURRENT_CLASSIFICATIONS) {
+      activeClassifications++;
+      wrappedTask();
+    } else {
+      classificationQueue.push(wrappedTask);
+    }
+  });
+}
+
+function processQueue() {
+  while (activeClassifications < MAX_CONCURRENT_CLASSIFICATIONS && classificationQueue.length > 0) {
+    activeClassifications++;
+    const nextTask = classificationQueue.shift();
+    nextTask();
+  }
+}
+
+// ============================================================================
+
 // Valid values for validation
 const VALID_WORK_TYPES = [
   'request',
@@ -129,9 +169,24 @@ async function classifyTicket(tenantCode, ticketId, options = {}) {
     console.log(`   Tags: ${(classification.system_tags || []).join(', ') || 'None'}`);
     console.log(`   Reason: ${classification.reason}`);
 
-    // Step 4: Store classification
+    // Step 4: Store classification and write history event
     if (!dryRun) {
       console.log('\n💾 Saving classification...');
+
+      // Check if classification actually changed (avoid noise in history)
+      const previousValues = {
+        work_type: ticket.work_type,
+        execution_mode: ticket.execution_mode,
+        system_tags: ticket.system_tags,
+        confidence: ticket.classification_confidence
+      };
+
+      const hasChanged =
+        previousValues.work_type !== classification.work_type ||
+        previousValues.execution_mode !== classification.execution_mode ||
+        JSON.stringify(previousValues.system_tags) !== JSON.stringify(classification.system_tags);
+
+      // Update ticket
       await connection.query(`
         UPDATE tickets SET
           work_type = ?,
@@ -150,6 +205,16 @@ async function classifyTicket(tenantCode, ticketId, options = {}) {
         classification.reason,
         ticketId
       ]);
+
+      // Write history event if values changed (or first classification)
+      if (hasChanged || !previousValues.work_type) {
+        await writeClassificationEvent(connection, ticketId, {
+          previous: previousValues,
+          new: classification,
+          classified_by: 'ai',
+          reason: classification.reason
+        });
+      }
 
       // Log activity
       await connection.query(`
@@ -420,20 +485,70 @@ async function classifyText(tenantCode, subject, body) {
 }
 
 /**
- * Trigger classification for a ticket (fire-and-forget)
+ * Write a classification history event
+ * @param {object} connection - Database connection
+ * @param {number} ticketId - Ticket ID
+ * @param {object} data - Event data
+ */
+async function writeClassificationEvent(connection, ticketId, data) {
+  try {
+    await connection.query(`
+      INSERT INTO ticket_classification_events
+        (ticket_id, previous_work_type, new_work_type, previous_execution_mode, new_execution_mode,
+         previous_system_tags, new_system_tags, previous_confidence, new_confidence,
+         classified_by, user_id, reason)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
+      ticketId,
+      data.previous?.work_type || null,
+      data.new?.work_type || null,
+      data.previous?.execution_mode || null,
+      data.new?.execution_mode || null,
+      data.previous?.system_tags ? JSON.stringify(data.previous.system_tags) : null,
+      data.new?.system_tags ? JSON.stringify(data.new.system_tags) : null,
+      data.previous?.confidence || null,
+      data.new?.confidence || null,
+      data.classified_by,
+      data.user_id || null,
+      data.reason || null
+    ]);
+  } catch (error) {
+    // Don't fail classification if history write fails
+    console.error(`Failed to write classification event for ticket ${ticketId}:`, error.message);
+  }
+}
+
+/**
+ * Trigger classification for a ticket (fire-and-forget with concurrency limit)
  * Used as a hook from ticket creation routes
  * @param {string} tenantCode - Tenant code
  * @param {number} ticketId - Ticket ID
  */
 function triggerClassification(tenantCode, ticketId) {
-  // Fire and forget - don't await
-  setImmediate(async () => {
-    try {
-      await classifyTicket(tenantCode, ticketId);
-    } catch (error) {
-      console.error(`Classification background task failed for ticket ${ticketId}:`, error.message);
-    }
+  // Fire and forget with concurrency limit
+  setImmediate(() => {
+    enqueueClassification(async () => {
+      try {
+        await classifyTicket(tenantCode, ticketId);
+      } catch (error) {
+        console.error(`Classification background task failed for ticket ${ticketId}:`, error.message);
+      }
+    }).catch(() => {}); // Swallow errors - fire and forget
   });
+}
+
+/**
+ * Normalize tags to lowercase snake_case and limit count
+ * @param {Array} tags - Array of tags
+ * @param {number} maxTags - Maximum number of tags
+ * @returns {Array} Normalized tags
+ */
+function normalizeTags(tags, maxTags = 6) {
+  if (!Array.isArray(tags)) return [];
+  return tags
+    .map(tag => String(tag).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, ''))
+    .filter(tag => tag.length > 0)
+    .slice(0, maxTags);
 }
 
 /**
@@ -456,9 +571,38 @@ async function updateClassification(tenantCode, ticketId, classification, userId
       return { success: false, error: `Invalid execution_mode: ${classification.execution_mode}` };
     }
 
+    // Step 1: Read current values for history
+    const [currentTickets] = await connection.query(
+      'SELECT work_type, execution_mode, system_tags, classification_confidence FROM tickets WHERE id = ?',
+      [ticketId]
+    );
+
+    if (currentTickets.length === 0) {
+      return { success: false, error: 'Ticket not found' };
+    }
+
+    const previousValues = {
+      work_type: currentTickets[0].work_type,
+      execution_mode: currentTickets[0].execution_mode,
+      system_tags: currentTickets[0].system_tags,
+      confidence: currentTickets[0].classification_confidence
+    };
+
+    // Normalize tags
+    const normalizedTags = classification.system_tags !== undefined
+      ? normalizeTags(classification.system_tags)
+      : undefined;
+
     // Build update query
     const updates = [];
     const values = [];
+
+    const newValues = {
+      work_type: classification.work_type || previousValues.work_type,
+      execution_mode: classification.execution_mode || previousValues.execution_mode,
+      system_tags: normalizedTags !== undefined ? normalizedTags : previousValues.system_tags,
+      confidence: 1.0
+    };
 
     if (classification.work_type) {
       updates.push('work_type = ?');
@@ -468,9 +612,9 @@ async function updateClassification(tenantCode, ticketId, classification, userId
       updates.push('execution_mode = ?');
       values.push(classification.execution_mode);
     }
-    if (classification.system_tags !== undefined) {
+    if (normalizedTags !== undefined) {
       updates.push('system_tags = ?');
-      values.push(JSON.stringify(classification.system_tags || []));
+      values.push(JSON.stringify(normalizedTags));
     }
     if (classification.reason) {
       updates.push('classification_reason = ?');
@@ -484,10 +628,20 @@ async function updateClassification(tenantCode, ticketId, classification, userId
 
     values.push(ticketId);
 
+    // Step 2: Apply update
     await connection.query(
       `UPDATE tickets SET ${updates.join(', ')} WHERE id = ?`,
       values
     );
+
+    // Step 3: Write history event
+    await writeClassificationEvent(connection, ticketId, {
+      previous: previousValues,
+      new: newValues,
+      classified_by: 'human',
+      user_id: userId,
+      reason: classification.reason || 'Manual classification override'
+    });
 
     // Log activity
     await connection.query(`
@@ -499,7 +653,10 @@ async function updateClassification(tenantCode, ticketId, classification, userId
       `Manually classified as ${classification.work_type || 'N/A'}/${classification.execution_mode || 'N/A'}`
     ]);
 
-    return { success: true };
+    return {
+      success: true,
+      classification: newValues
+    };
 
   } finally {
     connection.release();
@@ -553,6 +710,7 @@ module.exports = {
   updateClassification,
   classifyWithPatterns,
   applyGuardrails,
+  normalizeTags,
   VALID_WORK_TYPES,
   VALID_EXECUTION_MODES
 };
