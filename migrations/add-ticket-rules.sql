@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS ticket_processing_rules (
   case_sensitive BOOLEAN DEFAULT FALSE,
 
   -- Action to perform
-  action_type ENUM('delete', 'create_for_customer', 'assign_to_expert', 'set_priority', 'set_status', 'add_tag') NOT NULL,
+  action_type ENUM('delete', 'create_for_customer', 'assign_to_expert', 'set_priority', 'set_status', 'add_tag', 'add_to_monitoring', 'set_sla_deadlines', 'set_sla_definition') NOT NULL,
 
   -- Action parameters (stored as JSON)
   action_params JSON,

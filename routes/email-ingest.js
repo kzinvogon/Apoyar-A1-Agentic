@@ -52,7 +52,7 @@ router.get('/:tenantId/settings', readOperationsLimiter, async (req, res) => {
     const connection = await getTenantConnection(tenantCode);
 
     try {
-      const [settings] = await connection.query('SELECT * FROM email_ingest_settings LIMIT 1');
+      const [settings] = await connection.query('SELECT * FROM email_ingest_settings ORDER BY id ASC LIMIT 1');
 
       if (settings.length === 0) {
         // Create default settings if none exist
@@ -99,7 +99,7 @@ router.put('/:tenantId/settings', requireRole(['admin']), writeOperationsLimiter
 
     try {
       // Check if settings exist
-      const [existingSettings] = await connection.query('SELECT id, password FROM email_ingest_settings LIMIT 1');
+      const [existingSettings] = await connection.query('SELECT id, password FROM email_ingest_settings ORDER BY id ASC LIMIT 1');
 
       // If password is '******', keep existing password
       let actualPassword = password;
@@ -130,7 +130,15 @@ router.put('/:tenantId/settings', requireRole(['admin']), writeOperationsLimiter
         `, [enabled, server_type, server_host, server_port, use_ssl, username, actualPassword, check_interval_minutes, existingSettings[0].id]);
       }
 
-      res.json({ success: true, message: 'Email ingest settings updated successfully' });
+      // Fetch updated settings to return current state
+      const [updatedSettings] = await connection.query('SELECT enabled FROM email_ingest_settings ORDER BY id ASC LIMIT 1');
+      const currentEnabled = updatedSettings.length > 0 ? !!updatedSettings[0].enabled : false;
+
+      res.json({
+        success: true,
+        message: 'Email ingest settings updated successfully',
+        enabled: currentEnabled
+      });
     } finally {
       connection.release();
     }
@@ -177,7 +185,7 @@ router.post('/:tenantId/test-connection', requireRole(['admin']), writeOperation
     const connection = await getTenantConnection(tenantCode);
 
     try {
-      const [settings] = await connection.query('SELECT * FROM email_ingest_settings LIMIT 1');
+      const [settings] = await connection.query('SELECT * FROM email_ingest_settings ORDER BY id ASC LIMIT 1');
 
       if (settings.length === 0) {
         return res.json({ success: false, message: 'Email ingest settings not configured' });
