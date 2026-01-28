@@ -349,8 +349,8 @@ function applyGuardrails(classification, title, description) {
   const text = `${title || ''} ${description || ''}`;
   const result = { ...classification };
 
-  // Guardrail 1: Dangerous actions require expert_required
-  if (result.work_type === 'operational_action' && DANGEROUS_KEYWORDS_REGEX.test(text)) {
+  // Guardrail 1: Dangerous actions require expert_required (any work type)
+  if (DANGEROUS_KEYWORDS_REGEX.test(text)) {
     console.log('   ⚠️ Guardrail: Dangerous keywords detected, forcing expert_required');
     result.execution_mode = 'expert_required';
     result.reason = `${result.reason}; Guardrail: dangerous action detected`;
