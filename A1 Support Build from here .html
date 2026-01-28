@@ -7452,6 +7452,43 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     }
   }
 
+  // Work type badge helper for ticket classification
+  function workTypeBadgeHTML(workType) {
+    if (!workType) return '';
+
+    const typeConfig = {
+      request:            { label: 'REQ', color: '#3b82f6', title: 'Request' },
+      incident:           { label: 'INC', color: '#ef4444', title: 'Incident' },
+      problem:            { label: 'PRB', color: '#f59e0b', title: 'Problem' },
+      change_request:     { label: 'CHG', color: '#8b5cf6', title: 'Change Request' },
+      operational_action: { label: 'OPS', color: '#ec4899', title: 'Operational Action' },
+      question:           { label: 'Q',   color: '#0ea5e9', title: 'Question' },
+      feedback:           { label: 'FBK', color: '#22c55e', title: 'Feedback' },
+      unknown:            { label: '?',   color: '#6b7280', title: 'Unknown' }
+    };
+
+    const cfg = typeConfig[workType] || typeConfig.unknown;
+    return `<span style="background:${cfg.color};color:white;padding:1px 5px;border-radius:3px;font-size:9px;font-weight:600;margin-left:6px;cursor:help" title="${cfg.title}">${cfg.label}</span>`;
+  }
+
+  // System tags chips helper
+  function systemTagsHTML(tags, maxTags = 2) {
+    if (!tags || !Array.isArray(tags) || tags.length === 0) return '';
+
+    const visibleTags = tags.slice(0, maxTags);
+    const remainingCount = tags.length - maxTags;
+
+    let html = visibleTags.map(tag =>
+      `<span style="background:#e5e7eb;color:#374151;padding:1px 5px;border-radius:3px;font-size:9px;margin-right:3px">${escapeHtml(tag)}</span>`
+    ).join('');
+
+    if (remainingCount > 0) {
+      html += `<span style="color:#6b7280;font-size:9px" title="${tags.slice(maxTags).join(', ')}">+${remainingCount}</span>`;
+    }
+
+    return html;
+  }
+
   let slaInterval = null;
   const DEFAULT_REFRESH_INTERVAL = 60000; // 60 seconds default
   function getRefreshInterval() {
@@ -7921,6 +7958,16 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       const customer = t.company_name || t.requester_name || 'Unknown';
       const isClaimed = t.pool_status === 'CLAIMED_LOCKED' && t.claimed_by_expert_id;
 
+      // Work type badge
+      const workTypeBadge = workTypeBadgeHTML(t.work_type);
+
+      // System tags (parse if string)
+      let systemTags = t.system_tags;
+      if (typeof systemTags === 'string') {
+        try { systemTags = JSON.parse(systemTags); } catch(e) { systemTags = []; }
+      }
+      const tagsHTML = systemTagsHTML(systemTags);
+
       let actionBtn = '';
       if (isClaimed && t.claimed_by_expert_id === parseInt(localStorage.getItem('userId'))) {
         actionBtn = `<button class="btn primary" onclick="openClaimedPreview(${t.id})" style="font-size:11px;padding:4px 8px">Preview</button>`;
@@ -7933,7 +7980,10 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       tr.innerHTML = `
         <td style="font-weight:600;color:${scoreColor}">${score}</td>
         <td>#${t.id}</td>
-        <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(t.title)}</td>
+        <td style="max-width:200px">
+          <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(t.title)}${workTypeBadge}</div>
+          ${tagsHTML ? `<div style="margin-top:2px">${tagsHTML}</div>` : ''}
+        </td>
         <td style="max-width:100px;overflow:hidden;text-overflow:ellipsis">${escapeHtml(customer)}</td>
         <td>${slaText}</td>
         <td>${actionBtn}</td>

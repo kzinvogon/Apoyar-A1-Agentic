@@ -20,6 +20,9 @@ const { triggerAutoLink } = require('../scripts/auto-link-cmdb');
 // AI-powered KB article auto-generation (fire-and-forget)
 const { autoGenerateKBArticle } = require('../scripts/auto-generate-kb-article');
 
+// AI-powered work type classification (fire-and-forget)
+const { triggerClassification, updateClassification, VALID_WORK_TYPES, VALID_EXECUTION_MODES } = require('../scripts/classify-ticket');
+
 // SLA calculator service
 const {
   getDefaultSLA,
@@ -993,6 +996,9 @@ router.post('/:tenantId', writeOperationsLimiter, validateTicketCreate, async (r
 
       // Execute ticket processing rules (fire-and-forget)
       triggerTicketRulesAsync(tenantCode, ticketId);
+
+      // Trigger AI-powered work type classification (fire-and-forget)
+      triggerClassification(tenantCode, ticketId);
 
       // Enrich with SLA status
       await enrichTicketWithSLAStatus(tickets[0], connection);
@@ -2325,6 +2331,75 @@ router.post('/:tenantId/reapply-sla', writeOperationsLimiter, requireRole(['admi
     }
   } catch (error) {
     console.error('Error re-applying SLA:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// Update ticket classification (human override)
+// PATCH /api/tickets/:tenantId/:ticketId/classification
+router.patch('/:tenantId/:ticketId/classification', writeOperationsLimiter, requireRole(['expert', 'admin']), async (req, res) => {
+  try {
+    const { tenantId, ticketId } = req.params;
+    const { work_type, execution_mode, system_tags, reason } = req.body;
+    const tenantCode = tenantId.toLowerCase().replace(/[^a-z0-9]/g, '_');
+
+    // Validate work_type if provided
+    if (work_type && !VALID_WORK_TYPES.includes(work_type)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid work_type: ${work_type}. Valid values: ${VALID_WORK_TYPES.join(', ')}`
+      });
+    }
+
+    // Validate execution_mode if provided
+    if (execution_mode && !VALID_EXECUTION_MODES.includes(execution_mode)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid execution_mode: ${execution_mode}. Valid values: ${VALID_EXECUTION_MODES.join(', ')}`
+      });
+    }
+
+    // Validate system_tags if provided
+    if (system_tags !== undefined && !Array.isArray(system_tags)) {
+      return res.status(400).json({
+        success: false,
+        message: 'system_tags must be an array'
+      });
+    }
+
+    // At least one field must be provided
+    if (!work_type && !execution_mode && system_tags === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: 'At least one of work_type, execution_mode, or system_tags must be provided'
+      });
+    }
+
+    const result = await updateClassification(tenantCode, parseInt(ticketId), {
+      work_type,
+      execution_mode,
+      system_tags: system_tags ? system_tags.slice(0, 5) : undefined,
+      reason: reason || 'Manual classification override'
+    }, req.user.userId);
+
+    if (!result.success) {
+      return res.status(400).json(result);
+    }
+
+    res.json({
+      success: true,
+      message: 'Classification updated successfully',
+      classification: {
+        work_type,
+        execution_mode,
+        system_tags,
+        classified_by: 'human',
+        confidence: 1.0
+      }
+    });
+
+  } catch (error) {
+    console.error('Error updating classification:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
