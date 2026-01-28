@@ -47,6 +47,7 @@ const TASK_TAXONOMY = {
   ticket_classify: 'triage',
   cmdb_autolink: 'triage',
   pool_ranking: 'triage',  // Fast ranking for ticket pool prioritization
+  ticket_work_classify: 'triage',  // Work type + execution mode classification
 
   // Reasoning tasks - balanced
   preview_summary: 'reasoning',
@@ -514,6 +515,38 @@ Scoring guidelines:
 - 50-69: Standard priority, normal business impact
 - 30-49: Low priority, minor issue, ample SLA time
 - 0-29: Informational, no urgency`,
+
+      ticket_work_classify: `${basePrompt}
+
+Classify the IT support ticket into work type and execution mode.
+
+Work Types:
+- request: Service request for new access, setup, provisioning, or something that doesn't exist yet
+- incident: Something is broken, not working, or degraded from normal operation
+- problem: Root cause investigation for recurring incidents or patterns
+- change_request: Request to modify, update, or change existing system/configuration
+- operational_action: Scheduled maintenance, routine task, backup verification, patching
+- question: General inquiry, how-to question, seeking information
+- feedback: Complaint, compliment, suggestion, or general feedback
+- unknown: Cannot confidently classify - ambiguous or insufficient information
+
+Execution Modes:
+- automated: Can be handled entirely by automation or scripts
+- human_review: Needs human review before taking action, but straightforward
+- expert_required: Needs specialist knowledge or elevated privileges
+- escalation_required: Needs escalation to vendor, management, or security team
+- mixed: Multiple paths needed (e.g., some automated + some expert)
+
+System Tags: Add 1-3 relevant tags from: database, network, security, compliance, urgent, vip, hardware, software, access, backup, monitoring, performance, outage, maintenance, training, billing, integration
+
+Required JSON output:
+{
+  "work_type": "incident",
+  "execution_mode": "expert_required",
+  "system_tags": ["database", "urgent"],
+  "confidence": 0.85,
+  "reason": "Database connection errors indicate an incident requiring DBA expertise"
+}`,
 
       premium_customer_reply: `${basePrompt}
 

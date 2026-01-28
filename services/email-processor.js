@@ -1280,6 +1280,9 @@ class EmailProcessor {
     // Execute ticket processing rules (fire-and-forget)
     this.executeTicketRules(ticketId);
 
+    // Trigger AI-powered work type classification (fire-and-forget)
+    this.triggerClassification(ticketId);
+
     return ticketId;
   }
 
@@ -1314,6 +1317,19 @@ class EmailProcessor {
     } catch (error) {
       // Don't throw - rule execution is non-critical
       console.error(`[TicketRules] Error executing rules on ticket #${ticketId}:`, error.message);
+    }
+  }
+
+  /**
+   * Trigger AI-powered work type classification (fire-and-forget)
+   */
+  triggerClassification(ticketId) {
+    try {
+      const { triggerClassification } = require('../scripts/classify-ticket');
+      triggerClassification(this.tenantCode, ticketId);
+    } catch (error) {
+      // Don't throw - classification is non-critical
+      console.error(`[Classification] Error triggering classification for ticket #${ticketId}:`, error.message);
     }
   }
 

@@ -488,6 +488,13 @@ async function createTenantTables(connection) {
       sla_pause_total_seconds INT NOT NULL DEFAULT 0,
       pool_score DECIMAL(5,2) NULL,
       pool_score_updated_at TIMESTAMP NULL,
+      work_type VARCHAR(32) NULL,
+      execution_mode VARCHAR(16) NULL,
+      system_tags JSON NULL,
+      classification_confidence DECIMAL(4,3) NULL,
+      classification_reason TEXT NULL,
+      classified_by VARCHAR(16) NULL,
+      classified_at TIMESTAMP NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       FOREIGN KEY (requester_id) REFERENCES users(id),
@@ -496,7 +503,8 @@ async function createTenantTables(connection) {
       INDEX idx_sla_definition_id (sla_definition_id),
       INDEX idx_tickets_pool_status (pool_status),
       INDEX idx_tickets_owned_by (owned_by_expert_id),
-      INDEX idx_tickets_claimed_by (claimed_by_expert_id)
+      INDEX idx_tickets_claimed_by (claimed_by_expert_id),
+      INDEX idx_tickets_work_type (work_type)
     )
   `);
 
