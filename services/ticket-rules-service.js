@@ -71,201 +71,222 @@ class TicketRulesService {
   // Get all rules for tenant
   async getAllRules() {
     const connection = await getTenantConnection(this.tenantCode);
+    try {
+      const [rules] = await connection.query(
+        `SELECT r.*, u.username as created_by_username
+         FROM ticket_processing_rules r
+         LEFT JOIN users u ON r.created_by = u.id
+         WHERE r.tenant_code = ?
+         ORDER BY r.enabled DESC, r.created_at DESC`,
+        [this.tenantCode]
+      );
 
-    const [rules] = await connection.query(
-      `SELECT r.*, u.username as created_by_username
-       FROM ticket_processing_rules r
-       LEFT JOIN users u ON r.created_by = u.id
-       WHERE r.tenant_code = ?
-       ORDER BY r.enabled DESC, r.created_at DESC`,
-      [this.tenantCode]
-    );
-
-    return rules.map(rule => ({
-      ...rule,
-      action_params: typeof rule.action_params === 'string'
-        ? JSON.parse(rule.action_params)
-        : rule.action_params
-    }));
+      return rules.map(rule => ({
+        ...rule,
+        action_params: typeof rule.action_params === 'string'
+          ? JSON.parse(rule.action_params)
+          : rule.action_params
+      }));
+    } finally {
+      connection.release();
+    }
   }
 
   // Get single rule by ID
   async getRuleById(ruleId) {
     const connection = await getTenantConnection(this.tenantCode);
+    try {
+      const [rules] = await connection.query(
+        `SELECT * FROM ticket_processing_rules
+         WHERE id = ? AND tenant_code = ?`,
+        [ruleId, this.tenantCode]
+      );
 
-    const [rules] = await connection.query(
-      `SELECT * FROM ticket_processing_rules
-       WHERE id = ? AND tenant_code = ?`,
-      [ruleId, this.tenantCode]
-    );
+      if (rules.length === 0) {
+        throw new Error('Rule not found');
+      }
 
-    if (rules.length === 0) {
-      throw new Error('Rule not found');
+      const rule = rules[0];
+      return {
+        ...rule,
+        action_params: typeof rule.action_params === 'string'
+          ? JSON.parse(rule.action_params)
+          : rule.action_params
+      };
+    } finally {
+      connection.release();
     }
-
-    const rule = rules[0];
-    return {
-      ...rule,
-      action_params: typeof rule.action_params === 'string'
-        ? JSON.parse(rule.action_params)
-        : rule.action_params
-    };
   }
 
   // Create new rule
   async createRule(ruleData, userId) {
     const connection = await getTenantConnection(this.tenantCode);
-
-    const {
-      rule_name,
-      description,
-      enabled = true,
-      search_in = 'both',
-      search_text,
-      case_sensitive = false,
-      action_type,
-      action_params = {}
-    } = ruleData;
-
-    const [result] = await connection.query(
-      `INSERT INTO ticket_processing_rules
-       (tenant_code, rule_name, description, enabled, search_in, search_text,
-        case_sensitive, action_type, action_params, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        this.tenantCode,
+    try {
+      const {
         rule_name,
-        description || null,
-        enabled,
-        search_in,
+        description,
+        enabled = true,
+        search_in = 'both',
         search_text,
-        case_sensitive,
+        case_sensitive = false,
         action_type,
-        JSON.stringify(action_params),
-        userId
-      ]
-    );
+        action_params = {}
+      } = ruleData;
 
-    return await this.getRuleById(result.insertId);
+      const [result] = await connection.query(
+        `INSERT INTO ticket_processing_rules
+         (tenant_code, rule_name, description, enabled, search_in, search_text,
+          case_sensitive, action_type, action_params, created_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          this.tenantCode,
+          rule_name,
+          description || null,
+          enabled,
+          search_in,
+          search_text,
+          case_sensitive,
+          action_type,
+          JSON.stringify(action_params),
+          userId
+        ]
+      );
+
+      return await this.getRuleById(result.insertId);
+    } finally {
+      connection.release();
+    }
   }
 
   // Update existing rule
   async updateRule(ruleId, ruleData) {
     const connection = await getTenantConnection(this.tenantCode);
+    try {
+      // Verify rule exists and belongs to tenant
+      await this.getRuleById(ruleId);
 
-    // Verify rule exists and belongs to tenant
-    await this.getRuleById(ruleId);
+      const updates = [];
+      const values = [];
 
-    const updates = [];
-    const values = [];
+      const updatableFields = [
+        'rule_name', 'description', 'enabled', 'search_in',
+        'search_text', 'case_sensitive', 'action_type', 'action_params'
+      ];
 
-    const updatableFields = [
-      'rule_name', 'description', 'enabled', 'search_in',
-      'search_text', 'case_sensitive', 'action_type', 'action_params'
-    ];
-
-    updatableFields.forEach(field => {
-      if (ruleData.hasOwnProperty(field)) {
-        updates.push(`${field} = ?`);
-        if (field === 'action_params') {
-          values.push(JSON.stringify(ruleData[field]));
-        } else {
-          values.push(ruleData[field]);
+      updatableFields.forEach(field => {
+        if (ruleData.hasOwnProperty(field)) {
+          updates.push(`${field} = ?`);
+          if (field === 'action_params') {
+            values.push(JSON.stringify(ruleData[field]));
+          } else {
+            values.push(ruleData[field]);
+          }
         }
+      });
+
+      if (updates.length === 0) {
+        return await this.getRuleById(ruleId);
       }
-    });
 
-    if (updates.length === 0) {
+      values.push(ruleId, this.tenantCode);
+
+      await connection.query(
+        `UPDATE ticket_processing_rules
+         SET ${updates.join(', ')}
+         WHERE id = ? AND tenant_code = ?`,
+        values
+      );
+
       return await this.getRuleById(ruleId);
+    } finally {
+      connection.release();
     }
-
-    values.push(ruleId, this.tenantCode);
-
-    await connection.query(
-      `UPDATE ticket_processing_rules
-       SET ${updates.join(', ')}
-       WHERE id = ? AND tenant_code = ?`,
-      values
-    );
-
-    return await this.getRuleById(ruleId);
   }
 
   // Delete rule
   async deleteRule(ruleId) {
     const connection = await getTenantConnection(this.tenantCode);
+    try {
+      // Verify rule exists and belongs to tenant
+      await this.getRuleById(ruleId);
 
-    // Verify rule exists and belongs to tenant
-    await this.getRuleById(ruleId);
+      await connection.query(
+        `DELETE FROM ticket_processing_rules
+         WHERE id = ? AND tenant_code = ?`,
+        [ruleId, this.tenantCode]
+      );
 
-    await connection.query(
-      `DELETE FROM ticket_processing_rules
-       WHERE id = ? AND tenant_code = ?`,
-      [ruleId, this.tenantCode]
-    );
-
-    return { success: true };
+      return { success: true };
+    } finally {
+      connection.release();
+    }
   }
 
   // Test rule against tickets (without executing)
   async testRule(ruleId) {
     const connection = await getTenantConnection(this.tenantCode);
+    try {
+      const rule = await this.getRuleById(ruleId);
 
-    const rule = await this.getRuleById(ruleId);
+      // Find matching tickets
+      const matchingTickets = await this.findMatchingTickets(rule);
 
-    // Find matching tickets
-    const matchingTickets = await this.findMatchingTickets(rule);
-
-    return {
-      rule: rule,
-      matching_tickets: matchingTickets,
-      would_affect: matchingTickets.length
-    };
+      return {
+        rule: rule,
+        matching_tickets: matchingTickets,
+        would_affect: matchingTickets.length
+      };
+    } finally {
+      connection.release();
+    }
   }
 
   // Find tickets that match a rule's search criteria
   async findMatchingTickets(rule) {
     const connection = await getTenantConnection(this.tenantCode);
+    try {
+      let searchCondition;
+      const searchPattern = rule.case_sensitive
+        ? rule.search_text
+        : rule.search_text.toLowerCase();
 
-    let searchCondition;
-    const searchPattern = rule.case_sensitive
-      ? rule.search_text
-      : rule.search_text.toLowerCase();
+      switch (rule.search_in) {
+        case 'title':
+          searchCondition = rule.case_sensitive
+            ? 'title LIKE ?'
+            : 'LOWER(title) LIKE ?';
+          break;
+        case 'body':
+          searchCondition = rule.case_sensitive
+            ? 'description LIKE ?'
+            : 'LOWER(description) LIKE ?';
+          break;
+        case 'both':
+        default:
+          searchCondition = rule.case_sensitive
+            ? '(title LIKE ? OR description LIKE ?)'
+            : '(LOWER(title) LIKE ? OR LOWER(description) LIKE ?)';
+          break;
+      }
 
-    switch (rule.search_in) {
-      case 'title':
-        searchCondition = rule.case_sensitive
-          ? 'title LIKE ?'
-          : 'LOWER(title) LIKE ?';
-        break;
-      case 'body':
-        searchCondition = rule.case_sensitive
-          ? 'description LIKE ?'
-          : 'LOWER(description) LIKE ?';
-        break;
-      case 'both':
-      default:
-        searchCondition = rule.case_sensitive
-          ? '(title LIKE ? OR description LIKE ?)'
-          : '(LOWER(title) LIKE ? OR LOWER(description) LIKE ?)';
-        break;
+      const searchValue = `%${searchPattern}%`;
+      const queryParams = rule.search_in === 'both'
+        ? [searchValue, searchValue]
+        : [searchValue];
+
+      const [tickets] = await connection.query(
+        `SELECT id, title, description, status, priority, created_at
+         FROM tickets
+         WHERE ${searchCondition}
+         ORDER BY created_at DESC
+         LIMIT 100`,
+        queryParams
+      );
+
+      return tickets;
+    } finally {
+      connection.release();
     }
-
-    const searchValue = `%${searchPattern}%`;
-    const queryParams = rule.search_in === 'both'
-      ? [searchValue, searchValue]
-      : [searchValue];
-
-    const [tickets] = await connection.query(
-      `SELECT id, title, description, status, priority, created_at
-       FROM tickets
-       WHERE ${searchCondition}
-       ORDER BY created_at DESC
-       LIMIT 100`,
-      queryParams
-    );
-
-    return tickets;
   }
 
   // Execute a rule on a specific ticket
@@ -312,7 +333,15 @@ class TicketRulesService {
           break;
 
         case 'add_to_monitoring':
-          actionResult = await this.addToMonitoringSources(ticketId);
+          actionResult = await this.addToMonitoringSources(ticketId, rule.action_params);
+          break;
+
+        case 'set_sla_deadlines':
+          actionResult = await this.setSlaDeadlines(ticketId, rule.action_params);
+          break;
+
+        case 'set_sla_definition':
+          actionResult = await this.setSlaDefinition(ticketId, rule.action_params);
           break;
 
         default:
@@ -398,213 +427,339 @@ class TicketRulesService {
   // Action implementations
   async deleteTicket(ticketId) {
     const connection = await getTenantConnection(this.tenantCode);
+    try {
+      await connection.query(
+        `DELETE FROM tickets WHERE id = ?`,
+        [ticketId]
+      );
 
-    await connection.query(
-      `DELETE FROM tickets WHERE id = ?`,
-      [ticketId]
-    );
-
-    return { message: `Ticket #${ticketId} deleted` };
+      return { message: `Ticket #${ticketId} deleted` };
+    } finally {
+      connection.release();
+    }
   }
 
   async assignTicket(ticketId, params) {
     const connection = await getTenantConnection(this.tenantCode);
+    try {
+      await connection.query(
+        `UPDATE tickets
+         SET assignee_id = ?,
+             status = CASE WHEN status = 'Open' THEN 'In Progress' ELSE status END,
+             updated_at = NOW()
+         WHERE id = ?`,
+        [params.expert_id, ticketId]
+      );
 
-    await connection.query(
-      `UPDATE tickets
-       SET assignee_id = ?,
-           status = CASE WHEN status = 'Open' THEN 'In Progress' ELSE status END,
-           updated_at = NOW()
-       WHERE id = ?`,
-      [params.expert_id, ticketId]
-    );
-
-    return {
-      message: `Ticket #${ticketId} assigned to ${params.expert_name || 'expert'}`,
-      expert_id: params.expert_id
-    };
+      return {
+        message: `Ticket #${ticketId} assigned to ${params.expert_name || 'expert'}`,
+        expert_id: params.expert_id
+      };
+    } finally {
+      connection.release();
+    }
   }
 
   async createTicketForCustomer(sourceTicketId, params) {
     const connection = await getTenantConnection(this.tenantCode);
+    try {
+      // Get source ticket details
+      const [sourceTickets] = await connection.query(
+        `SELECT * FROM tickets WHERE id = ?`,
+        [sourceTicketId]
+      );
 
-    // Get source ticket details
-    const [sourceTickets] = await connection.query(
-      `SELECT * FROM tickets WHERE id = ?`,
-      [sourceTicketId]
-    );
+      if (sourceTickets.length === 0) {
+        throw new Error('Source ticket not found');
+      }
 
-    if (sourceTickets.length === 0) {
-      throw new Error('Source ticket not found');
+      const sourceTicket = sourceTickets[0];
+
+      // Create new ticket for target customer
+      const [result] = await connection.query(
+        `INSERT INTO tickets
+         (title, description, priority, status, requester_id, created_at)
+         VALUES (?, ?, ?, 'Open', ?, NOW())`,
+        [
+          `[Forwarded] ${sourceTicket.title}`,
+          `Forwarded from ticket #${sourceTicketId}:\n\n${sourceTicket.description}`,
+          sourceTicket.priority,
+          params.customer_id
+        ]
+      );
+
+      return {
+        message: `New ticket #${result.insertId} created for customer`,
+        new_ticket_id: result.insertId,
+        customer_id: params.customer_id
+      };
+    } finally {
+      connection.release();
     }
-
-    const sourceTicket = sourceTickets[0];
-
-    // Create new ticket for target customer
-    const [result] = await connection.query(
-      `INSERT INTO tickets
-       (title, description, priority, status, requester_id, created_at)
-       VALUES (?, ?, ?, 'Open', ?, NOW())`,
-      [
-        `[Forwarded] ${sourceTicket.title}`,
-        `Forwarded from ticket #${sourceTicketId}:\n\n${sourceTicket.description}`,
-        sourceTicket.priority,
-        params.customer_id
-      ]
-    );
-
-    return {
-      message: `New ticket #${result.insertId} created for customer`,
-      new_ticket_id: result.insertId,
-      customer_id: params.customer_id
-    };
   }
 
   async setPriority(ticketId, params) {
     const connection = await getTenantConnection(this.tenantCode);
+    try {
+      await connection.query(
+        `UPDATE tickets
+         SET priority = ?, updated_at = NOW()
+         WHERE id = ?`,
+        [params.priority, ticketId]
+      );
 
-    await connection.query(
-      `UPDATE tickets
-       SET priority = ?, updated_at = NOW()
-       WHERE id = ?`,
-      [params.priority, ticketId]
-    );
-
-    return {
-      message: `Ticket #${ticketId} priority set to ${params.priority}`,
-      priority: params.priority
-    };
+      return {
+        message: `Ticket #${ticketId} priority set to ${params.priority}`,
+        priority: params.priority
+      };
+    } finally {
+      connection.release();
+    }
   }
 
   async setStatus(ticketId, params) {
     const connection = await getTenantConnection(this.tenantCode);
+    try {
+      await connection.query(
+        `UPDATE tickets
+         SET status = ?, updated_at = NOW()
+         WHERE id = ?`,
+        [params.status, ticketId]
+      );
 
-    await connection.query(
-      `UPDATE tickets
-       SET status = ?, updated_at = NOW()
-       WHERE id = ?`,
-      [params.status, ticketId]
-    );
-
-    return {
-      message: `Ticket #${ticketId} status set to ${params.status}`,
-      status: params.status
-    };
+      return {
+        message: `Ticket #${ticketId} status set to ${params.status}`,
+        status: params.status
+      };
+    } finally {
+      connection.release();
+    }
   }
 
   async addTag(ticketId, params) {
     const connection = await getTenantConnection(this.tenantCode);
+    try {
+      // Get current tags
+      const [tickets] = await connection.query(
+        `SELECT tags FROM tickets WHERE id = ?`,
+        [ticketId]
+      );
 
-    // Get current tags
-    const [tickets] = await connection.query(
-      `SELECT tags FROM tickets WHERE id = ?`,
-      [ticketId]
-    );
+      if (tickets.length === 0) {
+        throw new Error('Ticket not found');
+      }
 
-    if (tickets.length === 0) {
-      throw new Error('Ticket not found');
+      const currentTags = tickets[0].tags ? tickets[0].tags.split(',') : [];
+      const newTag = params.tag;
+
+      if (!currentTags.includes(newTag)) {
+        currentTags.push(newTag);
+      }
+
+      await connection.query(
+        `UPDATE tickets
+         SET tags = ?, updated_at = NOW()
+         WHERE id = ?`,
+        [currentTags.join(','), ticketId]
+      );
+
+      return {
+        message: `Tag "${newTag}" added to ticket #${ticketId}`,
+        tag: newTag
+      };
+    } finally {
+      connection.release();
     }
-
-    const currentTags = tickets[0].tags ? tickets[0].tags.split(',') : [];
-    const newTag = params.tag;
-
-    if (!currentTags.includes(newTag)) {
-      currentTags.push(newTag);
-    }
-
-    await connection.query(
-      `UPDATE tickets
-       SET tags = ?, updated_at = NOW()
-       WHERE id = ?`,
-      [currentTags.join(','), ticketId]
-    );
-
-    return {
-      message: `Tag "${newTag}" added to ticket #${ticketId}`,
-      tag: newTag
-    };
   }
 
-  // Add ticket to system monitoring sources
-  async addToMonitoringSources(ticketId) {
+  // Add ticket to system monitoring sources (with optional normalised flag)
+  async addToMonitoringSources(ticketId, params = {}) {
     const connection = await getTenantConnection(this.tenantCode);
+    try {
+      // Get current ticket to check existing metadata
+      const [tickets] = await connection.query(
+        `SELECT source_metadata FROM tickets WHERE id = ?`,
+        [ticketId]
+      );
 
-    // Get current ticket to check existing metadata
-    const [tickets] = await connection.query(
-      `SELECT source_metadata FROM tickets WHERE id = ?`,
-      [ticketId]
-    );
+      if (tickets.length === 0) {
+        throw new Error('Ticket not found');
+      }
 
-    if (tickets.length === 0) {
-      throw new Error('Ticket not found');
+      // Parse existing metadata if present
+      let existingMetadata = {};
+      if (tickets[0].source_metadata) {
+        try {
+          existingMetadata = typeof tickets[0].source_metadata === 'string'
+            ? JSON.parse(tickets[0].source_metadata)
+            : tickets[0].source_metadata;
+        } catch (e) {
+          existingMetadata = {};
+        }
+      }
+
+      // Build the monitoring source metadata, merging with existing
+      const sourceMetadata = {
+        ...existingMetadata,
+        monitoring: true,
+        type: params.type || existingMetadata.type || 'monitoring',
+        reason: 'ticket_rule_action',
+        classified_as: params.classified_as || existingMetadata.classified_as || 'alert',
+        added_via: 'ticket_processing_rule',
+        added_at: new Date().toISOString()
+      };
+
+      // Add normalised flag if specified in params
+      if (params.normalised !== undefined) {
+        sourceMetadata.normalised = Boolean(params.normalised);
+      }
+
+      await connection.query(
+        `UPDATE tickets
+         SET source_metadata = ?, updated_at = NOW()
+         WHERE id = ?`,
+        [JSON.stringify(sourceMetadata), ticketId]
+      );
+
+      return {
+        message: `Ticket #${ticketId} added to system monitoring sources`,
+        source_metadata: sourceMetadata
+      };
+    } finally {
+      connection.release();
     }
+  }
 
-    // Build the monitoring source metadata
-    const sourceMetadata = {
-      type: 'monitoring',
-      reason: 'ticket_rule_action',
-      classified_as: 'alert',
-      added_via: 'ticket_processing_rule',
-      added_at: new Date().toISOString()
-    };
+  // Set SLA deadlines directly (Option B - no recalculation)
+  async setSlaDeadlines(ticketId, params) {
+    const connection = await getTenantConnection(this.tenantCode);
+    try {
+      // Validate params - at least one deadline must be provided
+      if (!params.response_due_at && !params.resolve_due_at) {
+        throw new Error('At least one of response_due_at or resolve_due_at must be provided');
+      }
 
-    await connection.query(
-      `UPDATE tickets
-       SET source_metadata = ?, updated_at = NOW()
-       WHERE id = ?`,
-      [JSON.stringify(sourceMetadata), ticketId]
-    );
+      // Helper to convert ISO 8601 to MySQL datetime format
+      const toMySQLDateTime = (isoString) => {
+        if (!isoString) return null;
+        const date = new Date(isoString);
+        return date.toISOString().slice(0, 19).replace('T', ' ');
+      };
 
-    return {
-      message: `Ticket #${ticketId} added to system monitoring sources`,
-      source_metadata: sourceMetadata
-    };
+      const updates = [];
+      const values = [];
+
+      if (params.response_due_at) {
+        updates.push('response_due_at = ?');
+        values.push(toMySQLDateTime(params.response_due_at));
+      }
+
+      if (params.resolve_due_at) {
+        updates.push('resolve_due_at = ?');
+        values.push(toMySQLDateTime(params.resolve_due_at));
+      }
+
+      updates.push('updated_at = NOW()');
+      values.push(ticketId);
+
+      await connection.query(
+        `UPDATE tickets SET ${updates.join(', ')} WHERE id = ?`,
+        values
+      );
+
+      return {
+        message: `Ticket #${ticketId} SLA deadlines updated`,
+        response_due_at: params.response_due_at || null,
+        resolve_due_at: params.resolve_due_at || null
+      };
+    } finally {
+      connection.release();
+    }
+  }
+
+  // Set SLA definition metadata (Option A - intent only, no recalculation)
+  async setSlaDefinition(ticketId, params) {
+    const connection = await getTenantConnection(this.tenantCode);
+    try {
+      // Validate params - sla_definition_id is required
+      if (!params.sla_definition_id) {
+        throw new Error('sla_definition_id is required');
+      }
+
+      // sla_source is optional, defaults to 'rule'
+      const slaSource = params.sla_source || 'rule';
+
+      await connection.query(
+        `UPDATE tickets
+         SET sla_definition_id = ?,
+             sla_applied_at = NOW(),
+             sla_source = ?,
+             updated_at = NOW()
+         WHERE id = ?`,
+        [params.sla_definition_id, slaSource, ticketId]
+      );
+
+      return {
+        message: `Ticket #${ticketId} SLA definition set`,
+        sla_definition_id: params.sla_definition_id,
+        sla_source: slaSource,
+        sla_applied_at: new Date().toISOString()
+      };
+    } finally {
+      connection.release();
+    }
   }
 
   // Get execution history for a rule
   async getRuleExecutionHistory(ruleId, limit = 50) {
     const connection = await getTenantConnection(this.tenantCode);
+    try {
+      const [executions] = await connection.query(
+        `SELECT e.*, t.title as ticket_title
+         FROM ticket_rule_executions e
+         LEFT JOIN tickets t ON e.ticket_id = t.id
+         WHERE e.rule_id = ?
+         ORDER BY e.executed_at DESC
+         LIMIT ?`,
+        [ruleId, limit]
+      );
 
-    const [executions] = await connection.query(
-      `SELECT e.*, t.title as ticket_title
-       FROM ticket_rule_executions e
-       LEFT JOIN tickets t ON e.ticket_id = t.id
-       WHERE e.rule_id = ?
-       ORDER BY e.executed_at DESC
-       LIMIT ?`,
-      [ruleId, limit]
-    );
-
-    return executions;
+      return executions;
+    } finally {
+      connection.release();
+    }
   }
 
   // Get statistics for all rules
   async getRuleStatistics() {
     const connection = await getTenantConnection(this.tenantCode);
+    try {
+      const [stats] = await connection.query(
+        `SELECT
+           COUNT(*) as total_rules,
+           SUM(CASE WHEN enabled = TRUE THEN 1 ELSE 0 END) as enabled_rules,
+           SUM(times_triggered) as total_executions,
+           MAX(last_triggered_at) as last_execution
+         FROM ticket_processing_rules
+         WHERE tenant_code = ?`,
+        [this.tenantCode]
+      );
 
-    const [stats] = await connection.query(
-      `SELECT
-         COUNT(*) as total_rules,
-         SUM(CASE WHEN enabled = TRUE THEN 1 ELSE 0 END) as enabled_rules,
-         SUM(times_triggered) as total_executions,
-         MAX(last_triggered_at) as last_execution
-       FROM ticket_processing_rules
-       WHERE tenant_code = ?`,
-      [this.tenantCode]
-    );
+      const [recentExecutions] = await connection.query(
+        `SELECT COUNT(*) as count
+         FROM ticket_rule_executions e
+         JOIN ticket_processing_rules r ON e.rule_id = r.id
+         WHERE r.tenant_code = ? AND e.executed_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)`,
+        [this.tenantCode]
+      );
 
-    const [recentExecutions] = await connection.query(
-      `SELECT COUNT(*) as count
-       FROM ticket_rule_executions e
-       JOIN ticket_processing_rules r ON e.rule_id = r.id
-       WHERE r.tenant_code = ? AND e.executed_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)`,
-      [this.tenantCode]
-    );
-
-    return {
-      ...stats[0],
-      executions_last_24h: recentExecutions[0].count
-    };
+      return {
+        ...stats[0],
+        executions_last_24h: recentExecutions[0].count
+      };
+    } finally {
+      connection.release();
+    }
   }
 
   // Run rule on all matching tickets in background
