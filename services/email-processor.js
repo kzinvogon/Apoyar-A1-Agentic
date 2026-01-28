@@ -16,6 +16,143 @@ const { simpleParser } = require('mailparser');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 
+// ============================================================================
+// MONITORING ALERT PARSING (Step 3.1)
+// ============================================================================
+
+/**
+ * Normalise a correlation key from host and service
+ * - Trims whitespace
+ * - Collapses multiple spaces to single space
+ * - Strips surrounding quotes (single or double)
+ * - Lowercases the result
+ *
+ * @param {string} host - Host name from alert
+ * @param {string} service - Service name from alert
+ * @returns {string} Normalised correlation key in format "host:service"
+ */
+function normaliseCorrelationKey(host, service) {
+  const normalise = (str) => {
+    if (!str) return 'unknown';
+    return str
+      .trim()                          // Remove leading/trailing whitespace
+      .replace(/^["']|["']$/g, '')     // Strip surrounding quotes
+      .trim()                          // Trim again (quotes may have contained spaces)
+      .replace(/\s+/g, ' ')            // Collapse multiple spaces to single
+      .toLowerCase();                   // Lowercase
+  };
+
+  const normHost = normalise(host);
+  const normService = normalise(service);
+
+  return `${normHost}:${normService}`;
+}
+
+/**
+ * Parse monitoring alert fields from email subject and body
+ * Supports Nagios, Zabbix, and similar monitoring systems
+ *
+ * @param {Object} email - Email object with subject and body (text)
+ * @returns {Object} Parsed alert with host, service, alert_type, state, correlation_key
+ */
+function parseMonitoringAlert(email) {
+  const subject = email.subject || '';
+  const body = email.body || email.text || '';
+  const combined = `${subject}\n${body}`;
+
+  // Default values
+  let host = null;
+  let service = null;
+  let alertType = 'UNKNOWN';
+  let state = 'UNKNOWN';
+
+  // Pattern matchers for various formats
+  // Nagios: "Host: FreeNAS" or "Host=FreeNAS"
+  // Zabbix: "Host: server01" or in JSON
+  const hostPatterns = [
+    /Host:\s*([^\r\n]+)/i,
+    /Host=\s*([^\r\n]+)/i,
+    /Hostname:\s*([^\r\n]+)/i,
+    /hostname=\s*([^\r\n]+)/i
+  ];
+
+  const servicePatterns = [
+    /Service:\s*([^\r\n]+)/i,
+    /Service=\s*([^\r\n]+)/i,
+    /Service Name:\s*([^\r\n]+)/i,
+    /Check:\s*([^\r\n]+)/i
+  ];
+
+  // Alert type patterns (Nagios notification types)
+  const alertTypePatterns = [
+    /Notification Type:\s*(PROBLEM|RECOVERY|ACKNOWLEDGEMENT|FLAPPINGSTART|FLAPPINGSTOP|FLAPPINGDISABLED|DOWNTIMESTART|DOWNTIMEEND|DOWNTIMECANCELLED)/i,
+    /\*\*\s*(PROBLEM|RECOVERY)\s+Service Alert/i,
+    /\*\*\s*(PROBLEM|RECOVERY)\s+Host Alert/i,
+    /\[(FIRING|RESOLVED)\]/i,  // Prometheus/Alertmanager
+    /Status:\s*(PROBLEM|OK|RECOVERY)/i
+  ];
+
+  // State patterns (CRITICAL, WARNING, OK, etc.)
+  const statePatterns = [
+    /State:\s*(CRITICAL|WARNING|OK|UNKNOWN|UP|DOWN|UNREACHABLE)/i,
+    /Status:\s*(CRITICAL|WARNING|OK|UNKNOWN|UP|DOWN)/i,
+    /is\s+(CRITICAL|WARNING|OK|DOWN|UP)/i
+  ];
+
+  // Extract host
+  for (const pattern of hostPatterns) {
+    const match = combined.match(pattern);
+    if (match && match[1]) {
+      host = match[1].trim();
+      break;
+    }
+  }
+
+  // Extract service
+  for (const pattern of servicePatterns) {
+    const match = combined.match(pattern);
+    if (match && match[1]) {
+      service = match[1].trim();
+      break;
+    }
+  }
+
+  // Extract alert type
+  for (const pattern of alertTypePatterns) {
+    const match = combined.match(pattern);
+    if (match && match[1]) {
+      const type = match[1].toUpperCase();
+      // Normalise Prometheus format
+      if (type === 'FIRING') alertType = 'PROBLEM';
+      else if (type === 'RESOLVED') alertType = 'RECOVERY';
+      else alertType = type;
+      break;
+    }
+  }
+
+  // Extract state
+  for (const pattern of statePatterns) {
+    const match = combined.match(pattern);
+    if (match && match[1]) {
+      state = match[1].toUpperCase();
+      break;
+    }
+  }
+
+  // Generate correlation key
+  const correlationKey = normaliseCorrelationKey(host, service);
+
+  return {
+    host: host || 'unknown',
+    service: service || 'unknown',
+    alert_type: alertType,
+    state: state,
+    correlation_key: correlationKey
+  };
+}
+
+// ============================================================================
+
 /**
  * Email Processor Service
  * Handles fetching emails from inbox and creating tickets
@@ -42,24 +179,33 @@ class EmailProcessor {
 
   /**
    * Check if email processing is enabled (kill switch)
+   * Reads from email_ingest_settings.enabled column
+   * Returns { enabled: boolean, reason: string }
    */
   async isEmailProcessingEnabled() {
     try {
       const connection = await this.getConnection();
       try {
         const [settings] = await connection.query(
-          'SELECT setting_value FROM tenant_settings WHERE setting_key = ?',
-          ['process_emails']
+          'SELECT enabled FROM email_ingest_settings ORDER BY id ASC LIMIT 1'
         );
-        // Default to enabled if setting not found
-        if (settings.length === 0) return true;
-        return settings[0].setting_value !== 'false';
+        // No settings row = not configured = disabled
+        if (settings.length === 0) {
+          return { enabled: false, reason: 'no_config' };
+        }
+        // Check enabled column (0 = disabled, 1 = enabled)
+        const isEnabled = !!settings[0].enabled;
+        return {
+          enabled: isEnabled,
+          reason: isEnabled ? 'enabled' : 'kill_switch_off'
+        };
       } finally {
         connection.release();
       }
     } catch (error) {
       console.error('Error checking email processing setting:', error);
-      return true; // Default to enabled if check fails
+      // Default to disabled on error (fail safe)
+      return { enabled: false, reason: 'error' };
     }
   }
 
@@ -72,10 +218,10 @@ class EmailProcessor {
       return;
     }
 
-    // Check if email processing is enabled (kill switch)
-    const processingEnabled = await this.isEmailProcessingEnabled();
-    if (!processingEnabled) {
-      console.log(`🔴 KILL SWITCH: Email processing is disabled for tenant: ${this.tenantCode}`);
+    // KILL SWITCH CHECK - at the very start before any IMAP connection
+    const killSwitchStatus = await this.isEmailProcessingEnabled();
+    if (!killSwitchStatus.enabled) {
+      console.log(`🔴 KILL SWITCH OFF: Skipping mailbox poll for tenant ${this.tenantCode} (reason: ${killSwitchStatus.reason})`);
       return;
     }
 
@@ -85,13 +231,13 @@ class EmailProcessor {
       const connection = await this.getConnection();
 
       try {
-        // Get email ingest settings
+        // Get email ingest settings (already confirmed enabled by kill switch check)
         const [settings] = await connection.query(
-          'SELECT * FROM email_ingest_settings WHERE enabled = TRUE LIMIT 1'
+          'SELECT * FROM email_ingest_settings ORDER BY id ASC LIMIT 1'
         );
 
         if (settings.length === 0) {
-          console.log(`Email ingest not enabled for tenant: ${this.tenantCode}`);
+          console.log(`Email ingest not configured for tenant: ${this.tenantCode}`);
           return;
         }
 
@@ -1232,5 +1378,8 @@ async function startEmailProcessing(tenantCode) {
 
 module.exports = {
   EmailProcessor,
-  startEmailProcessing
+  startEmailProcessing,
+  // Step 3.1: Monitoring alert parsing utilities
+  parseMonitoringAlert,
+  normaliseCorrelationKey
 };

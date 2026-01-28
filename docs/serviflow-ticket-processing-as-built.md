@@ -469,6 +469,289 @@ grep -E "\[TicketRules\] (Executed|Error executing)" logs.json | head -20
 
 ---
 
+## 9) System Control Kill Switch Wiring
+
+This section documents the complete end-to-end wiring for each kill switch: Admin UI → API endpoint → backend handler → database write → worker read.
+
+### 9.1 `process_emails` Kill Switch (Email Processing)
+
+**Purpose:** Disable inbound email-to-ticket processing at the tenant level.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ ADMIN UI                                                                     │
+│ File: A1 Support Build from here .html                                       │
+│ Location: System Control panel (line 5414)                                   │
+│ Element: <input type="checkbox" id="sc-process-emails"                       │
+│          onchange="toggleSystemSetting('process_emails', this.checked)">     │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ API ENDPOINT                                                                 │
+│ Route: POST /api/tickets/settings/:tenantId                                  │
+│ File: routes/tickets.js:426-452                                              │
+│ Auth: verifyToken (any authenticated user)                                   │
+│                                                                              │
+│ Request Payload:                                                             │
+│   { "key": "process_emails", "value": "false" }                              │
+│   or                                                                         │
+│   { "key": "process_emails", "value": "true" }                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ BACKEND HANDLER                                                              │
+│ File: routes/tickets.js:438-443                                              │
+│                                                                              │
+│   await connection.query(                                                    │
+│     `INSERT INTO tenant_settings (setting_key, setting_value) VALUES (?, ?)  │
+│      ON DUPLICATE KEY UPDATE setting_value = ?`,                             │
+│     [key, value, value]                                                      │
+│   );                                                                         │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ DATABASE WRITE                                                               │
+│ Table: a1_tenant_{code}.tenant_settings                                      │
+│ Row: setting_key = 'process_emails', setting_value = 'false' or 'true'       │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ EMAIL-WORKER READ                                                            │
+│ File: services/email-processor.js:183-200                                    │
+│ Method: isEmailProcessingEnabled()                                           │
+│                                                                              │
+│   const [settings] = await connection.query(                                 │
+│     'SELECT setting_value FROM tenant_settings WHERE setting_key = ?',       │
+│     ['process_emails']                                                       │
+│   );                                                                         │
+│   if (settings.length === 0) return true;  // Default: enabled               │
+│   return settings[0].setting_value !== 'false';                              │
+│                                                                              │
+│ Called from: processEmails() at line 213-217                                 │
+│   if (!processingEnabled) {                                                  │
+│     console.log(`🔴 KILL SWITCH: Email processing is disabled...`);          │
+│     return;                                                                  │
+│   }                                                                          │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### 9.2 `process_sla` Kill Switch (SLA Breach Checking)
+
+**Purpose:** Disable SLA breach checking and notifications at the tenant level.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ ADMIN UI                                                                     │
+│ File: A1 Support Build from here .html                                       │
+│ Location: System Control panel (line 5428)                                   │
+│ Element: <input type="checkbox" id="sc-process-sla"                          │
+│          onchange="toggleSystemSetting('process_sla', this.checked)">        │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ API ENDPOINT                                                                 │
+│ Route: POST /api/tickets/settings/:tenantId                                  │
+│ File: routes/tickets.js:426-452                                              │
+│ Auth: verifyToken (any authenticated user)                                   │
+│                                                                              │
+│ Request Payload:                                                             │
+│   { "key": "process_sla", "value": "false" }                                 │
+│   or                                                                         │
+│   { "key": "process_sla", "value": "true" }                                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ BACKEND HANDLER                                                              │
+│ File: routes/tickets.js:438-443                                              │
+│ (Same handler as process_emails - generic tenant_settings upsert)            │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ DATABASE WRITE                                                               │
+│ Table: a1_tenant_{code}.tenant_settings                                      │
+│ Row: setting_key = 'process_sla', setting_value = 'false' or 'true'          │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ SLA-WORKER READ                                                              │
+│ File: sla-worker.js:152-167                                                  │
+│ Method: isSlaProcessingEnabled()                                             │
+│                                                                              │
+│   const [settings] = await connection.query(                                 │
+│     'SELECT setting_value FROM tenant_settings WHERE setting_key = ?',       │
+│     ['process_sla']                                                          │
+│   );                                                                         │
+│   if (settings.length === 0) return true;  // Default: enabled               │
+│   return settings[0].setting_value !== 'false';                              │
+│                                                                              │
+│ Called from: processTenant() at line 177-180                                 │
+│   if (!processingEnabled) {                                                  │
+│     console.log(`🔴 KILL SWITCH: SLA processing is disabled...`);            │
+│     return;                                                                  │
+│   }                                                                          │
+│                                                                              │
+│ Also read by: services/sla-notifier.js:192 (same pattern)                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### 9.3 `email_ingest_settings.enabled` Kill Switch (IMAP Connection)
+
+**Purpose:** Completely disable IMAP email fetching for a tenant (different from process_emails which controls ticket creation).
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ ADMIN UI (Option 1: Email Ingest Settings Panel)                             │
+│ File: A1 Support Build from here .html                                       │
+│ Location: Admin Settings → Email Ingest (line 4275)                          │
+│ Element: <input type="checkbox" id="email-ingest-enabled">                   │
+│ Handler: saveEmailIngestSettings() at line 11887                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ API ENDPOINT                                                                 │
+│ Route: PUT /api/email-ingest/:tenantId/settings                              │
+│ File: routes/email-ingest.js:83-141                                          │
+│ Auth: verifyToken + requireRole(['admin'])                                   │
+│                                                                              │
+│ Request Payload:                                                             │
+│   {                                                                          │
+│     "enabled": false,        // The kill switch                              │
+│     "server_type": "imap",                                                   │
+│     "server_host": "imap.gmail.com",                                         │
+│     "server_port": 993,                                                      │
+│     "use_ssl": true,                                                         │
+│     "username": "support@example.com",                                       │
+│     "password": "******",                                                    │
+│     "check_interval_minutes": 5                                              │
+│   }                                                                          │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ BACKEND HANDLER                                                              │
+│ File: routes/email-ingest.js:118-130                                         │
+│                                                                              │
+│   await connection.query(`                                                   │
+│     UPDATE email_ingest_settings SET                                         │
+│       enabled = COALESCE(?, enabled),                                        │
+│       ...                                                                    │
+│     WHERE id = ?                                                             │
+│   `, [enabled, ...]);                                                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ DATABASE WRITE                                                               │
+│ Table: a1_tenant_{code}.email_ingest_settings                                │
+│ Column: enabled (TINYINT 0 or 1)                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ EMAIL-WORKER READ                                                            │
+│ File: services/email-processor.js:226-233                                    │
+│ Location: processEmails() method                                             │
+│                                                                              │
+│   const [settings] = await connection.query(                                 │
+│     'SELECT * FROM email_ingest_settings WHERE enabled = TRUE LIMIT 1'       │
+│   );                                                                         │
+│                                                                              │
+│   if (settings.length === 0) {                                               │
+│     console.log(`Email ingest not enabled for tenant: ${this.tenantCode}`);  │
+│     return;                                                                  │
+│   }                                                                          │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Alternative Admin UI Path (Raw Variables):**
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ ADMIN UI (Option 2: Raw Variables Panel)                                     │
+│ File: A1 Support Build from here .html                                       │
+│ Location: Raw Variables → email_ingest section (line 4962)                   │
+│ Key: email_ingest.enabled                                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ API ENDPOINT                                                                 │
+│ Route: PUT /api/raw-variables/:tenantId/:key                                 │
+│ File: routes/raw-variables.js:174-304                                        │
+│ Auth: verifyToken + requireRole(['admin'])                                   │
+│                                                                              │
+│ Request: PUT /api/raw-variables/apoyar/email_ingest.enabled                  │
+│ Payload: { "value": "false" }                                                │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ BACKEND HANDLER                                                              │
+│ File: routes/raw-variables.js:186-229                                        │
+│                                                                              │
+│   if (key.startsWith('email_ingest.')) {                                     │
+│     const field = key.replace('email_ingest.', '');  // 'enabled'            │
+│     let dbValue = value === 'true' || value === true;  // Convert to bool    │
+│     await connection.query(                                                  │
+│       `UPDATE email_ingest_settings SET ${fieldMap[field]} = ?`,             │
+│       [dbValue]                                                              │
+│     );                                                                       │
+│   }                                                                          │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### 9.4 Environment Variable Kill Switches (Service-Level)
+
+These are set per-Railway-service and checked at startup or on each processing cycle.
+
+| Env Var | Service | Check Location | Effect |
+|---------|---------|----------------|--------|
+| `DISABLE_EMAIL_PROCESSING=true` | web | `server.js:413-416` | Skips `startEmailProcessing()` call |
+| `DISABLE_SLA_SCHEDULER=true` | web | `server.js:455-457` | Skips `startScheduler()` call |
+
+**Server.js startup check:**
+```javascript
+// server.js:413-416
+const shouldRunEmailProcessing = process.env.DISABLE_EMAIL_PROCESSING !== 'true';
+if (!shouldRunEmailProcessing) {
+  console.log('ℹ️  Email processing disabled (DISABLE_EMAIL_PROCESSING=true)');
+}
+
+// server.js:455-457
+if (process.env.DISABLE_SLA_SCHEDULER === 'true') {
+  console.log('ℹ️  SLA scheduler disabled (DISABLE_SLA_SCHEDULER=true)');
+}
+```
+
+---
+
+### 9.5 Summary: Kill Switch Matrix
+
+| Kill Switch | UI Location | API Route | Backend File:Lines | DB Table.Column | Worker Read File:Lines |
+|-------------|-------------|-----------|-------------------|-----------------|----------------------|
+| `process_emails` | System Control toggle | `POST /api/tickets/settings/:tenantId` | `routes/tickets.js:438-443` | `tenant_settings.setting_value` | `email-processor.js:183-200` |
+| `process_sla` | System Control toggle | `POST /api/tickets/settings/:tenantId` | `routes/tickets.js:438-443` | `tenant_settings.setting_value` | `sla-worker.js:152-167` |
+| `email_ingest.enabled` | Email Ingest panel OR Raw Variables | `PUT /api/email-ingest/:tenantId/settings` OR `PUT /api/raw-variables/:tenantId/email_ingest.enabled` | `routes/email-ingest.js:118-130` OR `routes/raw-variables.js:186-229` | `email_ingest_settings.enabled` | `email-processor.js:226-233` |
+| `DISABLE_EMAIL_PROCESSING` | Railway env vars | N/A (env var) | `server.js:413-416` | N/A | N/A (startup only) |
+| `DISABLE_SLA_SCHEDULER` | Railway env vars | N/A (env var) | `server.js:455-457` | N/A | N/A (startup only) |
+| `tenants.status` | Master Admin panel | `PUT /api/master/tenants/:id` | `routes/master.js` | `a1_master.tenants.status` | `email-worker.js:137-138`, `sla-worker.js:306-308` |
+
+---
+
 ## Known Risks / Open Questions
 
 ### Risks
