@@ -523,6 +523,28 @@ async function createTenantTables(connection) {
     )
   `);
 
+  // Ticket Classification Events (history/audit trail)
+  await connection.execute(`
+    CREATE TABLE IF NOT EXISTS ticket_classification_events (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      ticket_id INT NOT NULL,
+      previous_work_type VARCHAR(32) NULL,
+      new_work_type VARCHAR(32) NULL,
+      previous_execution_mode VARCHAR(16) NULL,
+      new_execution_mode VARCHAR(16) NULL,
+      previous_system_tags JSON NULL,
+      new_system_tags JSON NULL,
+      previous_confidence DECIMAL(4,3) NULL,
+      new_confidence DECIMAL(4,3) NULL,
+      classified_by VARCHAR(16) NOT NULL,
+      user_id INT NULL,
+      reason TEXT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_classification_events_ticket (ticket_id),
+      FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE
+    )
+  `);
+
   // Tenant audit log
   await connection.execute(`
     CREATE TABLE IF NOT EXISTS tenant_audit_log (

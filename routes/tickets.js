@@ -564,10 +564,26 @@ router.get('/:tenantId', readOperationsLimiter, validateTicketGet, async (req, r
 // Claim lock duration in seconds (30s preview window)
 const CLAIM_LOCK_DURATION_SECONDS = 30;
 
-// Get ticket pool (AI-ranked unowned tickets)
+// Get ticket pool (AI-ranked unowned tickets) with classification filters
+// Query params:
+//   work_type - comma-separated list of work types to filter
+//   execution_mode - comma-separated list of execution modes to filter
+//   tags - comma-separated list of tags (any match)
+//   confidence_lt - show tickets with confidence below this value
+//   classified_by - filter by classifier (ai, human, rule)
+//   show_unknown - include tickets with NULL/unknown work_type (default: true)
 router.get('/:tenantId/pool', readOperationsLimiter, requireRole(['expert', 'admin']), async (req, res) => {
   try {
     const { tenantId } = req.params;
+    const {
+      work_type,
+      execution_mode,
+      tags,
+      confidence_lt,
+      classified_by,
+      show_unknown = 'true'
+    } = req.query;
+
     const tenantCode = tenantId.toLowerCase().replace(/[^a-z0-9]/g, '_');
     const connection = await getTenantConnection(tenantCode);
 
@@ -582,7 +598,88 @@ router.get('/:tenantId/pool', readOperationsLimiter, requireRole(['expert', 'adm
           AND claimed_until_at < NOW()
       `);
 
-      // Get tickets in pool (OPEN_POOL status, not owned)
+      // Build dynamic WHERE conditions for filters
+      const conditions = [
+        "t.pool_status IN ('OPEN_POOL', 'CLAIMED_LOCKED')",
+        "t.status NOT IN ('Resolved', 'Closed')"
+      ];
+      const params = [];
+
+      // Work type filter
+      if (work_type) {
+        const types = work_type.split(',').map(t => t.trim()).filter(Boolean);
+        if (types.length > 0) {
+          const showUnknownBool = show_unknown === 'true';
+          if (showUnknownBool && types.includes('unknown')) {
+            // Include NULL as unknown
+            const nonUnknownTypes = types.filter(t => t !== 'unknown');
+            if (nonUnknownTypes.length > 0) {
+              conditions.push(`(t.work_type IN (${nonUnknownTypes.map(() => '?').join(',')}) OR t.work_type IS NULL OR t.work_type = 'unknown')`);
+              params.push(...nonUnknownTypes);
+            } else {
+              conditions.push(`(t.work_type IS NULL OR t.work_type = 'unknown')`);
+            }
+          } else {
+            conditions.push(`t.work_type IN (${types.map(() => '?').join(',')})`);
+            params.push(...types);
+          }
+        }
+      } else if (show_unknown === 'false') {
+        // Exclude unknown/NULL if not explicitly requested
+        conditions.push(`t.work_type IS NOT NULL AND t.work_type != 'unknown'`);
+      }
+
+      // Execution mode filter
+      if (execution_mode) {
+        const modes = execution_mode.split(',').map(m => m.trim()).filter(Boolean);
+        if (modes.length > 0) {
+          // Include NULL as 'mixed' equivalent
+          if (modes.includes('mixed')) {
+            const nonMixedModes = modes.filter(m => m !== 'mixed');
+            if (nonMixedModes.length > 0) {
+              conditions.push(`(t.execution_mode IN (${nonMixedModes.map(() => '?').join(',')}) OR t.execution_mode IS NULL OR t.execution_mode = 'mixed')`);
+              params.push(...nonMixedModes);
+            } else {
+              conditions.push(`(t.execution_mode IS NULL OR t.execution_mode = 'mixed')`);
+            }
+          } else {
+            conditions.push(`t.execution_mode IN (${modes.map(() => '?').join(',')})`);
+            params.push(...modes);
+          }
+        }
+      }
+
+      // Tags filter (JSON contains any of the specified tags)
+      if (tags) {
+        const tagList = tags.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
+        if (tagList.length > 0) {
+          // Use JSON_CONTAINS for each tag with OR
+          const tagConditions = tagList.map(() => `JSON_CONTAINS(t.system_tags, ?)`);
+          conditions.push(`(${tagConditions.join(' OR ')})`);
+          tagList.forEach(tag => params.push(JSON.stringify(tag)));
+        }
+      }
+
+      // Confidence filter (for "needs triage" view)
+      if (confidence_lt) {
+        const confidenceThreshold = parseFloat(confidence_lt);
+        if (!isNaN(confidenceThreshold)) {
+          conditions.push(`(t.classification_confidence < ? OR t.classification_confidence IS NULL)`);
+          params.push(confidenceThreshold);
+        }
+      }
+
+      // Classified by filter
+      if (classified_by) {
+        const classifiers = classified_by.split(',').map(c => c.trim()).filter(Boolean);
+        if (classifiers.length > 0) {
+          conditions.push(`t.classified_by IN (${classifiers.map(() => '?').join(',')})`);
+          params.push(...classifiers);
+        }
+      }
+
+      // Build the query with execution_mode severity ordering
+      const whereClause = conditions.join(' AND ');
       const [poolTickets] = await connection.query(`
         SELECT t.*,
                u1.full_name as requester_name,
@@ -597,10 +694,22 @@ router.get('/:tenantId/pool', readOperationsLimiter, requireRole(['expert', 'adm
         LEFT JOIN customer_companies cc ON c.customer_company_id = cc.id
         LEFT JOIN cmdb_items ci ON t.cmdb_item_id = ci.id
         LEFT JOIN users claimer ON t.claimed_by_expert_id = claimer.id
-        WHERE t.pool_status IN ('OPEN_POOL', 'CLAIMED_LOCKED')
-          AND t.status NOT IN ('Resolved', 'Closed')
-        ORDER BY t.pool_score IS NULL, t.pool_score DESC, t.created_at ASC
-      `);
+        WHERE ${whereClause}
+        ORDER BY
+          t.response_due_at IS NULL ASC,
+          t.response_due_at ASC,
+          CASE t.execution_mode
+            WHEN 'escalation_required' THEN 1
+            WHEN 'expert_required' THEN 2
+            WHEN 'mixed' THEN 3
+            WHEN 'human_review' THEN 4
+            WHEN 'automated' THEN 5
+            ELSE 3
+          END ASC,
+          t.pool_score IS NULL ASC,
+          t.pool_score DESC,
+          t.created_at ASC
+      `, params);
 
       // Enrich with SLA status
       await enrichTicketsWithSLAStatus(poolTickets, connection);
@@ -608,7 +717,8 @@ router.get('/:tenantId/pool', readOperationsLimiter, requireRole(['expert', 'adm
       res.json({
         success: true,
         pool: poolTickets,
-        count: poolTickets.length
+        count: poolTickets.length,
+        filters: { work_type, execution_mode, tags, confidence_lt, classified_by, show_unknown }
       });
     } finally {
       connection.release();
@@ -2400,6 +2510,44 @@ router.patch('/:tenantId/:ticketId/classification', writeOperationsLimiter, requ
 
   } catch (error) {
     console.error('Error updating classification:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// Get classification history events for a ticket
+// GET /api/tickets/:tenantId/:ticketId/classification-events
+router.get('/:tenantId/:ticketId/classification-events', readOperationsLimiter, requireRole(['expert', 'admin']), async (req, res) => {
+  try {
+    const { tenantId, ticketId } = req.params;
+    const { limit = 10 } = req.query;
+    const tenantCode = tenantId.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    const connection = await getTenantConnection(tenantCode);
+
+    try {
+      const [events] = await connection.query(`
+        SELECT e.*,
+               u.full_name as user_name
+        FROM ticket_classification_events e
+        LEFT JOIN users u ON e.user_id = u.id
+        WHERE e.ticket_id = ?
+        ORDER BY e.created_at DESC
+        LIMIT ?
+      `, [parseInt(ticketId), parseInt(limit)]);
+
+      res.json({
+        success: true,
+        events: events.map(e => ({
+          ...e,
+          previous_system_tags: e.previous_system_tags ? JSON.parse(e.previous_system_tags) : null,
+          new_system_tags: e.new_system_tags ? JSON.parse(e.new_system_tags) : null
+        })),
+        count: events.length
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error fetching classification events:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
