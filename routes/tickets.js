@@ -501,8 +501,8 @@ router.get('/:tenantId', readOperationsLimiter, validateTicketGet, async (req, r
           // No permissions = no tickets visible
           whereConditions.push('1 = 0');
         } else {
-          // Check if has 'all_tickets' permission
-          const hasAllTickets = permissions.some(p => p.permission_type === 'all_tickets');
+          // Check if has 'all' permission (can see all tickets)
+          const hasAllTickets = permissions.some(p => p.permission_type === 'all');
 
           if (!hasAllTickets) {
             // Build permission-based filter
