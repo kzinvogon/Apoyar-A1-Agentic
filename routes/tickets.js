@@ -2534,12 +2534,19 @@ router.get('/:tenantId/:ticketId/classification-events', readOperationsLimiter, 
         LIMIT ?
       `, [parseInt(ticketId), parseInt(limit)]);
 
+      // Helper to safely parse JSON (handles both string and already-parsed values)
+      const safeJsonParse = (val) => {
+        if (!val) return null;
+        if (typeof val === 'object') return val; // Already parsed by MySQL
+        try { return JSON.parse(val); } catch(e) { return val; }
+      };
+
       res.json({
         success: true,
         events: events.map(e => ({
           ...e,
-          previous_system_tags: e.previous_system_tags ? JSON.parse(e.previous_system_tags) : null,
-          new_system_tags: e.new_system_tags ? JSON.parse(e.new_system_tags) : null
+          previous_system_tags: safeJsonParse(e.previous_system_tags),
+          new_system_tags: safeJsonParse(e.new_system_tags)
         })),
         count: events.length
       });
