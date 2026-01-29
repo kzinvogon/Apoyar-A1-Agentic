@@ -75,7 +75,7 @@ async function runMigration(tenantCode) {
     console.log(`    Adding execution_mode column...`);
     await connection.query(`
       ALTER TABLE tickets
-      ADD COLUMN execution_mode VARCHAR(16) NULL
+      ADD COLUMN execution_mode VARCHAR(24) NULL
       COMMENT 'Execution mode: automated, human_review, expert_required, escalation_required, mixed'
     `);
 
@@ -107,7 +107,7 @@ async function runMigration(tenantCode) {
     console.log(`    Adding classified_by column...`);
     await connection.query(`
       ALTER TABLE tickets
-      ADD COLUMN classified_by VARCHAR(16) NULL
+      ADD COLUMN classified_by VARCHAR(24) NULL
       COMMENT 'Who classified: ai or human'
     `);
 
