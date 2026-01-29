@@ -581,10 +581,16 @@ async function updateClassification(tenantCode, ticketId, classification, userId
       return { success: false, error: 'Ticket not found' };
     }
 
+    // Parse system_tags if it's a JSON string from DB
+    let prevTags = currentTickets[0].system_tags;
+    if (typeof prevTags === 'string') {
+      try { prevTags = JSON.parse(prevTags); } catch(e) { prevTags = null; }
+    }
+
     const previousValues = {
       work_type: currentTickets[0].work_type,
       execution_mode: currentTickets[0].execution_mode,
-      system_tags: currentTickets[0].system_tags,
+      system_tags: prevTags,
       confidence: currentTickets[0].classification_confidence
     };
 
