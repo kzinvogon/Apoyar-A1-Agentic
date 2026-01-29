@@ -8676,7 +8676,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       const token = localStorage.getItem('token');
       const tenantCode = localStorage.getItem('tenantCode') || 'apoyar';
 
-      const response = await fetch(`/api/cmdb/${tenantCode}?limit=5`, {
+      const response = await fetch(`/api/cmdb/${tenantCode}/items?limit=5`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
