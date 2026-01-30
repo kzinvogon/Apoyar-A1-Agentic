@@ -455,48 +455,53 @@ router.post('/settings/:tenantId', async (req, res) => {
 });
 
 // Get all tickets for a tenant
+// Master Ticket Table endpoint with server-side filtering, sorting, and pagination
+// Query params:
+//   page (default 1), limit (default 50, max 200)
+//   status (comma list), priority (comma list)
+//   assignee_id (id or 'unassigned'), requester_id, company_id
+//   search (free text: title + requester name + company name)
+//   sort_by (created_at|updated_at|response_due_at|priority|id), sort_dir (asc|desc)
+//   include_system (true|false, default true)
 router.get('/:tenantId', readOperationsLimiter, validateTicketGet, async (req, res) => {
   try {
     const { tenantId } = req.params;
-    const { page = '1', limit = '50' } = req.query;
+    const {
+      page = '1',
+      limit = '50',
+      status,
+      priority,
+      assignee_id,
+      requester_id,
+      company_id,
+      search,
+      sort_by = 'created_at',
+      sort_dir = 'desc',
+      include_system = 'true'
+    } = req.query;
 
     // Pagination params
     const pageNum = Math.max(1, parseInt(page) || 1);
-    const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 50));
+    const limitNum = Math.min(200, Math.max(1, parseInt(limit) || 50));
     const offset = (pageNum - 1) * limitNum;
+
+    // Validate sort params
+    const allowedSortBy = ['created_at', 'updated_at', 'response_due_at', 'priority', 'id', 'status', 'title'];
+    const safeSortBy = allowedSortBy.includes(sort_by) ? sort_by : 'created_at';
+    const safeSortDir = sort_dir.toLowerCase() === 'asc' ? 'ASC' : 'DESC';
 
     const tenantCode = tenantId.toLowerCase().replace(/[^a-z0-9]/g, '_');
     const connection = await getTenantConnection(tenantCode);
 
     try {
-      // Build query with filtering based on role
-      let baseSelect = `
-        SELECT t.*,
-               u1.full_name as assignee_name,
-               u2.full_name as requester_name,
-               (u2.username = 'system' OR u2.email = 'system@tenant.local') as is_system_source,
-               ci.asset_name as cmdb_item_name,
-               c.customer_company_id,
-               cc.company_name as company_name,
-               cc.company_domain as company_domain
-        FROM tickets t
-        LEFT JOIN users u1 ON t.assignee_id = u1.id
-        LEFT JOIN users u2 ON t.requester_id = u2.id
-        LEFT JOIN cmdb_items ci ON t.cmdb_item_id = ci.id
-        LEFT JOIN customers c ON t.requester_id = c.user_id
-        LEFT JOIN customer_companies cc ON c.customer_company_id = cc.id
-      `;
-
       const params = [];
       const whereConditions = [];
 
-      // Filter by role
+      // ========== ROLE-BASED ACCESS CONTROL ==========
       if (req.user.role === 'customer') {
-        // Customers see only their own tickets
         whereConditions.push('t.requester_id = ?');
         params.push(req.user.userId);
       } else if (req.user.role === 'expert') {
-        // Experts see tickets based on their permissions
         const [permissions] = await connection.query(
           `SELECT permission_type, customer_id, title_pattern
            FROM expert_ticket_permissions
@@ -504,62 +509,146 @@ router.get('/:tenantId', readOperationsLimiter, validateTicketGet, async (req, r
           [req.user.userId]
         );
 
-        if (permissions.length === 0) {
-          // No permissions defined = default to seeing all tickets
-          // (Admins can restrict access later via expert permissions)
-        } else {
-          // Check if has 'all_tickets' permission (can see all tickets)
+        if (permissions.length > 0) {
           const hasAllTickets = permissions.some(p => p.permission_type === 'all_tickets' || p.permission_type === 'all');
-
           if (!hasAllTickets) {
-            // Build permission-based filter
             const permissionConditions = [];
-
-            // Specific customers
-            const customerIds = permissions
-              .filter(p => p.permission_type === 'specific_customers')
-              .map(p => p.customer_id);
+            const customerIds = permissions.filter(p => p.permission_type === 'specific_customers').map(p => p.customer_id);
             if (customerIds.length > 0) {
               permissionConditions.push(`t.requester_id IN (${customerIds.join(',')})`);
             }
-
-            // Title patterns
-            const titlePatterns = permissions
-              .filter(p => p.permission_type === 'title_patterns' && p.title_pattern)
-              .map(p => p.title_pattern);
+            const titlePatterns = permissions.filter(p => p.permission_type === 'title_patterns' && p.title_pattern).map(p => p.title_pattern);
             if (titlePatterns.length > 0) {
               const titleConditions = titlePatterns.map(() => 't.title LIKE ?');
               permissionConditions.push(`(${titleConditions.join(' OR ')})`);
               titlePatterns.forEach(pattern => params.push(`%${pattern}%`));
             }
-
             if (permissionConditions.length > 0) {
               whereConditions.push(`(${permissionConditions.join(' OR ')})`);
             } else {
-              // Has permissions but none are valid
               whereConditions.push('1 = 0');
             }
           }
-          // If hasAllTickets, no WHERE condition needed (see all tickets)
         }
       }
-      // Admin role sees all tickets (no WHERE condition)
+
+      // ========== USER FILTERS ==========
+      // Status filter (comma-separated)
+      if (status) {
+        const statuses = status.split(',').map(s => s.trim()).filter(Boolean);
+        if (statuses.length > 0) {
+          whereConditions.push(`t.status IN (${statuses.map(() => '?').join(',')})`);
+          params.push(...statuses);
+        }
+      }
+
+      // Priority filter (comma-separated)
+      if (priority) {
+        const priorities = priority.split(',').map(p => p.trim()).filter(Boolean);
+        if (priorities.length > 0) {
+          whereConditions.push(`t.priority IN (${priorities.map(() => '?').join(',')})`);
+          params.push(...priorities);
+        }
+      }
+
+      // Assignee filter
+      if (assignee_id) {
+        if (assignee_id === 'unassigned') {
+          whereConditions.push('t.assignee_id IS NULL');
+        } else {
+          whereConditions.push('t.assignee_id = ?');
+          params.push(parseInt(assignee_id));
+        }
+      }
+
+      // Requester filter
+      if (requester_id) {
+        whereConditions.push('t.requester_id = ?');
+        params.push(parseInt(requester_id));
+      }
+
+      // Company filter
+      if (company_id) {
+        whereConditions.push('c.customer_company_id = ?');
+        params.push(parseInt(company_id));
+      }
+
+      // System tickets filter
+      if (include_system === 'false') {
+        whereConditions.push("(u2.username != 'system' AND u2.email != 'system@tenant.local')");
+      }
+
+      // Search filter (title, requester name, company name)
+      if (search && search.trim()) {
+        const searchTerm = `%${search.trim()}%`;
+        whereConditions.push(`(t.title LIKE ? OR t.id LIKE ? OR u2.full_name LIKE ? OR cc.company_name LIKE ?)`);
+        params.push(searchTerm, searchTerm, searchTerm, searchTerm);
+      }
 
       // Build WHERE clause
-      const whereClause = whereConditions.length > 0
-        ? ` WHERE ${whereConditions.join(' AND ')}`
-        : '';
+      const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
 
-      // Get total count first
-      const [countResult] = await connection.query(
-        `SELECT COUNT(*) as total FROM tickets t ${whereClause}`,
-        params
-      );
+      // ========== COUNT QUERY ==========
+      const countQuery = `
+        SELECT COUNT(*) as total
+        FROM tickets t
+        LEFT JOIN users u2 ON t.requester_id = u2.id
+        LEFT JOIN customers c ON t.requester_id = c.user_id
+        LEFT JOIN customer_companies cc ON c.customer_company_id = cc.id
+        ${whereClause}
+      `;
+      const [countResult] = await connection.query(countQuery, params);
       const total = countResult[0].total;
 
-      // Build paginated query
-      const query = baseSelect + whereClause + ` ORDER BY t.created_at DESC LIMIT ? OFFSET ?`;
-      const [tickets] = await connection.query(query, [...params, limitNum, offset]);
+      // ========== DATA QUERY (lightweight row payload) ==========
+      // Priority sort needs special handling
+      let orderClause;
+      if (safeSortBy === 'priority') {
+        orderClause = `ORDER BY FIELD(t.priority, 'Critical', 'High', 'Normal', 'Low') ${safeSortDir}`;
+      } else {
+        orderClause = `ORDER BY t.${safeSortBy} ${safeSortDir}`;
+      }
+
+      const dataQuery = `
+        SELECT
+          t.id,
+          t.title,
+          t.status,
+          t.priority,
+          t.created_at,
+          t.updated_at,
+          t.requester_id,
+          t.assignee_id,
+          t.cmdb_item_id,
+          t.response_due_at,
+          t.resolve_due_at,
+          t.first_responded_at,
+          t.sla_definition_id,
+          t.pool_status,
+          t.work_type,
+          t.execution_mode,
+          t.system_tags,
+          t.classification_confidence,
+          u1.full_name as assignee_name,
+          u2.full_name as requester_name,
+          u2.email as requester_email,
+          (u2.username = 'system' OR u2.email = 'system@tenant.local') as is_system_source,
+          t.source_metadata,
+          ci.asset_name as cmdb_item_name,
+          c.customer_company_id,
+          cc.company_name as company_name,
+          cc.company_domain as company_domain
+        FROM tickets t
+        LEFT JOIN users u1 ON t.assignee_id = u1.id
+        LEFT JOIN users u2 ON t.requester_id = u2.id
+        LEFT JOIN cmdb_items ci ON t.cmdb_item_id = ci.id
+        LEFT JOIN customers c ON t.requester_id = c.user_id
+        LEFT JOIN customer_companies cc ON c.customer_company_id = cc.id
+        ${whereClause}
+        ${orderClause}
+        LIMIT ? OFFSET ?
+      `;
+      const [tickets] = await connection.query(dataQuery, [...params, limitNum, offset]);
 
       // Enrich tickets with computed SLA status
       await enrichTicketsWithSLAStatus(tickets, connection);
