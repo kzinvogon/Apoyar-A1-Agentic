@@ -572,6 +572,37 @@ const CLAIM_LOCK_DURATION_SECONDS = 30;
 //   confidence_lt - show tickets with confidence below this value
 //   classified_by - filter by classifier (ai, human, rule)
 //   show_unknown - include tickets with NULL/unknown work_type (default: true)
+// Helper: Strip HTML tags, base64 images, styles for description preview
+function createDescriptionPreview(description, maxLength = 250) {
+  if (!description) return null;
+  let text = description
+    // Remove style tags and content
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    // Remove script tags and content
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+    // Remove base64 data URIs
+    .replace(/data:[^;]+;base64,[A-Za-z0-9+/=]+/gi, '[image]')
+    // Remove img tags
+    .replace(/<img[^>]*>/gi, '')
+    // Remove all other HTML tags
+    .replace(/<[^>]+>/g, ' ')
+    // Decode common HTML entities
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    // Collapse whitespace
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (text.length > maxLength) {
+    text = text.substring(0, maxLength).trim() + '...';
+  }
+  return text || null;
+}
+
 router.get('/:tenantId/pool', readOperationsLimiter, requireRole(['expert', 'admin']), async (req, res) => {
   try {
     const { tenantId } = req.params;
@@ -581,8 +612,15 @@ router.get('/:tenantId/pool', readOperationsLimiter, requireRole(['expert', 'adm
       tags,
       confidence_lt,
       classified_by,
-      show_unknown = 'true'
+      show_unknown = 'true',
+      page = '1',
+      limit = '50'
     } = req.query;
+
+    // Pagination params
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 50));
+    const offset = (pageNum - 1) * limitNum;
 
     const tenantCode = tenantId.toLowerCase().replace(/[^a-z0-9]/g, '_');
     const connection = await getTenantConnection(tenantCode);
@@ -681,16 +719,47 @@ router.get('/:tenantId/pool', readOperationsLimiter, requireRole(['expert', 'adm
         }
       }
 
-      // Build the query with execution_mode severity ordering
       const whereClause = conditions.join(' AND ');
+
+      // Get total count first
+      const [countResult] = await connection.query(`
+        SELECT COUNT(*) as total
+        FROM tickets t
+        WHERE ${whereClause}
+      `, params);
+      const total = countResult[0].total;
+
+      // Build the query with pagination - compact payload (no description)
       const [poolTickets] = await connection.query(`
-        SELECT t.*,
-               u1.full_name as requester_name,
-               u1.email as requester_email,
-               c.customer_company_id,
-               cc.company_name,
-               ci.asset_name as cmdb_item_name,
-               claimer.full_name as claimed_by_name
+        SELECT
+          t.id,
+          t.title,
+          t.description,
+          t.status,
+          t.pool_status,
+          t.priority,
+          t.category,
+          t.created_at,
+          t.updated_at,
+          t.response_due_at,
+          t.resolve_due_at,
+          t.requester_id,
+          t.cmdb_item_id,
+          t.claimed_by_expert_id,
+          t.claimed_until_at,
+          t.owned_by_expert_id,
+          t.work_type,
+          t.execution_mode,
+          t.system_tags,
+          t.classification_confidence,
+          t.pool_score,
+          t.sla_definition_id,
+          t.first_responded_at,
+          u1.full_name as requester_name,
+          u1.email as requester_email,
+          cc.company_name,
+          ci.asset_name as cmdb_item_name,
+          claimer.full_name as claimed_by_name
         FROM tickets t
         LEFT JOIN users u1 ON t.requester_id = u1.id
         LEFT JOIN customers c ON t.requester_id = c.user_id
@@ -712,7 +781,14 @@ router.get('/:tenantId/pool', readOperationsLimiter, requireRole(['expert', 'adm
           t.pool_score IS NULL ASC,
           t.pool_score DESC,
           t.created_at ASC
-      `, params);
+        LIMIT ? OFFSET ?
+      `, [...params, limitNum, offset]);
+
+      // Add description_preview and remove full description
+      for (const ticket of poolTickets) {
+        ticket.description_preview = createDescriptionPreview(ticket.description);
+        delete ticket.description;
+      }
 
       // Enrich with SLA status
       await enrichTicketsWithSLAStatus(poolTickets, connection);
@@ -720,7 +796,10 @@ router.get('/:tenantId/pool', readOperationsLimiter, requireRole(['expert', 'adm
       res.json({
         success: true,
         pool: poolTickets,
-        count: poolTickets.length,
+        page: pageNum,
+        limit: limitNum,
+        total: total,
+        totalPages: Math.ceil(total / limitNum),
         filters: { work_type, execution_mode, tags, confidence_lt, classified_by, show_unknown }
       });
     } finally {
