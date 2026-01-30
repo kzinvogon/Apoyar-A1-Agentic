@@ -1622,11 +1622,11 @@ Provide JSON suggestions for efficient ticket handling.`
         ORDER BY count DESC
       `, [period]);
 
-      // Get AI performance metrics
+      // Get AI performance metrics (filter outliers: processing_time > 60s is clearly erroneous)
       const [performance] = await connection.query(`
         SELECT
           AVG(confidence_score) as avg_confidence,
-          AVG(processing_time_ms) as avg_processing_time,
+          AVG(CASE WHEN processing_time_ms <= 60000 THEN processing_time_ms ELSE NULL END) as avg_processing_time,
           COUNT(*) as total_analyzed
         FROM ai_email_analysis ai
         JOIN tickets t ON ai.ticket_id = t.id
