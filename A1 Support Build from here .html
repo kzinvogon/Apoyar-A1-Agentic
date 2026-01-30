@@ -14824,14 +14824,12 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         // Populate customer/team member filter dropdown
         populateCustomerFilter();
 
-        // Apply client-side filters to current page
-        let filteredTickets = applyTicketFilters(tickets);
-
-        // Apply sorting to current page
-        filteredTickets = applySorting(filteredTickets);
+        // With server-side pagination, use tickets as-is (no client-side filtering)
+        // Sorting is done by server (ORDER BY created_at DESC)
+        let displayTickets = tickets;
 
         // Store ticket navigation list for prev/next in detail view
-        window.ticketNavList = filteredTickets.map(t => t.id);
+        window.ticketNavList = displayTickets.map(t => t.id);
 
         // Use server-provided pagination info
         const serverTotal = data.total || tickets.length;
@@ -14853,7 +14851,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
           // Add insight filter indicator
           if (window.insightTicketFilter && window.insightTicketFilter.length > 0) {
-            countText = `🔍 Filtered by AI Insight: "${window.insightTitle}" - ${filteredTickets.length} tickets`;
+            countText = `🔍 Filtered by AI Insight: "${window.insightTitle}" - ${displayTickets.length} tickets`;
             countText += ` <button class="btn ghost" style="padding:2px 8px;font-size:11px;margin-left:8px" onclick="clearInsightFilter()">✕ Clear Filter</button>`;
           }
 
@@ -14864,10 +14862,10 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         renderPaginationControls('ticket-pagination', serverPage, serverTotal, serverLimit, 'setTicketPage', 'setTicketPageSize', 'tickets');
 
         // Render tickets (already paginated by server)
-        if (filteredTickets.length === 0) {
-          tb.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px;">No tickets match your filters</td></tr>';
+        if (displayTickets.length === 0) {
+          tb.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px;">No tickets found</td></tr>';
         } else {
-          filteredTickets.forEach(t=>{
+          displayTickets.forEach(t=>{
             const tr=document.createElement('tr');
             const sla = getSLAState(t);
             const dateTime = formatDateTime(t.created);
