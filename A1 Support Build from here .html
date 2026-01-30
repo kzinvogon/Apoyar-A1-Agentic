@@ -20361,7 +20361,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       const res=await fetch(`${API_BASE}/api/cmdb-types/${tenantCode}/item-types`,{headers:{'Authorization':`Bearer ${token}`}});
       const data=await res.json(); 
       if(!data.success){ alert('Failed to load CMDB types: '+data.message); return; } 
-      const body=document.getElementById('item-types-body'); body.innerHTML=''; data.itemTypes.forEach(t=>{ const tr=document.createElement('tr'); tr.innerHTML=`<td>${t.name}</td><td>${t.description||'—'}</td><td>${t.ci_count||0}</td><td><span class="badge ${t.is_active?'success':'danger'}">${t.is_active?'Active':'Inactive'}</span></td><td><button class="btn" onclick='viewCITypes(${t.id},\"${t.name}\")'>View CI Types</button></td>`; body.appendChild(tr); }); 
+      const body=document.getElementById('item-types-body'); body.innerHTML=''; data.itemTypes.forEach(t=>{ const tr=document.createElement('tr'); const safeName = (t.name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;'); tr.innerHTML=`<td>${t.name}</td><td>${t.description||'—'}</td><td>${t.ci_count||0}</td><td><span class="badge ${t.is_active?'success':'danger'}">${t.is_active?'Active':'Inactive'}</span></td><td><button class="btn" onclick="viewCITypes(${t.id},'${safeName}')">View CI Types</button></td>`; body.appendChild(tr); }); 
     }catch(err){ alert('Error loading CMDB types: '+err.message); } 
   }
   async function viewCITypes(itemTypeId, itemTypeName){ 
