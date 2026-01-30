@@ -1803,6 +1803,14 @@ vNext-FULL-ActionsSLA:
                   <div style="max-height:400px;overflow-y:auto">
                     <table style="font-size:13px"><thead><tr><th>Score</th><th>ID</th><th>Title</th><th>Customer</th><th>SLA</th><th>Action</th></tr></thead><tbody id="pool-list"></tbody></table>
                   </div>
+                  <!-- Pool Pagination Controls -->
+                  <div id="pool-pagination" style="display:none;margin-top:12px;padding:8px;background:var(--badge-bg);border-radius:8px;display:flex;justify-content:space-between;align-items:center">
+                    <span id="pool-pagination-info" style="font-size:12px;color:var(--muted)">Page 1 of 1</span>
+                    <div style="display:flex;gap:8px">
+                      <button id="pool-prev-btn" class="btn ghost" onclick="poolPrevPage()" style="font-size:12px;padding:4px 12px" disabled>← Prev</button>
+                      <button id="pool-next-btn" class="btn ghost" onclick="poolNextPage()" style="font-size:12px;padding:4px 12px" disabled>Next →</button>
+                    </div>
+                  </div>
                   <div id="pool-no-tickets" style="display:none;text-align:center;padding:40px;color:var(--muted)">
                     <div style="font-size:32px;margin-bottom:8px">📭</div>
                     <div id="pool-no-tickets-message">No tickets in pool</div>
@@ -8157,6 +8165,10 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   // ========== TICKET POOL WORKFLOW ==========
   let expertViewMode = 'my';  // 'pool' or 'my'
   let poolTickets = [];       // Tickets from pool API
+  let poolPage = 1;           // Current page
+  let poolTotalPages = 1;     // Total pages
+  let poolTotal = 0;          // Total ticket count
+  let poolLimit = 50;         // Items per page
   let currentClaimedTicket = null;  // Ticket being previewed
   let claimTimer = null;      // Countdown timer for claim expiry
 
@@ -8202,6 +8214,10 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       // Build query params from filter controls
       const params = new URLSearchParams();
 
+      // Pagination params
+      params.set('page', poolPage.toString());
+      params.set('limit', poolLimit.toString());
+
       const workType = document.getElementById('pool-filter-work-type')?.value;
       if (workType) params.set('work_type', workType);
 
@@ -8231,15 +8247,60 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       }
 
       poolTickets = data.pool || [];
+      poolPage = data.page || 1;
+      poolTotalPages = data.totalPages || 1;
+      poolTotal = data.total || 0;
+
       renderPoolTable();
+      updatePoolPagination();
     } catch (error) {
       console.error('Error loading pool:', error);
       tb.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--danger)">Error: ${error.message}</td></tr>`;
     }
   }
 
+  // Update pool pagination controls
+  function updatePoolPagination() {
+    const paginationEl = document.getElementById('pool-pagination');
+    const infoEl = document.getElementById('pool-pagination-info');
+    const prevBtn = document.getElementById('pool-prev-btn');
+    const nextBtn = document.getElementById('pool-next-btn');
+
+    if (!paginationEl) return;
+
+    if (poolTotal === 0) {
+      paginationEl.style.display = 'none';
+      return;
+    }
+
+    paginationEl.style.display = 'flex';
+
+    const startItem = (poolPage - 1) * poolLimit + 1;
+    const endItem = Math.min(poolPage * poolLimit, poolTotal);
+    infoEl.textContent = `Showing ${startItem}-${endItem} of ${poolTotal} tickets (Page ${poolPage} of ${poolTotalPages})`;
+
+    prevBtn.disabled = poolPage <= 1;
+    nextBtn.disabled = poolPage >= poolTotalPages;
+  }
+
+  // Pool pagination navigation
+  function poolPrevPage() {
+    if (poolPage > 1) {
+      poolPage--;
+      refreshPoolView();
+    }
+  }
+
+  function poolNextPage() {
+    if (poolPage < poolTotalPages) {
+      poolPage++;
+      refreshPoolView();
+    }
+  }
+
   // Apply pool filters - called when any filter control changes
   function applyPoolFilters() {
+    poolPage = 1; // Reset to first page when filters change
     refreshPoolView();
   }
 
@@ -8289,6 +8350,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     if (needsTriageEl) needsTriageEl.checked = false;
 
     poolFilterTags = [];
+    poolPage = 1; // Reset to first page
     renderPoolTagChips();
     refreshPoolView();
   }
