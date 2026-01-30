@@ -14754,6 +14754,64 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   }
 
   // ---- Tickets ----
+  // Build server-side filter query params from UI
+  function buildTicketFilterParams() {
+    const params = new URLSearchParams();
+    const pageSize = getPageSize('tickets');
+
+    // Pagination
+    params.set('page', ticketPage);
+    params.set('limit', pageSize);
+
+    // Status filter
+    const statusFilter = document.getElementById('ticket-filter-status')?.value || '';
+    if (statusFilter) {
+      params.set('status', statusFilter);
+    }
+
+    // Priority filter
+    const priorityFilter = document.getElementById('ticket-filter-priority')?.value || '';
+    if (priorityFilter) {
+      params.set('priority', priorityFilter);
+    }
+
+    // Assignee filter
+    const assigneeFilter = document.getElementById('ticket-filter-assignee')?.value || '';
+    if (assigneeFilter) {
+      params.set('assignee_id', assigneeFilter);
+    }
+
+    // Company filter
+    const companyFilter = document.getElementById('ticket-filter-company')?.value || '';
+    if (companyFilter) {
+      params.set('company_id', companyFilter);
+    }
+
+    // Customer/requester filter
+    const customerFilter = document.getElementById('ticket-filter-customer')?.value || '';
+    if (customerFilter) {
+      params.set('requester_id', customerFilter);
+    }
+
+    // Search filter
+    const searchTerm = document.getElementById('ticket-search')?.value || '';
+    if (searchTerm.trim()) {
+      params.set('search', searchTerm.trim());
+    }
+
+    // System tickets filter
+    const includeSystem = document.getElementById('ticket-filter-system')?.checked !== false;
+    params.set('include_system', includeSystem ? 'true' : 'false');
+
+    // Sort
+    const sortValue = document.getElementById('ticket-sort')?.value || 'id-desc';
+    const [sortBy, sortDir] = sortValue.includes('-') ? sortValue.split('-') : ['created_at', 'desc'];
+    params.set('sort_by', sortBy === 'id' ? 'id' : sortBy === 'date' ? 'created_at' : sortBy);
+    params.set('sort_dir', sortDir || 'desc');
+
+    return params.toString();
+  }
+
   async function renderList(){
     console.log('[renderList] Called');
     const tb=document.getElementById('list-body');
@@ -14762,14 +14820,15 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     tb.innerHTML='';
     console.log('[renderList] About to fetch tickets...');
 
-    // Fetch tickets from backend API
+    // Fetch tickets from backend API with server-side filtering
     try {
       const token = localStorage.getItem('token');
       const tenantCode = window.tenant || 'apoyar';
+      const filterParams = buildTicketFilterParams();
 
-      const pageSize = getPageSize('tickets');
-      console.log('[renderList] Fetching from:', `${API_BASE}/api/tickets/${tenantCode}?page=${ticketPage}&limit=${pageSize}`);
-      const response = await fetch(`${API_BASE}/api/tickets/${tenantCode}?page=${ticketPage}&limit=${pageSize}`, {
+      const url = `${API_BASE}/api/tickets/${tenantCode}?${filterParams}`;
+      console.log('[renderList] Fetching from:', url);
+      const response = await fetch(url, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -14779,10 +14838,10 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       console.log('[renderList] Fetch response status:', response.status);
 
       const data = await response.json();
-      console.log('[renderList] Data received, success:', data.success, 'tickets count:', data.tickets?.length);
+      console.log('[renderList] Data received, success:', data.success, 'tickets count:', data.tickets?.length, 'total:', data.total);
 
       if (data.success && data.tickets) {
-        // Update local tickets array with fetched data
+        // Update local tickets array with fetched data (already filtered by server)
         tickets = data.tickets.map(t => {
           // Parse source_metadata if present
           let sourceMetadata = null;
@@ -14815,44 +14874,31 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           };
         });
 
-        // Populate assignee filter dropdown
+        // Populate filter dropdowns (for options discovery)
         populateAssigneeFilter();
-
-        // Populate company filter dropdown
         populateCompanyFilter();
-
-        // Populate customer/team member filter dropdown
         populateCustomerFilter();
 
-        // With server-side pagination, use tickets as-is (no client-side filtering)
-        // Sorting is done by server (ORDER BY created_at DESC)
-        let displayTickets = tickets;
-
         // Store ticket navigation list for prev/next in detail view
-        window.ticketNavList = displayTickets.map(t => t.id);
+        window.ticketNavList = tickets.map(t => t.id);
 
-        // Use server-provided pagination info
+        // Use server pagination info
         const serverTotal = data.total || tickets.length;
         const serverPage = data.page || ticketPage;
-        const serverLimit = data.limit || pageSize;
+        const serverLimit = data.limit || getPageSize('tickets');
         const serverTotalPages = data.totalPages || Math.ceil(serverTotal / serverLimit);
 
-        // Validate current page against server total
-        if (ticketPage > serverTotalPages && serverTotalPages > 0) {
-          ticketPage = serverTotalPages;
-        }
-
-        // Update ticket count
+        // Update ticket count display
         const countDiv = document.getElementById('ticket-count');
         if (countDiv) {
-          const startItem = (serverPage - 1) * serverLimit + 1;
+          const startItem = serverTotal > 0 ? (serverPage - 1) * serverLimit + 1 : 0;
           const endItem = Math.min(serverPage * serverLimit, serverTotal);
           let countText = `Showing ${startItem}-${endItem} of ${serverTotal} tickets`;
 
           // Add insight filter indicator
           if (window.insightTicketFilter && window.insightTicketFilter.length > 0) {
-            countText = `🔍 Filtered by AI Insight: "${window.insightTitle}" - ${displayTickets.length} tickets`;
-            countText += ` <button class="btn ghost" style="padding:2px 8px;font-size:11px;margin-left:8px" onclick="clearInsightFilter()">✕ Clear Filter</button>`;
+            countText = `Filtered by AI Insight: "${window.insightTitle}" - ${serverTotal} tickets`;
+            countText += ` <button class="btn ghost" style="padding:2px 8px;font-size:11px;margin-left:8px" onclick="clearInsightFilter()">Clear</button>`;
           }
 
           countDiv.innerHTML = countText;
@@ -14861,11 +14907,11 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         // Render pagination controls using server total
         renderPaginationControls('ticket-pagination', serverPage, serverTotal, serverLimit, 'setTicketPage', 'setTicketPageSize', 'tickets');
 
-        // Render tickets (already paginated by server)
-        if (displayTickets.length === 0) {
-          tb.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px;">No tickets found</td></tr>';
+        // Render tickets (already filtered and paginated by server)
+        if (tickets.length === 0) {
+          tb.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px;">No tickets match your filters</td></tr>';
         } else {
-          displayTickets.forEach(t=>{
+          tickets.forEach(t=>{
             const tr=document.createElement('tr');
             const sla = getSLAState(t);
             const dateTime = formatDateTime(t.created);
@@ -14953,6 +14999,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   // When company filter changes, update team member filter
   function onCompanyFilterChange() {
+    ticketPage = 1; // Reset to page 1 when filter changes
     populateCustomerFilter();
     renderList();
   }
