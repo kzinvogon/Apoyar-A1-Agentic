@@ -651,10 +651,13 @@ router.get('/:tenantId/pool', readOperationsLimiter, requireRole(['expert', 'adm
 
       // Tags filter (JSON contains any of the specified tags)
       if (tags) {
-        const tagList = tags.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
-        if (tagList.length > 0) {
-          // Use JSON_CONTAINS for each tag with OR
-          const tagConditions = tagList.map(() => `JSON_CONTAINS(t.system_tags, ?)`);
+        const tagList = tags.split(',')
+          .map(t => t.trim().toLowerCase())
+          .filter(Boolean)
+          .slice(0, 6);
+
+        if (tagList.length) {
+          const tagConditions = tagList.map(() => `(t.system_tags IS NOT NULL AND JSON_CONTAINS(t.system_tags, ?, '$'))`);
           conditions.push(`(${tagConditions.join(' OR ')})`);
           tagList.forEach(tag => params.push(JSON.stringify(tag)));
         }
