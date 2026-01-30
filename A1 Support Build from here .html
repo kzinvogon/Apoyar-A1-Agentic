@@ -13257,7 +13257,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       if (analytics.tickets.byPriority) {
         createPriorityChartFromAnalytics(analytics.tickets.byPriority);
       }
-      displayRecentActivity([]);  // Empty for now - could use trends data later
+      displayRecentActivity(analytics.recentActivity || []);  // Use recent tickets from API
 
       console.log('Analytics display completed successfully');
     } catch (error) {
@@ -20357,7 +20357,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     try{ 
       const token=localStorage.getItem('token'); 
       if(!token){ alert('Session expired'); window.location.reload(); return; } 
-      const res=await fetch(`${API_BASE}/api/cmdb-types/apoyar/item-types`,{headers:{'Authorization':`Bearer ${token}`}}); 
+      const tenantCode = window.tenant || 'apoyar';
+      const res=await fetch(`${API_BASE}/api/cmdb-types/${tenantCode}/item-types`,{headers:{'Authorization':`Bearer ${token}`}});
       const data=await res.json(); 
       if(!data.success){ alert('Failed to load CMDB types: '+data.message); return; } 
       const body=document.getElementById('item-types-body'); body.innerHTML=''; data.itemTypes.forEach(t=>{ const tr=document.createElement('tr'); tr.innerHTML=`<td>${t.name}</td><td>${t.description||'—'}</td><td>${t.ci_count||0}</td><td><span class="badge ${t.is_active?'success':'danger'}">${t.is_active?'Active':'Inactive'}</span></td><td><button class="btn" onclick='viewCITypes(${t.id},\"${t.name}\")'>View CI Types</button></td>`; body.appendChild(tr); }); 
@@ -20368,7 +20369,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     document.getElementById('ci-types-section').style.display='block'; 
     try{ 
       const token=localStorage.getItem('token'); 
-      const res=await fetch(`${API_BASE}/api/cmdb-types/apoyar/item-types/${itemTypeId}/ci-types`,{headers:{'Authorization':`Bearer ${token}`}}); 
+      const tenantCode = window.tenant || 'apoyar';
+      const res=await fetch(`${API_BASE}/api/cmdb-types/${tenantCode}/item-types/${itemTypeId}/ci-types`,{headers:{'Authorization':`Bearer ${token}`}});
       const data=await res.json(); 
       if(!data.success){ alert('Failed to load CI types: '+data.message); return; } 
       const body=document.getElementById('ci-types-body'); body.innerHTML=''; data.ciTypes.forEach(ci=>{ const tr=document.createElement('tr'); tr.innerHTML=`<td>${ci.name}</td><td>${ci.description||'—'}</td><td><span class="badge ${ci.is_active?'success':'danger'}">${ci.is_active?'Active':'Inactive'}</span></td><td><button class="btn">Edit</button></td>`; body.appendChild(tr); }); 
