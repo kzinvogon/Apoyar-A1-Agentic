@@ -14767,8 +14767,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       const token = localStorage.getItem('token');
       const tenantCode = window.tenant || 'apoyar';
 
-      console.log('[renderList] Fetching from:', `${API_BASE}/api/tickets/${tenantCode}`);
-      const response = await fetch(`${API_BASE}/api/tickets/${tenantCode}`, {
+      const pageSize = getPageSize('tickets');
+      console.log('[renderList] Fetching from:', `${API_BASE}/api/tickets/${tenantCode}?page=${ticketPage}&limit=${pageSize}`);
+      const response = await fetch(`${API_BASE}/api/tickets/${tenantCode}?page=${ticketPage}&limit=${pageSize}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -14823,48 +14824,50 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         // Populate customer/team member filter dropdown
         populateCustomerFilter();
 
-        // Apply filters
+        // Apply client-side filters to current page
         let filteredTickets = applyTicketFilters(tickets);
 
-        // Apply sorting
+        // Apply sorting to current page
         filteredTickets = applySorting(filteredTickets);
 
         // Store ticket navigation list for prev/next in detail view
         window.ticketNavList = filteredTickets.map(t => t.id);
 
-        // Store total count before pagination
-        const totalFiltered = filteredTickets.length;
-        const pageSize = getPageSize('tickets');
+        // Use server-provided pagination info
+        const serverTotal = data.total || tickets.length;
+        const serverPage = data.page || ticketPage;
+        const serverLimit = data.limit || pageSize;
+        const serverTotalPages = data.totalPages || Math.ceil(serverTotal / serverLimit);
 
-        // Validate current page
-        const maxPage = Math.max(1, Math.ceil(totalFiltered / pageSize));
-        if (ticketPage > maxPage) ticketPage = maxPage;
-
-        // Apply pagination
-        const paginatedTickets = paginateArray(filteredTickets, ticketPage, pageSize);
+        // Validate current page against server total
+        if (ticketPage > serverTotalPages && serverTotalPages > 0) {
+          ticketPage = serverTotalPages;
+        }
 
         // Update ticket count
         const countDiv = document.getElementById('ticket-count');
         if (countDiv) {
-          let countText = `Showing ${totalFiltered} of ${tickets.length} tickets`;
+          const startItem = (serverPage - 1) * serverLimit + 1;
+          const endItem = Math.min(serverPage * serverLimit, serverTotal);
+          let countText = `Showing ${startItem}-${endItem} of ${serverTotal} tickets`;
 
           // Add insight filter indicator
           if (window.insightTicketFilter && window.insightTicketFilter.length > 0) {
-            countText = `🔍 Filtered by AI Insight: "${window.insightTitle}" - ${totalFiltered} tickets`;
+            countText = `🔍 Filtered by AI Insight: "${window.insightTitle}" - ${filteredTickets.length} tickets`;
             countText += ` <button class="btn ghost" style="padding:2px 8px;font-size:11px;margin-left:8px" onclick="clearInsightFilter()">✕ Clear Filter</button>`;
           }
 
           countDiv.innerHTML = countText;
         }
 
-        // Render pagination controls
-        renderPaginationControls('ticket-pagination', ticketPage, totalFiltered, pageSize, 'setTicketPage', 'setTicketPageSize', 'tickets');
+        // Render pagination controls using server total
+        renderPaginationControls('ticket-pagination', serverPage, serverTotal, serverLimit, 'setTicketPage', 'setTicketPageSize', 'tickets');
 
-        // Render tickets
-        if (paginatedTickets.length === 0) {
+        // Render tickets (already paginated by server)
+        if (filteredTickets.length === 0) {
           tb.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px;">No tickets match your filters</td></tr>';
         } else {
-          paginatedTickets.forEach(t=>{
+          filteredTickets.forEach(t=>{
             const tr=document.createElement('tr');
             const sla = getSLAState(t);
             const dateTime = formatDateTime(t.created);

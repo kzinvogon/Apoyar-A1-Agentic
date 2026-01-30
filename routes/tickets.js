@@ -458,12 +458,19 @@ router.post('/settings/:tenantId', async (req, res) => {
 router.get('/:tenantId', readOperationsLimiter, validateTicketGet, async (req, res) => {
   try {
     const { tenantId } = req.params;
+    const { page = '1', limit = '50' } = req.query;
+
+    // Pagination params
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 50));
+    const offset = (pageNum - 1) * limitNum;
+
     const tenantCode = tenantId.toLowerCase().replace(/[^a-z0-9]/g, '_');
     const connection = await getTenantConnection(tenantCode);
 
     try {
       // Build query with filtering based on role
-      let query = `
+      let baseSelect = `
         SELECT t.*,
                u1.full_name as assignee_name,
                u2.full_name as requester_name,
@@ -538,18 +545,33 @@ router.get('/:tenantId', readOperationsLimiter, validateTicketGet, async (req, r
       }
       // Admin role sees all tickets (no WHERE condition)
 
-      if (whereConditions.length > 0) {
-        query += ` WHERE ${whereConditions.join(' AND ')}`;
-      }
+      // Build WHERE clause
+      const whereClause = whereConditions.length > 0
+        ? ` WHERE ${whereConditions.join(' AND ')}`
+        : '';
 
-      query += ` ORDER BY t.created_at DESC`;
+      // Get total count first
+      const [countResult] = await connection.query(
+        `SELECT COUNT(*) as total FROM tickets t ${whereClause}`,
+        params
+      );
+      const total = countResult[0].total;
 
-      const [tickets] = await connection.query(query, params);
+      // Build paginated query
+      const query = baseSelect + whereClause + ` ORDER BY t.created_at DESC LIMIT ? OFFSET ?`;
+      const [tickets] = await connection.query(query, [...params, limitNum, offset]);
 
       // Enrich tickets with computed SLA status
       await enrichTicketsWithSLAStatus(tickets, connection);
 
-      res.json({ success: true, tickets });
+      res.json({
+        success: true,
+        tickets,
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages: Math.ceil(total / limitNum)
+      });
     } finally {
       connection.release();
     }
