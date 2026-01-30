@@ -681,6 +681,20 @@ async function createTenantTables(connection) {
     )
   `);
 
+  // Company profile table (tenant settings)
+  await connection.execute(`
+    CREATE TABLE IF NOT EXISTS company_profile (
+      id INT NOT NULL AUTO_INCREMENT,
+      company_name VARCHAR(200) DEFAULT NULL,
+      contact_phone VARCHAR(50) DEFAULT NULL,
+      mail_from_email VARCHAR(100) DEFAULT NULL,
+      company_url_domain VARCHAR(255) DEFAULT NULL,
+      created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (id)
+    )
+  `);
+
   // Business hours profiles table
   await connection.execute(`
     CREATE TABLE IF NOT EXISTS business_hours_profiles (

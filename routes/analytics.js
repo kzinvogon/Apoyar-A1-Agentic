@@ -84,6 +84,16 @@ router.get('/:tenantId', async (req, res) => {
         [parseInt(period), ...customerParams]
       );
 
+      // Calculate average response time (time from creation to first response)
+      const [responseTimeStats] = await connection.query(
+        `SELECT
+          AVG(TIMESTAMPDIFF(HOUR, created_at, first_responded_at)) as avg_response_hours
+         FROM tickets
+         WHERE first_responded_at IS NOT NULL
+         AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY) ${customerFilter}`,
+        [parseInt(period), ...customerParams]
+      );
+
       // Assignee workload - skip for customers
       let assigneeWorkload = [];
       if (!isCustomer) {
@@ -115,6 +125,16 @@ router.get('/:tenantId', async (req, res) => {
         [parseInt(period), ...customerParams]
       );
 
+      // Recent activity - recently updated tickets
+      const [recentTickets] = await connection.query(
+        `SELECT id, title, status, updated_at as updatedAt
+         FROM tickets
+         WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? DAY) ${customerFilter}
+         ORDER BY updated_at DESC
+         LIMIT 10`,
+        [parseInt(period), ...customerParams]
+      );
+
       const analytics = {
         period: `${period} days`,
         tickets: {
@@ -132,7 +152,7 @@ router.get('/:tenantId', async (req, res) => {
           byCategory: categoryStats
         },
         performance: {
-          avgResolutionTimeHours: null, // Not tracked yet - requires resolved_at column
+          avgResolutionTimeHours: responseTimeStats[0]?.avg_response_hours || null, // Calculated from first_responded_at
           sla: {
             total: slaStats[0]?.total_with_sla || 0,
             met: slaStats[0]?.met_sla || 0,
@@ -144,7 +164,8 @@ router.get('/:tenantId', async (req, res) => {
         },
         topRequesters,
         assigneeWorkload,
-        trends: trendData
+        trends: trendData,
+        recentActivity: recentTickets
       };
 
       res.json({ success: true, analytics });

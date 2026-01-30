@@ -498,11 +498,11 @@ router.get('/:tenantId', readOperationsLimiter, validateTicketGet, async (req, r
         );
 
         if (permissions.length === 0) {
-          // No permissions = no tickets visible
-          whereConditions.push('1 = 0');
+          // No permissions defined = default to seeing all tickets
+          // (Admins can restrict access later via expert permissions)
         } else {
-          // Check if has 'all' permission (can see all tickets)
-          const hasAllTickets = permissions.some(p => p.permission_type === 'all');
+          // Check if has 'all_tickets' permission (can see all tickets)
+          const hasAllTickets = permissions.some(p => p.permission_type === 'all_tickets' || p.permission_type === 'all');
 
           if (!hasAllTickets) {
             // Build permission-based filter
@@ -1163,14 +1163,9 @@ router.post('/:tenantId/:ticketId/self-assign', writeOperationsLimiter, requireR
           [req.user.userId]
         );
 
-        if (permissions.length === 0) {
-          return res.status(403).json({
-            success: false,
-            message: 'You do not have permission to assign tickets'
-          });
-        }
-
-        const hasAllTickets = permissions.some(p => p.permission_type === 'all_tickets');
+        // No permissions defined = default to seeing all tickets
+        const hasAllTickets = permissions.length === 0 ||
+          permissions.some(p => p.permission_type === 'all_tickets');
 
         if (!hasAllTickets) {
           // Check if expert has permission for this specific ticket

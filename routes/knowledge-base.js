@@ -577,16 +577,30 @@ router.get('/:tenantCode/stats', requireRole(['admin', 'expert']), async (req, r
         SELECT id, article_id, title, created_at FROM kb_articles ORDER BY created_at DESC LIMIT 5
       `);
 
+      // Build status counts object
+      const byStatus = statusCounts.reduce((acc, row) => ({ ...acc, [row.status]: row.count }), {});
+
+      // Calculate totals for frontend compatibility
+      const total_articles = statusCounts.reduce((sum, row) => sum + row.count, 0);
+      const published_articles = byStatus.published || 0;
+      const draft_articles = byStatus.draft || 0;
+
       res.json({
         success: true,
         stats: {
-          byStatus: statusCounts.reduce((acc, row) => ({ ...acc, [row.status]: row.count }), {}),
+          // Original field names (for backwards compatibility)
+          byStatus,
           totalViews: viewStats[0].total_views || 0,
           totalHelpful: viewStats[0].total_helpful || 0,
           totalNotHelpful: viewStats[0].total_not_helpful || 0,
           pendingMerges: mergeCounts[0].pending,
           byCategory: categoryCounts,
-          recentArticles
+          recentArticles,
+          // Additional field names expected by frontend
+          total_articles,
+          published_articles,
+          draft_articles,
+          merge_suggestions: mergeCounts[0].pending
         }
       });
 
