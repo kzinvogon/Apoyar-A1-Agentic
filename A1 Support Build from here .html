@@ -13421,7 +13421,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       return;
     }
 
-    const tenant = window.currentUser?.role === 'master' ? window.tenant : window.currentUser?.tenant;
+    const tenant = window.tenant || localStorage.getItem('tenantCode') || 'apoyar';
 
     // Create a link and trigger download
     const url = `${API_BASE}/api/tickets/${tenant}/export/csv`;
@@ -13464,7 +13464,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       return;
     }
 
-    const tenant = window.currentUser?.role === 'master' ? window.tenant : window.currentUser?.tenant;
+    const tenant = window.tenant || localStorage.getItem('tenantCode') || 'apoyar';
     const period = 30; // Default to 30 days
 
     // Fetch and download
@@ -22897,7 +22897,7 @@ async function showCMDBSuggestionsModal() {
 
   // Show modal
   showModal('AI-Suggested CMDB Links', content, [
-    { label: 'Close', class: 'ghost', action: 'closeModal()' }
+    { label: 'Close', class: 'ghost', action: "closeModal('generic-modal')" }
   ]);
 }
 
