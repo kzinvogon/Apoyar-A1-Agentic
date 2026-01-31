@@ -30,6 +30,156 @@ if (!process.env.MYSQLHOST) {
 const { getTenantConnection } = require('../config/database');
 const { AIAnalysisService } = require('../services/ai-analysis-service');
 
+// ============================================================================
+// PROVIDER CONFIGURATION
+// ============================================================================
+
+/**
+ * Determine AI provider and API key based on environment
+ */
+function getProviderConfig() {
+  const provider = process.env.AI_PROVIDER || process.env.AI_PROVIDER_PRIMARY || 'pattern';
+
+  // Check for valid API keys
+  const anthropicKey = process.env.ANTHROPIC_API_KEY || process.env.AI_API_KEY;
+  const openaiKey = process.env.OPENAI_API_KEY;
+
+  // Validate Anthropic key (must start with 'sk-ant-')
+  const hasAnthropic = !!(anthropicKey &&
+    anthropicKey !== 'your_anthropic_api_key_here' &&
+    anthropicKey.startsWith('sk-ant-'));
+
+  // Validate OpenAI key (must start with 'sk-' or 'sk-proj-')
+  const hasOpenAI = !!(openaiKey &&
+    openaiKey !== 'your_openai_api_key_here' &&
+    (openaiKey.startsWith('sk-') || openaiKey.startsWith('sk-proj-')));
+
+  let apiKey = null;
+  let effectiveProvider = provider;
+
+  if (provider === 'anthropic' && hasAnthropic) {
+    apiKey = anthropicKey;
+  } else if (provider === 'openai' && hasOpenAI) {
+    apiKey = openaiKey;
+  } else if (provider !== 'pattern') {
+    // Requested provider not available, fall back to pattern
+    effectiveProvider = 'pattern';
+  }
+
+  return {
+    provider: effectiveProvider,
+    requestedProvider: provider,
+    apiKey,
+    hasOpenAI,
+    hasAnthropic
+  };
+}
+
+// Global provider config (set once at startup)
+let providerConfig = null;
+
+// ============================================================================
+// PATTERN-BASED CLASSIFICATION
+// ============================================================================
+
+function classifyWithPatterns(title, description) {
+  const text = `${title || ''} ${description || ''}`.toLowerCase();
+
+  let work_type = 'unknown';
+  let execution_mode = 'human_review';
+  let confidence = 0.6;
+  const system_tags = [];
+  const reasons = [];
+
+  // Incident patterns (something is broken)
+  if (/(down|outage|error|fail|crash|broken|not working|doesn't work|can't access|unable to|stopped|issue|problem with|bug)/i.test(text)) {
+    work_type = 'incident';
+    confidence = 0.75;
+    reasons.push('Contains incident keywords');
+
+    if (/(critical|urgent|emergency|production down|system down|major)/i.test(text)) {
+      execution_mode = 'expert_required';
+      system_tags.push('urgent');
+      confidence = 0.85;
+    }
+  }
+
+  // Request patterns (asking for something new)
+  else if (/(request|need access|grant|create|setup|provision|install|configure|add user|new account|please provide|could you|can you set up)/i.test(text)) {
+    work_type = 'request';
+    confidence = 0.7;
+    reasons.push('Contains request keywords');
+
+    if (/(access|permission|account)/i.test(text)) {
+      system_tags.push('access');
+    }
+  }
+
+  // Question patterns
+  else if (/(how do i|how to|what is|can i|is it possible|wondering|question|info|information|explain|help me understand)/i.test(text)) {
+    work_type = 'question';
+    execution_mode = 'human_review';
+    confidence = 0.7;
+    reasons.push('Contains question keywords');
+    system_tags.push('training');
+  }
+
+  // Change request patterns
+  else if (/(change|modify|update|upgrade|migrate|move|transfer|replace|switch|convert)/i.test(text)) {
+    work_type = 'change_request';
+    execution_mode = 'human_review';
+    confidence = 0.65;
+    reasons.push('Contains change keywords');
+  }
+
+  // Operational action patterns
+  else if (/(maintenance|scheduled|routine|backup|patch|reboot|restart|renew|certificate|expire)/i.test(text)) {
+    work_type = 'operational_action';
+    execution_mode = 'automated';
+    confidence = 0.7;
+    reasons.push('Contains operational keywords');
+    system_tags.push('maintenance');
+  }
+
+  // Feedback patterns
+  else if (/(feedback|suggestion|complaint|compliment|improve|feature request|would be nice|thank you for)/i.test(text)) {
+    work_type = 'feedback';
+    execution_mode = 'human_review';
+    confidence = 0.65;
+    reasons.push('Contains feedback keywords');
+  }
+
+  // Problem investigation patterns
+  else if (/(root cause|recurring|keeps happening|again|investigate|analysis|multiple incidents|pattern)/i.test(text)) {
+    work_type = 'problem';
+    execution_mode = 'expert_required';
+    confidence = 0.7;
+    reasons.push('Contains problem investigation keywords');
+  }
+
+  // Add category-based tags
+  if (/(database|mysql|sql|postgres|oracle|mongo)/i.test(text)) {
+    system_tags.push('database');
+  }
+  if (/(network|vpn|firewall|dns|connectivity|connection)/i.test(text)) {
+    system_tags.push('network');
+  }
+  if (/(security|password|authentication|unauthorized|breach|vulnerability)/i.test(text)) {
+    system_tags.push('security');
+    if (work_type === 'incident') {
+      execution_mode = 'escalation_required';
+    }
+  }
+
+  return {
+    work_type,
+    execution_mode,
+    system_tags: [...new Set(system_tags)].slice(0, 3),
+    confidence,
+    reason: reasons.length > 0 ? `Pattern: ${reasons.join('; ')}` : 'Pattern-based classification'
+  };
+}
+
 // Parse CLI arguments
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -96,29 +246,28 @@ const FALLBACK_CLASSIFICATION = {
   execution_mode: 'mixed',
   system_tags: [],
   confidence: 0.2,
-  reason: 'Classification failed validation.'
+  reason: 'Pattern-based classification (AI not configured)'
 };
 
 /**
- * Call AI classification with timeout
+ * Call AI classification with timeout (falls back to pattern silently)
  */
 async function classifyWithAI(tenantCode, title, description, timeoutMs = 20000) {
-  const apiKey = process.env.ANTHROPIC_API_KEY || process.env.AI_API_KEY;
-
-  // If no API key, return failure immediately
-  if (!apiKey || apiKey === 'your_anthropic_api_key_here' || !apiKey.startsWith('sk-')) {
-    return { success: false, error: 'No valid Anthropic API key configured' };
+  // Use pattern fallback if no valid AI provider
+  if (providerConfig.provider === 'pattern' || !providerConfig.apiKey) {
+    return { success: true, data: classifyWithPatterns(title, description), usedPattern: true };
   }
 
   return new Promise(async (resolve) => {
     const timer = setTimeout(() => {
-      resolve({ success: false, error: 'AI timeout' });
+      // Timeout - fall back to pattern silently
+      resolve({ success: true, data: classifyWithPatterns(title, description), usedPattern: true, timeout: true });
     }, timeoutMs);
 
     try {
       const aiService = new AIAnalysisService(tenantCode, {
-        apiKey,
-        aiProvider: 'anthropic',
+        apiKey: providerConfig.apiKey,
+        aiProvider: providerConfig.provider,
         task: 'ticket_work_classify'
       });
 
@@ -132,15 +281,17 @@ async function classifyWithAI(tenantCode, title, description, timeoutMs = 20000)
       clearTimeout(timer);
 
       if (!result) {
-        resolve({ success: false, error: 'Empty AI response' });
+        // Empty response - fall back to pattern silently
+        resolve({ success: true, data: classifyWithPatterns(title, description), usedPattern: true });
         return;
       }
 
       // Result is already parsed by AIAnalysisService
-      resolve({ success: true, data: result });
+      resolve({ success: true, data: result, usedPattern: false });
     } catch (error) {
       clearTimeout(timer);
-      resolve({ success: false, error: error.message });
+      // AI error - fall back to pattern silently
+      resolve({ success: true, data: classifyWithPatterns(title, description), usedPattern: true, aiError: error.message });
     }
   });
 }
@@ -245,21 +396,12 @@ async function processTicket(ticket, semaphore, stats, opts) {
   try {
     const startTime = Date.now();
 
-    // Call AI
+    // Call AI (falls back to pattern silently)
     const aiResult = await classifyWithAI(opts.tenant, ticket.title, ticket.description);
 
-    let classification;
-    let classifiedBy = 'ai';
-
-    if (aiResult.success) {
-      classification = validateAndApplyGuardrails(aiResult.data, ticket.title, ticket.description);
-    } else {
-      // Fallback
-      classification = { ...FALLBACK_CLASSIFICATION };
-      classification.reason = `AI failed: ${aiResult.error}`;
-      classifiedBy = 'rule';
-      stats.failed++;
-    }
+    // Always succeeds now (pattern fallback)
+    const classification = validateAndApplyGuardrails(aiResult.data, ticket.title, ticket.description);
+    const classifiedBy = aiResult.usedPattern ? 'pattern' : 'ai';
 
     const elapsed = Date.now() - startTime;
 
@@ -300,8 +442,11 @@ async function processTicket(ticket, semaphore, stats, opts) {
         classifiedBy,
         ticket.id
       ]);
-    } finally {
-      connection.release();
+      stats.updated++;
+    } catch (dbError) {
+      // DB update failed - this is a real error
+      stats.failed++;
+      console.error(`  DB ERROR #${ticket.id}: ${dbError.message}`);
     }
 
     stats.processed++;
@@ -381,17 +526,39 @@ async function printReport(connection) {
  * Main backfill function
  */
 async function backfill(opts) {
-  console.log('========== BACKFILL CLASSIFICATION ==========');
-  console.log(`Tenant: ${opts.tenant}`);
-  console.log(`Limit: ${opts.limit}`);
-  console.log(`Batch size: ${opts.batch}`);
-  console.log(`Concurrency: ${opts.concurrency}`);
-  console.log(`Since days: ${opts.all ? 'ALL' : opts.sinceDays}`);
-  console.log(`Dry run: ${opts.dryRun}`);
+  // Initialize provider config once at startup
+  providerConfig = getProviderConfig();
+
+  console.log('\n========== BACKFILL CLASSIFICATION ==========');
+
+  // Print provider info (once at startup)
+  console.log('\nProvider Configuration:');
+  console.log(`  Selected provider: ${providerConfig.provider}`);
+  if (providerConfig.requestedProvider !== providerConfig.provider) {
+    console.log(`  ⚠️  Requested provider '${providerConfig.requestedProvider}' not available; using '${providerConfig.provider}' fallback`);
+  }
+  console.log(`  hasOpenAI: ${providerConfig.hasOpenAI}`);
+  console.log(`  hasAnthropic: ${providerConfig.hasAnthropic}`);
+
+  // Print DB connection info
+  const mysqlHost = process.env.MYSQLHOST || process.env.MYSQL_HOST || 'localhost';
+  const mysqlPort = process.env.MYSQLPORT || process.env.MYSQL_PORT || '3306';
+  const mysqlUser = process.env.MYSQLUSER || process.env.MYSQL_USER || 'root';
+  console.log(`\nDatabase: ${mysqlHost}:${mysqlPort} (user: ${mysqlUser})`);
+  console.log(`Target schema: a1_tenant_${opts.tenant}`);
+
+  console.log('\nRun Configuration:');
+  console.log(`  Tenant: ${opts.tenant}`);
+  console.log(`  Limit: ${opts.limit}`);
+  console.log(`  Batch size: ${opts.batch}`);
+  console.log(`  Concurrency: ${opts.concurrency}`);
+  console.log(`  Since days: ${opts.all ? 'ALL' : opts.sinceDays}`);
+  console.log(`  Dry run: ${opts.dryRun}`);
   console.log('');
 
   const stats = {
     processed: 0,
+    updated: 0,
     failed: 0,
     startTime: Date.now()
   };
@@ -440,7 +607,8 @@ async function backfill(opts) {
   const totalElapsed = ((Date.now() - stats.startTime) / 1000).toFixed(1);
   console.log(`\n========== SUMMARY ==========`);
   console.log(`Total processed: ${stats.processed}`);
-  console.log(`Total failed: ${stats.failed}`);
+  console.log(`Total updated: ${stats.updated}`);
+  console.log(`Total failed (DB errors): ${stats.failed}`);
   console.log(`Total time: ${totalElapsed}s`);
 
   if (!opts.dryRun) {
