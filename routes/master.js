@@ -305,11 +305,13 @@ router.get('/overview', requireMasterAuth, async (req, res) => {
   try {
     const connection = await getMasterConnection();
     try {
-      // Get total counts (only active tenants)
-      const [tenantCount] = await connection.query("SELECT COUNT(*) as count FROM tenants WHERE status = 'active'");
+      // Get total counts from a1_master database
+      const [tenantCount] = await connection.query("SELECT COUNT(*) as count FROM tenants");
       const [activeTenantCount] = await connection.query("SELECT COUNT(*) as count FROM tenants WHERE status = 'active'");
       const [masterUserCount] = await connection.query('SELECT COUNT(*) as count FROM master_users WHERE is_active = TRUE');
       const [auditLogCount] = await connection.query('SELECT COUNT(*) as count FROM master_audit_log');
+
+      console.log(`[System Overview] DB counts - Total tenants: ${tenantCount[0].count}, Active: ${activeTenantCount[0].count}, Master users: ${masterUserCount[0].count}, Audit logs: ${auditLogCount[0].count}`);
 
       // Get recent audit logs
       const [recentAudit] = await connection.query(`
