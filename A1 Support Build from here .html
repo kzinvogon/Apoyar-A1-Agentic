@@ -14855,7 +14855,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           return {
             id: t.id,
             title: t.title,
-            description: t.description,
+            description: t.description_preview || null, // Preview only; full description fetched on ticket open
             priority: t.priority,
             status: t.status,
             assignee: t.assignee_name || '—',
@@ -14866,7 +14866,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             company_name: t.company_name || '—',
             company_domain: t.company_domain,
             created: t.created_at,
-            sla_deadline: t.sla_deadline,
+            sla_deadline: t.response_due_at || t.resolve_due_at, // Use SLA due dates
             sla_status: t.sla_status || null,
             cmdb_item_name: t.cmdb_item_name,
             is_system_source: t.is_system_source ? true : false,
