@@ -34,7 +34,9 @@
     "cap:run:android": "npx cap run android",
     "mobile:setup": "npm run cap:add:ios && npm run cap:add:android && npm run cap:sync",
     "mobile:ios": "npm run cap:sync && npm run cap:open:ios",
-    "mobile:android": "npm run cap:sync && npm run cap:open:android"
+    "mobile:android": "npm run cap:sync && npm run cap:open:android",
+    "backfill:classify:pool": "node scripts/backfill-ticket-classification.js --mode pool",
+    "backfill:classify:all": "node scripts/backfill-ticket-classification.js --mode all"
   },
   "keywords": [
     "support",
