@@ -303,6 +303,24 @@ check_schema_parity() {
             fi
         done
     done
+
+    # Check required settings (key-value rows in tenant_settings)
+    if jq -e '.required_settings' "$SCHEMA_CONTRACT" > /dev/null 2>&1; then
+        for table in $(jq -r '.required_settings | keys[] | select(. != "_comment")' "$SCHEMA_CONTRACT"); do
+            SETTINGS=$(jq -r ".required_settings.\"$table\"[]" "$SCHEMA_CONTRACT" 2>/dev/null)
+
+            for setting in $SETTINGS; do
+                RESULT=$(mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASS" \
+                    -N -e "SELECT COUNT(*) FROM $TENANT_DB.$table WHERE setting_key='$setting'" 2>/dev/null)
+
+                if [[ "$RESULT" -ge 1 ]]; then
+                    log_pass "Setting '$table.$setting' exists"
+                else
+                    log_fail "Setting '$table.$setting' missing from $TENANT_DB"
+                fi
+            done
+        done
+    fi
 }
 
 # =============================================================================

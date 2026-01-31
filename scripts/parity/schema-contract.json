@@ -15,11 +15,14 @@
       "execution_mode",
       "system_tags"
     ],
-    "tenant_settings": [
-      "process_emails"
-    ],
     "email_ingest_settings": [
       "enabled"
+    ]
+  },
+  "required_settings": {
+    "_comment": "tenant_settings uses key-value rows, not columns",
+    "tenant_settings": [
+      "process_emails"
     ]
   }
 }
