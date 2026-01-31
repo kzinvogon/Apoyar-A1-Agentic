@@ -274,16 +274,82 @@ class EmailProcessor {
   }
 
   /**
-   * Fetch emails via IMAP
+   * Check if a message has already been processed (by message_id)
+   */
+  async isMessageProcessed(connection, mailboxId, messageId) {
+    try {
+      const [rows] = await connection.query(
+        'SELECT id FROM email_processed_messages WHERE mailbox_id = ? AND message_id = ?',
+        [mailboxId, messageId]
+      );
+      return rows.length > 0;
+    } catch (error) {
+      // Table might not exist yet (pre-migration), treat as not processed
+      if (error.code === 'ER_NO_SUCH_TABLE') {
+        return false;
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Record a processed message for deduplication
+   */
+  async recordProcessedMessage(connection, mailboxId, messageId, uid, ticketId, result) {
+    try {
+      await connection.query(
+        `INSERT INTO email_processed_messages (mailbox_id, message_id, uid, ticket_id, result)
+         VALUES (?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE processed_at = NOW(), result = VALUES(result)`,
+        [mailboxId, messageId, uid, ticketId, result]
+      );
+    } catch (error) {
+      // Table might not exist yet (pre-migration), log and continue
+      if (error.code === 'ER_NO_SUCH_TABLE') {
+        console.log(`email_processed_messages table not found, skipping record`);
+        return;
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Update the last processed UID for a mailbox
+   */
+  async updateLastUidProcessed(connection, mailboxId, uid) {
+    try {
+      await connection.query(
+        'UPDATE email_ingest_settings SET last_uid_processed = ? WHERE id = ? AND (last_uid_processed IS NULL OR last_uid_processed < ?)',
+        [uid, mailboxId, uid]
+      );
+    } catch (error) {
+      // Column might not exist yet (pre-migration), log and continue
+      if (error.code === 'ER_BAD_FIELD_ERROR') {
+        console.log(`last_uid_processed column not found, skipping update`);
+        return;
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Fetch emails via IMAP with UID-based tracking
    *
    * IMPORTANT: Uses queue-based sequential processing to prevent DB pool exhaustion.
-   * 1. Collect phase: Parse all emails from IMAP (no DB operations)
-   * 2. Process phase: Process emails one-by-one with delays using single DB connection
+   * 1. Collect phase: Parse all emails from IMAP (no DB operations, markSeen=false)
+   * 2. Process phase: Process emails one-by-one, mark as seen AFTER success
+   * 3. Record phase: Track processed message_ids and update last_uid_processed
+   *
+   * This prevents data loss when the worker crashes mid-processing.
    */
   async fetchEmailsViaIMAP(connection, config) {
     const self = this;
-    const EMAIL_PROCESS_DELAY_MS = parseInt(process.env.EMAIL_PROCESS_DELAY_MS) || 2000; // 2 second delay between emails
-    const IMAP_TIMEOUT_MS = parseInt(process.env.IMAP_TIMEOUT_MS) || 120000; // 2 minute timeout
+    const EMAIL_PROCESS_DELAY_MS = parseInt(process.env.EMAIL_PROCESS_DELAY_MS) || 2000;
+    const IMAP_TIMEOUT_MS = parseInt(process.env.IMAP_TIMEOUT_MS) || 120000;
+    const mailboxId = config.id;
+    const lastUidProcessed = config.last_uid_processed || 0;
+
+    console.log(`📬 [${this.tenantCode}] Starting IMAP fetch, last_uid_processed: ${lastUidProcessed}`);
 
     // Master timeout wrapper to prevent hanging forever
     const timeoutPromise = new Promise((_, timeoutReject) => {
@@ -293,7 +359,6 @@ class EmailProcessor {
     });
 
     const imapPromise = new Promise((resolve, reject) => {
-      // Configure IMAP connection with timeouts
       const imap = new Imap({
         user: config.username,
         password: config.password,
@@ -301,18 +366,36 @@ class EmailProcessor {
         port: config.server_port,
         tls: config.use_ssl,
         tlsOptions: { rejectUnauthorized: false },
-        connTimeout: 30000,  // 30 second connection timeout
-        authTimeout: 30000   // 30 second auth timeout
+        connTimeout: 30000,
+        authTimeout: 30000
       });
 
-      // Queue to collect emails before processing
       const emailQueue = [];
       const processedEmails = [];
       let pendingParses = 0;
       let fetchEnded = false;
+      let imapRef = imap; // Keep reference for marking seen later
 
-      // Helper to delay execution
       const delay = (ms) => new Promise(r => setTimeout(r, ms));
+
+      // Mark a specific UID as seen (after successful processing)
+      const markAsSeen = (uid) => {
+        return new Promise((resolveMarkSeen) => {
+          if (!imapRef || imapRef.state !== 'authenticated') {
+            console.log(`Cannot mark UID ${uid} as seen - IMAP not connected`);
+            resolveMarkSeen();
+            return;
+          }
+          imapRef.addFlags(uid, ['\\Seen'], (err) => {
+            if (err) {
+              console.error(`Failed to mark UID ${uid} as seen:`, err.message);
+            } else {
+              console.log(`✓ Marked UID ${uid} as seen`);
+            }
+            resolveMarkSeen();
+          });
+        });
+      };
 
       // Process queue sequentially after all emails are collected
       const processQueue = async () => {
@@ -323,16 +406,55 @@ class EmailProcessor {
 
         console.log(`📋 Processing queue of ${emailQueue.length} email(s) sequentially...`);
 
+        let maxUidProcessed = lastUidProcessed;
+
         for (let i = 0; i < emailQueue.length; i++) {
           const emailData = emailQueue[i];
+          const { uid, messageId } = emailData;
 
           try {
+            // Check if already processed (by message_id)
+            const alreadyProcessed = await self.isMessageProcessed(connection, mailboxId, messageId);
+            if (alreadyProcessed) {
+              console.log(`⏭️ [${i + 1}/${emailQueue.length}] Skipping duplicate: ${messageId}`);
+              // Still mark as seen and update UID tracking
+              await markAsSeen(uid);
+              if (uid > maxUidProcessed) maxUidProcessed = uid;
+              continue;
+            }
+
             console.log(`📧 [${i + 1}/${emailQueue.length}] Processing: ${emailData.subject}`);
             const result = await self.processEmail(connection, emailData);
             processedEmails.push(result);
+
+            // Determine result type for tracking
+            let resultType = 'ticket_created';
+            if (!result.success) {
+              if (result.reason === 'bounce_notification_skipped') resultType = 'skipped_bounce';
+              else if (result.reason === 'domain_not_found') resultType = 'skipped_domain';
+              else resultType = 'error';
+            }
+
+            // Record processed message (for deduplication)
+            await self.recordProcessedMessage(
+              connection, mailboxId, messageId, uid,
+              result.ticketId || null, resultType
+            );
+
+            // Mark as seen in IMAP ONLY after successful processing
+            await markAsSeen(uid);
+
+            // Track highest UID processed
+            if (uid > maxUidProcessed) maxUidProcessed = uid;
+
           } catch (processError) {
             console.error(`Error processing email ${i + 1}:`, processError.message);
             processedEmails.push({ success: false, error: processError.message });
+
+            // Record the error for tracking (don't mark as seen - will retry)
+            await self.recordProcessedMessage(
+              connection, mailboxId, messageId, uid, null, 'error'
+            );
           }
 
           // Delay between emails (except after the last one)
@@ -342,10 +464,15 @@ class EmailProcessor {
           }
         }
 
+        // Update last_uid_processed after batch completes
+        if (maxUidProcessed > lastUidProcessed) {
+          await self.updateLastUidProcessed(connection, mailboxId, maxUidProcessed);
+          console.log(`📊 Updated last_uid_processed to ${maxUidProcessed}`);
+        }
+
         console.log(`✅ Finished processing ${processedEmails.length} email(s)`);
       };
 
-      // Check if we should start processing (all emails collected and parsed)
       const checkAndProcess = async () => {
         if (fetchEnded && pendingParses === 0) {
           try {
@@ -360,7 +487,6 @@ class EmailProcessor {
       imap.once('ready', () => {
         console.log(`✅ IMAP connected for tenant: ${self.tenantCode}`);
 
-        // Open [Gmail]/All Mail to catch emails filtered by Gmail screener
         imap.openBox('[Gmail]/All Mail', false, (err, box) => {
           if (err) {
             console.error('Error opening [Gmail]/All Mail:', err);
@@ -368,8 +494,15 @@ class EmailProcessor {
             return reject(err);
           }
 
-          // Search for unseen (unread) emails in All Mail
-          imap.search(['UNSEEN'], (err, results) => {
+          // Build search criteria: UNSEEN OR UID > last_uid_processed
+          // This catches both new emails AND any emails that were fetched but not processed
+          const searchCriteria = lastUidProcessed > 0
+            ? [['OR', 'UNSEEN', ['UID', `${lastUidProcessed + 1}:*`]]]
+            : ['UNSEEN'];
+
+          console.log(`🔍 Search criteria:`, JSON.stringify(searchCriteria));
+
+          imap.search(searchCriteria, (err, results) => {
             if (err) {
               console.error('Error searching emails:', err);
               imap.end();
@@ -382,13 +515,22 @@ class EmailProcessor {
               return resolve(processedEmails);
             }
 
-            console.log(`📧 Found ${results.length} new email(s) for tenant: ${self.tenantCode}`);
+            console.log(`📧 Found ${results.length} email(s) to check for tenant: ${self.tenantCode}`);
 
-            // Fetch email messages - COLLECT PHASE (no DB operations)
-            const fetch = imap.fetch(results, { bodies: '', markSeen: true });
+            // Fetch with markSeen: FALSE - we'll mark seen AFTER successful processing
+            const fetch = imap.fetch(results, {
+              bodies: '',
+              markSeen: false,  // CRITICAL: Don't mark as seen until processed
+              struct: true      // Get message structure including UID
+            });
 
             fetch.on('message', (msg, seqno) => {
               pendingParses++;
+              let uid = null;
+
+              msg.on('attributes', (attrs) => {
+                uid = attrs.uid;
+              });
 
               msg.on('body', (stream, info) => {
                 let buffer = '';
@@ -399,19 +541,19 @@ class EmailProcessor {
 
                 stream.once('end', async () => {
                   try {
-                    // Parse the email (no DB operations here)
                     const parsed = await simpleParser(buffer);
 
                     const emailData = {
                       from: parsed.from?.text || parsed.from?.value?.[0]?.address || '',
                       subject: parsed.subject || '(No Subject)',
                       body: parsed.text || parsed.html || '(No content)',
-                      messageId: parsed.messageId || `msg-${Date.now()}`,
+                      messageId: parsed.messageId || `msg-${Date.now()}-${seqno}`,
                       date: parsed.date,
-                      seqno: seqno
+                      seqno: seqno,
+                      uid: uid  // Track UID for marking as seen later
                     };
 
-                    console.log(`📨 Queued email #${seqno}: ${emailData.from} - ${emailData.subject}`);
+                    console.log(`📨 Queued email UID=${uid} #${seqno}: ${emailData.from} - ${emailData.subject}`);
                     emailQueue.push(emailData);
 
                   } catch (parseError) {
@@ -445,14 +587,13 @@ class EmailProcessor {
 
       imap.once('end', () => {
         console.log(`IMAP connection closed for tenant: ${self.tenantCode}`);
+        imapRef = null;
         resolve(processedEmails);
       });
 
-      // Connect to IMAP server
       imap.connect();
     });
 
-    // Race between IMAP operation and timeout
     return Promise.race([imapPromise, timeoutPromise]);
   }
 
