@@ -1,0 +1,25 @@
+{
+  "description": "Schema contract for UAT/Production parity verification",
+  "tenant": "apoyar",
+  "required_tables": [
+    "tickets",
+    "ticket_activity",
+    "cmdb_items",
+    "tenant_settings",
+    "email_ingest_settings",
+    "ai_email_analysis"
+  ],
+  "required_columns": {
+    "tickets": [
+      "work_type",
+      "execution_mode",
+      "system_tags"
+    ],
+    "tenant_settings": [
+      "process_emails"
+    ],
+    "email_ingest_settings": [
+      "enabled"
+    ]
+  }
+}
