@@ -452,6 +452,12 @@ class EmailProcessor {
       // Mark a specific UID as seen (after successful processing)
       const markAsSeen = (uid) => {
         return new Promise((resolveMarkSeen) => {
+          // Skip if UID is invalid
+          if (!uid || uid === null) {
+            console.log(`⚠️ Cannot mark as seen - UID is null/undefined`);
+            resolveMarkSeen();
+            return;
+          }
           if (!imapRef || imapRef.state !== 'authenticated') {
             console.log(`Cannot mark UID ${uid} as seen - IMAP not connected`);
             resolveMarkSeen();
@@ -640,42 +646,67 @@ class EmailProcessor {
             fetch.on('message', (msg, seqno) => {
               pendingParses++;
               let uid = null;
+              let buffer = '';
+              let bodyReceived = false;
+              let attrsReceived = false;
+
+              // Collect both attributes and body before processing
+              const tryFinalize = async () => {
+                if (!bodyReceived || !attrsReceived) return;
+
+                try {
+                  // Skip messages without UID - can't track or mark as seen
+                  if (!uid) {
+                    console.log(`⚠️ Skipping email #${seqno} - no UID received`);
+                    return;
+                  }
+
+                  const parsed = await simpleParser(buffer);
+
+                  const emailData = {
+                    from: parsed.from?.text || parsed.from?.value?.[0]?.address || '',
+                    subject: parsed.subject || '(No Subject)',
+                    body: parsed.text || parsed.html || '(No content)',
+                    messageId: parsed.messageId || `msg-${Date.now()}-${seqno}`,
+                    date: parsed.date,
+                    seqno: seqno,
+                    uid: uid  // Track UID for marking as seen later
+                  };
+
+                  console.log(`📨 Queued email UID=${uid} #${seqno}: ${emailData.from} - ${emailData.subject}`);
+                  emailQueue.push(emailData);
+
+                } catch (parseError) {
+                  console.error(`Error parsing email #${seqno}:`, parseError);
+                } finally {
+                  pendingParses--;
+                  checkAndProcess();
+                }
+              };
 
               msg.on('attributes', (attrs) => {
                 uid = attrs.uid;
+                attrsReceived = true;
+                tryFinalize();
               });
 
               msg.on('body', (stream, info) => {
-                let buffer = '';
-
                 stream.on('data', (chunk) => {
                   buffer += chunk.toString('utf8');
                 });
 
-                stream.once('end', async () => {
-                  try {
-                    const parsed = await simpleParser(buffer);
-
-                    const emailData = {
-                      from: parsed.from?.text || parsed.from?.value?.[0]?.address || '',
-                      subject: parsed.subject || '(No Subject)',
-                      body: parsed.text || parsed.html || '(No content)',
-                      messageId: parsed.messageId || `msg-${Date.now()}-${seqno}`,
-                      date: parsed.date,
-                      seqno: seqno,
-                      uid: uid  // Track UID for marking as seen later
-                    };
-
-                    console.log(`📨 Queued email UID=${uid} #${seqno}: ${emailData.from} - ${emailData.subject}`);
-                    emailQueue.push(emailData);
-
-                  } catch (parseError) {
-                    console.error(`Error parsing email #${seqno}:`, parseError);
-                  } finally {
-                    pendingParses--;
-                    checkAndProcess();
-                  }
+                stream.once('end', () => {
+                  bodyReceived = true;
+                  tryFinalize();
                 });
+              });
+
+              // Fallback in case attributes never arrive (shouldn't happen but be safe)
+              msg.once('end', () => {
+                if (!attrsReceived) {
+                  attrsReceived = true;
+                  tryFinalize();
+                }
               });
             });
 
