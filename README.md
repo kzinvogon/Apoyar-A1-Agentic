@@ -485,3 +485,5 @@ git push
 ## License
 
 Proprietary - Apoyar / Serviflow
+
+<!-- Last verified: 2026-01-31 -->
