@@ -187,7 +187,7 @@ class EmailProcessor {
       const connection = await this.getConnection();
       try {
         const [settings] = await connection.query(
-          'SELECT enabled FROM email_ingest_settings ORDER BY id ASC LIMIT 1'
+          'SELECT id, enabled FROM email_ingest_settings WHERE enabled = 1 ORDER BY id ASC LIMIT 1'
         );
         // No settings row = not configured = disabled
         if (settings.length === 0) {
@@ -195,9 +195,11 @@ class EmailProcessor {
         }
         // Check enabled column (0 = disabled, 1 = enabled)
         const isEnabled = !!settings[0].enabled;
+        const settingsId = settings[0].id;
         return {
           enabled: isEnabled,
-          reason: isEnabled ? 'enabled' : 'kill_switch_off'
+          reason: isEnabled ? 'enabled' : 'kill_switch_off',
+          settingsId
         };
       } finally {
         connection.release();
@@ -233,7 +235,7 @@ class EmailProcessor {
       try {
         // Get email ingest settings (already confirmed enabled by kill switch check)
         const [settings] = await connection.query(
-          'SELECT * FROM email_ingest_settings ORDER BY id ASC LIMIT 1'
+          'SELECT * FROM email_ingest_settings WHERE enabled = 1 ORDER BY id ASC LIMIT 1'
         );
 
         if (settings.length === 0) {
@@ -243,10 +245,13 @@ class EmailProcessor {
 
         const config = settings[0];
 
-        console.log(`Connecting to email server for ${this.tenantCode}:`, {
+        console.log(`📬 [${this.tenantCode}] Selected mailbox config:`, {
+          id: config.id,
+          enabled: config.enabled,
+          username: config.username,
           server: config.server_host,
           port: config.server_port,
-          type: config.server_type
+          lastChecked: config.last_checked_at
         });
 
         // Fetch emails using IMAP
@@ -278,16 +283,26 @@ class EmailProcessor {
   async fetchEmailsViaIMAP(connection, config) {
     const self = this;
     const EMAIL_PROCESS_DELAY_MS = parseInt(process.env.EMAIL_PROCESS_DELAY_MS) || 2000; // 2 second delay between emails
+    const IMAP_TIMEOUT_MS = parseInt(process.env.IMAP_TIMEOUT_MS) || 120000; // 2 minute timeout
 
-    return new Promise((resolve, reject) => {
-      // Configure IMAP connection
+    // Master timeout wrapper to prevent hanging forever
+    const timeoutPromise = new Promise((_, timeoutReject) => {
+      setTimeout(() => {
+        timeoutReject(new Error(`IMAP operation timed out after ${IMAP_TIMEOUT_MS}ms`));
+      }, IMAP_TIMEOUT_MS);
+    });
+
+    const imapPromise = new Promise((resolve, reject) => {
+      // Configure IMAP connection with timeouts
       const imap = new Imap({
         user: config.username,
         password: config.password,
         host: config.server_host,
         port: config.server_port,
         tls: config.use_ssl,
-        tlsOptions: { rejectUnauthorized: false }
+        tlsOptions: { rejectUnauthorized: false },
+        connTimeout: 30000,  // 30 second connection timeout
+        authTimeout: 30000   // 30 second auth timeout
       });
 
       // Queue to collect emails before processing
@@ -436,6 +451,9 @@ class EmailProcessor {
       // Connect to IMAP server
       imap.connect();
     });
+
+    // Race between IMAP operation and timeout
+    return Promise.race([imapPromise, timeoutPromise]);
   }
 
   /**
