@@ -40,7 +40,9 @@ get_services() {
     local output_file=$2
 
     railway environment "$env_name" > /dev/null 2>&1
-    railway service 2>/dev/null | grep -E '^\s*\w' | awk '{print $1}' | sort -u > "$output_file" 2>/dev/null || true
+    # List services - extract service names from status output
+    # Format: "service-name | uuid | STATUS"
+    railway service status --all 2>/dev/null | grep -E '^\S+\s+\|' | awk '{print $1}' | grep -v '^MySQL$' | sort -u > "$output_file" 2>/dev/null || true
 }
 
 # =============================================================================
@@ -53,7 +55,7 @@ get_env_keys() {
 
     railway environment "$env_name" > /dev/null 2>&1
     railway service "$service_name" > /dev/null 2>&1 || return 1
-    railway variables 2>/dev/null | grep -E '^[A-Z_][A-Z0-9_]*=' | cut -d'=' -f1 | sort -u > "$output_file" 2>/dev/null || true
+    railway variables --kv 2>/dev/null | grep -E '^[A-Z_][A-Z0-9_]*=' | cut -d'=' -f1 | sort -u > "$output_file" 2>/dev/null || true
 }
 
 # =============================================================================
@@ -225,10 +227,10 @@ main() {
         railway environment production > /dev/null 2>&1
         railway service web > /dev/null 2>&1
 
-        DB_HOST=$(railway variables 2>/dev/null | grep '^MYSQLHOST=' | cut -d'=' -f2-)
-        DB_PORT=$(railway variables 2>/dev/null | grep '^MYSQLPORT=' | cut -d'=' -f2-)
-        DB_USER=$(railway variables 2>/dev/null | grep '^MYSQLUSER=' | cut -d'=' -f2-)
-        DB_PASS=$(railway variables 2>/dev/null | grep '^MYSQLPASSWORD=' | cut -d'=' -f2-)
+        DB_HOST=$(railway variables --kv 2>/dev/null | grep '^MYSQLHOST=' | cut -d'=' -f2-)
+        DB_PORT=$(railway variables --kv 2>/dev/null | grep '^MYSQLPORT=' | cut -d'=' -f2-)
+        DB_USER=$(railway variables --kv 2>/dev/null | grep '^MYSQLUSER=' | cut -d'=' -f2-)
+        DB_PASS=$(railway variables --kv 2>/dev/null | grep '^MYSQLPASSWORD=' | cut -d'=' -f2-)
 
         if [[ -z "$DB_HOST" ]] || [[ -z "$DB_PASS" ]]; then
             echo "Could not retrieve DB credentials. Skipping schema checks."
@@ -277,7 +279,7 @@ main() {
 
     if [[ -n "$EMAIL_WORKER_SVC" ]]; then
         railway service "$EMAIL_WORKER_SVC" > /dev/null 2>&1
-        DISABLE_FLAG=$(railway variables 2>/dev/null | grep '^DISABLE_EMAIL_PROCESSING=' | cut -d'=' -f2-)
+        DISABLE_FLAG=$(railway variables --kv 2>/dev/null | grep '^DISABLE_EMAIL_PROCESSING=' | cut -d'=' -f2-)
 
         echo "UAT email-worker service: $EMAIL_WORKER_SVC"
         echo "DISABLE_EMAIL_PROCESSING: ${DISABLE_FLAG:-<not set>}"
