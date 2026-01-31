@@ -898,7 +898,7 @@ router.get('/:tenantId/pool', readOperationsLimiter, requireRole(['expert', 'adm
           END ASC,
           t.pool_score IS NULL ASC,
           t.pool_score DESC,
-          t.created_at ASC
+          t.created_at DESC
         LIMIT ? OFFSET ?
       `, [...params, limitNum, offset]);
 
