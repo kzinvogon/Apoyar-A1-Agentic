@@ -613,6 +613,7 @@ router.get('/:tenantId', readOperationsLimiter, validateTicketGet, async (req, r
         SELECT
           t.id,
           t.title,
+          t.description,
           t.status,
           t.priority,
           t.created_at,
@@ -649,6 +650,12 @@ router.get('/:tenantId', readOperationsLimiter, validateTicketGet, async (req, r
         LIMIT ? OFFSET ?
       `;
       const [tickets] = await connection.query(dataQuery, [...params, limitNum, offset]);
+
+      // Add description_preview and remove full description (keep payload small)
+      for (const ticket of tickets) {
+        ticket.description_preview = createDescriptionPreview(ticket.description);
+        delete ticket.description;
+      }
 
       // Enrich tickets with computed SLA status
       await enrichTicketsWithSLAStatus(tickets, connection);
