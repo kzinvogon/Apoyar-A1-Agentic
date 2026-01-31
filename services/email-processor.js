@@ -333,12 +333,83 @@ class EmailProcessor {
   }
 
   /**
+   * Get the highest UID in the mailbox via IMAP
+   * Used to initialize last_uid_processed on first run
+   */
+  getHighestUidInMailbox(imap) {
+    return new Promise((resolve, reject) => {
+      // Search for ALL messages to find the highest UID
+      imap.search(['ALL'], (err, results) => {
+        if (err) {
+          console.error('Error searching for highest UID:', err.message);
+          return resolve(0); // Default to 0 on error
+        }
+
+        if (!results || results.length === 0) {
+          console.log('📭 Mailbox is empty, highest UID = 0');
+          return resolve(0);
+        }
+
+        // Results are sequence numbers, we need UIDs
+        // Fetch just the UID attribute for all messages
+        const fetch = imap.fetch(results, { struct: false, size: false });
+        const uids = [];
+
+        fetch.on('message', (msg) => {
+          msg.on('attributes', (attrs) => {
+            if (attrs.uid) uids.push(attrs.uid);
+          });
+        });
+
+        fetch.once('error', (fetchErr) => {
+          console.error('Error fetching UIDs:', fetchErr.message);
+          resolve(0);
+        });
+
+        fetch.once('end', () => {
+          const highestUid = uids.length > 0 ? Math.max(...uids) : 0;
+          console.log(`📊 Found ${uids.length} messages, highest UID = ${highestUid}`);
+          resolve(highestUid);
+        });
+      });
+    });
+  }
+
+  /**
+   * Initialize last_uid_processed when NULL
+   * Sets it to (highest_uid - RECOVERY_WINDOW) to catch recent missed emails
+   */
+  async initializeLastUidProcessed(connection, imap, mailboxId) {
+    const RECOVERY_UID_WINDOW = parseInt(process.env.RECOVERY_UID_WINDOW) || 500;
+
+    console.log(`🔧 Initializing last_uid_processed (recovery window: ${RECOVERY_UID_WINDOW})`);
+
+    const highestUid = await this.getHighestUidInMailbox(imap);
+    const initialUid = Math.max(0, highestUid - RECOVERY_UID_WINDOW);
+
+    console.log(`📍 Setting last_uid_processed = ${initialUid} (highest=${highestUid}, window=${RECOVERY_UID_WINDOW})`);
+
+    // Persist to database
+    await connection.query(
+      'UPDATE email_ingest_settings SET last_uid_processed = ? WHERE id = ?',
+      [initialUid, mailboxId]
+    );
+
+    return initialUid;
+  }
+
+  /**
    * Fetch emails via IMAP with UID-based tracking
    *
    * IMPORTANT: Uses queue-based sequential processing to prevent DB pool exhaustion.
    * 1. Collect phase: Parse all emails from IMAP (no DB operations, markSeen=false)
    * 2. Process phase: Process emails one-by-one, mark as seen AFTER success
    * 3. Record phase: Track processed message_ids and update last_uid_processed
+   *
+   * UID-based recovery (no UNSEEN dependency):
+   * - If last_uid_processed is NULL, initialize to (highest_uid - RECOVERY_WINDOW)
+   * - Always search by UID range, not by UNSEEN flag
+   * - Dedupe via message_id in email_processed_messages table
    *
    * This prevents data loss when the worker crashes mid-processing.
    */
@@ -347,9 +418,9 @@ class EmailProcessor {
     const EMAIL_PROCESS_DELAY_MS = parseInt(process.env.EMAIL_PROCESS_DELAY_MS) || 2000;
     const IMAP_TIMEOUT_MS = parseInt(process.env.IMAP_TIMEOUT_MS) || 120000;
     const mailboxId = config.id;
-    const lastUidProcessed = config.last_uid_processed || 0;
+    let lastUidProcessed = config.last_uid_processed; // Keep as null if not set
 
-    console.log(`📬 [${this.tenantCode}] Starting IMAP fetch, last_uid_processed: ${lastUidProcessed}`);
+    console.log(`📬 [${this.tenantCode}] Starting IMAP fetch, last_uid_processed: ${lastUidProcessed ?? 'NULL (will initialize)'}`);
 
     // Master timeout wrapper to prevent hanging forever
     const timeoutPromise = new Promise((_, timeoutReject) => {
@@ -399,14 +470,25 @@ class EmailProcessor {
 
       // Process queue sequentially after all emails are collected
       const processQueue = async () => {
+        // Counters for summary logging
+        const stats = {
+          scanned: emailQueue.length,
+          processed: 0,
+          skipped_duplicate: 0,
+          skipped_bounce: 0,
+          skipped_domain: 0,
+          errors: 0,
+          firstProcessedMessageId: null
+        };
+
         if (emailQueue.length === 0) {
-          console.log(`No emails in queue to process for tenant: ${self.tenantCode}`);
+          console.log(`📊 [${self.tenantCode}] Cycle summary: scanned=0, last_uid=${lastUidProcessed}`);
           return;
         }
 
         console.log(`📋 Processing queue of ${emailQueue.length} email(s) sequentially...`);
 
-        let maxUidProcessed = lastUidProcessed;
+        let maxUidProcessed = lastUidProcessed || 0;
 
         for (let i = 0; i < emailQueue.length; i++) {
           const emailData = emailQueue[i];
@@ -417,6 +499,11 @@ class EmailProcessor {
             const alreadyProcessed = await self.isMessageProcessed(connection, mailboxId, messageId);
             if (alreadyProcessed) {
               console.log(`⏭️ [${i + 1}/${emailQueue.length}] Skipping duplicate: ${messageId}`);
+              stats.skipped_duplicate++;
+              // Record as skipped_duplicate for audit
+              await self.recordProcessedMessage(
+                connection, mailboxId, messageId, uid, null, 'skipped_duplicate'
+              );
               // Still mark as seen and update UID tracking
               await markAsSeen(uid);
               if (uid > maxUidProcessed) maxUidProcessed = uid;
@@ -430,9 +517,22 @@ class EmailProcessor {
             // Determine result type for tracking
             let resultType = 'ticket_created';
             if (!result.success) {
-              if (result.reason === 'bounce_notification_skipped') resultType = 'skipped_bounce';
-              else if (result.reason === 'domain_not_found') resultType = 'skipped_domain';
-              else resultType = 'error';
+              if (result.reason === 'bounce_notification_skipped') {
+                resultType = 'skipped_bounce';
+                stats.skipped_bounce++;
+              } else if (result.reason === 'domain_not_found') {
+                resultType = 'skipped_domain';
+                stats.skipped_domain++;
+              } else {
+                resultType = 'error';
+                stats.errors++;
+              }
+            } else {
+              stats.processed++;
+              // Track first successfully processed message
+              if (!stats.firstProcessedMessageId) {
+                stats.firstProcessedMessageId = messageId;
+              }
             }
 
             // Record processed message (for deduplication)
@@ -450,6 +550,7 @@ class EmailProcessor {
           } catch (processError) {
             console.error(`Error processing email ${i + 1}:`, processError.message);
             processedEmails.push({ success: false, error: processError.message });
+            stats.errors++;
 
             // Record the error for tracking (don't mark as seen - will retry)
             await self.recordProcessedMessage(
@@ -465,12 +566,16 @@ class EmailProcessor {
         }
 
         // Update last_uid_processed after batch completes
-        if (maxUidProcessed > lastUidProcessed) {
+        const startUid = lastUidProcessed || 0;
+        if (maxUidProcessed > startUid) {
           await self.updateLastUidProcessed(connection, mailboxId, maxUidProcessed);
-          console.log(`📊 Updated last_uid_processed to ${maxUidProcessed}`);
         }
 
-        console.log(`✅ Finished processing ${processedEmails.length} email(s)`);
+        // Summary logging
+        console.log(`📊 [${self.tenantCode}] Cycle summary: mailbox_id=${mailboxId}, last_uid=${startUid}→${maxUidProcessed}, scanned=${stats.scanned}, processed=${stats.processed}, skipped_dup=${stats.skipped_duplicate}, skipped_bounce=${stats.skipped_bounce}, skipped_domain=${stats.skipped_domain}, errors=${stats.errors}`);
+        if (stats.firstProcessedMessageId) {
+          console.log(`📧 First processed message_id: ${stats.firstProcessedMessageId}`);
+        }
       };
 
       const checkAndProcess = async () => {
@@ -484,23 +589,31 @@ class EmailProcessor {
         }
       };
 
-      imap.once('ready', () => {
+      imap.once('ready', async () => {
         console.log(`✅ IMAP connected for tenant: ${self.tenantCode}`);
 
-        imap.openBox('[Gmail]/All Mail', false, (err, box) => {
+        imap.openBox('[Gmail]/All Mail', false, async (err, box) => {
           if (err) {
             console.error('Error opening [Gmail]/All Mail:', err);
             imap.end();
             return reject(err);
           }
 
-          // Build search criteria: UNSEEN OR UID > last_uid_processed
-          // This catches both new emails AND any emails that were fetched but not processed
-          const searchCriteria = lastUidProcessed > 0
-            ? [['OR', 'UNSEEN', ['UID', `${lastUidProcessed + 1}:*`]]]
-            : ['UNSEEN'];
+          // Initialize last_uid_processed if NULL (first run or post-migration)
+          if (lastUidProcessed === null || lastUidProcessed === undefined) {
+            try {
+              lastUidProcessed = await self.initializeLastUidProcessed(connection, imap, mailboxId);
+            } catch (initErr) {
+              console.error('Error initializing last_uid_processed:', initErr.message);
+              lastUidProcessed = 0; // Fallback to 0
+            }
+          }
 
-          console.log(`🔍 Search criteria:`, JSON.stringify(searchCriteria));
+          // UID-based search only - no UNSEEN dependency
+          // This allows recovery of already-read emails that weren't processed
+          const searchCriteria = [['UID', `${lastUidProcessed + 1}:*`]];
+
+          console.log(`🔍 Search criteria: UID > ${lastUidProcessed}`);
 
           imap.search(searchCriteria, (err, results) => {
             if (err) {
