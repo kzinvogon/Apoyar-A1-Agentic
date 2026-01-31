@@ -245,21 +245,62 @@ async function classifyTicket(tenantCode, ticketId, options = {}) {
 }
 
 /**
+ * Get AI provider configuration
+ */
+function getProviderConfig() {
+  const provider = process.env.AI_PROVIDER || process.env.AI_PROVIDER_PRIMARY || 'pattern';
+
+  // Check for valid API keys
+  const anthropicKey = process.env.ANTHROPIC_API_KEY || process.env.AI_API_KEY;
+  const openaiKey = process.env.OPENAI_API_KEY;
+
+  // Validate Anthropic key (must start with 'sk-ant-')
+  const hasAnthropic = !!(anthropicKey &&
+    anthropicKey !== 'your_anthropic_api_key_here' &&
+    anthropicKey.startsWith('sk-ant-'));
+
+  // Validate OpenAI key (must start with 'sk-' or 'sk-proj-')
+  const hasOpenAI = !!(openaiKey &&
+    openaiKey !== 'your_openai_api_key_here' &&
+    (openaiKey.startsWith('sk-') || openaiKey.startsWith('sk-proj-')));
+
+  let apiKey = null;
+  let effectiveProvider = provider;
+
+  if (provider === 'anthropic' && hasAnthropic) {
+    apiKey = anthropicKey;
+  } else if (provider === 'openai' && hasOpenAI) {
+    apiKey = openaiKey;
+  } else if (provider !== 'pattern') {
+    // Requested provider not available, fall back to pattern
+    effectiveProvider = 'pattern';
+  }
+
+  return { provider: effectiveProvider, apiKey, hasOpenAI, hasAnthropic };
+}
+
+// Log provider warning once
+let providerWarningLogged = false;
+
+/**
  * Run AI classification using the AI Analysis Service
  */
 async function runAIClassification(tenantCode, ticket) {
-  const apiKey = process.env.ANTHROPIC_API_KEY || process.env.AI_API_KEY;
+  const config = getProviderConfig();
 
-  // If no API key, fall back to pattern matching
-  if (!apiKey || apiKey === 'your_anthropic_api_key_here' || !apiKey.startsWith('sk-')) {
-    console.log('   ⚠️ No valid Anthropic API key - falling back to pattern matching');
+  // If no valid AI provider, fall back to pattern matching
+  if (config.provider === 'pattern' || !config.apiKey) {
+    if (!providerWarningLogged) {
+      console.log('   ⚠️ AI provider not configured; using pattern fallback');
+      providerWarningLogged = true;
+    }
     return classifyWithPatterns(ticket.title, ticket.description);
   }
 
   try {
     const aiService = new AIAnalysisService(tenantCode, {
-      apiKey,
-      aiProvider: 'anthropic',
+      apiKey: config.apiKey,
+      aiProvider: config.provider,
       task: 'ticket_work_classify'
     });
 
