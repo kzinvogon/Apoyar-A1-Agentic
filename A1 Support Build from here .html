@@ -9298,7 +9298,10 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   async function loadSystemOverview() {
     try {
-      const response = await fetch(window.location.protocol + '//' + window.location.host + '/api/master/overview', {
+      // Cache-bust to ensure fresh data from master DB
+      const url = window.location.protocol + '//' + window.location.host + '/api/master/overview?t=' + Date.now();
+      const response = await fetch(url, {
+        cache: 'no-store',
         headers: {
           'Authorization': 'Bearer ' + localStorage.getItem('token')
         }
