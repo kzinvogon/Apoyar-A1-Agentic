@@ -454,6 +454,25 @@ git push
 
 ---
 
+## Operational Parity Gate
+
+UAT must mirror production in service roles and database schema. The authoritative check is:
+
+```bash
+./scripts/parity/parity-check.sh
+```
+
+**Exit codes:** 0 = parity OK, 1 = violation detected
+
+**What it checks:**
+- Required service roles exist in both environments (web, email-worker)
+- Environment variable keys match (after allowlist filtering)
+- Required database tables and columns exist per schema contract
+
+**Deployments should not proceed if parity fails.** Run `parity-report.sh` for detailed diagnostics.
+
+---
+
 ## Troubleshooting
 
 ### MySQL Connection Failed
