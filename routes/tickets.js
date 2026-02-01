@@ -1515,16 +1515,30 @@ router.post('/:tenantId/:ticketId/claim', writeOperationsLimiter, requireRole(['
         });
       }
 
-      // Create/extend claim lock
+      // Create/extend claim lock with race-safe WHERE clause
       const claimUntil = new Date(Date.now() + CLAIM_LOCK_DURATION_SECONDS * 1000);
 
-      await connection.query(`
+      const [claimResult] = await connection.query(`
         UPDATE tickets
         SET pool_status = 'CLAIMED_LOCKED',
             claimed_by_expert_id = ?,
             claimed_until_at = ?
         WHERE id = ?
-      `, [req.user.userId, claimUntil, ticketId]);
+          AND (
+            pool_status = 'OPEN_POOL'
+            OR claimed_by_expert_id = ?
+            OR claimed_until_at IS NULL
+            OR claimed_until_at <= NOW()
+          )
+      `, [req.user.userId, claimUntil, ticketId, req.user.userId]);
+
+      if (claimResult.affectedRows === 0) {
+        return res.status(409).json({
+          success: false,
+          message: 'Ticket was claimed by another user, please refresh',
+          code: 'CLAIM_RACE_LOST'
+        });
+      }
 
       // Get updated ticket with full details for preview
       const [updatedTickets] = await connection.query(`
@@ -1617,8 +1631,9 @@ router.post('/:tenantId/:ticketId/accept-ownership', writeOperationsLimiter, req
 
       const now = new Date();
 
-      // Update to owned status
-      await connection.query(`
+      // Update to owned status with race-safe WHERE clause
+      // Eligibility: OPEN_POOL, or I have the claim, or claim is NULL/expired
+      const [acceptResult] = await connection.query(`
         UPDATE tickets
         SET pool_status = 'IN_PROGRESS_OWNED',
             status = 'In Progress',
@@ -1629,7 +1644,21 @@ router.post('/:tenantId/:ticketId/accept-ownership', writeOperationsLimiter, req
             claimed_until_at = NULL,
             first_responded_at = COALESCE(first_responded_at, ?)
         WHERE id = ?
-      `, [req.user.userId, req.user.userId, now, now, ticketId]);
+          AND (
+            pool_status = 'OPEN_POOL'
+            OR claimed_by_expert_id = ?
+            OR claimed_until_at IS NULL
+            OR claimed_until_at <= NOW()
+          )
+      `, [req.user.userId, req.user.userId, now, now, ticketId, req.user.userId]);
+
+      if (acceptResult.affectedRows === 0) {
+        return res.status(409).json({
+          success: false,
+          message: 'Lost race for ticket ownership, please refresh',
+          code: 'ACCEPT_RACE_LOST'
+        });
+      }
 
       // Recompute resolve deadline from ownership start if SLA exists
       if (ticket.sla_definition_id) {
