@@ -8389,7 +8389,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       const sla = t.sla_status || {};
       const slaText = sla.phase === 'in_pool' ? 'In Pool' : (sla.response?.state || 'N/A');
       const customer = t.company_name || t.requester_name || 'Unknown';
-      const isClaimed = t.pool_status === 'CLAIMED_LOCKED' && t.claimed_by_expert_id;
+      // Check if claim is expired (treat as OPEN_POOL if so)
+      const claimExpired = t.claimed_until_at && new Date(t.claimed_until_at) < new Date();
+      const isClaimed = t.pool_status === 'CLAIMED_LOCKED' && t.claimed_by_expert_id && !claimExpired;
 
       // Work type badge
       const workTypeBadge = workTypeBadgeHTML(t.work_type);
@@ -15797,9 +15799,12 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const myUserId = parseInt(localStorage.getItem('userId'));
 
     // Pool status logic per docs/workflows/ticket-ownership-state-matrix.md
-    const poolStatus = t?.pool_status;
+    // Treat expired claims as OPEN_POOL
+    const claimExpired = t?.claimed_until_at && new Date(t.claimed_until_at) < new Date();
+    const rawPoolStatus = t?.pool_status;
+    const poolStatus = (rawPoolStatus === 'CLAIMED_LOCKED' && claimExpired) ? 'OPEN_POOL' : rawPoolStatus;
     const isInPool = poolStatus === 'OPEN_POOL' || poolStatus === 'CLAIMED_LOCKED';
-    const isClaimed = poolStatus === 'CLAIMED_LOCKED';
+    const isClaimed = poolStatus === 'CLAIMED_LOCKED' && !claimExpired;
     const isClaimedByMe = isClaimed && t?.claimed_by_expert_id === myUserId;
     const isClaimedByOther = isClaimed && t?.claimed_by_expert_id && t?.claimed_by_expert_id !== myUserId;
     const isOwned = poolStatus === 'IN_PROGRESS_OWNED' || poolStatus === 'WAITING_CUSTOMER';
@@ -15852,11 +15857,37 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const btnNext = document.getElementById('btn-next');
     const btnResolve = document.getElementById('btn-resolve');
     const btnAiAssist = document.getElementById('btn-ai-assist');
-    const showWorkflowButtons = !isInPool || isOwnedByMe || isOwned;
+    const btnReassign = document.getElementById('btn-reassign');
+    const btnSelfAssign = document.getElementById('btn-self-assign');
+
+    // Show workflow buttons only if: not in pool, OR owned by me, OR (owned by someone and I'm admin)
+    const canModifyTicket = !isInPool || isOwnedByMe || (isOwned && currentRole === 'admin');
+    const showWorkflowButtons = canModifyTicket;
 
     if (btnNext) btnNext.style.display = (isCustomer || !showWorkflowButtons) ? 'none' : 'inline-block';
     if (btnResolve) btnResolve.style.display = (isCustomer || !showWorkflowButtons) ? 'none' : 'inline-block';
     if (btnAiAssist) btnAiAssist.style.display = (isCustomer || !showWorkflowButtons) ? 'none' : 'inline-block';
+    if (btnReassign) btnReassign.style.display = (isCustomer || !showWorkflowButtons) ? 'none' : 'inline-block';
+    if (btnSelfAssign) btnSelfAssign.style.display = 'none'; // Only shown via specific conditions elsewhere
+
+    // Make form fields read-only for pool tickets claimed by others (view-only mode)
+    const isReadOnly = isClaimedByOther || (isInPool && !isClaimedByMe && !isOwnedByMe);
+    const titleInput = document.getElementById('td-title');
+    const descInput = document.getElementById('td-desc');
+    const prioritySelect = document.getElementById('td-priority');
+
+    if (titleInput) {
+      titleInput.disabled = isReadOnly || isCustomer;
+      titleInput.style.background = (isReadOnly || isCustomer) ? 'var(--card-hover)' : '';
+    }
+    if (descInput) {
+      descInput.disabled = isReadOnly || isCustomer;
+      descInput.style.background = (isReadOnly || isCustomer) ? 'var(--card-hover)' : '';
+    }
+    if (prioritySelect) {
+      prioritySelect.disabled = isReadOnly || isCustomer;
+      prioritySelect.style.background = (isReadOnly || isCustomer) ? 'var(--card-hover)' : '';
+    }
 
     // Expert/Admin actions - hide for customers
     document.getElementById('expert-actions').style.display = isCustomer ? 'none' : 'flex';
