@@ -744,15 +744,10 @@ router.get('/:tenantId/pool', readOperationsLimiter, requireRole(['expert', 'adm
     const connection = await getTenantConnection(tenantCode);
 
     try {
-      // Expire stale claims first
-      await connection.query(`
-        UPDATE tickets
-        SET pool_status = 'OPEN_POOL',
-            claimed_by_expert_id = NULL,
-            claimed_until_at = NULL
-        WHERE pool_status = 'CLAIMED_LOCKED'
-          AND claimed_until_at < NOW()
-      `);
+      // NOTE: No DB write to expire claims here - pool is read-only.
+      // Expired CLAIMED_LOCKED tickets (claimed_until_at < NOW) are shown but
+      // treated as claimable by the claim/accept handlers.
+      // This allows all experts to see expired claims while enabling reclaim.
 
       // Build dynamic WHERE conditions for filters
       const conditions = [
@@ -1492,11 +1487,16 @@ router.post('/:tenantId/:ticketId/claim', writeOperationsLimiter, requireRole(['
       const ticket = tickets[0];
 
       // Check if ticket is available for claiming
+      // Per docs/workflows/ticket-ownership-state-matrix.md:
+      // - OPEN_POOL: claimable by anyone
+      // - CLAIMED_LOCKED with expired TTL: treat as claimable (allows reclaim)
+      // - CLAIMED_LOCKED with valid TTL: only current claimer can extend
       if (ticket.pool_status === 'CLAIMED_LOCKED') {
-        // Check if claim has expired
         const claimExpiry = ticket.claimed_until_at ? new Date(ticket.claimed_until_at) : null;
-        if (claimExpiry && claimExpiry > new Date()) {
-          // Someone else has an active claim
+        const claimIsExpired = !claimExpiry || claimExpiry <= new Date();
+
+        if (!claimIsExpired) {
+          // Claim still valid - only allow current claimer to extend
           if (ticket.claimed_by_expert_id !== req.user.userId) {
             return res.status(409).json({
               success: false,
@@ -1505,8 +1505,9 @@ router.post('/:tenantId/:ticketId/claim', writeOperationsLimiter, requireRole(['
               claim_expires_at: ticket.claimed_until_at
             });
           }
-          // User already has the claim - extend it
+          // User already has the claim - extend it (fall through to UPDATE)
         }
+        // If claim expired, allow reclaim (fall through to UPDATE)
       } else if (ticket.pool_status !== 'OPEN_POOL') {
         return res.status(400).json({
           success: false,
@@ -1592,13 +1593,21 @@ router.post('/:tenantId/:ticketId/accept-ownership', writeOperationsLimiter, req
       const ticket = tickets[0];
 
       // Verify user has the claim or ticket is in OPEN_POOL
+      // Per docs/workflows/ticket-ownership-state-matrix.md:
+      // - OPEN_POOL: anyone can accept (direct ownership)
+      // - CLAIMED_LOCKED with expired TTL: treat as OPEN_POOL
+      // - CLAIMED_LOCKED with valid TTL: only claimer can accept
       if (ticket.pool_status === 'CLAIMED_LOCKED') {
-        if (ticket.claimed_by_expert_id !== req.user.userId) {
+        const claimExpiry = ticket.claimed_until_at ? new Date(ticket.claimed_until_at) : null;
+        const claimIsExpired = !claimExpiry || claimExpiry <= new Date();
+
+        if (!claimIsExpired && ticket.claimed_by_expert_id !== req.user.userId) {
           return res.status(403).json({
             success: false,
             message: 'You do not have a claim on this ticket'
           });
         }
+        // If expired or user has the claim, allow accept (fall through)
       } else if (ticket.pool_status !== 'OPEN_POOL') {
         return res.status(400).json({
           success: false,
