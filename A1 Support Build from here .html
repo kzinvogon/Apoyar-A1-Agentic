@@ -8444,6 +8444,30 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     });
   }
 
+  // Shared handler for race condition responses (409 with CLAIM_RACE_LOST or ACCEPT_RACE_LOST)
+  // Returns true if race condition was detected and handled, false otherwise
+  async function handleRaceCondition(response, data) {
+    if (response.status !== 409) return false;
+    if (data.code !== 'CLAIM_RACE_LOST' && data.code !== 'ACCEPT_RACE_LOST') return false;
+
+    // Show warning toast with server message or sensible default
+    const message = data.message || 'Another expert got there first';
+    showToast(message, 'warning', 4000);
+
+    // Close claim preview modal if open
+    closeClaimPreviewModal();
+
+    // Refresh pool list so user sees updated state
+    await refreshPoolView();
+
+    // If viewing ticket detail, reload in read-only mode
+    if (currentView === 'ticket-detail' && currentTicketId) {
+      await renderTicketDetail();
+    }
+
+    return true;
+  }
+
   // Claim a ticket for preview
   async function claimTicket(ticketId) {
     const token = localStorage.getItem('token');
@@ -8457,6 +8481,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       });
       const data = await res.json();
 
+      // Handle race condition (409) separately - not a generic error
+      if (await handleRaceCondition(res, data)) return;
+
       if (!res.ok || !data.success) {
         throw new Error(data.message || 'Failed to claim ticket');
       }
@@ -8465,7 +8492,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       openClaimPreviewModal(data);
     } catch (error) {
       console.error('Error claiming ticket:', error);
-      alert('Could not claim ticket: ' + error.message);
+      showToast('Could not claim ticket: ' + error.message, 'error');
     }
   }
 
@@ -8503,6 +8530,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       });
       const data = await res.json();
 
+      // Handle race condition (409) separately - not a generic error
+      if (await handleRaceCondition(res, data)) return;
+
       if (!res.ok || !data.success) {
         throw new Error(data.message || 'Failed to take over ticket');
       }
@@ -8513,7 +8543,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       openTicket(ticketId);
     } catch (error) {
       console.error('Error taking over ticket:', error);
-      alert('Could not take over ticket: ' + error.message);
+      showToast('Could not take over ticket: ' + error.message, 'error');
     }
   }
 
@@ -8594,8 +8624,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const token = localStorage.getItem('token');
     if (!currentClaimedTicket) return;
 
+    const ticketId = currentClaimedTicket.id;
     try {
-      const res = await fetch(`/api/tickets/${window.tenant}/${currentClaimedTicket.id}/accept-ownership`, {
+      const res = await fetch(`/api/tickets/${window.tenant}/${ticketId}/accept-ownership`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -8603,6 +8634,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         }
       });
       const data = await res.json();
+
+      // Handle race condition (409) separately - not a generic error
+      if (await handleRaceCondition(res, data)) return;
 
       if (!res.ok || !data.success) {
         throw new Error(data.message || 'Failed to accept ownership');
@@ -8614,7 +8648,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       openTicket(data.ticket.id);  // Open the ticket
     } catch (error) {
       console.error('Error accepting ownership:', error);
-      alert('Could not accept ownership: ' + error.message);
+      showToast('Could not accept ownership: ' + error.message, 'error');
     }
   }
 
@@ -8636,6 +8670,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       });
       const data = await res.json();
 
+      // Handle race condition (409) separately - not a generic error
+      if (await handleRaceCondition(res, data)) return;
+
       if (!res.ok || !data.success) {
         throw new Error(data.message || 'Failed to release claim');
       }
@@ -8644,7 +8681,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       refreshPoolView();
     } catch (error) {
       console.error('Error releasing claim:', error);
-      alert('Could not release claim: ' + error.message);
+      showToast('Could not release claim: ' + error.message, 'error');
     }
   }
 
@@ -23853,7 +23890,7 @@ function showToast(message, type = 'info', duration = 3000) {
   const existingToast = document.getElementById('toast-notification');
   if (existingToast) existingToast.remove();
 
-  const bgColor = type === 'success' ? '#38a169' : type === 'error' ? '#e53e3e' : '#667eea';
+  const bgColor = type === 'success' ? '#38a169' : type === 'error' ? '#e53e3e' : type === 'warning' ? '#d97706' : '#667eea';
 
   const toast = document.createElement('div');
   toast.id = 'toast-notification';
