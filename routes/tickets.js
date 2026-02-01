@@ -621,11 +621,14 @@ router.get('/:tenantId', readOperationsLimiter, validateTicketGet, async (req, r
           t.requester_id,
           t.assignee_id,
           t.cmdb_item_id,
-          t.response_due_at,
-          t.resolve_due_at,
+          -- SLA dates only meaningful when ownership has started
+          -- Prevents giant "+208497 days" display for unowned pool tickets
+          CASE WHEN t.ownership_started_at IS NOT NULL THEN t.response_due_at ELSE NULL END as response_due_at,
+          CASE WHEN t.ownership_started_at IS NOT NULL THEN t.resolve_due_at ELSE NULL END as resolve_due_at,
           t.first_responded_at,
           t.sla_definition_id,
           t.pool_status,
+          t.ownership_started_at,
           t.work_type,
           t.execution_mode,
           t.system_tags,
