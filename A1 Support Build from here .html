@@ -7301,6 +7301,21 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       return { cls: 'resolved', label: '✓', pct: 100, isResolved: true, tooltip: 'Ticket resolved', sortPriority: 4 };
     }
 
+    // Guard: SLA countdown not meaningful for unowned pool tickets
+    // Prevents "+208497 days" bug when ownership hasn't started
+    const isUnownedPool = !t.ownership_started_at &&
+      (t.pool_status === 'OPEN_POOL' || t.pool_status === 'CLAIMED_LOCKED');
+    if (isUnownedPool) {
+      return { cls: '', label: '—', pct: 0, tooltip: 'SLA starts when ticket is accepted', sortPriority: 5 };
+    }
+
+    // Guard: No valid SLA dates (NULL, epoch 0, or Invalid Date)
+    const hasValidResponseDue = t.response_due_at && new Date(t.response_due_at).getTime() > 0 && !isNaN(new Date(t.response_due_at));
+    const hasValidResolveDue = t.resolve_due_at && new Date(t.resolve_due_at).getTime() > 0 && !isNaN(new Date(t.resolve_due_at));
+    if (!hasValidResponseDue && !hasValidResolveDue && !t.sla_status) {
+      return { cls: '', label: '—', pct: 0, tooltip: 'No SLA deadline set', sortPriority: 5 };
+    }
+
     // Use new two-phase SLA model if available
     if (t.sla_status) {
       const s = t.sla_status;
