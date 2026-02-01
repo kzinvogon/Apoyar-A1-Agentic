@@ -3215,6 +3215,15 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           <div class="row space mb-12">
             <!-- Expert/Admin Actions -->
             <div id="expert-actions" class="row wrap" style="gap:8px;align-items:center">
+              <!-- Pool Actions (per docs/workflows/ticket-ownership-state-matrix.md) -->
+              <button id="btn-pool-claim" class="btn primary" onclick="claimTicketFromDetail()" style="display:none">Claim</button>
+              <button id="btn-pool-accept" class="btn success" onclick="acceptOwnership()" style="display:none">Accept & Own</button>
+              <button id="btn-pool-release" class="btn" onclick="releaseClaim()" style="display:none">Release</button>
+              <button id="btn-pool-takeover" class="btn primary" onclick="takeOverTicketFromDetail()" style="display:none">Take Over</button>
+              <span id="pool-claimed-indicator" style="display:none;font-size:12px;color:var(--muted);padding:4px 8px;background:var(--card-hover);border-radius:4px"></span>
+              <!-- Separator for pool actions -->
+              <span id="pool-action-separator" style="display:none;width:1px;height:24px;background:#e5e7eb;margin:0 4px"></span>
+              <!-- Owned ticket actions -->
               <button id="btn-self-assign" class="btn success" onclick="selfAssignTicket()" style="display:none">👋 Self Assign</button>
               <!-- Primary -->
               <button id="btn-next" class="btn primary" onclick="advanceStatus()">Next status</button>
@@ -8392,13 +8401,30 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       }
       const tagsHTML = systemTagsHTML(systemTags);
 
+      // Button visibility per docs/workflows/ticket-ownership-state-matrix.md
+      // A (OPEN_POOL): View + Claim (or Take Over for automated)
+      // B (CLAIMED, mine): View only
+      // B (CLAIMED, other): View (no action)
+      // D (automated): View + Take Over
+      const isAutomated = t.execution_mode === 'automated';
+      const myUserId = parseInt(localStorage.getItem('userId'));
       let actionBtn = '';
-      if (isClaimed && t.claimed_by_expert_id === parseInt(localStorage.getItem('userId'))) {
-        actionBtn = `<button class="btn primary" onclick="openClaimedPreview(${t.id})" style="font-size:11px;padding:4px 8px">Preview</button>`;
+
+      if (isClaimed && t.claimed_by_expert_id === myUserId) {
+        // State B (mine): View only - show preview to see accept/release options
+        actionBtn = `<button class="btn" onclick="openClaimedPreview(${t.id})" style="font-size:11px;padding:4px 8px">View</button>`;
       } else if (isClaimed) {
-        actionBtn = `<span style="font-size:11px;color:var(--muted)">${t.claimed_by_name || 'Claimed'}</span>`;
+        // State B (other): View (no claim action) + claimed indicator
+        actionBtn = `<button class="btn" onclick="viewPoolTicket(${t.id})" style="font-size:11px;padding:4px 8px">View</button>
+          <span style="font-size:10px;color:var(--muted);margin-left:4px">${t.claimed_by_name || 'Claimed'}</span>`;
+      } else if (isAutomated) {
+        // State D (automated): View + Take Over (no claim TTL)
+        actionBtn = `<button class="btn" onclick="viewPoolTicket(${t.id})" style="font-size:11px;padding:4px 8px">View</button>
+          <button class="btn primary" onclick="takeOverTicket(${t.id})" style="font-size:11px;padding:4px 8px;margin-left:4px">Take Over</button>`;
       } else {
-        actionBtn = `<button class="btn" onclick="claimTicket(${t.id})" style="font-size:11px;padding:4px 8px">Claim</button>`;
+        // State A (unclaimed): View + Claim
+        actionBtn = `<button class="btn" onclick="viewPoolTicket(${t.id})" style="font-size:11px;padding:4px 8px">View</button>
+          <button class="btn primary" onclick="claimTicket(${t.id})" style="font-size:11px;padding:4px 8px;margin-left:4px">Claim</button>`;
       }
 
       tr.innerHTML = `
@@ -8438,6 +8464,54 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     } catch (error) {
       console.error('Error claiming ticket:', error);
       alert('Could not claim ticket: ' + error.message);
+    }
+  }
+
+  // View a pool ticket without claiming (read-only, no DB writes)
+  // Per docs/workflows/ticket-ownership-state-matrix.md: View = no DB writes
+  function viewPoolTicket(ticketId) {
+    // Just open the ticket detail view - GET endpoint has no DB writes
+    // This allows experts to view ticket details before deciding to claim
+    openTicket(ticketId);
+  }
+
+  // Claim ticket from detail view (redirects to claim flow)
+  async function claimTicketFromDetail() {
+    if (!currentTicketId) return;
+    await claimTicket(currentTicketId);
+  }
+
+  // Take over ticket from detail view
+  async function takeOverTicketFromDetail() {
+    if (!currentTicketId) return;
+    await takeOverTicket(currentTicketId);
+  }
+
+  // Take over an automated ticket (skip claim TTL, go direct to ownership)
+  // Per docs/workflows/ticket-ownership-state-matrix.md: D → C transition
+  async function takeOverTicket(ticketId) {
+    const token = localStorage.getItem('token');
+    try {
+      const res = await fetch(`/api/tickets/${window.tenant}/${ticketId}/take-over`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        }
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Failed to take over ticket');
+      }
+
+      // Success - switch to My Tickets view and open the ticket
+      switchExpertView('my');
+      await refreshMyTickets();
+      openTicket(ticketId);
+    } catch (error) {
+      console.error('Error taking over ticket:', error);
+      alert('Could not take over ticket: ' + error.message);
     }
   }
 
@@ -15579,12 +15653,20 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         // Load experts dropdown and set current assignee
         loadExpertsDropdown(ticket.assignee_id);
 
-        // Update local ticket object
+        // Update local ticket object (including pool fields for button visibility)
         Object.assign(t, {
           status: ticket.status,
           priority: ticket.priority,
           assignee: ticket.assignee_name,
-          sla_status: ticket.sla_status
+          sla_status: ticket.sla_status,
+          // Pool fields per docs/workflows/ticket-ownership-state-matrix.md
+          pool_status: ticket.pool_status,
+          claimed_by_expert_id: ticket.claimed_by_expert_id,
+          claimed_by_name: ticket.claimed_by_name,
+          claimed_until_at: ticket.claimed_until_at,
+          owned_by_expert_id: ticket.owned_by_expert_id,
+          owner_name: ticket.owner_name,
+          execution_mode: ticket.execution_mode
         });
 
         // Update header metadata
@@ -15712,6 +15794,69 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const isCustomer = currentRole === 'customer';
     const isResolved = t && t.status === 'Resolved';
     const isSystemSource = t && (t.is_system_source || t.source_metadata);
+    const myUserId = parseInt(localStorage.getItem('userId'));
+
+    // Pool status logic per docs/workflows/ticket-ownership-state-matrix.md
+    const poolStatus = t?.pool_status;
+    const isInPool = poolStatus === 'OPEN_POOL' || poolStatus === 'CLAIMED_LOCKED';
+    const isClaimed = poolStatus === 'CLAIMED_LOCKED';
+    const isClaimedByMe = isClaimed && t?.claimed_by_expert_id === myUserId;
+    const isClaimedByOther = isClaimed && t?.claimed_by_expert_id && t?.claimed_by_expert_id !== myUserId;
+    const isOwned = poolStatus === 'IN_PROGRESS_OWNED' || poolStatus === 'WAITING_CUSTOMER';
+    const isOwnedByMe = isOwned && t?.owned_by_expert_id === myUserId;
+    const isAutomated = t?.execution_mode === 'automated';
+
+    // Pool action buttons visibility
+    const btnClaim = document.getElementById('btn-pool-claim');
+    const btnAccept = document.getElementById('btn-pool-accept');
+    const btnRelease = document.getElementById('btn-pool-release');
+    const btnTakeOver = document.getElementById('btn-pool-takeover');
+    const claimedIndicator = document.getElementById('pool-claimed-indicator');
+    const poolSeparator = document.getElementById('pool-action-separator');
+
+    // Hide all pool buttons by default
+    if (btnClaim) btnClaim.style.display = 'none';
+    if (btnAccept) btnAccept.style.display = 'none';
+    if (btnRelease) btnRelease.style.display = 'none';
+    if (btnTakeOver) btnTakeOver.style.display = 'none';
+    if (claimedIndicator) claimedIndicator.style.display = 'none';
+    if (poolSeparator) poolSeparator.style.display = 'none';
+
+    // Show pool buttons based on state matrix (experts/admins only)
+    if (!isCustomer && t) {
+      if (poolStatus === 'OPEN_POOL' && !isAutomated) {
+        // State A: Show Claim button
+        if (btnClaim) btnClaim.style.display = 'inline-block';
+        if (poolSeparator) poolSeparator.style.display = 'inline-block';
+      } else if (poolStatus === 'OPEN_POOL' && isAutomated) {
+        // State D (automated): Show Take Over button
+        if (btnTakeOver) btnTakeOver.style.display = 'inline-block';
+        if (poolSeparator) poolSeparator.style.display = 'inline-block';
+      } else if (isClaimedByMe) {
+        // State B (mine): Show Accept + Release
+        if (btnAccept) btnAccept.style.display = 'inline-block';
+        if (btnRelease) btnRelease.style.display = 'inline-block';
+        if (poolSeparator) poolSeparator.style.display = 'inline-block';
+      } else if (isClaimedByOther) {
+        // State B (other): Show claimed indicator, no action buttons
+        if (claimedIndicator) {
+          claimedIndicator.style.display = 'inline-block';
+          claimedIndicator.textContent = `Claimed by ${t.claimed_by_name || 'another expert'}`;
+        }
+        if (poolSeparator) poolSeparator.style.display = 'inline-block';
+      }
+      // State C (owned): No pool buttons, show normal workflow buttons
+    }
+
+    // Hide normal workflow buttons for pool tickets that aren't owned by current user
+    const btnNext = document.getElementById('btn-next');
+    const btnResolve = document.getElementById('btn-resolve');
+    const btnAiAssist = document.getElementById('btn-ai-assist');
+    const showWorkflowButtons = !isInPool || isOwnedByMe || isOwned;
+
+    if (btnNext) btnNext.style.display = (isCustomer || !showWorkflowButtons) ? 'none' : 'inline-block';
+    if (btnResolve) btnResolve.style.display = (isCustomer || !showWorkflowButtons) ? 'none' : 'inline-block';
+    if (btnAiAssist) btnAiAssist.style.display = (isCustomer || !showWorkflowButtons) ? 'none' : 'inline-block';
 
     // Expert/Admin actions - hide for customers
     document.getElementById('expert-actions').style.display = isCustomer ? 'none' : 'flex';

@@ -989,12 +989,16 @@ router.get('/:tenantId/:ticketId', readOperationsLimiter, validateTicketGet, asy
                 u1.full_name as assignee_name,
                 u2.full_name as requester_name,
                 c.customer_company_id as requester_company_id,
-                ci.asset_name as cmdb_item_name
+                ci.asset_name as cmdb_item_name,
+                claimer.full_name as claimed_by_name,
+                owner.full_name as owner_name
          FROM tickets t
          LEFT JOIN users u1 ON t.assignee_id = u1.id
          LEFT JOIN users u2 ON t.requester_id = u2.id
          LEFT JOIN customers c ON u2.id = c.user_id
          LEFT JOIN cmdb_items ci ON t.cmdb_item_id = ci.id
+         LEFT JOIN users claimer ON t.claimed_by_expert_id = claimer.id
+         LEFT JOIN users owner ON t.owned_by_expert_id = owner.id
          WHERE t.id = ?`,
         [ticketId]
       );
@@ -1722,6 +1726,110 @@ router.post('/:tenantId/:ticketId/release-claim', writeOperationsLimiter, requir
     }
   } catch (error) {
     console.error('Error releasing claim:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// Take over an automated ticket (skip claim TTL, go direct to ownership)
+// Per docs/workflows/ticket-ownership-state-matrix.md: D → C transition
+router.post('/:tenantId/:ticketId/take-over', writeOperationsLimiter, requireRole(['expert', 'admin']), async (req, res) => {
+  try {
+    const { tenantId, ticketId } = req.params;
+    const tenantCode = tenantId.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    const connection = await getTenantConnection(tenantCode);
+
+    try {
+      // Get current ticket
+      const [tickets] = await connection.query(
+        'SELECT * FROM tickets WHERE id = ?',
+        [ticketId]
+      );
+
+      if (tickets.length === 0) {
+        return res.status(404).json({ success: false, message: 'Ticket not found' });
+      }
+
+      const ticket = tickets[0];
+
+      // Take Over is only for automated tickets in OPEN_POOL
+      if (ticket.execution_mode !== 'automated') {
+        return res.status(400).json({
+          success: false,
+          message: 'Take Over is only available for automated tickets. Use Claim for manual tickets.'
+        });
+      }
+
+      if (ticket.pool_status !== 'OPEN_POOL') {
+        return res.status(400).json({
+          success: false,
+          message: `Cannot take over ticket in status: ${ticket.pool_status}`
+        });
+      }
+
+      const now = new Date();
+
+      // Go directly to owned (skip claim TTL)
+      await connection.query(`
+        UPDATE tickets
+        SET pool_status = 'IN_PROGRESS_OWNED',
+            status = 'In Progress',
+            owned_by_expert_id = ?,
+            assignee_id = ?,
+            ownership_started_at = ?,
+            claimed_by_expert_id = NULL,
+            claimed_until_at = NULL,
+            first_responded_at = COALESCE(first_responded_at, ?)
+        WHERE id = ?
+      `, [req.user.userId, req.user.userId, now, now, ticketId]);
+
+      // Recompute resolve deadline if SLA exists
+      if (ticket.sla_definition_id) {
+        const [slaDefs] = await connection.query(
+          'SELECT resolve_after_response_minutes, resolve_target_minutes FROM sla_definitions WHERE id = ?',
+          [ticket.sla_definition_id]
+        );
+        if (slaDefs.length > 0) {
+          const resolveMinutes = slaDefs[0].resolve_after_response_minutes || slaDefs[0].resolve_target_minutes;
+          if (resolveMinutes) {
+            await connection.query(
+              'UPDATE tickets SET resolve_due_at = DATE_ADD(?, INTERVAL ? MINUTE) WHERE id = ?',
+              [now, resolveMinutes, ticketId]
+            );
+          }
+        }
+      }
+
+      // Log activity
+      await connection.query(`
+        INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
+        VALUES (?, ?, 'assigned', ?)
+      `, [ticketId, req.user.userId, `Automated ticket taken over by ${req.user.username}`]);
+
+      // Get updated ticket
+      const [updatedTickets] = await connection.query(`
+        SELECT t.*,
+               u1.full_name as assignee_name,
+               u2.full_name as requester_name,
+               owner.full_name as owner_name
+        FROM tickets t
+        LEFT JOIN users u1 ON t.assignee_id = u1.id
+        LEFT JOIN users u2 ON t.requester_id = u2.id
+        LEFT JOIN users owner ON t.owned_by_expert_id = owner.id
+        WHERE t.id = ?
+      `, [ticketId]);
+
+      await enrichTicketWithSLAStatus(updatedTickets[0], connection);
+
+      res.json({
+        success: true,
+        message: 'Automated ticket taken over successfully',
+        ticket: updatedTickets[0]
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error taking over ticket:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
