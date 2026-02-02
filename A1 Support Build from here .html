@@ -8428,8 +8428,10 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       let actionBtn = '';
 
       if (isClaimed && t.claimed_by_expert_id === myUserId) {
-        // State B (mine): View only - show preview to see accept/release options
-        actionBtn = `<button class="btn" onclick="openClaimedPreview(${t.id})" style="font-size:11px;padding:4px 8px">View</button>`;
+        // State B (mine): View (full detail) + Accept/Release buttons
+        actionBtn = `<button class="btn" onclick="viewPoolTicket(${t.id})" style="font-size:11px;padding:4px 8px">View</button>
+          <button class="btn success" onclick="acceptFromPool(${t.id})" style="font-size:11px;padding:4px 8px;margin-left:4px">Accept</button>
+          <button class="btn" onclick="releaseFromPool(${t.id})" style="font-size:11px;padding:4px 8px;margin-left:4px">Release</button>`;
       } else if (isClaimed) {
         // State B (other): View (no claim action) + claimed indicator
         actionBtn = `<button class="btn" onclick="viewPoolTicket(${t.id})" style="font-size:11px;padding:4px 8px">View</button>
@@ -8517,6 +8519,66 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     // Just open the ticket detail view - GET endpoint has no DB writes
     // This allows experts to view ticket details before deciding to claim
     openTicket(ticketId);
+  }
+
+  // Accept ownership directly from pool row (for tickets user has claimed)
+  async function acceptFromPool(ticketId) {
+    const token = localStorage.getItem('token');
+    try {
+      const res = await fetch(`/api/tickets/${window.tenant}/${ticketId}/accept-ownership`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        }
+      });
+      const data = await res.json();
+
+      // Handle race condition (409) separately
+      if (await handleRaceCondition(res, data)) return;
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Failed to accept ownership');
+      }
+
+      // Success - switch to My Tickets view and open the ticket
+      switchExpertView('my');
+      await fetchTicketsFromAPI();
+      openTicket(data.ticket.id);
+      showToast('Ticket accepted - you now own it', 'success');
+    } catch (error) {
+      console.error('Error accepting ownership:', error);
+      showToast('Could not accept ownership: ' + error.message, 'error');
+    }
+  }
+
+  // Release claim directly from pool row
+  async function releaseFromPool(ticketId) {
+    const token = localStorage.getItem('token');
+    try {
+      const res = await fetch(`/api/tickets/${window.tenant}/${ticketId}/release-claim`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        }
+      });
+      const data = await res.json();
+
+      // Handle race condition (409) separately
+      if (await handleRaceCondition(res, data)) return;
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Failed to release claim');
+      }
+
+      // Refresh pool to show updated state
+      await refreshPoolView();
+      showToast('Claim released - ticket returned to pool', 'info');
+    } catch (error) {
+      console.error('Error releasing claim:', error);
+      showToast('Could not release claim: ' + error.message, 'error');
+    }
   }
 
   // Claim ticket from detail view (redirects to claim flow)
