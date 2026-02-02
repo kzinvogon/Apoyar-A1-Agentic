@@ -220,11 +220,11 @@ app.get('/health', (req, res) => {
 });
 
 /**
- * GET /api/admin/runtime-info
+ * GET /api/runtime-info
  * Returns runtime environment info for debugging environment confusion
  * Read-only, no authentication required
  */
-app.get('/api/admin/runtime-info', (req, res) => {
+app.get('/api/runtime-info', (req, res) => {
   let gitCommit = 'unknown';
   try {
     gitCommit = execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim();
