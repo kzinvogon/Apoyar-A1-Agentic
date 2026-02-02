@@ -304,6 +304,10 @@ class EmailProcessor {
 
   /**
    * Record a processed message for deduplication
+   * Returns { success: boolean, missingTable: boolean }
+   *
+   * IMPORTANT: If table is missing, caller should NOT mark email as seen
+   * to ensure crash recovery can reprocess the email after migration.
    */
   async recordProcessedMessage(connection, mailboxId, messageId, uid, ticketId, result) {
     try {
@@ -313,11 +317,14 @@ class EmailProcessor {
          ON DUPLICATE KEY UPDATE processed_at = NOW(), result = VALUES(result)`,
         [mailboxId, messageId, uid, ticketId, result]
       );
+      return { success: true, missingTable: false };
     } catch (error) {
-      // Table might not exist yet (pre-migration), log and continue
+      // Table might not exist yet (pre-migration)
+      // FAIL FAST: Don't mark email as seen so crash recovery works after migration
       if (error.code === 'ER_NO_SUCH_TABLE') {
-        console.log(`email_processed_messages table not found, skipping record`);
-        return;
+        console.error(`❌ CRITICAL: email_processed_messages table not found! Run migration: node migrations/add-email-crash-recovery.js`);
+        console.error(`   Email UID ${uid} will NOT be marked as seen (will be reprocessed after migration)`);
+        return { success: false, missingTable: true };
       }
       throw error;
     }
@@ -519,12 +526,14 @@ class EmailProcessor {
               console.log(`⏭️ [${i + 1}/${emailQueue.length}] Skipping duplicate: ${messageId}`);
               stats.skipped_duplicate++;
               // Record as skipped_duplicate for audit
-              await self.recordProcessedMessage(
+              const dupRecordResult = await self.recordProcessedMessage(
                 connection, mailboxId, messageId, uid, null, 'skipped_duplicate'
               );
-              // Still mark as seen and update UID tracking
-              await markAsSeen(uid);
-              if (uid > maxUidProcessed) maxUidProcessed = uid;
+              // Only mark as seen and update UID if recording succeeded
+              if (dupRecordResult.success) {
+                await markAsSeen(uid);
+                if (uid > maxUidProcessed) maxUidProcessed = uid;
+              }
               continue;
             }
 
@@ -565,16 +574,20 @@ class EmailProcessor {
             }
 
             // Record processed message (for deduplication)
-            await self.recordProcessedMessage(
+            const recordResult = await self.recordProcessedMessage(
               connection, mailboxId, messageId, uid,
               result.ticketId || null, resultType
             );
 
-            // Mark as seen in IMAP ONLY after successful processing
-            await markAsSeen(uid);
-
-            // Track highest UID processed
-            if (uid > maxUidProcessed) maxUidProcessed = uid;
+            // Mark as seen in IMAP ONLY after successful recording
+            // If table is missing, DO NOT mark as seen (fail fast for crash recovery)
+            if (recordResult.success) {
+              await markAsSeen(uid);
+              // Track highest UID processed
+              if (uid > maxUidProcessed) maxUidProcessed = uid;
+            } else if (recordResult.missingTable) {
+              console.error(`⚠️ Skipping markSeen for UID ${uid} - table missing, will retry after migration`);
+            }
 
           } catch (processError) {
             console.error(`Error processing email ${i + 1}:`, processError.message);
@@ -582,9 +595,13 @@ class EmailProcessor {
             stats.errors++;
 
             // Record the error for tracking (don't mark as seen - will retry)
-            await self.recordProcessedMessage(
+            const errorRecordResult = await self.recordProcessedMessage(
               connection, mailboxId, messageId, uid, null, 'error'
             );
+            // Only track UID if we could record it
+            if (errorRecordResult.success && uid > maxUidProcessed) {
+              maxUidProcessed = uid;
+            }
           }
 
           // Delay between emails (except after the last one)
