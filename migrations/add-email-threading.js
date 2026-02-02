@@ -96,7 +96,22 @@ async function runMigration() {
         }
       }
 
-      // 3. Add system_email_denylist to tenant_settings if not exists
+      // 3. Add 'email_reply' to ticket_activity activity_type enum
+      try {
+        await connection.query(`
+          ALTER TABLE ${dbName}.ticket_activity
+          MODIFY COLUMN activity_type ENUM('created','updated','assigned','resolved','closed','comment','email_reply') NOT NULL
+        `);
+        console.log(`  ✓ Added email_reply to ticket_activity enum`);
+      } catch (err) {
+        if (err.message.includes('email_reply')) {
+          console.log(`  - email_reply already in ticket_activity enum`);
+        } else {
+          console.log(`  ⚠ Error updating ticket_activity enum: ${err.message}`);
+        }
+      }
+
+      // 4. Add system_email_denylist to tenant_settings if not exists
       try {
         await connection.query(`
           INSERT IGNORE INTO ${dbName}.tenant_settings (setting_key, setting_value, description)
