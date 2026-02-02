@@ -65,11 +65,41 @@ let processors = new Map();
 let isShuttingDown = false;
 let pollInterval = null;
 
+const { execSync } = require('child_process');
+
 const log = {
   info: (msg, data = {}) => console.log(`[EMAIL-WORKER] ${msg}`, Object.keys(data).length ? JSON.stringify(data) : ''),
   warn: (msg, data = {}) => console.warn(`[EMAIL-WORKER] ⚠️  ${msg}`, Object.keys(data).length ? JSON.stringify(data) : ''),
   error: (msg, data = {}) => console.error(`[EMAIL-WORKER] ❌ ${msg}`, Object.keys(data).length ? JSON.stringify(data) : ''),
 };
+
+/**
+ * Get current git commit hash
+ */
+function getGitCommit() {
+  try {
+    return execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim();
+  } catch {
+    return 'unknown';
+  }
+}
+
+/**
+ * Get runtime info for debugging environment confusion
+ */
+function getRuntimeInfo() {
+  const dbConfig = getDbConfig();
+  return {
+    environment: process.env.RAILWAY_ENVIRONMENT || process.env.NODE_ENV || 'local',
+    service: process.env.RAILWAY_SERVICE_NAME || 'email-worker',
+    appMode: process.env.APP_MODE || 'email-worker',
+    dbHost: dbConfig.host,
+    dbPort: dbConfig.port,
+    gitCommit: getGitCommit(),
+    pollIntervalMs: parseInt(process.env.EMAIL_POLL_INTERVAL_MS || '60000', 10),
+    workerPoolLimit: parseInt(process.env.EMAIL_WORKER_POOL_LIMIT || '3', 10),
+  };
+}
 
 /**
  * Get database config from environment
@@ -187,8 +217,23 @@ async function processAllTenants() {
 async function startWorker() {
   log.info('Starting email worker...');
 
+  // ============================================================
+  // RUNTIME TRUTH - Log exactly what environment we're running in
+  // ============================================================
+  const runtimeInfo = getRuntimeInfo();
+  console.log('\n' + '='.repeat(70));
+  console.log('[EMAIL-WORKER] RUNTIME TRUTH - Environment Configuration');
+  console.log('='.repeat(70));
+  console.log(`  Environment:      ${runtimeInfo.environment}`);
+  console.log(`  Service:          ${runtimeInfo.service}`);
+  console.log(`  APP_MODE:         ${runtimeInfo.appMode}`);
+  console.log(`  DB Host:          ${runtimeInfo.dbHost}:${runtimeInfo.dbPort}`);
+  console.log(`  Git Commit:       ${runtimeInfo.gitCommit}`);
+  console.log(`  Poll Interval:    ${runtimeInfo.pollIntervalMs}ms`);
+  console.log(`  Pool Limit:       ${runtimeInfo.workerPoolLimit}`);
+  console.log('='.repeat(70) + '\n');
+
   const pollIntervalMs = parseInt(process.env.EMAIL_POLL_INTERVAL_MS || '60000', 10);
-  log.info(`Poll interval: ${pollIntervalMs}ms`);
 
   // Create master pool
   masterPool = createMasterPool();
@@ -203,6 +248,23 @@ async function startWorker() {
     log.error('Failed to connect to database', { error: error.message });
     process.exit(1);
   }
+
+  // Log mailbox configurations for each tenant
+  const tenants = await getActiveTenants();
+  for (const tenantCode of tenants) {
+    try {
+      const pool = getTenantPool(tenantCode);
+      const [mailboxes] = await pool.query(
+        'SELECT id, email_address, enabled FROM email_ingest_settings'
+      );
+      for (const mb of mailboxes) {
+        console.log(`[EMAIL-WORKER] Tenant: ${tenantCode} | Mailbox ID: ${mb.id} | Email: ${mb.email_address} | Enabled: ${mb.enabled}`);
+      }
+    } catch (err) {
+      // Table may not exist for all tenants
+    }
+  }
+  console.log('');
 
   // Initial processing
   await processAllTenants();

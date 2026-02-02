@@ -8,6 +8,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const path = require('path');
+const { execSync } = require('child_process');
 require('dotenv').config();
 
 const app = express();
@@ -215,6 +216,32 @@ app.get('/health', (req, res) => {
       'Rate limiting protection',
       'Input validation'
     ]
+  });
+});
+
+/**
+ * GET /api/admin/runtime-info
+ * Returns runtime environment info for debugging environment confusion
+ * Read-only, no authentication required
+ */
+app.get('/api/admin/runtime-info', (req, res) => {
+  let gitCommit = 'unknown';
+  try {
+    gitCommit = execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim();
+  } catch {
+    // Git not available or not a repo
+  }
+
+  res.json({
+    environment: process.env.RAILWAY_ENVIRONMENT || process.env.NODE_ENV || 'local',
+    service: process.env.RAILWAY_SERVICE_NAME || 'web',
+    appMode: process.env.APP_MODE || 'web',
+    dbHost: process.env.MYSQLHOST || process.env.MYSQL_HOST || 'localhost',
+    dbPort: process.env.MYSQLPORT || process.env.MYSQL_PORT || '3306',
+    gitCommit,
+    deploymentId: process.env.RAILWAY_DEPLOYMENT_ID || 'local',
+    emailProcessingDisabled: process.env.DISABLE_EMAIL_PROCESSING === 'true',
+    timestamp: new Date().toISOString()
   });
 });
 
