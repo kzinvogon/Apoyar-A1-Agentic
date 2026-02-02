@@ -7266,22 +7266,69 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     }
   }
 
-  // ---- SLA Utilities ----
-  function parseDueEndOfDay(dueStr) { if(!dueStr) return null; const a=dueStr.split('-'); if(a.length!==3) return null; return new Date(Number(a[0]), Number(a[1])-1, Number(a[2]), 23,59,59,999); }
+  // ---- SLA Utilities (centralized, null-safe) ----
 
-  // Format duration for display
-  function formatDuration(ms) {
-    const totalMins = Math.floor(Math.abs(ms) / 6e4);
-    const hours = Math.floor(totalMins / 60);
+  // Parse MySQL datetime string safely → Date or null
+  // Handles: null, undefined, empty string, "0000-00-00", Invalid Date
+  function parseMysqlDateSafe(str) {
+    if (!str || str === '0000-00-00' || str === '0000-00-00 00:00:00') return null;
+    const d = new Date(str);
+    if (isNaN(d.getTime()) || d.getTime() <= 0) return null;
+    return d;
+  }
+
+  // Format duration with guards for NaN, Infinity, and absurd values
+  // Returns "—" for invalid/absurd values (> 10000 days ≈ 27 years)
+  const MAX_REASONABLE_MS = 10000 * 24 * 60 * 60 * 1000; // 10000 days
+
+  function formatSafeDurationMs(ms) {
+    if (ms === null || ms === undefined || !isFinite(ms) || isNaN(ms)) return '—';
+    if (Math.abs(ms) > MAX_REASONABLE_MS) return '—';
+    return formatDurationMs(ms);
+  }
+
+  // Internal: format ms to human-readable (assumes valid input)
+  function formatDurationMs(ms) {
+    const absMs = Math.abs(ms);
+    const totalMins = Math.floor(absMs / 60000);
+    const days = Math.floor(totalMins / 1440);
+    const hours = Math.floor((totalMins % 1440) / 60);
     const mins = totalMins % 60;
+
+    if (days > 0) return `${days}d ${hours}h`;
     if (hours > 0) return `${hours}h ${mins}m`;
     return `${mins}m`;
   }
 
+  // Legacy alias for compatibility
+  function formatDuration(ms) {
+    return formatSafeDurationMs(ms);
+  }
+
+  // Parse old-style due date (YYYY-MM-DD) to end of day
+  function parseDueEndOfDay(dueStr) {
+    if (!dueStr) return null;
+    const a = dueStr.split('-');
+    if (a.length !== 3) return null;
+    return new Date(Number(a[0]), Number(a[1]) - 1, Number(a[2]), 23, 59, 59, 999);
+  }
+
   // Format date for tooltip (e.g., "11 Jan 18:48")
   function formatDueDate(date) {
+    if (!date || isNaN(date.getTime())) return '—';
     const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     return `${date.getDate()} ${months[date.getMonth()]} ${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}`;
+  }
+
+  // Format date as DD/MM/YYYY HH:MM
+  function formatDateDDMMYYYY(date) {
+    if (!date || isNaN(date.getTime())) return '—';
+    const dd = String(date.getDate()).padStart(2, '0');
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const yyyy = date.getFullYear();
+    const hh = String(date.getHours()).padStart(2, '0');
+    const min = String(date.getMinutes()).padStart(2, '0');
+    return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
   }
 
   // Get next business window (simple: next weekday 09:00)
@@ -7301,144 +7348,183 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       return { cls: 'resolved', label: '✓', pct: 100, isResolved: true, tooltip: 'Ticket resolved', sortPriority: 4 };
     }
 
-    // Guard: SLA countdown not meaningful for unowned pool tickets
-    // Prevents "+208497 days" bug when ownership hasn't started
-    const isUnownedPool = !t.ownership_started_at &&
-      (t.pool_status === 'OPEN_POOL' || t.pool_status === 'CLAIMED_LOCKED');
-    if (isUnownedPool) {
-      return { cls: '', label: '—', pct: 0, tooltip: 'SLA starts when ticket is accepted', sortPriority: 5 };
-    }
+    // Parse SLA dates using centralized safe parser
+    const responseDue = parseMysqlDateSafe(t.response_due_at);
+    const resolveDue = parseMysqlDateSafe(t.resolve_due_at);
+    const firstResponded = parseMysqlDateSafe(t.first_responded_at);
+    const ownershipStarted = parseMysqlDateSafe(t.ownership_started_at);
 
-    // Guard: No valid SLA dates (NULL, epoch 0, or Invalid Date)
-    const hasValidResponseDue = t.response_due_at && new Date(t.response_due_at).getTime() > 0 && !isNaN(new Date(t.response_due_at));
-    const hasValidResolveDue = t.resolve_due_at && new Date(t.resolve_due_at).getTime() > 0 && !isNaN(new Date(t.resolve_due_at));
-    if (!hasValidResponseDue && !hasValidResolveDue && !t.sla_status) {
+    // No valid SLA dates at all
+    if (!responseDue && !resolveDue) {
       return { cls: '', label: '—', pct: 0, tooltip: 'No SLA deadline set', sortPriority: 5 };
     }
 
-    // Use new two-phase SLA model if available
-    if (t.sla_status) {
-      const s = t.sla_status;
-      const phase = s.sla_phase;
-
-      // No SLA applied
-      if (!s.response && !s.resolve) {
-        return { cls: '', label: '—', pct: 0, tooltip: 'No SLA policy applied', sortPriority: 5 };
-      }
-
-      // Determine which phase to show (response or resolve)
-      let activePhase = s.response;
-      let phaseName = 'Response';
-      let phaseCode = 'R';
-      if (phase === 'in_progress' || phase === 'resolved') {
-        activePhase = s.resolve;
-        phaseName = 'Resolve';
-        phaseCode = 'D';
-      }
-
-      if (!activePhase) {
-        return { cls: '', label: '—', pct: 0, tooltip: 'No SLA data', sortPriority: 5 };
-      }
-
-      const slaName = s.sla_name || 'SLA';
-      const slaSource = s.sla_source || 'default';
-      const dueAt = activePhase.due_at ? new Date(activePhase.due_at) : null;
-      const outsideBH = s.outside_business_hours;
-
-      // Outside business hours - special handling
-      if (outsideBH && activePhase.state !== 'breached' && activePhase.state !== 'met') {
-        const nextWindow = getNextBusinessWindow();
-        const tooltip = `${phaseName} SLA paused\nOutside business hours\nResumes: ${nextWindow}\n\n${slaName} (${slaSource})`;
-        return { cls: 'paused', label: `⏸ Paused · resumes ${nextWindow}`, pct: activePhase.percent_elapsed || 0, tooltip, outsideBH: true, sortPriority: 3 };
-      }
-
-      let cls = 'ok';
-      let label = '—';
-      let subtext = '';
-      let tooltipLines = [];
-      let sortPriority = 3; // Default: OK
-
-      if (activePhase.state === 'breached') {
-        cls = 'danger';
-        label = `${phaseCode} ✖`;
-        sortPriority = 0; // Highest priority
-        if (dueAt) {
-          const exceededMs = Date.now() - dueAt.getTime();
-          const exceededStr = formatDuration(exceededMs);
-          subtext = `+${exceededStr}`;
-          tooltipLines = [`${phaseName} SLA (${phaseCode}) — Breached`, `Due: ${formatDueDate(dueAt)}`, `Exceeded by: ${exceededStr}`];
-        } else {
-          tooltipLines = [`${phaseName} SLA (${phaseCode}) — Breached`];
-        }
-      } else if (activePhase.state === 'near_breach') {
-        cls = 'warn';
-        label = `${phaseCode} !`;
-        sortPriority = 1; // Second priority
-        if (dueAt) {
-          const remainingMs = dueAt - Date.now();
-          const remainingStr = formatDuration(remainingMs);
-          subtext = `${remainingStr} left`;
-          tooltipLines = [`${phaseName} SLA (${phaseCode}) — At Risk`, `Due: ${formatDueDate(dueAt)}`, `Remaining: ${remainingStr}`];
-        } else {
-          tooltipLines = [`${phaseName} SLA (${phaseCode}) — At Risk`];
-        }
-      } else if (activePhase.state === 'on_track' && dueAt) {
-        const now = Date.now();
-        const remainingMs = dueAt.getTime() - now;
-        if (remainingMs > 0) {
-          const remainingStr = formatDuration(remainingMs);
-          label = `${phaseCode} ${remainingStr}`;
-          // No subtext for on-track
-          tooltipLines = [`${phaseName} SLA (${phaseCode}) — On Track`, `Due: ${formatDueDate(dueAt)}`, `Remaining: ${remainingStr}`];
-          sortPriority = 2;
-        } else {
-          // Just breached
-          cls = 'danger';
-          label = `${phaseCode} ✖`;
-          const exceededStr = formatDuration(Math.abs(remainingMs));
-          subtext = `+${exceededStr}`;
-          tooltipLines = [`${phaseName} SLA (${phaseCode}) — Breached`, `Due: ${formatDueDate(dueAt)}`, `Exceeded by: ${exceededStr}`];
-          sortPriority = 0;
-        }
-      } else if (activePhase.state === 'met') {
-        cls = 'muted';
-        label = '✓';
-        // No subtext for met
-        tooltipLines = [`${phaseName} SLA (${phaseCode}) — Met`];
-        sortPriority = 4;
-      } else if (activePhase.state === 'pending') {
-        label = `${phaseCode} ...`;
-        tooltipLines = [`${phaseName} SLA (${phaseCode}) — Pending`];
-        sortPriority = 2;
-      } else if (activePhase.state === 'no_sla') {
-        return { cls: '', label: '—', pct: 0, tooltip: 'No SLA policy applied', sortPriority: 5 };
-      }
-
-      // Add SLA info to tooltip
-      tooltipLines.push('', `${slaName} (${slaSource})`);
-      const tooltip = tooltipLines.join('\n');
-
-      return { cls, label, subtext, pct: activePhase.percent_elapsed || 0, tooltip, outsideBH: false, sortPriority };
+    // Use sla_status if available (enriched by backend)
+    if (t.sla_status && (t.sla_status.response || t.sla_status.resolve)) {
+      return getSLAStateFromStatus(t, t.sla_status);
     }
 
-    // Fallback to old logic if no sla_status
-    const now = new Date();
-    const due = parseDueEndOfDay(t.due);
-    if(!due) return {cls:'', label:'—', pct:0, tooltip: 'No SLA deadline', sortPriority: 5};
-    const base = new Date(t.sla?.startedAt || t.sla?.createdAt || now);
-    const totalMs = due - base;
-    let elapsedMs = now - base;
-    if (t.sla?.paused && t.sla?.pausedAt) { elapsedMs = new Date(t.sla.pausedAt) - base; }
-    const pct = Math.max(0, Math.min(100, Math.round((elapsedMs/totalMs)*100)));
-    const remainingMs = due - now;
-    const late = remainingMs < 0;
-    let cls = 'ok', sortPriority = 2;
-    if (late || pct >= 100) { cls = 'danger'; sortPriority = 0; }
-    else if (pct >= 70) { cls = 'warn'; sortPriority = 1; }
-    const label = late ? 'D ✖' : `D ${formatDuration(remainingMs)}`;
-    const subtext = late ? `+${formatDuration(Math.abs(remainingMs))}` : '';
-    const tooltip = late ? `Resolve SLA (D) — Breached\nDue: ${formatDueDate(due)}\nExceeded by: ${formatDuration(Math.abs(remainingMs))}` : `Resolve SLA (D) — On Track\nDue: ${formatDueDate(due)}\nRemaining: ${formatDuration(remainingMs)}`;
-    return {cls, label, subtext, pct: isFinite(pct) ? pct : 0, tooltip, sortPriority};
+    // Fallback: compute SLA state from raw date fields
+    // Determine which phase we're in: Response or Resolve
+    const now = Date.now();
+    let phaseName, phaseCode, dueAt, isLate;
+
+    if (!firstResponded && responseDue) {
+      // Response phase: not yet responded, response deadline applies
+      phaseName = 'Response';
+      phaseCode = 'R';
+      dueAt = responseDue;
+    } else if (resolveDue) {
+      // Resolve phase: already responded (or no response SLA), resolve deadline applies
+      phaseName = 'Resolve';
+      phaseCode = 'D';
+      dueAt = resolveDue;
+    } else {
+      return { cls: '', label: '—', pct: 0, tooltip: 'No applicable SLA deadline', sortPriority: 5 };
+    }
+
+    const remainingMs = dueAt.getTime() - now;
+    isLate = remainingMs < 0;
+
+    // Guard: if duration is absurd, show "—"
+    const durationStr = formatSafeDurationMs(Math.abs(remainingMs));
+    if (durationStr === '—') {
+      return { cls: '', label: '—', pct: 0, tooltip: `${phaseName} SLA\nDue: ${formatDateDDMMYYYY(dueAt)}`, sortPriority: 5 };
+    }
+
+    // Calculate percentage elapsed (for progress display)
+    const createdAt = parseMysqlDateSafe(t.created_at) || new Date(now);
+    const totalMs = dueAt.getTime() - createdAt.getTime();
+    const elapsedMs = now - createdAt.getTime();
+    let pct = totalMs > 0 ? Math.max(0, Math.min(100, Math.round((elapsedMs / totalMs) * 100))) : 0;
+    if (!isFinite(pct)) pct = 0;
+
+    let cls = 'ok';
+    let sortPriority = 2;
+    let label, subtext = '', tooltip;
+
+    if (isLate) {
+      cls = 'danger';
+      sortPriority = 0;
+      label = `${phaseCode} ✖`;
+      subtext = `+${durationStr}`;
+      tooltip = `${phaseName} SLA (${phaseCode}) — Breached\nDue: ${formatDateDDMMYYYY(dueAt)}\nExceeded by: ${durationStr}`;
+    } else {
+      // Check if near breach (< 30 mins or > 70% elapsed)
+      const isNearBreach = remainingMs < 30 * 60 * 1000 || pct >= 70;
+      if (isNearBreach) {
+        cls = 'warn';
+        sortPriority = 1;
+        label = `${phaseCode} !`;
+        subtext = `${durationStr} left`;
+        tooltip = `${phaseName} SLA (${phaseCode}) — At Risk\nDue: ${formatDateDDMMYYYY(dueAt)}\nRemaining: ${durationStr}`;
+      } else {
+        label = `${phaseCode} ${durationStr}`;
+        tooltip = `${phaseName} SLA (${phaseCode}) — On Track\nDue: ${formatDateDDMMYYYY(dueAt)}\nRemaining: ${durationStr}`;
+      }
+    }
+
+    return { cls, label, subtext, pct, tooltip, sortPriority };
+  }
+
+  // Helper: extract SLA state from backend-enriched sla_status object
+  function getSLAStateFromStatus(t, s) {
+    const phase = s.sla_phase || s.phase;
+
+    // Determine which phase to show (response or resolve)
+    let activePhase = s.response;
+    let phaseName = 'Response';
+    let phaseCode = 'R';
+    if (phase === 'in_progress' || phase === 'resolved' || !s.response) {
+      activePhase = s.resolve;
+      phaseName = 'Resolve';
+      phaseCode = 'D';
+    }
+
+    if (!activePhase) {
+      return { cls: '', label: '—', pct: 0, tooltip: 'No SLA data', sortPriority: 5 };
+    }
+
+    const slaName = s.sla_name || 'SLA';
+    const slaSource = s.sla_source || 'default';
+    const dueAt = parseMysqlDateSafe(activePhase.due_at);
+    const outsideBH = s.outside_business_hours;
+
+    // Outside business hours - special handling
+    if (outsideBH && activePhase.state !== 'breached' && activePhase.state !== 'met') {
+      const nextWindow = getNextBusinessWindow();
+      const tooltip = `${phaseName} SLA paused\nOutside business hours\nResumes: ${nextWindow}\n\n${slaName} (${slaSource})`;
+      return { cls: 'paused', label: `⏸ Paused · resumes ${nextWindow}`, pct: activePhase.percent_elapsed || 0, tooltip, outsideBH: true, sortPriority: 3 };
+    }
+
+    let cls = 'ok';
+    let label = '—';
+    let subtext = '';
+    let tooltipLines = [];
+    let sortPriority = 3;
+
+    if (activePhase.state === 'breached') {
+      cls = 'danger';
+      label = `${phaseCode} ✖`;
+      sortPriority = 0;
+      if (dueAt) {
+        const exceededMs = Date.now() - dueAt.getTime();
+        const exceededStr = formatSafeDurationMs(exceededMs);
+        subtext = exceededStr !== '—' ? `+${exceededStr}` : '';
+        tooltipLines = [`${phaseName} SLA (${phaseCode}) — Breached`, `Due: ${formatDateDDMMYYYY(dueAt)}`, exceededStr !== '—' ? `Exceeded by: ${exceededStr}` : ''];
+      } else {
+        tooltipLines = [`${phaseName} SLA (${phaseCode}) — Breached`];
+      }
+    } else if (activePhase.state === 'near_breach') {
+      cls = 'warn';
+      label = `${phaseCode} !`;
+      sortPriority = 1;
+      if (dueAt) {
+        const remainingMs = dueAt.getTime() - Date.now();
+        const remainingStr = formatSafeDurationMs(remainingMs);
+        subtext = remainingStr !== '—' ? `${remainingStr} left` : '';
+        tooltipLines = [`${phaseName} SLA (${phaseCode}) — At Risk`, `Due: ${formatDateDDMMYYYY(dueAt)}`, remainingStr !== '—' ? `Remaining: ${remainingStr}` : ''];
+      } else {
+        tooltipLines = [`${phaseName} SLA (${phaseCode}) — At Risk`];
+      }
+    } else if (activePhase.state === 'on_track' && dueAt) {
+      const remainingMs = dueAt.getTime() - Date.now();
+      const remainingStr = formatSafeDurationMs(remainingMs);
+      if (remainingStr !== '—' && remainingMs > 0) {
+        label = `${phaseCode} ${remainingStr}`;
+        tooltipLines = [`${phaseName} SLA (${phaseCode}) — On Track`, `Due: ${formatDateDDMMYYYY(dueAt)}`, `Remaining: ${remainingStr}`];
+        sortPriority = 2;
+      } else if (remainingMs <= 0) {
+        // Just breached
+        cls = 'danger';
+        label = `${phaseCode} ✖`;
+        const exceededStr = formatSafeDurationMs(Math.abs(remainingMs));
+        subtext = exceededStr !== '—' ? `+${exceededStr}` : '';
+        tooltipLines = [`${phaseName} SLA (${phaseCode}) — Breached`, `Due: ${formatDateDDMMYYYY(dueAt)}`, exceededStr !== '—' ? `Exceeded by: ${exceededStr}` : ''];
+        sortPriority = 0;
+      } else {
+        label = `${phaseCode} —`;
+        tooltipLines = [`${phaseName} SLA (${phaseCode})`, `Due: ${formatDateDDMMYYYY(dueAt)}`];
+      }
+    } else if (activePhase.state === 'met') {
+      cls = 'muted';
+      label = '✓';
+      tooltipLines = [`${phaseName} SLA (${phaseCode}) — Met`];
+      sortPriority = 4;
+    } else if (activePhase.state === 'pending') {
+      label = `${phaseCode} ...`;
+      tooltipLines = [`${phaseName} SLA (${phaseCode}) — Pending`];
+      sortPriority = 2;
+    } else if (activePhase.state === 'no_sla') {
+      return { cls: '', label: '—', pct: 0, tooltip: 'No SLA policy applied', sortPriority: 5 };
+    }
+
+    // Add SLA info to tooltip
+    tooltipLines = tooltipLines.filter(l => l); // Remove empty lines
+    tooltipLines.push('', `${slaName} (${slaSource})`);
+    const tooltip = tooltipLines.join('\n');
+
+    return { cls, label, subtext, pct: activePhase.percent_elapsed || 0, tooltip, outsideBH: false, sortPriority };
   }
 
   function slaBadgeHTML(state, clickable = false) {
