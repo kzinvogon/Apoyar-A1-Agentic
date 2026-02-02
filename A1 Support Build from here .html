@@ -3146,9 +3146,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
                 <option value="sla">SLA</option>
               </select>
 
-              <label class="filter-checkbox">
+              <label class="filter-checkbox" title="When checked, shows all tickets including system/monitoring alerts. Uncheck to see only customer tickets.">
                 <input type="checkbox" id="ticket-filter-system" onchange="onTicketFilterChange()" checked>
-                <span>System</span>
+                <span>Include System</span>
               </label>
 
               <button class="btn-clear" onclick="clearTicketFilters()">Clear</button>
@@ -9041,59 +9041,76 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     }
   }
 
-  // Power search for expert dashboard (client-side filtering)
-  function expertPowerSearch() {
+  // Power search for expert dashboard (server-side search)
+  async function expertPowerSearch() {
     const searchInput = document.getElementById('expert-power-search');
     const resultsEl = document.getElementById('expert-search-results');
-    const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
+    const query = searchInput ? searchInput.value.trim() : '';
 
     if (!query || !resultsEl) return;
 
     resultsEl.style.display = 'block';
+    resultsEl.innerHTML = '<div style="padding:12px;color:var(--muted)">Searching...</div>';
 
-    // Search in loaded tickets (client-side)
-    const ticketResults = tickets.filter(t =>
-      (t.title && t.title.toLowerCase().includes(query)) ||
-      (t.description && t.description.toLowerCase().includes(query)) ||
-      (t.id && t.id.toString().includes(query))
-    ).slice(0, 5);
-
-    // Search in loaded CMDB items (client-side)
-    const cmdbResults = (window.CMDB_ITEMS || []).filter(c =>
-      (c.asset_name && c.asset_name.toLowerCase().includes(query)) ||
-      (c.name && c.name.toLowerCase().includes(query)) ||
-      (c.customer_name && c.customer_name.toLowerCase().includes(query))
-    ).slice(0, 5);
-
-    if (ticketResults.length === 0 && cmdbResults.length === 0) {
-      resultsEl.innerHTML = '<div style="padding:12px;color:var(--muted)">No results found for "' + query + '"</div>';
-      return;
-    }
-
-    let html = '<div style="display:flex;flex-direction:column;gap:8px">';
-
-    if (ticketResults.length > 0) {
-      html += '<div style="font-weight:600;font-size:12px;color:#2563eb">📋 Tickets</div>';
-      ticketResults.forEach(t => {
-        html += `<div style="padding:6px 8px;background:white;border-radius:4px;cursor:pointer;border:1px solid #e5e7eb" onclick="openTicket(${t.id})">
-          <span style="color:#2563eb;font-weight:500">#${t.id}</span> ${t.title}
-        </div>`;
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/tickets/${tenant}/power-search?q=${encodeURIComponent(query)}&limit=10`, {
+        headers: { 'Authorization': `Bearer ${token}` }
       });
+
+      if (!response.ok) throw new Error('Search failed');
+
+      const data = await response.json();
+      const ticketResults = data.tickets || [];
+      const cmdbResults = data.cmdb || [];
+      const kbResults = data.kb || [];
+
+      if (ticketResults.length === 0 && cmdbResults.length === 0 && kbResults.length === 0) {
+        resultsEl.innerHTML = '<div style="padding:12px;color:var(--muted)">No results found for "' + escapeHtml(query) + '"</div>';
+        return;
+      }
+
+      let html = '<div style="display:flex;flex-direction:column;gap:8px">';
+
+      if (ticketResults.length > 0) {
+        html += '<div style="font-weight:600;font-size:12px;color:#2563eb">📋 Tickets</div>';
+        ticketResults.forEach(t => {
+          const statusBadge = t.status === 'Open' ? '🟢' : t.status === 'In Progress' ? '🟡' : '⚪';
+          html += `<div style="padding:6px 8px;background:white;border-radius:4px;cursor:pointer;border:1px solid #e5e7eb" onclick="openTicket(${t.id})">
+            <span style="color:#2563eb;font-weight:500">#${t.id}</span> ${escapeHtml(t.title || '')}
+            <span style="font-size:11px;color:#666;margin-left:8px">${statusBadge} ${t.status || ''}</span>
+          </div>`;
+        });
+      }
+
+      if (cmdbResults.length > 0) {
+        html += '<div style="font-weight:600;font-size:12px;color:#059669;margin-top:8px">🖥️ Assets</div>';
+        cmdbResults.forEach(c => {
+          html += `<div style="padding:6px 8px;background:white;border-radius:4px;cursor:pointer;border:1px solid #e5e7eb" onclick="openCMDBDetail(${c.cmdb_id})">
+            <span style="color:#059669;font-weight:500">${escapeHtml(c.asset_name || '')}</span> · ${escapeHtml(c.customer_name || '')}
+          </div>`;
+        });
+      }
+
+      if (kbResults.length > 0) {
+        html += '<div style="font-weight:600;font-size:12px;color:#8b5cf6;margin-top:8px">📚 Knowledge Base</div>';
+        kbResults.forEach(k => {
+          html += `<div style="padding:6px 8px;background:white;border-radius:4px;cursor:pointer;border:1px solid #e5e7eb" onclick="showPage('kb');setTimeout(()=>openKBArticle(${k.id}),100)">
+            <span style="color:#8b5cf6;font-weight:500">${escapeHtml(k.title || '')}</span>
+            <span style="font-size:11px;color:#666;margin-left:8px">${escapeHtml(k.category || '')}</span>
+          </div>`;
+        });
+      }
+
+      html += '<button class="btn ghost" style="margin-top:8px;font-size:12px" onclick="document.getElementById(\'expert-search-results\').style.display=\'none\'">Close results</button>';
+      html += '</div>';
+
+      resultsEl.innerHTML = html;
+
+    } catch (error) {
+      console.error('Power search error:', error);
+      resultsEl.innerHTML = '<div style="padding:12px;color:#dc2626">Search failed. Please try again.</div>';
     }
-
-    if (cmdbResults.length > 0) {
-      html += '<div style="font-weight:600;font-size:12px;color:#059669;margin-top:8px">🖥️ Assets</div>';
-      cmdbResults.forEach(c => {
-        html += `<div style="padding:6px 8px;background:white;border-radius:4px;cursor:pointer;border:1px solid #e5e7eb" onclick="openCMDBDetail(${c.cmdb_id || c.id})">
-          <span style="color:#059669;font-weight:500">${c.asset_name || c.name}</span> · ${c.customer_name || ''}
-        </div>`;
-      });
-    }
-
-    html += '<button class="btn ghost" style="margin-top:8px;font-size:12px" onclick="document.getElementById(\'expert-search-results\').style.display=\'none\'">Close results</button>';
-    html += '</div>';
-
-    resultsEl.innerHTML = html;
   }
   function renderCustomerDash(){ const currentRole = window.role || role; if(currentRole!=='customer') return; const items = CMDB_ITEMS.filter(i => !tenant || i.customer===tenant); const ciCount = items.reduce((a,i)=>a+(CIS_BY_ITEM[i.cmdb_id]?.length||0),0); const openTickets = tickets.filter(t => (!tenant || (t.customer===tenant)) && t.status!=='Resolved').length; document.getElementById('cu-open').textContent=openTickets; document.getElementById('cu-items').textContent=items.length; document.getElementById('cu-cis').textContent=ciCount; const tbody=document.getElementById('cu-ci-body'); tbody.innerHTML=''; const all=[]; items.forEach(i => (CIS_BY_ITEM[i.cmdb_id]||[]).forEach(ci => all.push({item:i, ci}))); all.slice(0,8).forEach(r => { const tr=document.createElement('tr'); const m=r.ci.Model||r.ci.model||''; const loc=r.ci.Location||r.ci.location||''; const life=r.ci.Lifecycle||r.ci.lifecycle||r.ci.life||''; tr.innerHTML = `<td>${r.item.name}</td><td>${r.ci.name}</td><td>${m}</td><td>${loc}</td><td>${life}</td>`; tbody.appendChild(tr); }); }
   function renderMasterDash(){

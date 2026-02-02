@@ -578,11 +578,21 @@ router.get('/:tenantId', readOperationsLimiter, validateTicketGet, async (req, r
         whereConditions.push("(u2.username != 'system' AND u2.email != 'system@tenant.local')");
       }
 
-      // Search filter (title, requester name, company name)
+      // Search filter (title, requester name, company name, or ticket ID)
       if (search && search.trim()) {
-        const searchTerm = `%${search.trim()}%`;
-        whereConditions.push(`(t.title LIKE ? OR t.id LIKE ? OR u2.full_name LIKE ? OR cc.company_name LIKE ?)`);
-        params.push(searchTerm, searchTerm, searchTerm, searchTerm);
+        const searchQuery = search.trim();
+        // Check if searching by ticket ID (e.g., "#123" or just "123")
+        const idMatch = searchQuery.match(/^#?(\d+)$/);
+        if (idMatch) {
+          // Exact ID match
+          whereConditions.push('t.id = ?');
+          params.push(parseInt(idMatch[1]));
+        } else {
+          // Text search in title, requester name, company name
+          const searchTerm = `%${searchQuery}%`;
+          whereConditions.push(`(t.title LIKE ? OR u2.full_name LIKE ? OR cc.company_name LIKE ?)`);
+          params.push(searchTerm, searchTerm, searchTerm);
+        }
       }
 
       // Build WHERE clause
@@ -2900,6 +2910,102 @@ router.get('/:tenantId/:ticketId/classification-events', readOperationsLimiter, 
   } catch (error) {
     console.error('Error fetching classification events:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+/**
+ * GET /api/tickets/:tenantId/power-search
+ * Server-side power search across tickets, CMDB items, and knowledge base
+ * Supports search by ID (e.g., "#123") or text search in title/description
+ */
+router.get('/:tenantId/power-search', verifyToken, readOperationsLimiter, async (req, res) => {
+  try {
+    const { tenantId } = req.params;
+    const { q, limit = 10 } = req.query;
+
+    if (!q || !q.trim()) {
+      return res.json({ success: true, tickets: [], cmdb: [], kb: [] });
+    }
+
+    const query = q.trim();
+    const searchLimit = Math.min(parseInt(limit) || 10, 20);
+
+    const connection = await getTenantConnection(tenantId);
+    try {
+      let tickets = [];
+      let cmdb = [];
+      let kb = [];
+
+      // Check if searching by ticket ID (e.g., "#123" or "123")
+      const idMatch = query.match(/^#?(\d+)$/);
+
+      if (idMatch) {
+        // Search by ticket ID
+        const ticketId = parseInt(idMatch[1]);
+        const [ticketRows] = await connection.query(`
+          SELECT t.id, t.title, t.status, t.priority, t.pool_status,
+                 u.full_name as assignee_name
+          FROM tickets t
+          LEFT JOIN users u ON t.assignee_id = u.id
+          WHERE t.id = ?
+          LIMIT 1
+        `, [ticketId]);
+        tickets = ticketRows;
+      } else {
+        // Text search in tickets (title, description)
+        const searchTerm = `%${query}%`;
+        const [ticketRows] = await connection.query(`
+          SELECT t.id, t.title, t.status, t.priority, t.pool_status,
+                 u.full_name as assignee_name
+          FROM tickets t
+          LEFT JOIN users u ON t.assignee_id = u.id
+          WHERE t.title LIKE ? OR t.description LIKE ?
+          ORDER BY t.updated_at DESC
+          LIMIT ?
+        `, [searchTerm, searchTerm, searchLimit]);
+        tickets = ticketRows;
+      }
+
+      // Search CMDB items
+      const cmdbSearchTerm = `%${query}%`;
+      const [cmdbRows] = await connection.query(`
+        SELECT cmdb_id, asset_name, asset_category, customer_name, status
+        FROM cmdb_items
+        WHERE asset_name LIKE ? OR customer_name LIKE ? OR brand_name LIKE ? OR model_name LIKE ?
+        ORDER BY updated_at DESC
+        LIMIT ?
+      `, [cmdbSearchTerm, cmdbSearchTerm, cmdbSearchTerm, cmdbSearchTerm, searchLimit]);
+      cmdb = cmdbRows;
+
+      // Search Knowledge Base articles
+      try {
+        const [kbRows] = await connection.query(`
+          SELECT id, title, category, status
+          FROM kb_articles
+          WHERE (title LIKE ? OR content LIKE ?) AND status = 'published'
+          ORDER BY updated_at DESC
+          LIMIT ?
+        `, [cmdbSearchTerm, cmdbSearchTerm, searchLimit]);
+        kb = kbRows;
+      } catch (kbErr) {
+        // KB table may not exist
+        kb = [];
+      }
+
+      res.json({
+        success: true,
+        query,
+        tickets,
+        cmdb,
+        kb
+      });
+
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Power search error:', error);
+    res.status(500).json({ success: false, message: 'Search failed' });
   }
 });
 
