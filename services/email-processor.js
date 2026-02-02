@@ -17,6 +17,16 @@ const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 
 // ============================================================================
+// EMAIL REPLY THREADING PATTERNS
+// ============================================================================
+
+// Pattern to match [Ticket #NNNN] in subject line
+const TICKET_TOKEN_PATTERN = /\[Ticket\s*#?(\d+)\]/i;
+
+// Pattern to extract ticket ID from secure access URLs
+const TICKET_URL_PATTERN = /\/ticket\/view\/([a-zA-Z0-9_-]+)/g;
+
+// ============================================================================
 // MONITORING ALERT PARSING (Step 3.1)
 // ============================================================================
 
@@ -480,9 +490,11 @@ class EmailProcessor {
         const stats = {
           scanned: emailQueue.length,
           processed: 0,
+          ticket_updated: 0,
           skipped_duplicate: 0,
           skipped_bounce: 0,
           skipped_domain: 0,
+          skipped_system: 0,
           errors: 0,
           firstProcessedMessageId: null
         };
@@ -529,9 +541,20 @@ class EmailProcessor {
               } else if (result.reason === 'domain_not_found') {
                 resultType = 'skipped_domain';
                 stats.skipped_domain++;
+              } else if (result.reason === 'skipped_system') {
+                resultType = 'skipped_system';
+                stats.skipped_system++;
               } else {
                 resultType = 'error';
                 stats.errors++;
+              }
+            } else if (result.wasReply) {
+              // Email was added as reply to existing ticket
+              resultType = 'ticket_updated';
+              stats.ticket_updated++;
+              // Track first successfully processed message
+              if (!stats.firstProcessedMessageId) {
+                stats.firstProcessedMessageId = messageId;
               }
             } else {
               stats.processed++;
@@ -578,7 +601,7 @@ class EmailProcessor {
         }
 
         // Summary logging
-        console.log(`📊 [${self.tenantCode}] Cycle summary: mailbox_id=${mailboxId}, last_uid=${startUid}→${maxUidProcessed}, scanned=${stats.scanned}, processed=${stats.processed}, skipped_dup=${stats.skipped_duplicate}, skipped_bounce=${stats.skipped_bounce}, skipped_domain=${stats.skipped_domain}, errors=${stats.errors}`);
+        console.log(`📊 [${self.tenantCode}] Cycle summary: mailbox_id=${mailboxId}, last_uid=${startUid}→${maxUidProcessed}, scanned=${stats.scanned}, created=${stats.processed}, updated=${stats.ticket_updated}, skipped_dup=${stats.skipped_duplicate}, skipped_bounce=${stats.skipped_bounce}, skipped_domain=${stats.skipped_domain}, skipped_system=${stats.skipped_system}, errors=${stats.errors}`);
         if (stats.firstProcessedMessageId) {
           console.log(`📧 First processed message_id: ${stats.firstProcessedMessageId}`);
         }
@@ -667,10 +690,15 @@ class EmailProcessor {
                     from: parsed.from?.text || parsed.from?.value?.[0]?.address || '',
                     subject: parsed.subject || '(No Subject)',
                     body: parsed.text || parsed.html || '(No content)',
+                    html: parsed.html || '',
+                    text: parsed.text || '',
                     messageId: parsed.messageId || `msg-${Date.now()}-${seqno}`,
                     date: parsed.date,
                     seqno: seqno,
-                    uid: uid  // Track UID for marking as seen later
+                    uid: uid,  // Track UID for marking as seen later
+                    // Threading headers
+                    inReplyTo: parsed.inReplyTo || null,
+                    references: parsed.references || []
                   };
 
                   console.log(`📨 Queued email UID=${uid} #${seqno}: ${emailData.from} - ${emailData.subject}`);
@@ -1210,6 +1238,229 @@ class EmailProcessor {
     return noReplyPatterns.some(pattern => emailLower.includes(pattern));
   }
 
+  // ============================================================================
+  // EMAIL REPLY THREADING DETECTION
+  // ============================================================================
+
+  /**
+   * Get system email subject denylist from tenant settings
+   * Returns array of subject patterns to skip (transactional emails)
+   */
+  async getSystemEmailSubjectDenylist(connection) {
+    try {
+      const [settings] = await connection.query(
+        'SELECT setting_value FROM tenant_settings WHERE setting_key = ?',
+        ['system_email_subject_denylist']
+      );
+      if (settings.length > 0 && settings[0].setting_value) {
+        try {
+          return JSON.parse(settings[0].setting_value);
+        } catch (e) {
+          // If not valid JSON, treat as comma-separated list
+          return settings[0].setting_value.split(',').map(s => s.trim());
+        }
+      }
+      // Default denylist
+      return [
+        'Password Reset Request',
+        'Verify your email',
+        'Email Verification',
+        'Account Verification',
+        'Confirm your account'
+      ];
+    } catch (error) {
+      console.error('Error getting system email subject denylist:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Check if email subject matches the system/transactional denylist
+   * Returns { isSystem: boolean, matchedPattern: string|null }
+   */
+  async isSystemTransactionalEmail(connection, subject) {
+    const denylist = await this.getSystemEmailSubjectDenylist(connection);
+    const subjectLower = (subject || '').toLowerCase();
+
+    for (const pattern of denylist) {
+      if (subjectLower.includes(pattern.toLowerCase())) {
+        return { isSystem: true, matchedPattern: pattern };
+      }
+    }
+    return { isSystem: false, matchedPattern: null };
+  }
+
+  /**
+   * Detect if email is a reply to an existing ticket
+   * Returns { ticketId: number|null, method: string|null, debugInfo: object }
+   *
+   * Detection priority:
+   * 1. Header threading: In-Reply-To/References match email_ticket_threads.message_id
+   * 2. Subject token: [Ticket #NNNN] pattern in subject
+   * 3. URL parsing: Secure ticket link in body
+   */
+  async detectExistingTicket(connection, email) {
+    const debugInfo = {
+      inReplyTo: email.inReplyTo || null,
+      references: email.references || [],
+      subject: email.subject || ''
+    };
+
+    // Method 1: Header Threading (In-Reply-To / References)
+    const headerMessageIds = [];
+    if (email.inReplyTo) {
+      headerMessageIds.push(email.inReplyTo);
+    }
+    if (email.references && Array.isArray(email.references)) {
+      headerMessageIds.push(...email.references);
+    } else if (email.references && typeof email.references === 'string') {
+      // References can be a space-separated string
+      headerMessageIds.push(...email.references.split(/\s+/).filter(Boolean));
+    }
+
+    if (headerMessageIds.length > 0) {
+      try {
+        // Clean message IDs (remove angle brackets if present)
+        const cleanedIds = headerMessageIds.map(id =>
+          id.replace(/^</, '').replace(/>$/, '')
+        );
+
+        const placeholders = cleanedIds.map(() => '?').join(',');
+        const [rows] = await connection.query(
+          `SELECT ticket_id FROM email_ticket_threads
+           WHERE message_id IN (${placeholders})
+           ORDER BY created_at DESC LIMIT 1`,
+          cleanedIds
+        );
+
+        if (rows.length > 0) {
+          console.log(`🔗 [Threading] Header match found: ticket #${rows[0].ticket_id}`);
+          return {
+            ticketId: rows[0].ticket_id,
+            method: 'header_threading',
+            debugInfo
+          };
+        }
+      } catch (error) {
+        if (error.code !== 'ER_NO_SUCH_TABLE') {
+          console.error('Error checking header threading:', error.message);
+        }
+      }
+    }
+
+    // Method 2: Subject Token Parsing ([Ticket #NNNN])
+    const subject = email.subject || '';
+    const tokenMatch = subject.match(TICKET_TOKEN_PATTERN);
+    if (tokenMatch) {
+      const ticketId = parseInt(tokenMatch[1], 10);
+      // Verify ticket exists
+      const [rows] = await connection.query(
+        'SELECT id FROM tickets WHERE id = ?',
+        [ticketId]
+      );
+      if (rows.length > 0) {
+        console.log(`🔗 [Threading] Subject token match: ticket #${ticketId}`);
+        return {
+          ticketId,
+          method: 'subject_token',
+          debugInfo
+        };
+      }
+    }
+
+    // Method 3: URL Parsing (secure ticket links in body)
+    const body = email.body || email.text || email.html || '';
+    const urlMatches = [...body.matchAll(TICKET_URL_PATTERN)];
+
+    if (urlMatches.length > 0) {
+      // Try to decode the token and extract ticket ID
+      for (const match of urlMatches) {
+        const token = match[1];
+        try {
+          // Decode the JWT-like token to get ticket ID
+          const { verifyTicketAccessToken } = require('../utils/tokenGenerator');
+          const decoded = await verifyTicketAccessToken(this.tenantCode, token);
+          if (decoded && decoded.ticketId) {
+            // Verify ticket exists
+            const [rows] = await connection.query(
+              'SELECT id FROM tickets WHERE id = ?',
+              [decoded.ticketId]
+            );
+            if (rows.length > 0) {
+              console.log(`🔗 [Threading] URL token match: ticket #${decoded.ticketId}`);
+              return {
+                ticketId: decoded.ticketId,
+                method: 'url_parsing',
+                debugInfo
+              };
+            }
+          }
+        } catch (tokenError) {
+          // Token invalid or expired, try next URL
+          continue;
+        }
+      }
+    }
+
+    // No match found
+    return { ticketId: null, method: null, debugInfo };
+  }
+
+  /**
+   * Add reply email content as activity to existing ticket
+   * Returns { success: boolean, activityId: number|null }
+   */
+  async addReplyToTicket(connection, ticketId, email, requesterId) {
+    try {
+      // Get email body content
+      const body = email.body || email.text || '(No content)';
+
+      // Create activity entry
+      const activityDescription = `**Email Reply Received**\n\nFrom: ${email.from}\n\n${body}`;
+
+      const [result] = await connection.query(
+        `INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
+         VALUES (?, ?, ?, ?)`,
+        [ticketId, requesterId, 'email_reply', activityDescription]
+      );
+
+      console.log(`✅ [Threading] Added email reply as activity #${result.insertId} to ticket #${ticketId}`);
+
+      return { success: true, activityId: result.insertId };
+    } catch (error) {
+      console.error(`Error adding reply to ticket #${ticketId}:`, error.message);
+      return { success: false, activityId: null };
+    }
+  }
+
+  /**
+   * Store outbound email Message-ID for future reply threading
+   */
+  async storeOutboundMessageId(connection, ticketId, messageId, subject) {
+    if (!messageId) {
+      console.log(`⚠️ [Threading] No Message-ID to store for ticket #${ticketId}`);
+      return;
+    }
+
+    try {
+      // Clean Message-ID (remove angle brackets)
+      const cleanMessageId = messageId.replace(/^</, '').replace(/>$/, '');
+
+      await connection.query(
+        `INSERT INTO email_ticket_threads (ticket_id, message_id, subject)
+         VALUES (?, ?, ?)
+         ON DUPLICATE KEY UPDATE ticket_id = VALUES(ticket_id)`,
+        [ticketId, cleanMessageId, subject || null]
+      );
+
+      console.log(`📧 [Threading] Stored Message-ID for ticket #${ticketId}: ${cleanMessageId.substring(0, 40)}...`);
+    } catch (error) {
+      if (error.code !== 'ER_NO_SUCH_TABLE') {
+        console.error(`Error storing Message-ID for ticket #${ticketId}:`, error.message);
+      }
+    }
+  }
+
   /**
    * Process a single email message
    */
@@ -1237,6 +1488,51 @@ class EmailProcessor {
       if (this.isBounceNotification(fromEmail, email.subject)) {
         console.log(`🚫 Skipping bounce/delivery notification from: ${fromEmail}, subject: ${email.subject}`);
         return { success: false, reason: 'bounce_notification_skipped' };
+      }
+
+      // ============================================
+      // CHECK FOR SYSTEM/TRANSACTIONAL EMAIL (DENYLIST)
+      // Skip emails matching the subject denylist
+      // ============================================
+      const systemCheck = await this.isSystemTransactionalEmail(connection, email.subject);
+      if (systemCheck.isSystem) {
+        console.log(`🚫 [Threading] Skipping system/transactional email: "${email.subject}" (matched: "${systemCheck.matchedPattern}")`);
+        return { success: false, reason: 'skipped_system', matchedPattern: systemCheck.matchedPattern };
+      }
+
+      // ============================================
+      // EMAIL REPLY THREADING DETECTION
+      // Check if this is a reply to an existing ticket
+      // ============================================
+      const threadingResult = await this.detectExistingTicket(connection, email);
+
+      if (threadingResult.ticketId) {
+        console.log(`🔗 [Threading] Reply detected for ticket #${threadingResult.ticketId} via ${threadingResult.method}`);
+
+        // Find user ID for the sender
+        let userId = null;
+        const [existingUsers] = await connection.query(
+          'SELECT id FROM users WHERE email = ?',
+          [fromEmail]
+        );
+
+        if (existingUsers.length > 0) {
+          userId = existingUsers[0].id;
+        } else {
+          // Use system user for unknown senders
+          userId = await this.getOrCreateSystemUser(connection);
+        }
+
+        // Add reply as activity to existing ticket
+        const replyResult = await this.addReplyToTicket(connection, threadingResult.ticketId, email, userId);
+
+        return {
+          success: true,
+          ticketId: threadingResult.ticketId,
+          wasReply: true,
+          threadingMethod: threadingResult.method,
+          activityId: replyResult.activityId
+        };
       }
 
       // Check if this is a "Register_Expert" expert registration request
@@ -1651,6 +1947,9 @@ class EmailProcessor {
     const ticketUrl = `${process.env.BASE_URL || 'https://serviflow.app'}/ticket/view/${token}`;
     console.log(`🔐 Generated access token for ticket #${ticketId}`);
 
+    // Build email subject with ticket token for reply threading
+    const emailSubject = `[Ticket #${ticketId}] Created: ${subject}`;
+
     const htmlContent = `
       <h2>Ticket Created</h2>
       <p>Thank you for contacting support. Your ticket has been created.</p>
@@ -1662,16 +1961,31 @@ class EmailProcessor {
       <p style="color:#666;font-size:12px"><em>This is a secure access link that expires in 30 days. No login required.</em></p>
       <p>Our team will respond to your request shortly.</p>
       <hr>
-      <p style="color:#666;font-size:12px">This is an automated message. Please do not reply to this email.</p>
+      <p style="color:#666;font-size:12px">You can reply to this email to add comments to your ticket.</p>
     `;
 
     try {
-      await sendNotificationEmail(
+      const result = await sendNotificationEmail(
         toEmail,
-        `Ticket #${ticketId} Created: ${subject}`,
+        emailSubject,
         htmlContent
       );
       console.log(`Sent ticket confirmation email to: ${toEmail}`);
+
+      // Store outbound Message-ID for reply threading
+      if (result.success && result.messageId) {
+        try {
+          const connection = await this.getConnection();
+          try {
+            await this.storeOutboundMessageId(connection, ticketId, result.messageId, emailSubject);
+          } finally {
+            connection.release();
+          }
+        } catch (storeError) {
+          console.error(`Failed to store Message-ID for ticket #${ticketId}:`, storeError.message);
+          // Non-critical - don't fail the email send
+        }
+      }
     } catch (error) {
       console.error(`Failed to send confirmation email to ${toEmail}:`, error);
     }
