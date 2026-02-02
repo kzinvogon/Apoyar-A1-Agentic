@@ -15923,6 +15923,14 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           act.appendChild(div);
         }
 
+        // Auto-expand Activity panel if there are email replies
+        if (data.activities && data.activities.some(a => a.activity_type === 'email_reply')) {
+          const wrapper = document.getElementById('td-activity-wrapper');
+          if (wrapper && wrapper.style.display === 'none') {
+            toggleActivityPanel();
+          }
+        }
+
         // Display classification data
         displayClassification(ticket);
       }
