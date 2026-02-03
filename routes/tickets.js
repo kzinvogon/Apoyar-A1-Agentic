@@ -945,6 +945,7 @@ router.get('/:tenantId/my-tickets', readOperationsLimiter, requireRole(['expert'
     const connection = await getTenantConnection(tenantCode);
 
     try {
+      // Include owned tickets AND claimed tickets (not yet expired)
       const [myTickets] = await connection.query(`
         SELECT t.*,
                u1.full_name as requester_name,
@@ -956,15 +957,19 @@ router.get('/:tenantId/my-tickets', readOperationsLimiter, requireRole(['expert'
         LEFT JOIN customers c ON t.requester_id = c.user_id
         LEFT JOIN customer_companies cc ON c.customer_company_id = cc.id
         LEFT JOIN cmdb_items ci ON t.cmdb_item_id = ci.id
-        WHERE t.owned_by_expert_id = ?
-          AND t.pool_status IN ('IN_PROGRESS_OWNED', 'WAITING_CUSTOMER')
+        WHERE (
+          (t.owned_by_expert_id = ? AND t.pool_status IN ('IN_PROGRESS_OWNED', 'WAITING_CUSTOMER'))
+          OR
+          (t.claimed_by_expert_id = ? AND t.pool_status = 'CLAIMED_LOCKED' AND t.claimed_until_at > NOW())
+        )
         ORDER BY
           CASE t.pool_status
+            WHEN 'CLAIMED_LOCKED' THEN 0
             WHEN 'IN_PROGRESS_OWNED' THEN 1
             WHEN 'WAITING_CUSTOMER' THEN 2
           END,
           t.resolve_due_at IS NULL, t.resolve_due_at ASC
-      `, [req.user.userId]);
+      `, [req.user.userId, req.user.userId]);
 
       await enrichTicketsWithSLAStatus(myTickets, connection);
 
