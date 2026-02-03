@@ -1898,18 +1898,23 @@ router.post('/:tenantId/:ticketId/take-over', writeOperationsLimiter, requireRol
 
       const ticket = tickets[0];
 
-      // Take Over is only for automated tickets in OPEN_POOL
-      if (ticket.execution_mode !== 'automated') {
+      // Take Over is for reassigning tickets that are already owned
+      // For unowned tickets (OPEN_POOL), use Claim instead
+      const ownedStatuses = ['IN_PROGRESS_OWNED', 'WAITING_CUSTOMER', 'CLAIMED_LOCKED'];
+      if (!ownedStatuses.includes(ticket.pool_status)) {
         return res.status(400).json({
           success: false,
-          message: 'Take Over is only available for automated tickets. Use Claim for manual tickets.'
+          message: ticket.pool_status === 'OPEN_POOL'
+            ? 'Use Claim for unowned tickets. Take Over is for reassigning owned tickets.'
+            : `Cannot take over ticket in status: ${ticket.pool_status}`
         });
       }
 
-      if (ticket.pool_status !== 'OPEN_POOL') {
+      // Can't take over your own ticket
+      if (ticket.owned_by_expert_id === req.user.userId) {
         return res.status(400).json({
           success: false,
-          message: `Cannot take over ticket in status: ${ticket.pool_status}`
+          message: 'You already own this ticket'
         });
       }
 
@@ -1946,11 +1951,30 @@ router.post('/:tenantId/:ticketId/take-over', writeOperationsLimiter, requireRol
         }
       }
 
-      // Log activity
+      // Log activity - get previous owner name for the log
+      let previousOwnerName = 'unknown';
+      if (ticket.owned_by_expert_id) {
+        const [prevOwner] = await connection.query(
+          'SELECT full_name FROM users WHERE id = ?',
+          [ticket.owned_by_expert_id]
+        );
+        if (prevOwner.length > 0) {
+          previousOwnerName = prevOwner[0].full_name;
+        }
+      } else if (ticket.claimed_by_expert_id) {
+        const [prevClaimer] = await connection.query(
+          'SELECT full_name FROM users WHERE id = ?',
+          [ticket.claimed_by_expert_id]
+        );
+        if (prevClaimer.length > 0) {
+          previousOwnerName = prevClaimer[0].full_name;
+        }
+      }
+
       await connection.query(`
         INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
         VALUES (?, ?, 'assigned', ?)
-      `, [ticketId, req.user.userId, `Automated ticket taken over by ${req.user.username}`]);
+      `, [ticketId, req.user.userId, `Ticket taken over from ${previousOwnerName} by ${req.user.username}`]);
 
       // Get updated ticket
       const [updatedTickets] = await connection.query(`
