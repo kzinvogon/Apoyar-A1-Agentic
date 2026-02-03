@@ -148,8 +148,8 @@ vNext-FULL-ActionsSLA:
   .fullscreen-exit-btn{display:none;position:fixed;top:12px;right:12px;z-index:201;padding:8px 14px;border-radius:8px;border:1px solid var(--border);background:var(--card);cursor:pointer;font-size:13px;font-weight:500;color:var(--ink);transition:all .15s;box-shadow:var(--shadow-lg)}
   .fullscreen-exit-btn:hover{background:var(--card-hover)}
   body.fullscreen-mode .fullscreen-exit-btn{display:flex;align-items:center;gap:6px}
-  .fullscreen-toggle-btn{padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--card);cursor:pointer;font-size:12px;color:var(--muted);transition:all .15s;display:flex;align-items:center;gap:4px}
-  .fullscreen-toggle-btn:hover{background:var(--card-hover);color:var(--ink)}
+  .fullscreen-toggle-btn{padding:6px 12px;border-radius:6px;border:1px solid var(--border);background:var(--card);cursor:pointer;font-size:13px;font-weight:500;color:var(--ink);transition:all .15s;display:inline-flex;align-items:center;gap:6px}
+  .fullscreen-toggle-btn:hover{background:var(--primary);color:var(--bg);border-color:var(--primary)}
   .leftnav .subtitle{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:0 0 8px 12px;font-weight:500}
   .navlink{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;margin-bottom:2px;cursor:pointer;font-size:14px;font-weight:400;color:var(--muted);transition:all .15s ease}
   .navlink:hover{background:var(--card-hover);color:var(--ink)}
@@ -3238,7 +3238,6 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
                 <button id="btn-prev-ticket" class="btn ghost" onclick="navigateToPrevTicket()" title="Previous ticket ([)" disabled>← Prev</button>
                 <button id="btn-next-ticket" class="btn ghost" onclick="navigateToNextTicket()" title="Next ticket (])">Next →</button>
               </div>
-              <div id="ticket-nav-placeholder" style="width:140px"></div>
               <!-- Fullscreen Toggle -->
               <button class="fullscreen-toggle-btn" onclick="toggleFullscreen()" title="Fullscreen mode (F)">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
