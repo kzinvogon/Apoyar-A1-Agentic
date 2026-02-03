@@ -247,7 +247,8 @@ router.post('/public/:token/reject', async (req, res) => {
             <p><strong>Customer Comments:</strong></p>
             <p>${comment}</p>
             <p>Please review and reopen the ticket.</p>
-          `
+          `,
+          emailType: 'experts'
         });
       }
 
@@ -2538,7 +2539,8 @@ router.put('/:tenantId/:ticketId', writeOperationsLimiter, validateTicketUpdate,
                   This link will remain active until you respond. If you have any questions, please reply to this email.
                 </p>
               </div>
-            `
+            `,
+            emailType: 'customers'
           });
         } else {
           // Normal resolution email (no acceptance required)

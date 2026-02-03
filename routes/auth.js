@@ -728,7 +728,8 @@ router.post('/tenant/forgot-password', passwordChangeLimiter, async (req, res) =
             <p>Best regards,<br>A1 Support Team</p>
           `,
           emailType: emailType,
-          skipUserCheck: true // User explicitly requested password reset
+          skipUserCheck: true, // User explicitly requested password reset
+          skipKillSwitch: true // Security-critical: password reset must always work
         });
 
         console.log(`Password reset email sent to ${email} (type: ${emailType})`);
@@ -826,7 +827,8 @@ router.post('/tenant/reset-password-with-token', passwordChangeLimiter, async (r
             <p>If you didn't make this change, please contact support immediately.</p>
             <br>
             <p>Best regards,<br>A1 Support Team</p>
-          `
+          `,
+          skipKillSwitch: true // Security-critical: confirmation must always be sent
         });
       } catch (emailError) {
         console.error('Error sending confirmation email:', emailError);

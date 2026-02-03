@@ -121,10 +121,14 @@ async function sendTicketNotificationEmail(ticketData, action, details = {}) {
     const { ticket, customer_email, customer_name, tenantCode } = ticketData;
 
     // Check if email sending is enabled (kill switch)
+    // Determine email type based on action:
+    // - 'assigned' action sends to experts/assignees
+    // - All other actions (created, resolved, status_changed) send to customers
+    const emailType = action === 'assigned' ? 'experts' : 'customers';
     if (tenantCode) {
-      const emailEnabled = await isEmailSendingEnabled(tenantCode);
+      const emailEnabled = await isEmailSendingEnabled(tenantCode, emailType);
       if (!emailEnabled) {
-        console.log('🔴 KILL SWITCH: Email sending is disabled for tenant:', tenantCode);
+        console.log(`🔴 KILL SWITCH: Email sending is disabled (send_emails_${emailType}) for tenant:`, tenantCode);
         console.log('📧 Would have sent email for:', action, 'to:', customer_email);
         return { success: false, message: 'Email sending disabled by kill switch' };
       }
@@ -354,6 +358,7 @@ async function sendNotificationEmail(to, subject, htmlContent, tenantCode = null
 
 // Function to send generic email (used by password reset, etc.)
 // options.emailType can be 'experts' or 'customers' to check granular kill switches
+// options.skipKillSwitch - if true, bypasses kill switch (for security-critical emails like password reset)
 async function sendEmail(tenantCode, options) {
   try {
     // Check if transporter is configured
@@ -364,7 +369,8 @@ async function sendEmail(tenantCode, options) {
 
     // Check if email sending is enabled (kill switch)
     // Use emailType to check granular settings (send_emails_experts, send_emails_customers)
-    if (tenantCode) {
+    // Skip this check for security-critical emails (password reset, etc.)
+    if (tenantCode && !options.skipKillSwitch) {
       const emailType = options.emailType || null;
       const emailEnabled = await isEmailSendingEnabled(tenantCode, emailType);
       if (!emailEnabled) {
