@@ -1,0 +1,11 @@
+{
+  "_comment": "Service parity allowlist. PROD is baseline - UAT must match.",
+  "allow_missing_in_uat": [
+    "mysql",
+    "redis"
+  ],
+  "allow_missing_in_prod": [
+    "web-uat",
+    "email-worker-uat"
+  ]
+}
