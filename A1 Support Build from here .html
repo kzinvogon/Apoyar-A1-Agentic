@@ -8196,71 +8196,95 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     switchView('cmdb');
   }
 
-  function renderExpertDash() {
+  async function renderExpertDash() {
     const currentRole = window.role || role;
-    if (currentRole !== 'expert') return;
+    if (currentRole !== 'expert' && currentRole !== 'admin') return;
 
-    // Get tickets assigned to current user
-    const currentUsername = localStorage.getItem('username') || 'expert';
-    const my = tickets.filter(t =>
-      (t.assignee === currentUsername || t.assignee_name === currentUsername ||
-       t.assignee_id === parseInt(localStorage.getItem('userId'))) &&
-      t.status !== 'Resolved' && t.status !== 'Closed'
-    );
-
-    // Filter for today
-    const today = my.filter(t => {
-      const now = new Date();
-      const due = parseDueEndOfDay(t.due);
-      return due && now.toDateString() === due.toDateString();
-    });
-
-    // Filter for SLA risk
-    const risk = my.filter(t => {
-      const sla = getSLAState(t);
-      return sla.cls !== 'ok' && sla.cls !== '';
-    });
-
-    // Update stats
-    document.getElementById('ex-open').textContent = my.length;
-    document.getElementById('ex-today').textContent = today.length;
-    document.getElementById('ex-risk').textContent = risk.length;
-
-    // Determine which tickets to show based on filter
-    const filterSelect = document.getElementById('ex-ticket-filter');
-    const filterValue = filterSelect ? filterSelect.value : 'all';
-    let displayTickets = my;
-    if (filterValue === 'today') displayTickets = today;
-    else if (filterValue === 'risk') displayTickets = risk;
-
-    // Populate ticket table
     const tb = document.getElementById('ex-list');
     const noTickets = document.getElementById('ex-no-tickets');
-    if (!tb) return; // Exit if element doesn't exist
+    if (!tb) return;
 
-    const tableEl = tb.closest('table');
-    tb.innerHTML = '';
-
-    if (displayTickets.length === 0) {
-      if (noTickets) noTickets.style.display = 'block';
-      if (tableEl) tableEl.style.display = 'none';
-    } else {
-      if (noTickets) noTickets.style.display = 'none';
-      if (tableEl) tableEl.style.display = 'table';
-      displayTickets.slice(0, 15).forEach(t => {
-        const tr = document.createElement('tr');
-        const sla = getSLAState(t);
-        const dateTime = formatDateTime(t.created);
-        tr.style.cursor = 'pointer';
-        tr.onclick = () => openTicket(t.id);
-        tr.innerHTML = `<td>#${t.id}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.title}</td><td>${dateTime}</td><td>${t.status}</td><td>${slaBadgeHTML(sla)}</td>`;
-        tb.appendChild(tr);
+    // Fetch my tickets from server API
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/tickets/${tenant}/my-tickets`, {
+        headers: { Authorization: `Bearer ${token}` }
       });
-    }
+      const data = await res.json();
 
-    // Load AI insights and recent assets
-    loadExpertAIInsights(my, today, risk);
-    loadExpertRecentAssets();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Failed to load my tickets');
+      }
+
+      const my = data.tickets || [];
+
+      // Filter for today (using resolve_due_at from API)
+      const today = my.filter(t => {
+        if (!t.resolve_due_at) return false;
+        const now = new Date();
+        const due = new Date(t.resolve_due_at);
+        return now.toDateString() === due.toDateString();
+      });
+
+      // Filter for SLA risk (using sla_status from API)
+      const risk = my.filter(t => {
+        const slaStatus = t.sla_status;
+        if (!slaStatus || slaStatus.phase === 'no_sla') return false;
+        const resolveState = slaStatus.resolve?.state;
+        return resolveState === 'breached' || resolveState === 'near_breach';
+      });
+
+      // Update stats
+      document.getElementById('ex-open').textContent = my.length;
+      document.getElementById('ex-today').textContent = today.length;
+      document.getElementById('ex-risk').textContent = risk.length;
+
+      // Determine which tickets to show based on filter
+      const filterSelect = document.getElementById('ex-ticket-filter');
+      const filterValue = filterSelect ? filterSelect.value : 'all';
+      let displayTickets = my;
+      if (filterValue === 'today') displayTickets = today;
+      else if (filterValue === 'risk') displayTickets = risk;
+
+      // Populate ticket table
+      const tableEl = tb.closest('table');
+      tb.innerHTML = '';
+
+      if (displayTickets.length === 0) {
+        if (noTickets) noTickets.style.display = 'block';
+        if (tableEl) tableEl.style.display = 'none';
+      } else {
+        if (noTickets) noTickets.style.display = 'none';
+        if (tableEl) tableEl.style.display = 'table';
+        displayTickets.slice(0, 15).forEach(t => {
+          const tr = document.createElement('tr');
+          // Build SLA badge from sla_status
+          const slaStatus = t.sla_status || {};
+          const resolveState = slaStatus.resolve?.state || '';
+          let slaBadge = '<span class="badge sla">—</span>';
+          if (resolveState === 'breached') {
+            slaBadge = '<span class="badge sla breach">Breached</span>';
+          } else if (resolveState === 'near_breach') {
+            slaBadge = '<span class="badge sla warn">At Risk</span>';
+          } else if (resolveState === 'on_track') {
+            slaBadge = '<span class="badge sla ok">On Track</span>';
+          }
+          const dateTime = formatDateTime(t.created_at);
+          tr.style.cursor = 'pointer';
+          tr.onclick = () => openTicket(t.id);
+          tr.innerHTML = `<td>#${t.id}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(t.title)}</td><td>${dateTime}</td><td>${t.status}</td><td>${slaBadge}</td>`;
+          tb.appendChild(tr);
+        });
+      }
+
+      // Load AI insights and recent assets
+      loadExpertAIInsights(my, today, risk);
+      loadExpertRecentAssets();
+
+    } catch (error) {
+      console.error('Error loading my tickets:', error);
+      tb.innerHTML = '<tr><td colspan="5" style="color:#dc2626;text-align:center">Failed to load tickets</td></tr>';
+    }
   }
 
   // Filter expert tickets when clicking stat cards
