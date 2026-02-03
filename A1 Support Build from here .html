@@ -116,7 +116,7 @@ vNext-FULL-ActionsSLA:
   .mb-8{margin-bottom:8px} .mb-12{margin-bottom:12px} .mb-16{margin-bottom:16px} .mb-24{margin-bottom:24px}
   .title{font-size:20px;font-weight:600;margin:0 0 6px;letter-spacing:-.3px} .subtitle{font-size:13px;color:var(--muted);margin:0 0 12px}
   .row{display:flex;gap:12px;align-items:center} .space{justify-content:space-between} .wrap{flex-wrap:wrap}
-  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px} .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px} .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+  .grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px} .grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px} .grid4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
 .ai-trend-card{background:rgba(255,255,255,0.08);border-radius:8px;padding:16px;border-left:4px solid #667eea}
 .ai-trend-card.critical{border-left-color:#ff6b6b;background:rgba(255,107,107,0.1)}
 .ai-trend-card.warning{border-left-color:#ffc107;background:rgba(255,193,7,0.1)}
@@ -3398,7 +3398,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
                 <span id="activity-toggle-icon" style="color:#9ca3af;font-size:12px">▶ Show</span>
               </div>
               <div id="td-activity-wrapper" style="display:none">
-                <div id="td-activity" class="mb-12 mt-12" style="max-height:200px;overflow:auto"></div>
+                <div id="td-activity" class="mb-12 mt-12" style="max-height:200px;overflow:auto;word-break:break-word;overflow-wrap:break-word"></div>
               </div>
               <div class="row mt-12">
                 <input id="td-note" class="input" placeholder="Add an internal note…"/>
