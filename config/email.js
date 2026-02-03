@@ -315,13 +315,25 @@ async function sendTicketNotificationEmail(ticketData, action, details = {}) {
 }
 
 // Function to send generic notification email
-async function sendNotificationEmail(to, subject, htmlContent) {
+// tenantCode and emailType are optional - if provided, checks kill switch
+async function sendNotificationEmail(to, subject, htmlContent, tenantCode = null, emailType = 'customers') {
   try {
     // Check if transporter is configured
     if (!transporter) {
       console.log('⚠️  Skipping notification email - SMTP not configured');
       console.log('📧 Would have sent to:', to, 'Subject:', subject);
       return { success: false, message: 'SMTP not configured' };
+    }
+
+    // Check kill switch if tenantCode provided
+    if (tenantCode) {
+      const emailEnabled = await isEmailSendingEnabled(tenantCode, emailType);
+      if (!emailEnabled) {
+        const settingName = `send_emails_${emailType}`;
+        console.log(`🔴 KILL SWITCH: Email sending is disabled (${settingName}) for tenant:`, tenantCode);
+        console.log('📧 Would have sent email to:', to, 'Subject:', subject);
+        return { success: false, message: 'Email sending disabled by kill switch' };
+      }
     }
 
     const info = await transporter.sendMail({
