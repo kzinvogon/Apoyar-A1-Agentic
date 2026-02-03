@@ -1756,8 +1756,9 @@ vNext-FULL-ActionsSLA:
                     <button id="my-tickets-tab-btn" class="btn primary" onclick="switchExpertView('my')" style="padding:8px 16px;font-size:13px;border-radius:6px">📋 My Tickets</button>
                   </div>
                   <div class="row" style="gap:8px">
-                    <select id="ex-ticket-filter" class="input" style="width:120px;padding:4px 8px;font-size:12px" onchange="syncStatCardHighlight(); renderExpertDash()">
-                      <option value="all">All Open</option>
+                    <select id="ex-ticket-filter" class="input" style="width:140px;padding:4px 8px;font-size:12px" onchange="syncStatCardHighlight(); renderExpertDash()">
+                      <option value="all">All Mine</option>
+                      <option value="claimed">Claimed</option>
                       <option value="today">Due Today</option>
                       <option value="risk">SLA Risk</option>
                     </select>
@@ -7200,7 +7201,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   function nav(el){ document.querySelectorAll('.navlink').forEach(n=>n.classList.remove('active')); el.classList.add('active'); switchView(el.getAttribute('data-target')); }
   function navTo(view){ switchView(view); }
-  function switchView(view){ currentView=view; ['dash','profile','tickets','ticket-detail','experts','expert-detail','customers','cmdb-hub','cmdb','cmdb-detail','manage-cmdb','cmdb-mgmt','wizard','raise','tenants','subscriptions','billing','plans','currencies','system','usage','customer-plans','customer-billing','my-company','company-admin','analytics','ai-insights','ticket-rules','email-processing','system-control','knowledge-base','raw-variables','audit-log','notifications'].forEach(n=>{ const el=document.getElementById('view-'+n); if(el) el.style.display=(n===view)?'block':'none'; }); if(view==='dash') { fetchTicketsFromAPI().then(() => renderAllDashboards()); } if(view==='tickets') { console.log('[switchView] Switching to tickets view'); window.insightTicketFilter = null; window.insightTitle = null; window.slaAtRiskFilter = false; loadFilterSettings('tickets'); renderList(); } if(view==='experts') { loadFilterSettings('experts'); renderExperts(); } if(view==='expert-detail') renderExpertDetail(); if(view==='customers') { loadFilterSettings('customers'); renderCustomers(); } if(view==='cmdb-hub') initCmdbHub(); if(view==='cmdb') { loadFilterSettings('cmdb'); renderCMDB(); } if(view==='cmdb-detail') renderCMDBDetail(); if(view==='manage-cmdb') loadManageCMDB(); if(view==='cmdb-mgmt') loadCMDBMgmt(); if(view==='raise') loadRaiseFormOptions(); if(view==='ticket-detail') renderTicketDetail(); if(view==='tenants') loadTenants(); if(view==='subscriptions') loadSubscriptions(); if(view==='billing') loadBilling(); if(view==='plans') loadPlans(); if(view==='currencies') loadCurrenciesAdmin(); if(view==='system') loadSystemOverview(); if(view==='usage') loadUsageDashboard(); if(view==='customer-plans') loadCustomerPlans(); if(view==='customer-billing') loadCustomerBilling(); if(view==='my-company') loadMyCompany(); if(view==='company-admin') loadCompanyAdminUsers(); if(view==='analytics') loadAnalytics(); if(view==='ai-insights') loadAIInsights(); if(view==='ticket-rules') loadTicketRules(); if(view==='email-processing') loadEmailProcessing(); if(view==='system-control') loadSystemControlSettings(); if(view==='knowledge-base') initKnowledgeBase(); if(view==='raw-variables') loadRawVariables(); if(view==='audit-log') { loadAuditActions(); loadAuditLog(); } if(view==='notifications') loadNotifications(); if(view==='wizard') { initWizardSection(); loadCompanyProfile(); loadEmailIngestSettings(); loadSystemSenders(); loadExpertRegSettings(); loadSupportSettings(); loadTeamsIntegrationStatus(); loadSlackIntegrationStatus(); loadSLAData(); } if(view==='profile') loadProfile(); }
+  function switchView(view){ currentView=view; ['dash','profile','tickets','ticket-detail','experts','expert-detail','customers','cmdb-hub','cmdb','cmdb-detail','manage-cmdb','cmdb-mgmt','wizard','raise','tenants','subscriptions','billing','plans','currencies','system','usage','customer-plans','customer-billing','my-company','company-admin','analytics','ai-insights','ticket-rules','email-processing','system-control','knowledge-base','raw-variables','audit-log','notifications'].forEach(n=>{ const el=document.getElementById('view-'+n); if(el) el.style.display=(n===view)?'block':'none'; }); if(view!=='dash') { clearExpertPowerSearch(); } if(view==='dash') { fetchTicketsFromAPI().then(() => renderAllDashboards()); } if(view==='tickets') { console.log('[switchView] Switching to tickets view'); window.insightTicketFilter = null; window.insightTitle = null; window.slaAtRiskFilter = false; loadFilterSettings('tickets'); renderList(); } if(view==='experts') { loadFilterSettings('experts'); renderExperts(); } if(view==='expert-detail') renderExpertDetail(); if(view==='customers') { loadFilterSettings('customers'); renderCustomers(); } if(view==='cmdb-hub') initCmdbHub(); if(view==='cmdb') { loadFilterSettings('cmdb'); renderCMDB(); } if(view==='cmdb-detail') renderCMDBDetail(); if(view==='manage-cmdb') loadManageCMDB(); if(view==='cmdb-mgmt') loadCMDBMgmt(); if(view==='raise') loadRaiseFormOptions(); if(view==='ticket-detail') renderTicketDetail(); if(view==='tenants') loadTenants(); if(view==='subscriptions') loadSubscriptions(); if(view==='billing') loadBilling(); if(view==='plans') loadPlans(); if(view==='currencies') loadCurrenciesAdmin(); if(view==='system') loadSystemOverview(); if(view==='usage') loadUsageDashboard(); if(view==='customer-plans') loadCustomerPlans(); if(view==='customer-billing') loadCustomerBilling(); if(view==='my-company') loadMyCompany(); if(view==='company-admin') loadCompanyAdminUsers(); if(view==='analytics') loadAnalytics(); if(view==='ai-insights') loadAIInsights(); if(view==='ticket-rules') loadTicketRules(); if(view==='email-processing') loadEmailProcessing(); if(view==='system-control') loadSystemControlSettings(); if(view==='knowledge-base') initKnowledgeBase(); if(view==='raw-variables') loadRawVariables(); if(view==='audit-log') { loadAuditActions(); loadAuditLog(); } if(view==='notifications') loadNotifications(); if(view==='wizard') { initWizardSection(); loadCompanyProfile(); loadEmailIngestSettings(); loadSystemSenders(); loadExpertRegSettings(); loadSupportSettings(); loadTeamsIntegrationStatus(); loadSlackIntegrationStatus(); loadSLAData(); } if(view==='profile') loadProfile(); }
   function configureRole(){
     const currentRole = window.role || role; // Use global role from login, fallback to local
     document.getElementById('nav-admin').style.display = (currentRole==='admin') ? 'block' : 'none';
@@ -8236,6 +8237,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         return resolveState === 'breached' || resolveState === 'near_breach';
       });
 
+      // Filter for claimed tickets
+      const claimed = my.filter(t => t.pool_status === 'CLAIMED_LOCKED');
+
       // Update stats
       document.getElementById('ex-open').textContent = my.length;
       document.getElementById('ex-today').textContent = today.length;
@@ -8245,7 +8249,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       const filterSelect = document.getElementById('ex-ticket-filter');
       const filterValue = filterSelect ? filterSelect.value : 'all';
       let displayTickets = my;
-      if (filterValue === 'today') displayTickets = today;
+      if (filterValue === 'claimed') displayTickets = claimed;
+      else if (filterValue === 'today') displayTickets = today;
       else if (filterValue === 'risk') displayTickets = risk;
 
       // Populate ticket table
@@ -8271,10 +8276,19 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           } else if (resolveState === 'on_track') {
             slaBadge = '<span class="badge sla ok">On Track</span>';
           }
+
+          // Show status with claimed badge if applicable
+          let statusDisplay = t.status;
+          if (t.pool_status === 'CLAIMED_LOCKED') {
+            statusDisplay = '<span class="badge" style="background:#fef3c7;color:#92400e;font-size:10px;padding:2px 6px">Claimed</span>';
+          } else if (t.pool_status === 'WAITING_CUSTOMER') {
+            statusDisplay = '<span class="badge" style="background:#e0e7ff;color:#3730a3;font-size:10px;padding:2px 6px">Waiting</span>';
+          }
+
           const dateTime = formatDateTime(t.created_at);
           tr.style.cursor = 'pointer';
           tr.onclick = () => openTicket(t.id);
-          tr.innerHTML = `<td>#${t.id}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(t.title)}</td><td>${dateTime}</td><td>${t.status}</td><td>${slaBadge}</td>`;
+          tr.innerHTML = `<td>#${t.id}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(t.title)}</td><td>${dateTime}</td><td>${statusDisplay}</td><td>${slaBadge}</td>`;
           tb.appendChild(tr);
         });
       }
@@ -9131,6 +9145,17 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     } catch (error) {
       console.error('Error loading assets:', error);
       assetsEl.innerHTML = '<div style="color:var(--muted);text-align:center;padding:20px">Failed to load assets</div>';
+    }
+  }
+
+  // Clear power search results (called when navigating away)
+  function clearExpertPowerSearch() {
+    const searchInput = document.getElementById('expert-power-search');
+    const resultsEl = document.getElementById('expert-search-results');
+    if (searchInput) searchInput.value = '';
+    if (resultsEl) {
+      resultsEl.style.display = 'none';
+      resultsEl.innerHTML = '';
     }
   }
 
