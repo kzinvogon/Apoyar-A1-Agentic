@@ -203,7 +203,7 @@ app.get('/health', (req, res) => {
     status: 'OK',
     message: 'ServiFlow Support Platform is running',
     timestamp: new Date().toISOString(),
-    version: '2.1.0-auth-fix',
+    version: '2.2.0-fullscreen',
     deployedAt: process.env.RAILWAY_DEPLOYMENT_ID || 'local',
     database: dbStatus.initialized ? 'connected' : (dbStatus.error || 'initializing'),
     authRequired: true,
