@@ -171,7 +171,9 @@
       "Bash(npm run lint:*)",
       "Bash(RAILWAY_PROJECT_ID=\"f6e59dbf-e7a3-4578-885e-1e9a5b498b0b\" railway logs:*)",
       "Bash(RAILWAY_SERVICE=email-worker railway logs:*)",
-      "mcp__linear__get_issue"
+      "mcp__linear__get_issue",
+      "Bash(MYSQL_PWD='sBmqbexmEQElIHqKSnpeXzpEZtWQIRRn' mysql:*)",
+      "Bash(/Users/davidhamilton/Dev/Apoyar-A1-Agentic/scripts/test-pool-view-without-claim.sh:*)"
     ],
     "deny": [],
     "ask": []

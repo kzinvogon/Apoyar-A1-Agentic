@@ -112,6 +112,8 @@ vNext-FULL-ActionsSLA:
   .screen{display:none;animation:fade .2s ease-in} .screen.active{display:block}
   @keyframes fade{from{opacity:.7;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
   .card{background:var(--card);border-radius:12px;box-shadow:var(--shadow);border:1px solid var(--border);transition:background .2s,border-color .2s}
+  .card.clickable:hover{transform:scale(1.02);background:var(--card-hover)}
+  .card.stat-card-active{font-weight:500}
   .p-12{padding:12px} .p-16{padding:16px} .p-20{padding:20px} .p-24{padding:24px}
   .mb-8{margin-bottom:8px} .mb-12{margin-bottom:12px} .mb-16{margin-bottom:16px} .mb-24{margin-bottom:24px}
   .title{font-size:20px;font-weight:600;margin:0 0 6px;letter-spacing:-.3px} .subtitle{font-size:13px;color:var(--muted);margin:0 0 12px}
@@ -1729,15 +1731,15 @@ vNext-FULL-ActionsSLA:
 
             <!-- Stats Row -->
             <div class="grid3 mb-16">
-              <div class="card p-16 clickable" onclick="filterExpertTickets('open')" style="cursor:pointer;transition:transform 0.1s" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
+              <div id="stat-card-open" class="card p-16 clickable stat-card-active" onclick="filterExpertTickets('open')" style="cursor:pointer;transition:all 0.15s;box-shadow:0 0 0 2px #2563eb">
                 <div class="subtitle">My open</div>
                 <div id="ex-open" style="font-size:28px;font-weight:800;color:#2563eb">0</div>
               </div>
-              <div class="card p-16 clickable" onclick="filterExpertTickets('today')" style="cursor:pointer;transition:transform 0.1s" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
+              <div id="stat-card-today" class="card p-16 clickable" onclick="filterExpertTickets('today')" style="cursor:pointer;transition:all 0.15s">
                 <div class="subtitle">Due today</div>
                 <div id="ex-today" style="font-size:28px;font-weight:800;color:#d97706">0</div>
               </div>
-              <div class="card p-16 clickable" onclick="filterExpertTickets('risk')" style="cursor:pointer;transition:transform 0.1s" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
+              <div id="stat-card-risk" class="card p-16 clickable" onclick="filterExpertTickets('risk')" style="cursor:pointer;transition:all 0.15s">
                 <div class="subtitle">SLA at risk</div>
                 <div id="ex-risk" style="font-size:28px;font-weight:800;color:#dc2626">0</div>
               </div>
@@ -1754,7 +1756,7 @@ vNext-FULL-ActionsSLA:
                     <button id="my-tickets-tab-btn" class="btn primary" onclick="switchExpertView('my')" style="padding:8px 16px;font-size:13px;border-radius:6px">📋 My Tickets</button>
                   </div>
                   <div class="row" style="gap:8px">
-                    <select id="ex-ticket-filter" class="input" style="width:120px;padding:4px 8px;font-size:12px" onchange="renderExpertDash()">
+                    <select id="ex-ticket-filter" class="input" style="width:120px;padding:4px 8px;font-size:12px" onchange="syncStatCardHighlight(); renderExpertDash()">
                       <option value="all">All Open</option>
                       <option value="today">Due Today</option>
                       <option value="risk">SLA Risk</option>
@@ -8292,7 +8294,74 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const filterSelect = document.getElementById('ex-ticket-filter');
     if (filterSelect) {
       filterSelect.value = type === 'open' ? 'all' : type;
+
+      // Update visual highlighting on stat cards
+      const cards = {
+        open: document.getElementById('stat-card-open'),
+        today: document.getElementById('stat-card-today'),
+        risk: document.getElementById('stat-card-risk')
+      };
+      const colors = {
+        open: '#2563eb',
+        today: '#d97706',
+        risk: '#dc2626'
+      };
+
+      // Remove active state from all cards
+      Object.values(cards).forEach(card => {
+        if (card) {
+          card.style.boxShadow = '';
+          card.classList.remove('stat-card-active');
+        }
+      });
+
+      // Add active state to clicked card
+      if (cards[type]) {
+        cards[type].style.boxShadow = `0 0 0 2px ${colors[type]}`;
+        cards[type].classList.add('stat-card-active');
+      }
+
+      // Scroll to ticket list for visibility
+      const ticketTable = document.getElementById('ex-list')?.closest('.card');
+      if (ticketTable) {
+        ticketTable.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+
       renderExpertDash();
+    }
+  }
+
+  // Sync stat card highlighting when dropdown changes
+  function syncStatCardHighlight() {
+    const filterSelect = document.getElementById('ex-ticket-filter');
+    const filterValue = filterSelect ? filterSelect.value : 'all';
+
+    // Map dropdown value to card type
+    const type = filterValue === 'all' ? 'open' : filterValue;
+
+    const cards = {
+      open: document.getElementById('stat-card-open'),
+      today: document.getElementById('stat-card-today'),
+      risk: document.getElementById('stat-card-risk')
+    };
+    const colors = {
+      open: '#2563eb',
+      today: '#d97706',
+      risk: '#dc2626'
+    };
+
+    // Remove active state from all cards
+    Object.values(cards).forEach(card => {
+      if (card) {
+        card.style.boxShadow = '';
+        card.classList.remove('stat-card-active');
+      }
+    });
+
+    // Add active state to matching card
+    if (cards[type]) {
+      cards[type].style.boxShadow = `0 0 0 2px ${colors[type]}`;
+      cards[type].classList.add('stat-card-active');
     }
   }
 
