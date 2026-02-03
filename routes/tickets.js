@@ -534,10 +534,23 @@ router.get('/:tenantId', readOperationsLimiter, validateTicketGet, async (req, r
       }
 
       // ========== USER FILTERS ==========
-      // Status filter (comma-separated)
+      // Status filter (comma-separated, supports 'active' macro)
+      // 'active' = NOT IN ('Resolved','Closed')
+      // 'closed' = IN ('Resolved','Closed')
       if (status) {
         const statuses = status.split(',').map(s => s.trim()).filter(Boolean);
-        if (statuses.length > 0) {
+        const statusesLower = statuses.map(s => s.toLowerCase());
+
+        // Check for 'active' macro (case-insensitive)
+        const hasActiveMacro = statusesLower.includes('active');
+        const hasClosedMacro = statusesLower.includes('closed') && statuses.some(s => s.toLowerCase() === 'closed' && s !== 'Closed');
+
+        if (hasActiveMacro) {
+          // 'active' means NOT IN ('Resolved','Closed')
+          // If mixed with other statuses, 'active' takes precedence and we ignore Resolved/Closed
+          whereConditions.push(`t.status NOT IN ('Resolved', 'Closed')`);
+        } else if (statuses.length > 0) {
+          // Normal comma-separated filter
           whereConditions.push(`t.status IN (${statuses.map(() => '?').join(',')})`);
           params.push(...statuses);
         }
