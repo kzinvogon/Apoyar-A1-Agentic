@@ -3282,6 +3282,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           <!-- Row 3: Metadata -->
           <div class="row wrap mb-12" style="gap:10px;align-items:center">
             <span id="td-meta-customer" style="font-size:13px;color:var(--muted)"></span>
+            <span id="td-meta-assignee" style="font-size:13px;color:var(--muted)"></span>
             <span id="td-meta-priority" class="badge"></span>
             <span id="td-meta-status" class="badge"></span>
             <span id="td-meta-sla"></span>
@@ -16144,6 +16145,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         // Update header metadata
         document.getElementById('td-title-display').textContent = ticket.title || '';
         document.getElementById('td-meta-customer').textContent = ticket.requester_name ? `Customer: ${ticket.requester_name}` : '';
+        document.getElementById('td-meta-assignee').textContent = ticket.assignee_name ? `Assigned: ${ticket.assignee_name}` : 'Unassigned';
         const priorityColors = { critical: '#dc2626', high: '#f59e0b', medium: '#3b82f6', low: '#6b7280' };
         const priorityEl = document.getElementById('td-meta-priority');
         priorityEl.textContent = (ticket.priority || 'medium').charAt(0).toUpperCase() + (ticket.priority || 'medium').slice(1);
