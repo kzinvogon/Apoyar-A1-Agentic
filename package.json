@@ -36,7 +36,11 @@
     "mobile:ios": "npm run cap:sync && npm run cap:open:ios",
     "mobile:android": "npm run cap:sync && npm run cap:open:android",
     "backfill:classify:pool": "node scripts/backfill-ticket-classification.js --mode pool",
-    "backfill:classify:all": "node scripts/backfill-ticket-classification.js --mode all"
+    "backfill:classify:all": "node scripts/backfill-ticket-classification.js --mode all",
+    "gate:schema": "node scripts/parity/check-schema-parity.js",
+    "gate:diff": "node scripts/parity/gate-runner.js",
+    "gate:smoke": "node scripts/parity/gate-runner.js --smoke",
+    "gate:uat": "node scripts/parity/gate-runner.js --all"
   },
   "keywords": [
     "support",

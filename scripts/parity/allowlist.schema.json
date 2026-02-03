@@ -1,0 +1,7 @@
+{
+  "_comment": "Schema parity allowlist. PROD is baseline - UAT must match.",
+  "allow_missing_tables_in_uat": [],
+  "allow_missing_columns_in_uat": [],
+  "allow_missing_indexes_in_uat": [],
+  "allow_type_differences": []
+}
