@@ -1027,7 +1027,9 @@ class EmailProcessor {
                   <hr>
                   <p style="color:#666;font-size:12px">This is an automated message from A1 Support.</p>
                 </div>
-              `
+              `,
+              this.tenantCode,
+              'experts'
             ).catch(err => console.log('📧 Could not send reactivation email (non-critical):', err.message));
 
             console.log(`✅ Reactivated expert ${fromEmail}`);
@@ -1046,7 +1048,9 @@ class EmailProcessor {
               <p>Please use the login page to access your account. If you've forgotten your password, use the "Forgot Password" feature.</p>
               <hr>
               <p style="color:#666;font-size:12px">This is an automated message from A1 Support.</p>
-            `
+            `,
+            this.tenantCode,
+            'experts'
           ).catch(err => console.log('📧 Could not send already-expert email (non-critical):', err.message));
           return { success: false, reason: 'already_expert' };
         }
@@ -1091,7 +1095,9 @@ class EmailProcessor {
               <hr>
               <p style="color:#666;font-size:12px">This is an automated message from A1 Support.</p>
             </div>
-          `
+          `,
+          this.tenantCode,
+          'experts'
         ).catch(err => console.log('📧 Could not send upgrade email (non-critical):', err.message));
         return { success: true, upgraded: true, userId: existingUser.id };
       }
@@ -1158,7 +1164,9 @@ class EmailProcessor {
             <hr style="border: 1px solid #e5e7eb; margin: 20px 0;">
             <p style="color:#666;font-size:12px">This is an automated message from A1 Support. Please do not reply to this email.</p>
           </div>
-        `
+        `,
+        this.tenantCode,
+        'experts'
       ).then(() => console.log(`📧 Sent welcome email to: ${fromEmail}`))
        .catch(err => console.log('📧 Could not send welcome email (non-critical):', err.message));
 
@@ -1212,7 +1220,7 @@ class EmailProcessor {
       'bounce@', 'ndr@', 'returned@'
     ];
 
-    // Bounce subject patterns
+    // Bounce subject patterns (also includes auto-responders to prevent loops)
     const bounceSubjects = [
       'delivery status notification',
       'undeliverable', 'undelivered',
@@ -1226,7 +1234,27 @@ class EmailProcessor {
       'failed delivery',
       'delivery problem',
       'could not be delivered',
-      'automatic reply'
+      // Auto-responder patterns (expanded to catch variations)
+      'automatic reply',
+      'automated reply',
+      'auto reply',
+      'auto-reply',
+      'autoreply',
+      'automated message',
+      'automated response',
+      'auto response',
+      'auto-response',
+      'out of office',
+      'out-of-office',
+      'ooo:',
+      'i am out of the office',
+      'i am currently out',
+      'on vacation',
+      'away from my desk',
+      'thank you for your email',  // Generic autoresponder opener
+      'this is an automated',
+      'this mailbox is not monitored',
+      'do not reply to this email'
     ];
 
     // Check sender
@@ -1426,22 +1454,26 @@ class EmailProcessor {
   /**
    * Add reply email content as activity to existing ticket
    * Returns { success: boolean, activityId: number|null }
+   * @param {boolean} isAutomated - If true, marks as auto-reply (out of office, etc.)
    */
-  async addReplyToTicket(connection, ticketId, email, requesterId) {
+  async addReplyToTicket(connection, ticketId, email, requesterId, isAutomated = false) {
     try {
       // Get email body content
       const body = email.body || email.text || '(No content)';
 
-      // Create activity entry
-      const activityDescription = `**Email Reply Received**\n\nFrom: ${email.from}\n\n${body}`;
+      // Create activity entry with appropriate label
+      const label = isAutomated ? 'Auto-Reply Received' : 'Email Reply Received';
+      const activityType = isAutomated ? 'auto_reply' : 'email_reply';
+      const activityDescription = `**${label}**\n\nFrom: ${email.from}\nSubject: ${email.subject || '(No subject)'}\n\n${body}`;
 
       const [result] = await connection.query(
         `INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
          VALUES (?, ?, ?, ?)`,
-        [ticketId, requesterId, 'email_reply', activityDescription]
+        [ticketId, requesterId, activityType, activityDescription]
       );
 
-      console.log(`✅ [Threading] Added email reply as activity #${result.insertId} to ticket #${ticketId}`);
+      const logLabel = isAutomated ? 'auto-reply' : 'email reply';
+      console.log(`✅ [Threading] Added ${logLabel} as activity #${result.insertId} to ticket #${ticketId}`);
 
       return { success: true, activityId: result.insertId };
     } catch (error) {
@@ -1501,30 +1533,22 @@ class EmailProcessor {
 
       console.log(`Processing email from: ${fromEmail}, domain: ${domain}, displayName: ${displayName}`);
 
-      // Check if this is a bounce/delivery notification - skip entirely to prevent loops
-      if (this.isBounceNotification(fromEmail, email.subject)) {
-        console.log(`🚫 Skipping bounce/delivery notification from: ${fromEmail}, subject: ${email.subject}`);
-        return { success: false, reason: 'bounce_notification_skipped' };
-      }
-
       // ============================================
-      // CHECK FOR SYSTEM/TRANSACTIONAL EMAIL (DENYLIST)
-      // Skip emails matching the subject denylist
-      // ============================================
-      const systemCheck = await this.isSystemTransactionalEmail(connection, email.subject);
-      if (systemCheck.isSystem) {
-        console.log(`🚫 [Threading] Skipping system/transactional email: "${email.subject}" (matched: "${systemCheck.matchedPattern}")`);
-        return { success: false, reason: 'skipped_system', matchedPattern: systemCheck.matchedPattern };
-      }
-
-      // ============================================
-      // EMAIL REPLY THREADING DETECTION
-      // Check if this is a reply to an existing ticket
+      // EMAIL REPLY THREADING DETECTION (CHECK FIRST)
+      // Always check if this is a reply to an existing ticket BEFORE
+      // bounce/automated checks, so replies get threaded even if automated
       // ============================================
       const threadingResult = await this.detectExistingTicket(connection, email);
 
       if (threadingResult.ticketId) {
-        console.log(`🔗 [Threading] Reply detected for ticket #${threadingResult.ticketId} via ${threadingResult.method}`);
+        // Check if this is also a bounce/automated reply
+        const isBounce = this.isBounceNotification(fromEmail, email.subject);
+
+        if (isBounce) {
+          console.log(`🔗 [Threading] Automated reply to ticket #${threadingResult.ticketId} - adding as activity (bounce/auto-reply)`);
+        } else {
+          console.log(`🔗 [Threading] Reply detected for ticket #${threadingResult.ticketId} via ${threadingResult.method}`);
+        }
 
         // Find user ID for the sender
         let userId = null;
@@ -1540,16 +1564,36 @@ class EmailProcessor {
           userId = await this.getOrCreateSystemUser(connection);
         }
 
-        // Add reply as activity to existing ticket
-        const replyResult = await this.addReplyToTicket(connection, threadingResult.ticketId, email, userId);
+        // Add reply as activity to existing ticket (mark if it's automated)
+        const replyResult = await this.addReplyToTicket(connection, threadingResult.ticketId, email, userId, isBounce);
 
         return {
           success: true,
           ticketId: threadingResult.ticketId,
           wasReply: true,
+          wasAutomated: isBounce,
           threadingMethod: threadingResult.method,
           activityId: replyResult.activityId
         };
+      }
+
+      // ============================================
+      // BOUNCE/AUTOMATED CHECK (only for non-replies)
+      // Skip bounce/delivery notifications to prevent loops
+      // ============================================
+      if (this.isBounceNotification(fromEmail, email.subject)) {
+        console.log(`🚫 Skipping bounce/delivery notification (not a reply): ${fromEmail}, subject: ${email.subject}`);
+        return { success: false, reason: 'bounce_notification_skipped' };
+      }
+
+      // ============================================
+      // CHECK FOR SYSTEM/TRANSACTIONAL EMAIL (DENYLIST)
+      // Skip emails matching the subject denylist
+      // ============================================
+      const systemCheck = await this.isSystemTransactionalEmail(connection, email.subject);
+      if (systemCheck.isSystem) {
+        console.log(`🚫 [Threading] Skipping system/transactional email: "${email.subject}" (matched: "${systemCheck.matchedPattern}")`);
+        return { success: false, reason: 'skipped_system', matchedPattern: systemCheck.matchedPattern };
       }
 
       // Check if this is a "Register_Expert" expert registration request
@@ -1765,7 +1809,9 @@ class EmailProcessor {
             If you did not request this account, please ignore this email.
           </p>
         </div>
-      `
+      `,
+      this.tenantCode,
+      'customers'
     ).then(() => console.log(`📧 Sent customer welcome email to: ${email}`))
      .catch(err => console.log('📧 Could not send customer welcome email (non-critical):', err.message));
 
@@ -1985,7 +2031,9 @@ class EmailProcessor {
       const result = await sendNotificationEmail(
         toEmail,
         emailSubject,
-        htmlContent
+        htmlContent,
+        this.tenantCode,
+        'customers'
       );
       console.log(`Sent ticket confirmation email to: ${toEmail}`);
 
