@@ -1272,7 +1272,7 @@ vNext-FULL-ActionsSLA:
       <ion-item-divider>
         <ion-label>Account</ion-label>
       </ion-item-divider>
-      <ion-item button onclick="switchRole(); closeIonicMenu();">
+      <ion-item button id="ionic-switch-role-btn" onclick="switchRole(); closeIonicMenu();">
         <ion-icon name="swap-horizontal-outline" slot="start"></ion-icon>
         <ion-label>Switch Role</ion-label>
       </ion-item>
@@ -1376,7 +1376,7 @@ vNext-FULL-ActionsSLA:
         </div>
       </div>
       <div class="topnav-actions">
-        <button class="topnav-btn ghost" onclick="switchRole()">Switch</button>
+        <button class="topnav-btn ghost" id="topnav-switch-btn" onclick="switchRole()">Switch</button>
         <button class="topnav-btn ghost" onclick="logout()">Sign out</button>
       </div>
     </div>
@@ -6561,6 +6561,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           console.log('Valid session found, restoring...');
           window.role = storedRole;
           window.tenant = storedTenant;
+          window.loginRole = localStorage.getItem('loginRole') || storedRole; // Restore original login role
           role = storedRole;
           tenant = storedTenant;
 
@@ -7035,10 +7036,12 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         localStorage.setItem('tenantCode', data.user.tenantCode || (role === 'customer' ? 'apoyar' : 'apoyar'));
         localStorage.setItem('currentUser', JSON.stringify(data.user));
         localStorage.setItem('username', data.user.username);
+        localStorage.setItem('loginRole', data.user.role); // Store original login role for switch permissions
 
         // Set global variables
         window.currentUser = data.user;
         window.role = data.user.role;
+        window.loginRole = data.user.role; // Track original login role
         window.tenant = data.user.tenantCode || (data.user.role === 'customer' ? 'apoyar' : null);
         window.isMasterAdmin = data.user.role === 'super_admin';
         // Also set local tenant variable for functions that use it directly
@@ -7082,6 +7085,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     localStorage.removeItem('tenantCode');
     localStorage.removeItem('currentUser');
     localStorage.removeItem('username');
+    localStorage.removeItem('loginRole');
 
     // Clear admin mode and step-up reauth
     localStorage.setItem('serviflow.adminMode', '0');
@@ -7100,6 +7104,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     // Clear global variables
     window.currentUser = null;
     window.role = null;
+    window.loginRole = null;
     window.tenant = null;
     window.isMasterAdmin = false;
 
@@ -7221,26 +7226,43 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     }
   }
 
-  function switchRole(){ 
-    // For demo purposes, cycle through roles (but this won't actually change authentication)
-    const roles = ['admin', 'expert', 'customer'];
-    const currentIndex = roles.indexOf(window.role || role);
-    const nextIndex = (currentIndex + 1) % roles.length;
-    const newRole = roles[nextIndex];
-    
-    // Update UI for demo
+  function switchRole(){
+    // Role switch permissions based on original login role:
+    // - Admin: can switch to all roles (admin, expert, customer)
+    // - Expert: can switch between expert and customer only
+    // - Customer: no role switch allowed
+    const loginRole = window.loginRole || window.role || role;
+    const currentRole = window.role || role;
+
+    // Determine allowed roles based on login role
+    let allowedRoles;
+    if (loginRole === 'admin') {
+      allowedRoles = ['admin', 'expert', 'customer'];
+    } else if (loginRole === 'expert') {
+      allowedRoles = ['expert', 'customer'];
+    } else {
+      // Customer - no switching allowed
+      return;
+    }
+
+    // Cycle through allowed roles only
+    const currentIndex = allowedRoles.indexOf(currentRole);
+    const nextIndex = (currentIndex + 1) % allowedRoles.length;
+    const newRole = allowedRoles[nextIndex];
+
+    // Update UI
     role = newRole;
     window.role = newRole;
-    
-    if (role==='customer' && !tenant) tenant=(CMDB_ITEMS.find(i=>i.customer)||{}).customer||null; 
-    document.getElementById('chip-role').textContent=role; 
-    document.getElementById('tenant-chip').style.display = role==='customer' ? 'block' : 'none'; 
-    document.getElementById('chip-tenant').textContent = tenant || '—'; 
-    configureRole(); 
-    switchView('dash'); 
-    renderAllDashboards(); 
-    loadRaiseFormOptions(); 
-    renderList(); 
+
+    if (role==='customer' && !tenant) tenant=(CMDB_ITEMS.find(i=>i.customer)||{}).customer||null;
+    document.getElementById('chip-role').textContent=role;
+    document.getElementById('tenant-chip').style.display = role==='customer' ? 'block' : 'none';
+    document.getElementById('chip-tenant').textContent = tenant || '—';
+    configureRole();
+    switchView('dash');
+    renderAllDashboards();
+    loadRaiseFormOptions();
+    renderList();
   }
   // ---- Filter Persistence ----
   function saveFilterSettings(viewName) {
@@ -7390,6 +7412,15 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     if (currentRole === 'admin' || currentRole === 'expert') {
       loadNotificationBadge();
     }
+
+    // Show/hide Switch Role buttons based on login role permissions
+    // Admin: can switch, Expert: can switch, Customer: cannot switch
+    const loginRole = window.loginRole || currentRole;
+    const canSwitchRoles = loginRole === 'admin' || loginRole === 'expert';
+    const topnavSwitchBtn = document.getElementById('topnav-switch-btn');
+    const ionicSwitchBtn = document.getElementById('ionic-switch-role-btn');
+    if (topnavSwitchBtn) topnavSwitchBtn.style.display = canSwitchRoles ? 'inline-flex' : 'none';
+    if (ionicSwitchBtn) ionicSwitchBtn.style.display = canSwitchRoles ? 'block' : 'none';
 
     // Configure customer-specific nav items
     if (currentRole === 'customer') {
