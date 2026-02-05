@@ -1863,7 +1863,7 @@ vNext-FULL-ActionsSLA:
                     <button class="btn ghost" onclick="clearPoolFilters()" style="font-size:11px;padding:2px 8px">Clear</button>
                   </div>
                   <div style="max-height:400px;overflow-y:auto">
-                    <table style="font-size:13px"><thead><tr><th>Score</th><th>ID</th><th>Title</th><th>Customer</th><th>SLA</th><th>Action</th></tr></thead><tbody id="pool-list"></tbody></table>
+                    <table style="font-size:13px"><thead><tr><th style="cursor:pointer" onclick="sortPoolBy('score')">Score ⇅</th><th style="cursor:pointer" onclick="sortPoolBy('id')">ID ⇅</th><th style="cursor:pointer" onclick="sortPoolBy('title')">Title ⇅</th><th style="cursor:pointer" onclick="sortPoolBy('customer')">Customer ⇅</th><th style="cursor:pointer" onclick="sortPoolBy('sla')">SLA ⇅</th><th>Action</th></tr></thead><tbody id="pool-list"></tbody></table>
                   </div>
                   <!-- Pool Pagination Controls -->
                   <div id="pool-pagination" style="display:none;margin-top:12px;padding:8px;background:var(--badge-bg);border-radius:8px;display:flex;justify-content:space-between;align-items:center">
@@ -1883,7 +1883,7 @@ vNext-FULL-ActionsSLA:
                 <!-- My Tickets View (Shown by default) -->
                 <div id="expert-my-view">
                   <div style="max-height:400px;overflow-y:auto">
-                    <table style="font-size:13px"><thead><tr><th>ID</th><th>Title</th><th>Date/Time</th><th>Status</th><th>SLA</th></tr></thead><tbody id="ex-list"></tbody></table>
+                    <table style="font-size:13px"><thead><tr><th style="cursor:pointer" onclick="sortMyTicketsBy('id')">ID ⇅</th><th style="cursor:pointer" onclick="sortMyTicketsBy('title')">Title ⇅</th><th style="cursor:pointer" onclick="sortMyTicketsBy('date')">Date/Time ⇅</th><th style="cursor:pointer" onclick="sortMyTicketsBy('status')">Status ⇅</th><th style="cursor:pointer" onclick="sortMyTicketsBy('sla')">SLA ⇅</th></tr></thead><tbody id="ex-list"></tbody></table>
                   </div>
                   <div id="ex-no-tickets" style="display:none;text-align:center;padding:40px;color:var(--muted)">
                     <div style="font-size:32px;margin-bottom:8px">✅</div>
@@ -3203,9 +3203,13 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               <select id="ticket-sort" class="input filter-compact" style="min-width:100px" onchange="onTicketFilterChange()">
                 <option value="id-desc">Newest</option>
                 <option value="id-asc">Oldest</option>
+                <option value="date-desc">Date ↓</option>
+                <option value="date-asc">Date ↑</option>
                 <option value="priority-desc">Priority ↓</option>
                 <option value="priority-asc">Priority ↑</option>
                 <option value="status">Status</option>
+                <option value="assignee">Assignee</option>
+                <option value="customer">Customer</option>
                 <option value="sla">SLA</option>
               </select>
 
@@ -3240,7 +3244,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               <button class="btn" onclick="openBulkActionDialog('resolve')">Resolve Selected</button>
               <button class="btn ghost" onclick="clearBulkSelection()">Clear Selection</button>
             </div>
-            <table id="tickets-table"><thead><tr><th style="width:40px"><input type="checkbox" id="select-all-tickets" onchange="toggleSelectAllTickets()" title="Select All"></th><th style="width:120px;cursor:pointer" onclick="sortTicketsBy('id')">ID ⇅</th><th style="cursor:pointer" onclick="sortTicketsBy('title')">Title ⇅</th><th style="width:140px">Date/Time</th><th style="width:120px;cursor:pointer" onclick="sortTicketsBy('priority')">Priority ⇅</th><th style="width:140px;cursor:pointer" onclick="sortTicketsBy('status')">Status ⇅</th><th style="width:180px">Assignee</th><th style="width:160px">Customer</th><th style="width:120px;cursor:pointer" onclick="sortTicketsBy('sla')">SLA ⇅</th></tr></thead><tbody id="list-body"></tbody></table>
+            <table id="tickets-table"><thead><tr><th style="width:40px"><input type="checkbox" id="select-all-tickets" onchange="toggleSelectAllTickets()" title="Select All"></th><th style="width:120px;cursor:pointer" onclick="sortTicketsBy('id')">ID ⇅</th><th style="cursor:pointer" onclick="sortTicketsBy('title')">Title ⇅</th><th style="width:140px;cursor:pointer" onclick="sortTicketsBy('date')">Date/Time ⇅</th><th style="width:120px;cursor:pointer" onclick="sortTicketsBy('priority')">Priority ⇅</th><th style="width:140px;cursor:pointer" onclick="sortTicketsBy('status')">Status ⇅</th><th style="width:180px;cursor:pointer" onclick="sortTicketsBy('assignee')">Assignee ⇅</th><th style="width:160px;cursor:pointer" onclick="sortTicketsBy('customer')">Customer ⇅</th><th style="width:120px;cursor:pointer" onclick="sortTicketsBy('sla')">SLA ⇅</th></tr></thead><tbody id="list-body"></tbody></table>
             <div id="ticket-pagination" style="margin-top:12px"></div>
           </div>
         </div>
@@ -8682,45 +8686,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       else if (filterValue === 'today') displayTickets = today;
       else if (filterValue === 'risk') displayTickets = risk;
 
-      // Populate ticket table
-      const tableEl = tb.closest('table');
-      tb.innerHTML = '';
-
-      if (displayTickets.length === 0) {
-        if (noTickets) noTickets.style.display = 'block';
-        if (tableEl) tableEl.style.display = 'none';
-      } else {
-        if (noTickets) noTickets.style.display = 'none';
-        if (tableEl) tableEl.style.display = 'table';
-        displayTickets.slice(0, 15).forEach(t => {
-          const tr = document.createElement('tr');
-          // Build SLA badge from sla_status
-          const slaStatus = t.sla_status || {};
-          const resolveState = slaStatus.resolve?.state || '';
-          let slaBadge = '<span class="badge sla">—</span>';
-          if (resolveState === 'breached') {
-            slaBadge = '<span class="badge sla breach">Breached</span>';
-          } else if (resolveState === 'near_breach') {
-            slaBadge = '<span class="badge sla warn">At Risk</span>';
-          } else if (resolveState === 'on_track') {
-            slaBadge = '<span class="badge sla ok">On Track</span>';
-          }
-
-          // Show status with claimed badge if applicable
-          let statusDisplay = t.status;
-          if (t.pool_status === 'CLAIMED_LOCKED') {
-            statusDisplay = '<span class="badge" style="background:#fef3c7;color:#92400e;font-size:10px;padding:2px 6px">Claimed</span>';
-          } else if (t.pool_status === 'WAITING_CUSTOMER') {
-            statusDisplay = '<span class="badge" style="background:#e0e7ff;color:#3730a3;font-size:10px;padding:2px 6px">Waiting</span>';
-          }
-
-          const dateTime = formatDateTime(t.created_at);
-          tr.style.cursor = 'pointer';
-          tr.onclick = () => openTicket(t.id);
-          tr.innerHTML = `<td>#${t.id}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(t.title)}</td><td>${dateTime}</td><td>${statusDisplay}</td><td>${slaBadge}</td>`;
-          tb.appendChild(tr);
-        });
-      }
+      // Store tickets for sorting and render
+      myTicketsData = displayTickets;
+      renderMyTicketsTable();
 
       // Load AI insights and recent assets
       loadExpertAIInsights(my, today, risk);
@@ -8817,6 +8785,165 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   let poolLimit = 50;         // Items per page
   let currentClaimedTicket = null;  // Ticket being previewed
   let claimTimer = null;      // Countdown timer for claim expiry
+
+  // Pool sorting state
+  let poolSortColumn = 'score';
+  let poolSortDirection = 'desc';
+
+  // My Tickets sorting state
+  let myTicketsSortColumn = 'id';
+  let myTicketsSortDirection = 'desc';
+  let myTicketsData = [];  // Store my tickets for sorting
+
+  // Sort Pool view by column
+  function sortPoolBy(column) {
+    // Toggle direction if same column, otherwise default to desc
+    if (poolSortColumn === column) {
+      poolSortDirection = poolSortDirection === 'desc' ? 'asc' : 'desc';
+    } else {
+      poolSortColumn = column;
+      poolSortDirection = 'desc';
+    }
+
+    // Sort poolTickets array
+    poolTickets.sort((a, b) => {
+      let aVal, bVal;
+      switch (column) {
+        case 'score':
+          aVal = a.pool_score || 0;
+          bVal = b.pool_score || 0;
+          break;
+        case 'id':
+          aVal = a.id || 0;
+          bVal = b.id || 0;
+          break;
+        case 'title':
+          aVal = (a.title || '').toLowerCase();
+          bVal = (b.title || '').toLowerCase();
+          return poolSortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+        case 'customer':
+          aVal = (a.company_name || a.requester_name || '').toLowerCase();
+          bVal = (b.company_name || b.requester_name || '').toLowerCase();
+          return poolSortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+        case 'sla':
+          // Sort by SLA status severity
+          const slaOrder = { 'breached': 0, 'at-risk': 1, 'on-track': 2 };
+          aVal = slaOrder[a.sla_status?.response?.state] ?? 3;
+          bVal = slaOrder[b.sla_status?.response?.state] ?? 3;
+          break;
+        default:
+          aVal = a.id || 0;
+          bVal = b.id || 0;
+      }
+      if (typeof aVal === 'number') {
+        return poolSortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+      }
+      return 0;
+    });
+
+    renderPoolTable();
+  }
+
+  // Sort My Tickets view by column
+  function sortMyTicketsBy(column) {
+    // Toggle direction if same column, otherwise default to desc
+    if (myTicketsSortColumn === column) {
+      myTicketsSortDirection = myTicketsSortDirection === 'desc' ? 'asc' : 'desc';
+    } else {
+      myTicketsSortColumn = column;
+      myTicketsSortDirection = 'desc';
+    }
+
+    // Sort myTicketsData array
+    myTicketsData.sort((a, b) => {
+      let aVal, bVal;
+      switch (column) {
+        case 'id':
+          aVal = a.id || 0;
+          bVal = b.id || 0;
+          break;
+        case 'title':
+          aVal = (a.title || '').toLowerCase();
+          bVal = (b.title || '').toLowerCase();
+          return myTicketsSortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+        case 'date':
+          aVal = new Date(a.created_at || 0).getTime();
+          bVal = new Date(b.created_at || 0).getTime();
+          break;
+        case 'status':
+          aVal = (a.status || '').toLowerCase();
+          bVal = (b.status || '').toLowerCase();
+          return myTicketsSortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+        case 'sla':
+          // Sort by SLA status severity (using API sla_status format)
+          const slaOrder = { 'breached': 0, 'near_breach': 1, 'on_track': 2 };
+          const aState = a.sla_status?.resolve?.state || '';
+          const bState = b.sla_status?.resolve?.state || '';
+          aVal = slaOrder[aState] ?? 3;
+          bVal = slaOrder[bState] ?? 3;
+          break;
+        default:
+          aVal = a.id || 0;
+          bVal = b.id || 0;
+      }
+      if (typeof aVal === 'number') {
+        return myTicketsSortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+      }
+      return 0;
+    });
+
+    renderMyTicketsTable();
+  }
+
+  // Render My Tickets table (used after sorting)
+  function renderMyTicketsTable() {
+    const tb = document.getElementById('ex-list');
+    const noTicketsEl = document.getElementById('ex-no-tickets');
+    const tableEl = tb ? tb.closest('table') : null;
+    if (!tb) return;
+
+    tb.innerHTML = '';
+
+    if (myTicketsData.length === 0) {
+      if (noTicketsEl) noTicketsEl.style.display = 'block';
+      if (tableEl) tableEl.style.display = 'none';
+      return;
+    }
+
+    if (noTicketsEl) noTicketsEl.style.display = 'none';
+    if (tableEl) tableEl.style.display = 'table';
+
+    // Show first 15 items
+    myTicketsData.slice(0, 15).forEach(t => {
+      const tr = document.createElement('tr');
+      tr.style.cursor = 'pointer';
+      tr.onclick = () => openTicket(t.id);
+
+      // Build SLA badge from sla_status (API response format)
+      const slaStatus = t.sla_status || {};
+      const resolveState = slaStatus.resolve?.state || '';
+      let slaBadge = '<span class="badge sla">—</span>';
+      if (resolveState === 'breached') {
+        slaBadge = '<span class="badge sla breach">Breached</span>';
+      } else if (resolveState === 'near_breach') {
+        slaBadge = '<span class="badge sla warn">At Risk</span>';
+      } else if (resolveState === 'on_track') {
+        slaBadge = '<span class="badge sla ok">On Track</span>';
+      }
+
+      // Show status with claimed badge if applicable
+      let statusDisplay = t.status;
+      if (t.pool_status === 'CLAIMED_LOCKED') {
+        statusDisplay = '<span class="badge" style="background:#fef3c7;color:#92400e;font-size:10px;padding:2px 6px">Claimed</span>';
+      } else if (t.pool_status === 'WAITING_CUSTOMER') {
+        statusDisplay = '<span class="badge" style="background:#e0e7ff;color:#3730a3;font-size:10px;padding:2px 6px">Waiting</span>';
+      }
+
+      const dateTime = formatDateTime(t.created_at);
+      tr.innerHTML = `<td>#${t.id}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(t.title)}</td><td>${dateTime}</td><td>${statusDisplay}</td><td>${slaBadge}</td>`;
+      tb.appendChild(tr);
+    });
+  }
 
   // Switch between pool and my tickets view
   function switchExpertView(mode) {
@@ -15987,12 +16114,24 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           return a.id - b.id;
         case 'id-desc':
           return b.id - a.id;
+        case 'title-asc':
+          return (a.title || '').localeCompare(b.title || '');
+        case 'title-desc':
+          return (b.title || '').localeCompare(a.title || '');
+        case 'date-asc':
+          return new Date(a.created || 0) - new Date(b.created || 0);
+        case 'date-desc':
+          return new Date(b.created || 0) - new Date(a.created || 0);
         case 'priority-desc':
           return (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0);
         case 'priority-asc':
           return (priorityOrder[a.priority] || 0) - (priorityOrder[b.priority] || 0);
         case 'status':
           return (a.status || '').localeCompare(b.status || '');
+        case 'assignee':
+          return (a.assignee || '').localeCompare(b.assignee || '');
+        case 'customer':
+          return (a.customer || '').localeCompare(b.customer || '');
         case 'sla':
           // Sort by SLA urgency using sortPriority (0=breached, 1=at-risk, 2=on-track, 3=paused, 4=met, 5=no-sla)
           const aSLA = getSLAState(a);
@@ -16040,15 +16179,27 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   }
 
   // Sort tickets by column (for table header clicks)
+  // Tracks current sort direction per column to toggle asc/desc
+  let ticketSortDirections = {};
+
   function sortTicketsBy(column) {
     const sortSelect = document.getElementById('ticket-sort');
     if (!sortSelect) return;
 
+    // Toggle direction for this column
+    const currentDir = ticketSortDirections[column] || 'desc';
+    const newDir = currentDir === 'desc' ? 'asc' : 'desc';
+    ticketSortDirections[column] = newDir;
+
+    // Map columns to sort values
     const sortMap = {
-      'id': 'id-desc',
-      'title': 'id-desc', // Default to ID for now
-      'priority': 'priority-desc',
+      'id': newDir === 'desc' ? 'id-desc' : 'id-asc',
+      'title': newDir === 'desc' ? 'title-desc' : 'title-asc',
+      'date': newDir === 'desc' ? 'date-desc' : 'date-asc',
+      'priority': newDir === 'desc' ? 'priority-desc' : 'priority-asc',
       'status': 'status',
+      'assignee': 'assignee',
+      'customer': 'customer',
       'sla': 'sla'
     };
 
