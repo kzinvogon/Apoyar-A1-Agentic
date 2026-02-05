@@ -1486,6 +1486,11 @@ vNext-FULL-ActionsSLA:
       </div>
       <div class="row wrap" style="gap:8px">
         <span id="chip-role" style="display:none">admin</span>
+        <div id="impersonation-indicator" style="display:none;padding:4px 12px;border-radius:999px;background:#fef3c7;color:#92400e;font-size:12px;font-weight:500;border:1px solid #f59e0b;align-items:center;gap:8px;">
+          <span>👁️ Viewing as: </span>
+          <span id="impersonation-name">—</span>
+          <button onclick="clearImpersonation()" style="background:none;border:none;cursor:pointer;color:#92400e;font-weight:bold;padding:0 4px;margin-left:4px;" title="Exit impersonation">✕</button>
+        </div>
         <div id="tenant-chip" style="display:none;padding:4px 12px;border-radius:999px;background:var(--primary);color:var(--bg);font-size:12px;font-weight:500">
           <span id="chip-tenant">—</span>
         </div>
@@ -6167,6 +6172,52 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   </div>
 </div>
 
+<!-- Role Switcher Modal -->
+<div id="role-switcher-modal" class="modal" role="dialog" aria-modal="true" style="display:none">
+  <div class="sheet" style="max-width:400px">
+    <div class="head"><span>Switch View Mode</span></div>
+    <div class="body">
+      <p style="color:var(--muted);margin-bottom:16px;">Select a role to view the system as that user type. Choose a specific user to see only their tickets.</p>
+
+      <div class="mb-12">
+        <label class="subtitle">View as Role</label>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">
+          <label id="role-opt-admin" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="radio" name="impersonate-role" value="admin" onchange="onImpersonateRoleChange()">
+            <span>Admin</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="radio" name="impersonate-role" value="expert" onchange="onImpersonateRoleChange()">
+            <span>Expert</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="radio" name="impersonate-role" value="customer" onchange="onImpersonateRoleChange()">
+            <span>Customer</span>
+          </label>
+        </div>
+      </div>
+
+      <div id="impersonate-expert-section" class="mb-12" style="display:none;">
+        <label class="subtitle">Select Expert</label>
+        <select id="impersonate-expert-select" class="input">
+          <option value="">-- Select Expert --</option>
+        </select>
+      </div>
+
+      <div id="impersonate-customer-section" class="mb-12" style="display:none;">
+        <label class="subtitle">Select Customer</label>
+        <select id="impersonate-customer-select" class="input">
+          <option value="">-- Select Customer --</option>
+        </select>
+      </div>
+    </div>
+    <div class="foot">
+      <button class="btn ghost" onclick="closeRoleSwitcherModal()">Cancel</button>
+      <button class="btn primary" onclick="applyRoleSwitch()">Apply</button>
+    </div>
+  </div>
+</div>
+
 <!-- Business Hours Modal -->
 <div id="business-hours-modal" class="modal" role="dialog" aria-modal="true" style="display:none;align-items:flex-start;padding-top:10vh">
   <div class="sheet" style="max-width:500px;max-height:80vh;overflow:auto">
@@ -7107,6 +7158,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     window.loginRole = null;
     window.tenant = null;
     window.isMasterAdmin = false;
+    window.impersonatedUser = null;
 
     // Stop SLA interval
     if (slaInterval) {
@@ -7232,32 +7284,229 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     // - Expert: can switch between expert and customer only
     // - Customer: no role switch allowed
     const loginRole = window.loginRole || window.role || role;
-    const currentRole = window.role || role;
 
-    // Determine allowed roles based on login role
-    let allowedRoles;
-    if (loginRole === 'admin') {
-      allowedRoles = ['admin', 'expert', 'customer'];
-    } else if (loginRole === 'expert') {
-      allowedRoles = ['expert', 'customer'];
-    } else {
+    if (loginRole === 'customer') {
       // Customer - no switching allowed
       return;
     }
 
-    // Cycle through allowed roles only
-    const currentIndex = allowedRoles.indexOf(currentRole);
-    const nextIndex = (currentIndex + 1) % allowedRoles.length;
-    const newRole = allowedRoles[nextIndex];
+    // Open the role switcher modal instead of cycling
+    openRoleSwitcherModal();
+  }
+
+  function openRoleSwitcherModal() {
+    const loginRole = window.loginRole || window.role || role;
+    const modal = document.getElementById('role-switcher-modal');
+    if (!modal) return;
+
+    // Show/hide admin option based on login role
+    const adminOption = document.getElementById('role-opt-admin');
+    if (adminOption) {
+      adminOption.style.display = (loginRole === 'admin') ? 'flex' : 'none';
+    }
+
+    // Reset radio buttons - select current role
+    const currentRole = window.role || role;
+    const radios = document.querySelectorAll('input[name="impersonate-role"]');
+    radios.forEach(r => {
+      r.checked = (r.value === currentRole);
+    });
+
+    // Reset sections visibility
+    document.getElementById('impersonate-expert-section').style.display = 'none';
+    document.getElementById('impersonate-customer-section').style.display = 'none';
+
+    // If impersonating, pre-select the user
+    if (window.impersonatedUser) {
+      const impRole = window.impersonatedUser.role;
+      radios.forEach(r => r.checked = (r.value === impRole));
+      onImpersonateRoleChange();
+
+      if (impRole === 'expert') {
+        document.getElementById('impersonate-expert-select').value = window.impersonatedUser.id;
+      } else if (impRole === 'customer') {
+        document.getElementById('impersonate-customer-select').value = window.impersonatedUser.id;
+      }
+    } else {
+      // Trigger to show/hide dropdown based on current role
+      onImpersonateRoleChange();
+    }
+
+    modal.style.display = 'flex';
+  }
+
+  function closeRoleSwitcherModal() {
+    const modal = document.getElementById('role-switcher-modal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  function onImpersonateRoleChange() {
+    const selectedRole = document.querySelector('input[name="impersonate-role"]:checked')?.value;
+    const expertSection = document.getElementById('impersonate-expert-section');
+    const customerSection = document.getElementById('impersonate-customer-section');
+
+    expertSection.style.display = 'none';
+    customerSection.style.display = 'none';
+
+    if (selectedRole === 'expert') {
+      loadImpersonateExpertsDropdown();
+      expertSection.style.display = 'block';
+    } else if (selectedRole === 'customer') {
+      loadImpersonateCustomersDropdown();
+      customerSection.style.display = 'block';
+    }
+  }
+
+  async function loadImpersonateExpertsDropdown() {
+    const select = document.getElementById('impersonate-expert-select');
+    if (!select) return;
+
+    // Use cachedExperts if available, otherwise fetch
+    if (cachedExperts.length === 0) {
+      try {
+        const token = localStorage.getItem('token');
+        const tenantCode = window.tenant || 'apoyar';
+        const res = await fetch(`/api/${tenantCode}/experts`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          cachedExperts = data.experts || [];
+        }
+      } catch (e) {
+        console.error('Error loading experts for impersonation:', e);
+      }
+    }
+
+    select.innerHTML = '<option value="">-- Select Expert (view all expert tickets) --</option>';
+    cachedExperts.forEach(expert => {
+      const opt = document.createElement('option');
+      opt.value = expert.id;
+      opt.textContent = expert.full_name || expert.username;
+      select.appendChild(opt);
+    });
+  }
+
+  async function loadImpersonateCustomersDropdown() {
+    const select = document.getElementById('impersonate-customer-select');
+    if (!select) return;
+
+    // Use allCustomers if available, otherwise fetch
+    if (allCustomers.length === 0) {
+      try {
+        const token = localStorage.getItem('token');
+        const tenantCode = window.tenant || 'apoyar';
+        const res = await fetch(`/api/${tenantCode}/customers`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          allCustomers = data.customers || [];
+        }
+      } catch (e) {
+        console.error('Error loading customers for impersonation:', e);
+      }
+    }
+
+    select.innerHTML = '<option value="">-- Select Customer (view all customer tickets) --</option>';
+    allCustomers.forEach(customer => {
+      const opt = document.createElement('option');
+      opt.value = customer.id;
+      opt.textContent = customer.full_name || customer.company_name || customer.username;
+      select.appendChild(opt);
+    });
+  }
+
+  function applyRoleSwitch() {
+    const selectedRole = document.querySelector('input[name="impersonate-role"]:checked')?.value;
+    if (!selectedRole) {
+      alert('Please select a role');
+      return;
+    }
+
+    // Clear previous impersonation
+    window.impersonatedUser = null;
+
+    // Update role
+    role = selectedRole;
+    window.role = selectedRole;
+
+    // Handle impersonation for expert/customer
+    if (selectedRole === 'expert') {
+      const expertSelect = document.getElementById('impersonate-expert-select');
+      const expertId = expertSelect?.value;
+      if (expertId) {
+        const expert = cachedExperts.find(e => e.id == expertId);
+        if (expert) {
+          window.impersonatedUser = {
+            id: expert.id,
+            role: 'expert',
+            fullName: expert.full_name || expert.username,
+            username: expert.username
+          };
+        }
+      }
+    } else if (selectedRole === 'customer') {
+      const customerSelect = document.getElementById('impersonate-customer-select');
+      const customerId = customerSelect?.value;
+      if (customerId) {
+        const customer = allCustomers.find(c => c.id == customerId);
+        if (customer) {
+          window.impersonatedUser = {
+            id: customer.id,
+            role: 'customer',
+            fullName: customer.full_name || customer.company_name || customer.username,
+            companyName: customer.company_name
+          };
+        }
+      }
+    }
 
     // Update UI
-    role = newRole;
-    window.role = newRole;
-
-    if (role==='customer' && !tenant) tenant=(CMDB_ITEMS.find(i=>i.customer)||{}).customer||null;
-    document.getElementById('chip-role').textContent=role;
-    document.getElementById('tenant-chip').style.display = role==='customer' ? 'block' : 'none';
+    if (selectedRole === 'customer' && !tenant) {
+      tenant = (CMDB_ITEMS.find(i => i.customer) || {}).customer || null;
+    }
+    document.getElementById('chip-role').textContent = selectedRole;
+    document.getElementById('tenant-chip').style.display = selectedRole === 'customer' ? 'block' : 'none';
     document.getElementById('chip-tenant').textContent = tenant || '—';
+
+    // Update impersonation indicator
+    updateImpersonationIndicator();
+
+    closeRoleSwitcherModal();
+    configureRole();
+    switchView('dash');
+    renderAllDashboards();
+    loadRaiseFormOptions();
+    renderList();
+  }
+
+  function updateImpersonationIndicator() {
+    const indicator = document.getElementById('impersonation-indicator');
+    const nameSpan = document.getElementById('impersonation-name');
+    if (!indicator || !nameSpan) return;
+
+    if (window.impersonatedUser) {
+      const roleLabel = window.impersonatedUser.role.charAt(0).toUpperCase() + window.impersonatedUser.role.slice(1);
+      nameSpan.textContent = `${window.impersonatedUser.fullName} (${roleLabel})`;
+      indicator.style.display = 'flex';
+    } else {
+      indicator.style.display = 'none';
+    }
+  }
+
+  function clearImpersonation() {
+    window.impersonatedUser = null;
+
+    // Reset to login role
+    const loginRole = window.loginRole || 'admin';
+    role = loginRole;
+    window.role = loginRole;
+
+    document.getElementById('chip-role').textContent = loginRole;
+    document.getElementById('tenant-chip').style.display = loginRole === 'customer' ? 'block' : 'none';
+
+    updateImpersonationIndicator();
     configureRole();
     switchView('dash');
     renderAllDashboards();
@@ -7421,6 +7670,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const ionicSwitchBtn = document.getElementById('ionic-switch-role-btn');
     if (topnavSwitchBtn) topnavSwitchBtn.style.display = canSwitchRoles ? 'inline-flex' : 'none';
     if (ionicSwitchBtn) ionicSwitchBtn.style.display = canSwitchRoles ? 'block' : 'none';
+
+    // Update impersonation indicator
+    updateImpersonationIndicator();
 
     // Configure customer-specific nav items
     if (currentRole === 'customer') {
@@ -15389,6 +15641,17 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const [sortBy, sortDir] = sortValue.includes('-') ? sortValue.split('-') : ['created_at', 'desc'];
     params.set('sort_by', sortBy === 'id' ? 'id' : sortBy === 'date' ? 'created_at' : sortBy);
     params.set('sort_dir', sortDir || 'desc');
+
+    // Impersonation filtering - override assignee/requester filters
+    if (window.impersonatedUser) {
+      if (window.impersonatedUser.role === 'expert') {
+        // When impersonating an expert, show only their assigned tickets
+        params.set('assignee_id', window.impersonatedUser.id);
+      } else if (window.impersonatedUser.role === 'customer') {
+        // When impersonating a customer, show only their requested tickets
+        params.set('requester_id', window.impersonatedUser.id);
+      }
+    }
 
     return params.toString();
   }
