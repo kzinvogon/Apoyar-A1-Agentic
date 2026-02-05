@@ -7365,13 +7365,18 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     if (cachedExperts.length === 0) {
       try {
         const token = localStorage.getItem('token');
-        const tenantCode = window.tenant || 'apoyar';
-        const res = await fetch(`/api/${tenantCode}/experts`, {
-          headers: { 'Authorization': `Bearer ${token}` }
+        const res = await fetch(`${API_BASE}/api/auth/experts`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
         });
         if (res.ok) {
           const data = await res.json();
-          cachedExperts = data.experts || [];
+          if (data.success && Array.isArray(data.experts)) {
+            cachedExperts = data.experts;
+          }
         }
       } catch (e) {
         console.error('Error loading experts for impersonation:', e);
@@ -7382,7 +7387,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     cachedExperts.forEach(expert => {
       const opt = document.createElement('option');
       opt.value = expert.id;
-      opt.textContent = expert.full_name || expert.username;
+      opt.textContent = `${expert.full_name || expert.username}`;
       select.appendChild(opt);
     });
   }
@@ -7395,13 +7400,18 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     if (allCustomers.length === 0) {
       try {
         const token = localStorage.getItem('token');
-        const tenantCode = window.tenant || 'apoyar';
-        const res = await fetch(`/api/${tenantCode}/customers`, {
-          headers: { 'Authorization': `Bearer ${token}` }
+        const res = await fetch(`${API_BASE}/api/customers`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
         });
         if (res.ok) {
           const data = await res.json();
-          allCustomers = data.customers || [];
+          if (data.success && Array.isArray(data.customers)) {
+            allCustomers = data.customers;
+          }
         }
       } catch (e) {
         console.error('Error loading customers for impersonation:', e);
