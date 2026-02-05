@@ -1375,6 +1375,11 @@ vNext-FULL-ActionsSLA:
           <div class="topnav-role" id="topnav-role">Admin</div>
         </div>
       </div>
+      <div id="topnav-impersonation" style="display:none;padding:4px 12px;border-radius:999px;background:#fef3c7;color:#92400e;font-size:11px;font-weight:500;border:1px solid #f59e0b;display:none;align-items:center;gap:6px;white-space:nowrap;">
+        <span>👁️</span>
+        <span id="topnav-impersonation-name">—</span>
+        <button onclick="clearImpersonation()" style="background:none;border:none;cursor:pointer;color:#92400e;font-weight:bold;padding:0 2px;font-size:14px;line-height:1;" title="Exit impersonation">×</button>
+      </div>
       <div class="topnav-actions">
         <button class="topnav-btn ghost" id="topnav-switch-btn" onclick="switchRole()">Switch</button>
         <button class="topnav-btn ghost" onclick="logout()">Sign out</button>
@@ -7496,16 +7501,29 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   }
 
   function updateImpersonationIndicator() {
+    // Update main app indicator
     const indicator = document.getElementById('impersonation-indicator');
     const nameSpan = document.getElementById('impersonation-name');
-    if (!indicator || !nameSpan) return;
+
+    // Update topnav indicator
+    const topnavIndicator = document.getElementById('topnav-impersonation');
+    const topnavNameSpan = document.getElementById('topnav-impersonation-name');
 
     if (window.impersonatedUser) {
       const roleLabel = window.impersonatedUser.role.charAt(0).toUpperCase() + window.impersonatedUser.role.slice(1);
-      nameSpan.textContent = `${window.impersonatedUser.fullName} (${roleLabel})`;
-      indicator.style.display = 'flex';
+      const displayText = `${window.impersonatedUser.fullName} (${roleLabel})`;
+
+      if (indicator && nameSpan) {
+        nameSpan.textContent = displayText;
+        indicator.style.display = 'flex';
+      }
+      if (topnavIndicator && topnavNameSpan) {
+        topnavNameSpan.textContent = displayText;
+        topnavIndicator.style.display = 'flex';
+      }
     } else {
-      indicator.style.display = 'none';
+      if (indicator) indicator.style.display = 'none';
+      if (topnavIndicator) topnavIndicator.style.display = 'none';
     }
   }
 
