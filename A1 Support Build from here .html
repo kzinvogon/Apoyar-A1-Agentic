@@ -1491,11 +1491,6 @@ vNext-FULL-ActionsSLA:
       </div>
       <div class="row wrap" style="gap:8px">
         <span id="chip-role" style="display:none">admin</span>
-        <div id="impersonation-indicator" style="display:none;padding:4px 12px;border-radius:999px;background:#fef3c7;color:#92400e;font-size:12px;font-weight:500;border:1px solid #f59e0b;align-items:center;gap:8px;">
-          <span>👁️ Viewing as: </span>
-          <span id="impersonation-name">—</span>
-          <button onclick="clearImpersonation()" style="background:none;border:none;cursor:pointer;color:#92400e;font-weight:bold;padding:0 4px;margin-left:4px;" title="Exit impersonation">✕</button>
-        </div>
         <div id="tenant-chip" style="display:none;padding:4px 12px;border-radius:999px;background:var(--primary);color:var(--bg);font-size:12px;font-weight:500">
           <span id="chip-tenant">—</span>
         </div>
@@ -7501,13 +7496,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   }
 
   function updateImpersonationIndicator() {
-    // Update main app indicator
-    const indicator = document.getElementById('impersonation-indicator');
-    const nameSpan = document.getElementById('impersonation-name');
-
-    // Update topnav indicator
-    const topnavIndicator = document.getElementById('topnav-impersonation');
-    const topnavNameSpan = document.getElementById('topnav-impersonation-name');
+    const indicator = document.getElementById('topnav-impersonation');
+    const nameSpan = document.getElementById('topnav-impersonation-name');
 
     if (window.impersonatedUser) {
       const roleLabel = window.impersonatedUser.role.charAt(0).toUpperCase() + window.impersonatedUser.role.slice(1);
@@ -7517,13 +7507,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         nameSpan.textContent = displayText;
         indicator.style.display = 'flex';
       }
-      if (topnavIndicator && topnavNameSpan) {
-        topnavNameSpan.textContent = displayText;
-        topnavIndicator.style.display = 'flex';
-      }
     } else {
       if (indicator) indicator.style.display = 'none';
-      if (topnavIndicator) topnavIndicator.style.display = 'none';
     }
   }
 
