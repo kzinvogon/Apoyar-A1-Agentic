@@ -95,10 +95,10 @@ router.get('/subscription', requireTenantAuth, async (req, res) => {
 
       const data = results[0];
 
-      // Calculate trial status
+      // Calculate trial status (using Stripe-native 'trialing' status)
       const now = new Date();
       const trialEnd = data.trial_end ? new Date(data.trial_end) : null;
-      const isInTrial = data.status === 'trial' && trialEnd && trialEnd > now;
+      const isInTrial = data.status === 'trialing' && trialEnd && trialEnd > now;
       const trialDaysRemaining = isInTrial
         ? Math.ceil((trialEnd - now) / (1000 * 60 * 60 * 24))
         : 0;
@@ -473,10 +473,10 @@ router.post('/cancel', requireTenantAuth, async (req, res) => {
 
       const data = results[0];
 
-      // Update subscription status
+      // Update subscription status (using Stripe-native 'canceled' spelling)
       await connection.query(`
         UPDATE tenant_subscriptions
-        SET status = 'cancelled', auto_renew = FALSE, cancelled_at = NOW()
+        SET status = 'canceled', auto_renew = FALSE, cancelled_at = NOW()
         WHERE id = ?
       `, [data.subscription_id]);
 
@@ -484,7 +484,7 @@ router.post('/cancel', requireTenantAuth, async (req, res) => {
       await connection.query(`
         INSERT INTO subscription_history (
           subscription_id, tenant_id, action, from_status, to_status, notes, performed_by
-        ) VALUES (?, ?, 'cancelled', ?, 'cancelled', ?, ?)
+        ) VALUES (?, ?, 'cancelled', ?, 'canceled', ?, ?)
       `, [
         data.subscription_id,
         data.tenant_id,
@@ -686,7 +686,7 @@ router.post('/payment-methods/setup', requireTenantAuth, async (req, res) => {
 
 /**
  * POST /api/billing/webhook
- * Stripe webhook handler
+ * Stripe webhook handler with idempotency
  */
 router.post('/webhook', async (req, res) => {
   const sig = req.headers['stripe-signature'];
@@ -707,19 +707,48 @@ router.post('/webhook', async (req, res) => {
   const connection = await getMasterConnection();
 
   try {
+    // Idempotency check - skip if already processed
+    const [existing] = await connection.query(
+      'SELECT id FROM stripe_webhook_events WHERE event_id = ?',
+      [event.id]
+    );
+
+    if (existing.length > 0) {
+      console.log(`[Webhook] Already processed event ${event.id}, skipping`);
+      return res.json({ received: true, duplicate: true });
+    }
+
+    // Record event for idempotency
+    await connection.query(`
+      INSERT INTO stripe_webhook_events (event_id, event_type, payload)
+      VALUES (?, ?, ?)
+    `, [event.id, event.type, JSON.stringify(event.data.object)]);
+
+    console.log(`[Webhook] Processing ${event.type}: ${event.id}`);
+
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object;
         console.log('[Webhook] Checkout completed:', session.id);
 
-        // Update subscription status
         if (session.metadata?.tenant_id) {
+          // Get subscription details from Stripe to determine status
+          let status = 'active';
+          if (session.subscription) {
+            try {
+              const sub = await stripeService.getSubscription(session.subscription);
+              status = sub.status; // trialing, active, etc.
+            } catch (e) {
+              console.warn('[Webhook] Could not fetch subscription:', e.message);
+            }
+          }
+
           await connection.query(`
             UPDATE tenant_subscriptions ts
             JOIN tenants t ON ts.tenant_id = t.id
-            SET ts.status = 'active', ts.stripe_subscription_id = ?
+            SET ts.status = ?, ts.stripe_subscription_id = ?
             WHERE t.id = ?
-          `, [session.subscription, session.metadata.tenant_id]);
+          `, [status, session.subscription, session.metadata.tenant_id]);
 
           // Sync features
           if (session.metadata.plan_slug) {
@@ -731,6 +760,94 @@ router.post('/webhook', async (req, res) => {
               await syncPlanFeatures(tenants[0].tenant_code, session.metadata.plan_slug);
             }
           }
+
+          // Log history
+          await connection.query(`
+            INSERT INTO subscription_history (
+              tenant_id, action, to_status, notes
+            ) SELECT ?, 'created', ?, 'Subscription created via Stripe Checkout'
+            FROM tenants WHERE id = ?
+          `, [session.metadata.tenant_id, status, session.metadata.tenant_id]);
+        }
+        break;
+      }
+
+      case 'customer.subscription.created':
+      case 'customer.subscription.updated': {
+        const subscription = event.data.object;
+        console.log(`[Webhook] Subscription ${event.type.split('.')[2]}:`, subscription.id);
+
+        // Map Stripe status directly (they match our ENUM)
+        const status = subscription.status; // trialing, active, past_due, unpaid, canceled, incomplete
+
+        // Find tenant by customer ID or subscription ID
+        const [tenants] = await connection.query(`
+          SELECT t.id as tenant_id, ts.id as subscription_id, ts.status as old_status
+          FROM tenants t
+          LEFT JOIN tenant_subscriptions ts ON t.id = ts.tenant_id
+          WHERE t.stripe_customer_id = ? OR ts.stripe_subscription_id = ?
+        `, [subscription.customer, subscription.id]);
+
+        if (tenants.length > 0) {
+          const tenant = tenants[0];
+
+          // Update subscription
+          await connection.query(`
+            UPDATE tenant_subscriptions
+            SET status = ?,
+                stripe_subscription_id = ?,
+                current_period_start = FROM_UNIXTIME(?),
+                current_period_end = FROM_UNIXTIME(?),
+                next_billing_date = FROM_UNIXTIME(?)
+            WHERE tenant_id = ?
+          `, [
+            status,
+            subscription.id,
+            subscription.current_period_start,
+            subscription.current_period_end,
+            subscription.current_period_end,
+            tenant.tenant_id
+          ]);
+
+          // Log status change if different
+          if (tenant.old_status && tenant.old_status !== status) {
+            await connection.query(`
+              INSERT INTO subscription_history (
+                subscription_id, tenant_id, action, from_status, to_status, notes
+              ) VALUES (?, ?, 'updated', ?, ?, ?)
+            `, [
+              tenant.subscription_id,
+              tenant.tenant_id,
+              tenant.old_status,
+              status,
+              `Status changed via Stripe webhook`
+            ]);
+          }
+        }
+        break;
+      }
+
+      case 'customer.subscription.deleted': {
+        const subscription = event.data.object;
+        console.log('[Webhook] Subscription deleted:', subscription.id);
+
+        await connection.query(`
+          UPDATE tenant_subscriptions
+          SET status = 'canceled', cancelled_at = NOW()
+          WHERE stripe_subscription_id = ?
+        `, [subscription.id]);
+
+        // Log history
+        const [subs] = await connection.query(
+          'SELECT id, tenant_id FROM tenant_subscriptions WHERE stripe_subscription_id = ?',
+          [subscription.id]
+        );
+        if (subs.length > 0) {
+          await connection.query(`
+            INSERT INTO subscription_history (
+              subscription_id, tenant_id, action, to_status, notes
+            ) VALUES (?, ?, 'cancelled', 'canceled', 'Subscription ended via Stripe')
+          `, [subs[0].id, subs[0].tenant_id]);
         }
         break;
       }
@@ -739,7 +856,6 @@ router.post('/webhook', async (req, res) => {
         const invoice = event.data.object;
         console.log('[Webhook] Invoice paid:', invoice.id);
 
-        // Record transaction
         if (invoice.customer) {
           const [tenants] = await connection.query(
             'SELECT id FROM tenants WHERE stripe_customer_id = ?',
@@ -747,17 +863,26 @@ router.post('/webhook', async (req, res) => {
           );
 
           if (tenants.length > 0) {
+            // If was past_due, restore to active
+            await connection.query(`
+              UPDATE tenant_subscriptions
+              SET status = 'active'
+              WHERE tenant_id = ? AND status = 'past_due'
+            `, [tenants[0].id]);
+
+            // Record transaction
             await connection.query(`
               INSERT INTO billing_transactions (
                 tenant_id, type, amount, currency_code, description,
-                status, stripe_invoice_id, transaction_date
-              ) VALUES (?, 'charge', ?, ?, ?, 'succeeded', ?, NOW())
+                status, stripe_invoice_id, stripe_charge_id, transaction_date
+              ) VALUES (?, 'charge', ?, ?, ?, 'succeeded', ?, ?, NOW())
             `, [
               tenants[0].id,
               invoice.amount_paid / 100,
               invoice.currency.toUpperCase(),
-              `Invoice ${invoice.number}`,
-              invoice.id
+              `Invoice ${invoice.number || invoice.id}`,
+              invoice.id,
+              invoice.charge
             ]);
           }
         }
@@ -775,26 +900,29 @@ router.post('/webhook', async (req, res) => {
           );
 
           if (tenants.length > 0) {
-            // Update subscription status
+            // Update subscription status to past_due
             await connection.query(`
               UPDATE tenant_subscriptions
               SET status = 'past_due'
-              WHERE tenant_id = ?
+              WHERE tenant_id = ? AND status IN ('active', 'trialing')
             `, [tenants[0].id]);
+
+            // Record failed transaction
+            await connection.query(`
+              INSERT INTO billing_transactions (
+                tenant_id, type, amount, currency_code, description,
+                status, stripe_invoice_id, failure_message, transaction_date
+              ) VALUES (?, 'charge', ?, ?, ?, 'failed', ?, ?, NOW())
+            `, [
+              tenants[0].id,
+              invoice.amount_due / 100,
+              invoice.currency.toUpperCase(),
+              `Invoice ${invoice.number || invoice.id} - Payment Failed`,
+              invoice.id,
+              invoice.last_finalization_error?.message || 'Payment failed'
+            ]);
           }
         }
-        break;
-      }
-
-      case 'customer.subscription.deleted': {
-        const subscription = event.data.object;
-        console.log('[Webhook] Subscription deleted:', subscription.id);
-
-        await connection.query(`
-          UPDATE tenant_subscriptions
-          SET status = 'cancelled'
-          WHERE stripe_subscription_id = ?
-        `, [subscription.id]);
         break;
       }
 
