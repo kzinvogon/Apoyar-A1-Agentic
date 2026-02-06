@@ -718,7 +718,7 @@ class EmailProcessor {
                     references: parsed.references || []
                   };
 
-                  console.log(`📨 Queued email UID=${uid} #${seqno}: ${emailData.from} - ${emailData.subject}`);
+                  console.log(`📨 Received email UID=${uid} from: ${emailData.from} | Subject: ${emailData.subject}`);
                   emailQueue.push(emailData);
 
                 } catch (parseError) {
