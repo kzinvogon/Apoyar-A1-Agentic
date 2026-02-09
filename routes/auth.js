@@ -836,7 +836,8 @@ router.post('/tenant/reset-password-with-token', passwordChangeLimiter, async (r
 
       res.json({
         success: true,
-        message: 'Password reset successfully. You can now login with your new password.'
+        message: 'Password reset successfully. You can now login with your new password.',
+        username: user.username
       });
     } finally {
       connection.release();
@@ -1019,7 +1020,8 @@ router.post('/master/reset-password-with-token', passwordChangeLimiter, async (r
 
       res.json({
         success: true,
-        message: 'Password reset successfully. You can now login with your new password.'
+        message: 'Password reset successfully. You can now login with your new password.',
+        username: user.username
       });
     } finally {
       connection.release();

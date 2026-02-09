@@ -78,12 +78,13 @@ async function authenticateTenantUser(tenantCode, username, password) {
     const connection = await getTenantConnection(tenantCode);
     try {
       // Join with customers table to get is_company_admin for customer users
+      // Accept either username or email for login
       const [rows] = await connection.query(
         `SELECT u.*, c.is_company_admin, c.customer_company_id
          FROM users u
          LEFT JOIN customers c ON c.user_id = u.id
-         WHERE u.username = ? AND u.is_active = TRUE`,
-        [username]
+         WHERE (u.username = ? OR u.email = ?) AND u.is_active = TRUE`,
+        [username, username]
       );
 
       if (rows.length === 0) {

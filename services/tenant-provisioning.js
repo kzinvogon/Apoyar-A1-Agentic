@@ -32,7 +32,7 @@ async function sendWelcomeEmail(email, tenantName, tenantCode, trialEndsAt) {
     day: 'numeric'
   });
 
-  const appUrl = process.env.APP_URL || 'https://www.serviflow.app';
+  const appUrl = process.env.APP_URL || 'https://app.serviflow.app';
 
   const html = `
     <!DOCTYPE html>
