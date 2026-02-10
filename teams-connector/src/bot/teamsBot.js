@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const { TeamsActivityHandler, CardFactory, TeamsInfo } = require('botbuilder');
 const { buildTicketCard, buildTicketListCard, buildHelpCard, buildCreateTicketForm, buildModeCard } = require('./adaptiveCards/ticketCard');
+const { createTicketViewUrl } = require('../utils/tokenGenerator');
 
 // Import database utilities (local for standalone deployment)
 // NOTE: These functions return mysql2 *pools*, not single connections.
@@ -874,7 +875,9 @@ class ServiFlowBot extends TeamsActivityHandler {
       );
 
       const ticket = tickets[0];
-      const card = buildTicketCard(ticket, { mode });
+      let ticketUrl;
+      try { ticketUrl = await createTicketViewUrl(tenantCode, ticketId); } catch (e) { /* fallback to default URL */ }
+      const card = buildTicketCard(ticket, { mode, ticketUrl });
       const modeLabel = mode === 'customer' ? ' (as Customer)' : '';
       await context.sendActivity({
         text: `✅ Ticket #${ticketId} created successfully!${modeLabel}`,
@@ -926,7 +929,9 @@ class ServiFlowBot extends TeamsActivityHandler {
         mode = await this.getUserMode(pool, userId, userEmailLc);
       }
 
-      const card = buildTicketCard(tickets[0], { mode });
+      let ticketUrl;
+      try { ticketUrl = await createTicketViewUrl(tenantCode, ticketId); } catch (e) { /* fallback to default URL */ }
+      const card = buildTicketCard(tickets[0], { mode, ticketUrl });
       await context.sendActivity({ attachments: [CardFactory.adaptiveCard(card)] });
     } catch (error) {
       console.error('[Bot] View ticket error:', error);

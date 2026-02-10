@@ -1,6 +1,7 @@
 const { CloudAdapter, ConfigurationBotFrameworkAuthentication, TurnContext } = require('botbuilder');
 const { buildNotificationCard } = require('../bot/adaptiveCards/notificationCard');
 const { CardFactory } = require('botbuilder');
+const { createTicketViewUrl } = require('../utils/tokenGenerator');
 
 // Bot Framework Authentication
 const botFrameworkAuth = new ConfigurationBotFrameworkAuthentication({
@@ -37,13 +38,13 @@ function getConversationReferences() {
 /**
  * Send a proactive notification to a specific channel
  */
-async function sendNotificationToChannel(conversationRef, eventType, ticket, details = {}) {
+async function sendNotificationToChannel(conversationRef, eventType, ticket, details = {}, options = {}) {
   try {
     await adapter.continueConversationAsync(
       process.env.MICROSOFT_APP_ID,
       conversationRef,
       async (context) => {
-        const card = buildNotificationCard(eventType, ticket, details);
+        const card = buildNotificationCard(eventType, ticket, details, { ticketUrl: options.ticketUrl });
         await context.sendActivity({
           attachments: [CardFactory.adaptiveCard(card)]
         });
@@ -60,11 +61,11 @@ async function sendNotificationToChannel(conversationRef, eventType, ticket, det
 /**
  * Send a notification to all registered channels
  */
-async function broadcastNotification(eventType, ticket, details = {}) {
+async function broadcastNotification(eventType, ticket, details = {}, options = {}) {
   const results = [];
 
   for (const [key, conversationRef] of conversationReferences) {
-    const result = await sendNotificationToChannel(conversationRef, eventType, ticket, details);
+    const result = await sendNotificationToChannel(conversationRef, eventType, ticket, details, options);
     results.push({ channel: key, ...result });
   }
 
@@ -82,7 +83,7 @@ async function sendNotificationWithFilters(eventType, ticket, details = {}, filt
   // 3. Match priority filter if applicable
 
   // For now, broadcast to all channels
-  return broadcastNotification(eventType, ticket, details);
+  return broadcastNotification(eventType, ticket, details, filters);
 }
 
 /**
@@ -111,9 +112,18 @@ async function handleTicketEvent(eventType, ticketData, tenantCode) {
       break;
   }
 
+  // Generate token-based URL for direct ticket access
+  let ticketUrl;
+  try {
+    ticketUrl = await createTicketViewUrl(tenantCode, ticketData.id);
+  } catch (e) {
+    console.warn(`[Notifier] Could not generate token URL for ticket #${ticketData.id}:`, e.message);
+  }
+
   const results = await sendNotificationWithFilters(eventType, ticketData, details, {
     tenantCode,
-    priority: ticketData.priority
+    priority: ticketData.priority,
+    ticketUrl
   });
 
   return {
