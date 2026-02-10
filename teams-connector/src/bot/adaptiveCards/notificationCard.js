@@ -1,4 +1,4 @@
-const SERVIFLOW_URL = process.env.SERVIFLOW_URL || 'https://serviflow.app';
+const SERVIFLOW_URL = process.env.SERVIFLOW_URL || 'https://app.serviflow.app';
 
 const eventConfigs = {
   created: {
@@ -33,8 +33,9 @@ const eventConfigs = {
   }
 };
 
-function buildNotificationCard(eventType, ticket, details = {}) {
+function buildNotificationCard(eventType, ticket, details = {}, options = {}) {
   const config = eventConfigs[eventType] || { title: 'Ticket Updated', color: 'default', emoji: '📋' };
+  const ticketUrl = options.ticketUrl || `${SERVIFLOW_URL}/ticket/${ticket.id}`;
 
   const body = [
     {
@@ -133,7 +134,7 @@ function buildNotificationCard(eventType, ticket, details = {}) {
       {
         type: 'Action.OpenUrl',
         title: 'View Details',
-        url: `${SERVIFLOW_URL}/ticket/${ticket.id}`
+        url: ticketUrl
       },
       {
         type: 'Action.Submit',

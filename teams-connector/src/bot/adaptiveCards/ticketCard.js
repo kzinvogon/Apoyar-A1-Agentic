@@ -193,11 +193,13 @@ function buildTicketCard(ticket, options = {}) {
     });
   }
 
+  const ticketUrl = options.ticketUrl || `${SERVIFLOW_URL}/ticket/${ticket.id}`;
+
   const actions = [
     {
       type: 'Action.OpenUrl',
       title: 'View in ServiFlow',
-      url: `${SERVIFLOW_URL}/ticket/${ticket.id}`
+      url: ticketUrl
     },
     {
       type: 'Action.Submit',
