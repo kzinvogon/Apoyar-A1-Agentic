@@ -133,7 +133,7 @@ function buildNotificationCard(eventType, ticket, details = {}, options = {}) {
     actions: [
       {
         type: 'Action.OpenUrl',
-        title: 'View Details',
+        title: 'View Ticket Detail',
         url: ticketUrl
       },
       {
