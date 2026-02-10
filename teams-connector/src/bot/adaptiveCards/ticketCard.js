@@ -198,7 +198,7 @@ function buildTicketCard(ticket, options = {}) {
   const actions = [
     {
       type: 'Action.OpenUrl',
-      title: 'View in ServiFlow',
+      title: 'View Ticket Detail',
       url: ticketUrl
     },
     {

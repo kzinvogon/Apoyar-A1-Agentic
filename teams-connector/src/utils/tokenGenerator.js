@@ -14,20 +14,16 @@ const SERVIFLOW_URL = process.env.SERVIFLOW_URL || 'https://app.serviflow.app';
 async function createTicketViewUrl(tenantCode, ticketId, expirationDays = 30) {
   const pool = await getTenantConnection(tenantCode);
 
-  try {
-    const token = crypto.randomBytes(32).toString('hex');
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + expirationDays);
+  const token = crypto.randomBytes(32).toString('hex');
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + expirationDays);
 
-    await pool.query(
-      'INSERT INTO ticket_access_tokens (ticket_id, token, expires_at) VALUES (?, ?, ?)',
-      [ticketId, token, expiresAt]
-    );
+  await pool.query(
+    'INSERT INTO ticket_access_tokens (ticket_id, token, expires_at) VALUES (?, ?, ?)',
+    [ticketId, token, expiresAt]
+  );
 
-    return `${SERVIFLOW_URL}/ticket/view/${token}`;
-  } finally {
-    pool.release();
-  }
+  return `${SERVIFLOW_URL}/ticket/view/${token}`;
 }
 
 module.exports = { createTicketViewUrl };
