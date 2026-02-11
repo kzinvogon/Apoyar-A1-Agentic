@@ -89,6 +89,35 @@ async function tenantTransaction(tenantCode, callback) {
 }
 
 /**
+ * Get tenant pool directly (for pool.query without manual getConnection)
+ *
+ * @param {string} tenantCode - Tenant identifier
+ * @returns {Promise<Pool>} The mysql2 pool (auto-manages connections per query)
+ */
+async function getTenantPool(tenantCode) {
+  return hardenedPool.getTenantPool(tenantCode);
+}
+
+/**
+ * Acquire a connection for a short block, then release automatically.
+ * Use this instead of getTenantConnection when you need a connection
+ * for multiple related queries but NOT across async API calls.
+ *
+ * @param {string} tenantCode - Tenant identifier
+ * @param {Function} fn - Async function receiving the connection
+ * @returns {Promise<any>} Result of fn
+ */
+async function withTenantConnection(tenantCode, fn) {
+  const pool = await hardenedPool.getTenantPool(tenantCode);
+  const conn = await pool.getConnection();
+  try {
+    return await fn(conn);
+  } finally {
+    conn.release();
+  }
+}
+
+/**
  * Initialize master database (create if not exists)
  * Only runs during initial setup or when RUN_MIGRATIONS=true
  */
@@ -515,6 +544,8 @@ module.exports = {
   masterQuery,
   tenantQuery,
   tenantTransaction,
+  getTenantPool,
+  withTenantConnection,
 
   // Initialization
   initializeMasterDatabase,

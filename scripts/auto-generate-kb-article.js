@@ -3,220 +3,298 @@
 /**
  * AI-Powered KB Article Auto-Generation Script
  *
- * Automatically generates Knowledge Base articles from resolved tickets using Claude AI.
- * Analyzes ticket context (title, description, conversation, resolution notes, linked CIs)
- * and creates structured Markdown KB articles.
+ * Generates Knowledge Base articles from resolved tickets using Claude AI.
+ *
+ * ARCHITECTURE (pool-safe, 3-phase):
+ *   Phase 1 — DB reads + validation (pool.query, no held connection)
+ *   Phase 2 — External API calls (Claude + embeddings, NO DB at all)
+ *   Phase 3 — DB writes in a short transaction (withTenantConnection)
+ *
+ * ZERO code paths hold a MySQL connection across Claude/embedding API calls.
  *
  * Usage:
  *   node scripts/auto-generate-kb-article.js <tenant_code> <ticket_id>
- *   node scripts/auto-generate-kb-article.js apoyar 123
  *
- * Can also be called programmatically:
+ * Programmatic:
  *   const { autoGenerateKBArticle } = require('./scripts/auto-generate-kb-article');
  *   await autoGenerateKBArticle('apoyar', 123);
  */
 
 require('dotenv').config();
 
-const { getTenantConnection } = require('../config/database');
-const { KnowledgeBaseService } = require('../services/knowledge-base-service');
+const { getTenantPool, withTenantConnection } = require('../config/database');
+const { EmbeddingService } = require('../services/embedding-service');
 
 // Constants
-const SIMILARITY_THRESHOLD = 0.85;  // 85% - flag as potential duplicate
-const MIN_CONTENT_LENGTH = 100;     // Minimum ticket content to generate article
+const SIMILARITY_THRESHOLD = 0.85;
+const MIN_CONTENT_LENGTH = 100;
+
+// Routine ticket patterns that should NOT generate KB articles
+const SUPPRESSED_TITLE_PATTERNS = [
+  /backup\s+(success|successful|completed|status)/i,
+  /scheduled\s+task\s+(completed|success)/i,
+  /^(RE|FW|Fwd):\s+/i,
+];
 
 /**
- * Main auto-generate function
- * @param {string} tenantCode - The tenant code
- * @param {number} ticketId - The resolved ticket ID
- * @param {object} options - Optional settings
- * @returns {object} - Results of the article generation
+ * Main auto-generate function (3-phase, pool-safe)
  */
 async function autoGenerateKBArticle(tenantCode, ticketId, options = {}) {
   const startTime = Date.now();
   const {
-    dryRun = false,           // If true, don't actually create the article
-    forceRegenerate = false,  // If true, regenerate even if article exists
-    userId = null             // User ID to attribute the article to (null = system/AI)
+    dryRun = false,
+    forceRegenerate = false,
+    userId = null
   } = options;
 
   console.log(`\n📚 Auto-Generate KB Article - Ticket #${ticketId} (Tenant: ${tenantCode})`);
   console.log('='.repeat(60));
 
-  const connection = await getTenantConnection(tenantCode);
+  // =========================================================================
+  // PHASE 1 — DB READS + VALIDATION (pool.query, no held connection)
+  // =========================================================================
+  const pool = await getTenantPool(tenantCode);
 
-  try {
-    // Step 1: Fetch the complete ticket context
-    console.log('\n📋 Fetching ticket data...');
-    const ticketData = await fetchTicketContext(connection, ticketId);
+  // 1a. Fetch ticket with context
+  console.log('\n📋 Fetching ticket data...');
+  const ticketData = await fetchTicketContext(pool, ticketId);
 
-    if (!ticketData) {
-      console.log('❌ Ticket not found');
-      return { success: false, error: 'Ticket not found' };
-    }
-
-    // Validate ticket state
-    if (ticketData.status !== 'Resolved' && ticketData.status !== 'Closed') {
-      console.log(`⚠️ Ticket is not resolved (status: ${ticketData.status})`);
-      return { success: false, error: 'Ticket is not resolved' };
-    }
-
-    // Check if article already exists for this ticket
-    if (!forceRegenerate) {
-      const [existingArticles] = await connection.query(
-        'SELECT id, article_id FROM kb_articles WHERE source_ticket_id = ?',
-        [ticketId]
-      );
-      if (existingArticles.length > 0) {
-        console.log(`⚠️ KB article already exists for this ticket (${existingArticles[0].article_id})`);
-        return {
-          success: true,
-          skipped: true,
-          reason: 'Article already exists',
-          article_id: existingArticles[0].article_id
-        };
-      }
-    }
-
-    // Check content length
-    const contentLength = (ticketData.title || '').length +
-                          (ticketData.description || '').length +
-                          (ticketData.resolution_comment || '').length;
-    if (contentLength < MIN_CONTENT_LENGTH) {
-      console.log(`⚠️ Insufficient content to generate article (${contentLength} chars)`);
-      return { success: false, error: 'Insufficient content' };
-    }
-
-    console.log(`   Title: ${ticketData.title}`);
-    console.log(`   Status: ${ticketData.status}`);
-    console.log(`   Category: ${ticketData.category || 'General'}`);
-    console.log(`   Resolution: ${(ticketData.resolution_comment || '').substring(0, 50)}...`);
-    console.log(`   Messages: ${ticketData.messages?.length || 0}`);
-    console.log(`   Linked CIs: ${ticketData.linkedCIs?.length || 0}`);
-
-    // Step 2: Generate article with Claude AI
-    console.log('\n🤖 Generating article with Claude AI...');
-    const generatedContent = await generateWithClaude(ticketData);
-
-    if (!generatedContent || !generatedContent.title || !generatedContent.content) {
-      console.log('❌ Failed to generate article content');
-      return { success: false, error: 'AI generation failed' };
-    }
-
-    console.log(`   Generated title: ${generatedContent.title}`);
-    console.log(`   Confidence: ${generatedContent.confidence}`);
-    console.log(`   Tags: ${generatedContent.tags?.join(', ') || 'none'}`);
-
-    // Step 3: Check for similar existing articles
-    console.log('\n🔍 Checking for similar articles...');
-    const kbService = new KnowledgeBaseService(tenantCode);
-    const similarArticles = await kbService.searchArticles(
-      generatedContent.title + ' ' + generatedContent.content.substring(0, 500),
-      { limit: 5, status: null, minScore: 0.6 }
-    );
-
-    let hasSimilar = false;
-    let similarityInfo = null;
-
-    if (similarArticles.length > 0) {
-      const topMatch = similarArticles[0];
-      console.log(`   Top match: "${topMatch.title}" (${Math.round(topMatch.score * 100)}% similar)`);
-
-      if (topMatch.score >= SIMILARITY_THRESHOLD) {
-        hasSimilar = true;
-        similarityInfo = {
-          article_id: topMatch.id,
-          title: topMatch.title,
-          score: topMatch.score
-        };
-        console.log(`   ⚠️ High similarity detected - flagging as potential duplicate`);
-      }
-    } else {
-      console.log('   No similar articles found');
-    }
-
-    if (dryRun) {
-      console.log('\n🔶 DRY RUN - Would create article:');
-      console.log(JSON.stringify(generatedContent, null, 2));
-      return {
-        success: true,
-        dryRun: true,
-        generatedContent,
-        hasSimilar,
-        similarityInfo
-      };
-    }
-
-    // Step 4: Create the KB article
-    console.log('\n💾 Creating KB article...');
-    const articleResult = await kbService.createArticle({
-      title: generatedContent.title,
-      content: generatedContent.content,
-      summary: generatedContent.summary,
-      category: mapTicketCategoryToKB(ticketData.category),
-      tags: generatedContent.tags,
-      status: hasSimilar ? 'draft' : 'draft', // Always create as draft for review
-      visibility: 'internal',
-      source_type: 'ai_generated',
-      source_ticket_id: ticketId
-    }, userId);
-
-    console.log(`   Created article: ${articleResult.article_id} (ID: ${articleResult.id})`);
-
-    // Step 5: Link article to ticket
-    await connection.query(`
-      INSERT INTO ticket_kb_articles (ticket_id, article_id, relevance_score, link_type, suggested_by, created_by)
-      VALUES (?, ?, 1.0, 'created_from', 'auto', ?)
-      ON DUPLICATE KEY UPDATE link_type = 'created_from', suggested_by = 'auto'
-    `, [ticketId, articleResult.id, userId]);
-
-    // Step 6: If high similarity, create a merge suggestion
-    if (hasSimilar && similarityInfo) {
-      const id1 = Math.min(articleResult.id, similarityInfo.article_id);
-      const id2 = Math.max(articleResult.id, similarityInfo.article_id);
-
-      await connection.query(`
-        INSERT IGNORE INTO kb_article_similarities (article_id_1, article_id_2, similarity_score, similarity_type, status)
-        VALUES (?, ?, ?, 'combined', 'pending')
-      `, [id1, id2, similarityInfo.score]);
-
-      console.log(`   📎 Created merge suggestion with article #${similarityInfo.article_id}`);
-    }
-
-    // Step 7: Add activity note to ticket
-    await connection.query(`
-      INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
-      VALUES (?, ?, 'comment', ?)
-    `, [
-      ticketId,
-      userId,
-      `🤖 AI-generated KB draft created: Article ${articleResult.article_id}${hasSimilar ? ' (potential duplicate detected)' : ''}`
-    ]);
-
-    const elapsedTime = Date.now() - startTime;
-    console.log(`\n✅ Article generated successfully in ${elapsedTime}ms`);
-
-    return {
-      success: true,
-      article_id: articleResult.article_id,
-      article_db_id: articleResult.id,
-      confidence: generatedContent.confidence,
-      hasSimilar,
-      similarityInfo,
-      elapsedTime
-    };
-
-  } finally {
-    connection.release();
+  if (!ticketData) {
+    console.log('❌ Ticket not found');
+    return { success: false, error: 'Ticket not found' };
   }
+
+  // 1b. Validate status
+  if (ticketData.status !== 'Resolved' && ticketData.status !== 'Closed') {
+    console.log(`⚠️ Ticket is not resolved (status: ${ticketData.status})`);
+    return { success: false, error: 'Ticket is not resolved' };
+  }
+
+  // 1c. Check existing article
+  if (!forceRegenerate) {
+    const [existingArticles] = await pool.query(
+      'SELECT id, article_id FROM kb_articles WHERE source_ticket_id = ?',
+      [ticketId]
+    );
+    if (existingArticles.length > 0) {
+      console.log(`⚠️ KB article already exists for this ticket (${existingArticles[0].article_id})`);
+      return { success: true, skipped: true, reason: 'Article already exists', article_id: existingArticles[0].article_id };
+    }
+  }
+
+  // 1d. Content length check
+  const contentLength = (ticketData.title || '').length +
+                        (ticketData.description || '').length +
+                        (ticketData.resolution_comment || '').length;
+  if (contentLength < MIN_CONTENT_LENGTH) {
+    console.log(`⚠️ Insufficient content to generate article (${contentLength} chars)`);
+    return { success: false, error: 'Insufficient content' };
+  }
+
+  // 1e. Suppress routine notifications
+  for (const pattern of SUPPRESSED_TITLE_PATTERNS) {
+    if (pattern.test(ticketData.title)) {
+      console.log(`⚠️ Suppressed: title matches routine pattern (${pattern})`);
+      return { success: true, skipped: true, reason: 'suppressed' };
+    }
+  }
+
+  console.log(`   Title: ${ticketData.title}`);
+  console.log(`   Status: ${ticketData.status}`);
+  console.log(`   Category: ${ticketData.category || 'General'}`);
+  console.log(`   Resolution: ${(ticketData.resolution_comment || '').substring(0, 50)}...`);
+  console.log(`   Messages: ${ticketData.messages?.length || 0}`);
+  console.log(`   Linked CIs: ${ticketData.linkedCIs?.length || 0}`);
+
+  // =========================================================================
+  // PHASE 2 — EXTERNAL CALLS (NO DB held at all)
+  // =========================================================================
+
+  // 2a. Generate article with Claude AI
+  console.log('\n🤖 Generating article with Claude AI...');
+  const generatedContent = await generateWithClaude(ticketData);
+
+  if (!generatedContent || !generatedContent.title || !generatedContent.content) {
+    console.log('❌ Failed to generate article content');
+    return { success: false, error: 'AI generation failed' };
+  }
+
+  console.log(`   Generated title: ${generatedContent.title}`);
+  console.log(`   Confidence: ${generatedContent.confidence}`);
+  console.log(`   Tags: ${generatedContent.tags?.join(', ') || 'none'}`);
+
+  // 2b. Generate embeddings for new article
+  const embeddingService = new EmbeddingService();
+  const textToEmbed = `${generatedContent.title}\n\n${generatedContent.summary || ''}\n\n${generatedContent.content}`;
+  const chunks = embeddingService.chunkText(textToEmbed);
+  const embeddingRows = [];
+
+  for (let i = 0; i < chunks.length; i++) {
+    const vector = await embeddingService.generateEmbedding(chunks[i]);
+    embeddingRows.push({
+      vector,
+      hash: embeddingService.generateEmbeddingHash(vector),
+      chunkIndex: i,
+      chunkText: chunks[i].substring(0, 500),
+    });
+  }
+
+  // 2c. Similarity check (short DB read via pool.query, then compute in JS)
+  console.log('\n🔍 Checking for similar articles...');
+  let hasSimilar = false;
+  let similarityInfo = null;
+
+  if (embeddingRows.length > 0) {
+    const [existingEmbeddings] = await pool.query(`
+      SELECT kae.article_id, kae.embedding_vector, ka.title
+      FROM kb_article_embeddings kae
+      JOIN kb_articles ka ON kae.article_id = ka.id
+      WHERE kae.chunk_index = 0 AND ka.status != 'archived'
+    `);
+
+    const newMainVec = embeddingRows[0].vector;
+
+    for (const other of existingEmbeddings) {
+      const otherVec = typeof other.embedding_vector === 'string'
+        ? JSON.parse(other.embedding_vector)
+        : other.embedding_vector;
+      const score = embeddingService.cosineSimilarity(newMainVec, otherVec);
+
+      if (score >= SIMILARITY_THRESHOLD) {
+        hasSimilar = true;
+        similarityInfo = { article_id: other.article_id, title: other.title, score };
+        console.log(`   ⚠️ High similarity: "${other.title}" (${Math.round(score * 100)}%)`);
+        break;
+      }
+
+      // Also log the top match even if below threshold
+      if (!similarityInfo || score > (similarityInfo.score || 0)) {
+        similarityInfo = { article_id: other.article_id, title: other.title, score };
+      }
+    }
+
+    if (!hasSimilar && similarityInfo) {
+      console.log(`   Top match: "${similarityInfo.title}" (${Math.round(similarityInfo.score * 100)}% similar)`);
+      similarityInfo = null; // Only keep if above threshold
+    } else if (existingEmbeddings.length === 0) {
+      console.log('   No existing articles to compare');
+    }
+  }
+
+  if (dryRun) {
+    console.log('\n🔶 DRY RUN - Would create article:');
+    console.log(JSON.stringify(generatedContent, null, 2));
+    return { success: true, dryRun: true, generatedContent, hasSimilar, similarityInfo };
+  }
+
+  // =========================================================================
+  // PHASE 3 — DB WRITES (short transaction via withTenantConnection)
+  // =========================================================================
+  console.log('\n💾 Creating KB article...');
+
+  const articleId = `KB-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  const tags = Array.isArray(generatedContent.tags) ? generatedContent.tags : [];
+  const category = mapTicketCategoryToKB(ticketData.category);
+
+  const result = await withTenantConnection(tenantCode, async (conn) => {
+    await conn.beginTransaction();
+    try {
+      // INSERT kb_articles
+      const [articleResult] = await conn.query(`
+        INSERT INTO kb_articles (
+          article_id, title, content, summary, category, tags, status, visibility,
+          source_type, source_ticket_id, created_by, updated_by
+        ) VALUES (?, ?, ?, ?, ?, ?, 'draft', 'internal', 'ai_generated', ?, ?, ?)
+      `, [
+        articleId,
+        generatedContent.title,
+        generatedContent.content,
+        generatedContent.summary || '',
+        category,
+        JSON.stringify(tags),
+        ticketId,
+        userId,
+        userId
+      ]);
+      const newId = articleResult.insertId;
+
+      // INSERT kb_article_versions
+      await conn.query(`
+        INSERT INTO kb_article_versions (article_id, version_number, title, content, summary, change_reason, created_by)
+        VALUES (?, 1, ?, ?, ?, 'Initial creation', ?)
+      `, [newId, generatedContent.title, generatedContent.content, generatedContent.summary || '', userId]);
+
+      // INSERT embedding vectors
+      for (const emb of embeddingRows) {
+        await conn.query(`
+          INSERT INTO kb_article_embeddings (article_id, embedding_model, embedding_vector, embedding_hash, chunk_index, chunk_text)
+          VALUES (?, ?, ?, ?, ?, ?)
+        `, [newId, embeddingService.model, JSON.stringify(emb.vector), emb.hash, emb.chunkIndex, emb.chunkText]);
+      }
+
+      // INSERT ticket_kb_articles link
+      await conn.query(`
+        INSERT INTO ticket_kb_articles (ticket_id, article_id, relevance_score, link_type, suggested_by, created_by)
+        VALUES (?, ?, 1.0, 'created_from', 'auto', ?)
+        ON DUPLICATE KEY UPDATE link_type = 'created_from', suggested_by = 'auto'
+      `, [ticketId, newId, userId]);
+
+      // INSERT kb_article_similarities if duplicate
+      if (hasSimilar && similarityInfo) {
+        const id1 = Math.min(newId, similarityInfo.article_id);
+        const id2 = Math.max(newId, similarityInfo.article_id);
+        await conn.query(`
+          INSERT IGNORE INTO kb_article_similarities (article_id_1, article_id_2, similarity_score, similarity_type, status)
+          VALUES (?, ?, ?, 'combined', 'pending')
+        `, [id1, id2, similarityInfo.score]);
+      }
+
+      // INSERT ticket_activity
+      await conn.query(`
+        INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
+        VALUES (?, ?, 'comment', ?)
+      `, [
+        ticketId,
+        userId,
+        `🤖 AI-generated KB draft created: Article ${articleId}${hasSimilar ? ' (potential duplicate detected)' : ''}`
+      ]);
+
+      // UPDATE category count
+      await conn.query(`
+        UPDATE kb_categories SET article_count = (
+          SELECT COUNT(*) FROM kb_articles WHERE category = ? AND status = 'published'
+        ) WHERE name = ?
+      `, [category, category]);
+
+      await conn.commit();
+      return { id: newId, article_id: articleId };
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    }
+  });
+
+  console.log(`   Created article: ${result.article_id} (ID: ${result.id})`);
+
+  const elapsedTime = Date.now() - startTime;
+  console.log(`\n✅ Article generated successfully in ${elapsedTime}ms`);
+
+  return {
+    success: true,
+    article_id: result.article_id,
+    article_db_id: result.id,
+    confidence: generatedContent.confidence,
+    hasSimilar,
+    similarityInfo: hasSimilar ? similarityInfo : null,
+    elapsedTime
+  };
 }
 
 /**
- * Fetch complete ticket context including messages and linked CIs
+ * Fetch complete ticket context using pool.query (no held connection)
  */
-async function fetchTicketContext(connection, ticketId) {
-  // Get ticket details
-  const [tickets] = await connection.query(`
+async function fetchTicketContext(pool, ticketId) {
+  const [tickets] = await pool.query(`
     SELECT
       t.*,
       u1.full_name as assignee_name,
@@ -233,11 +311,9 @@ async function fetchTicketContext(connection, ticketId) {
   `, [ticketId]);
 
   if (tickets.length === 0) return null;
-
   const ticket = tickets[0];
 
-  // Get ticket activity/messages
-  const [activities] = await connection.query(`
+  const [activities] = await pool.query(`
     SELECT
       ta.activity_type,
       ta.description,
@@ -250,8 +326,7 @@ async function fetchTicketContext(connection, ticketId) {
     ORDER BY ta.created_at ASC
   `, [ticketId]);
 
-  // Get linked CMDB items
-  const [cmdbItems] = await connection.query(`
+  const [cmdbItems] = await pool.query(`
     SELECT
       ci.id,
       ci.asset_name,
@@ -266,8 +341,7 @@ async function fetchTicketContext(connection, ticketId) {
     WHERE tci.ticket_id = ?
   `, [ticketId]);
 
-  // Get linked configuration items
-  const [configItems] = await connection.query(`
+  const [configItems] = await pool.query(`
     SELECT
       cfg.ci_name,
       cfg.category_field_value,
@@ -278,7 +352,6 @@ async function fetchTicketContext(connection, ticketId) {
     WHERE tcfg.ticket_id = ?
   `, [ticketId]);
 
-  // Format messages for context
   const messages = activities
     .filter(a => a.activity_type === 'comment' || a.activity_type === 'note' || a.activity_type === 'reply')
     .map(a => `[${a.user_role || 'system'}] ${a.user_name || 'System'}: ${a.description}`);
@@ -307,7 +380,6 @@ async function generateWithClaude(ticketData) {
     const Anthropic = require('@anthropic-ai/sdk');
     const anthropic = new Anthropic({ apiKey });
 
-    // Build comprehensive context
     const ticketContext = buildTicketContext(ticketData);
 
     const systemPrompt = `You are an expert technical writer creating Knowledge Base articles for an IT support team. Your job is to transform resolved support tickets into clear, helpful KB articles that can help solve similar issues in the future.
@@ -335,27 +407,18 @@ Confidence levels:
 - Medium: Issue resolved but root cause unclear
 - Low: Limited information or unusual edge case`;
 
-    const userPrompt = `Create a KB article from this resolved support ticket:
-
-${ticketContext}
-
-Remember: Output ONLY valid JSON, no explanations or markdown code blocks.`;
+    const userPrompt = `Create a KB article from this resolved support ticket:\n\n${ticketContext}\n\nRemember: Output ONLY valid JSON, no explanations or markdown code blocks.`;
 
     const response = await anthropic.messages.create({
       model: 'claude-3-haiku-20240307',
       max_tokens: 2048,
       system: systemPrompt,
-      messages: [{
-        role: 'user',
-        content: userPrompt
-      }]
+      messages: [{ role: 'user', content: userPrompt }]
     });
 
     const responseText = response.content[0].text.trim();
 
-    // Parse the JSON response
     try {
-      // Try to extract JSON if wrapped in code blocks
       let jsonStr = responseText;
       const jsonMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)```/);
       if (jsonMatch) {
@@ -363,8 +426,6 @@ Remember: Output ONLY valid JSON, no explanations or markdown code blocks.`;
       }
 
       const result = JSON.parse(jsonStr);
-
-      // Validate required fields
       if (!result.title || !result.content) {
         throw new Error('Missing required fields');
       }
@@ -405,15 +466,12 @@ RESOLUTION:
 ${ticketData.resolution_comment || 'No resolution notes'}
 `;
 
-  // Add conversation history
   if (ticketData.messages && ticketData.messages.length > 0) {
     context += `\nCONVERSATION HISTORY (${ticketData.messages.length} messages):\n`;
-    // Include last 10 messages for context
     const recentMessages = ticketData.messages.slice(-10);
     context += recentMessages.join('\n---\n');
   }
 
-  // Add linked CMDB context
   if (ticketData.linkedCMDB && ticketData.linkedCMDB.length > 0) {
     context += `\nAFFECTED INFRASTRUCTURE:\n`;
     ticketData.linkedCMDB.forEach(item => {
@@ -424,7 +482,6 @@ ${ticketData.resolution_comment || 'No resolution notes'}
     });
   }
 
-  // Add configuration items
   if (ticketData.linkedCIs && ticketData.linkedCIs.length > 0) {
     context += `\nCONFIGURATION ITEMS:\n`;
     ticketData.linkedCIs.forEach(ci => {
@@ -471,7 +528,6 @@ Review this article and add prevention steps if applicable.
 - Original ticket category: ${category}
 `;
 
-  // Extract basic tags from content
   const tags = extractTags(ticketData);
 
   return {
@@ -483,12 +539,8 @@ Review this article and add prevention steps if applicable.
   };
 }
 
-/**
- * Sanitize title - remove PII and ticket references
- */
 function sanitizeTitle(title) {
   if (!title) return 'Untitled Issue';
-
   return title
     .replace(/ticket\s*#?\d+/gi, '')
     .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, '[email]')
@@ -496,12 +548,8 @@ function sanitizeTitle(title) {
     .trim() || 'Untitled Issue';
 }
 
-/**
- * Sanitize content - remove PII
- */
 function sanitizeContent(content) {
   if (!content) return '';
-
   return content
     .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, '[email]')
     .replace(/\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/g, '[phone]')
@@ -509,31 +557,17 @@ function sanitizeContent(content) {
     .trim();
 }
 
-/**
- * Extract tags from ticket data
- */
 function extractTags(ticketData) {
   const tags = new Set();
+  if (ticketData.category) tags.add(ticketData.category.toLowerCase());
+  if (ticketData.priority === 'critical' || ticketData.priority === 'high') tags.add(ticketData.priority);
 
-  // Add category as tag
-  if (ticketData.category) {
-    tags.add(ticketData.category.toLowerCase());
-  }
-
-  // Add priority as tag for critical/high
-  if (ticketData.priority === 'critical' || ticketData.priority === 'high') {
-    tags.add(ticketData.priority);
-  }
-
-  // Extract keywords from title
   const keywords = (ticketData.title || '')
     .toLowerCase()
     .split(/\s+/)
     .filter(w => w.length > 3 && !['the', 'and', 'for', 'with', 'from', 'this', 'that'].includes(w));
-
   keywords.slice(0, 3).forEach(k => tags.add(k));
 
-  // Add infrastructure tags
   if (ticketData.linkedCMDB?.length > 0) {
     ticketData.linkedCMDB.forEach(item => {
       if (item.asset_category) tags.add(item.asset_category.toLowerCase());
@@ -543,9 +577,6 @@ function extractTags(ticketData) {
   return Array.from(tags).slice(0, 8);
 }
 
-/**
- * Map ticket category to KB category
- */
 function mapTicketCategoryToKB(category) {
   const mapping = {
     'General': 'General',
@@ -559,7 +590,6 @@ function mapTicketCategoryToKB(category) {
     'Hardware': 'Technical Documentation',
     'Software': 'Troubleshooting'
   };
-
   return mapping[category] || 'General';
 }
 

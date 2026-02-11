@@ -51,7 +51,7 @@ const CONFIGURED_POOL_LIMIT = parseInt(process.env.WEB_POOL_LIMIT || DEFAULT_POO
 const POOL_CONFIG = {
   connectionLimit: CONFIGURED_POOL_LIMIT,
   waitForConnections: true,        // Queue requests when pool exhausted
-  queueLimit: 0,                   // Unlimited queue (0 = no limit)
+  queueLimit: 50,                  // Fail fast: reject after 50 queued requests
   connectTimeout: 10000,           // 10s to establish connection
   enableKeepAlive: true,           // Prevent idle connection drops
   keepAliveInitialDelay: 10000,    // 10s before first keepalive
