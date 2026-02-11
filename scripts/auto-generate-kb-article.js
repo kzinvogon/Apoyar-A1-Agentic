@@ -53,6 +53,7 @@ async function autoGenerateKBArticle(tenantCode, ticketId, options = {}) {
   // =========================================================================
   // PHASE 1 — DB READS + VALIDATION (pool.query, no held connection)
   // =========================================================================
+  const phase1Start = Date.now();
   const pool = await getTenantPool(tenantCode);
 
   // 1a. Fetch ticket with context
@@ -109,6 +110,10 @@ async function autoGenerateKBArticle(tenantCode, ticketId, options = {}) {
   // =========================================================================
   // PHASE 2 — EXTERNAL CALLS (NO DB held at all)
   // =========================================================================
+  const phase1Ms = Date.now() - phase1Start;
+  console.log(`[KB-Timing] phase1_ms=${phase1Ms} (DB reads + validation)`);
+
+  const phase2Start = Date.now();
 
   // 2a. Generate article with Claude AI
   console.log('\n🤖 Generating article with Claude AI...');
@@ -190,6 +195,10 @@ async function autoGenerateKBArticle(tenantCode, ticketId, options = {}) {
   // =========================================================================
   // PHASE 3 — DB WRITES (short transaction via withTenantConnection)
   // =========================================================================
+  const phase2Ms = Date.now() - phase2Start;
+  console.log(`[KB-Timing] phase2_ms=${phase2Ms} (Claude + embeddings, zero DB held)`);
+
+  const phase3Start = Date.now();
   console.log('\n💾 Creating KB article...');
 
   const articleId = `KB-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -199,6 +208,17 @@ async function autoGenerateKBArticle(tenantCode, ticketId, options = {}) {
   const result = await withTenantConnection(tenantCode, async (conn) => {
     await conn.beginTransaction();
     try {
+      // Idempotency guard: re-check no article was created since Phase 1
+      const [dupeCheck] = await conn.query(
+        'SELECT article_id FROM kb_articles WHERE source_ticket_id = ? LIMIT 1',
+        [ticketId]
+      );
+      if (dupeCheck.length > 0) {
+        await conn.rollback();
+        console.log(`[KB-Timing] phase3_ms=0 (idempotency: article already created by concurrent job)`);
+        return { skipped: true, article_id: dupeCheck[0].article_id };
+      }
+
       // INSERT kb_articles
       const [articleResult] = await conn.query(`
         INSERT INTO kb_articles (
@@ -274,9 +294,19 @@ async function autoGenerateKBArticle(tenantCode, ticketId, options = {}) {
     }
   });
 
+  const phase3Ms = Date.now() - phase3Start;
+
+  // Handle idempotency guard hit
+  if (result.skipped) {
+    console.log(`⚠️ Article already created by concurrent job: ${result.article_id}`);
+    return { success: true, skipped: true, reason: 'concurrent duplicate', article_id: result.article_id };
+  }
+
+  console.log(`[KB-Timing] phase3_ms=${phase3Ms} (DB transaction)`);
   console.log(`   Created article: ${result.article_id} (ID: ${result.id})`);
 
   const elapsedTime = Date.now() - startTime;
+  console.log(`[KB-Timing] total_ms=${elapsedTime} phase1=${phase1Ms} phase2=${phase2Ms} phase3=${phase3Ms}`);
   console.log(`\n✅ Article generated successfully in ${elapsedTime}ms`);
 
   return {
