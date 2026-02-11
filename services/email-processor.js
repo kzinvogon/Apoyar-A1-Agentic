@@ -668,16 +668,20 @@ class EmailProcessor {
               return reject(err);
             }
 
-            if (!results || results.length === 0) {
+            // IMAP quirk: UID X:* always returns the highest UID even if < X
+            // Filter out UIDs we've already processed
+            const filtered = (results || []).filter(uid => uid > lastUidProcessed);
+
+            if (filtered.length === 0) {
               console.log(`No new emails found for tenant: ${self.tenantCode}`);
               imap.end();
               return resolve(processedEmails);
             }
 
-            console.log(`📧 Found ${results.length} email(s) to check for tenant: ${self.tenantCode}`);
+            console.log(`📧 Found ${filtered.length} email(s) to check for tenant: ${self.tenantCode}`);
 
             // Fetch with markSeen: FALSE - we'll mark seen AFTER successful processing
-            const fetch = imap.fetch(results, {
+            const fetch = imap.fetch(filtered, {
               bodies: '',
               markSeen: false,  // CRITICAL: Don't mark as seen until processed
               struct: true      // Get message structure including UID
