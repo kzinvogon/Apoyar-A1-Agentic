@@ -17,8 +17,9 @@ const { triggerTeamsNotificationAsync } = require('../services/teams-notificatio
 // AI-powered CMDB auto-linking (fire-and-forget)
 const { triggerAutoLink } = require('../scripts/auto-link-cmdb');
 
-// AI-powered KB article auto-generation (fire-and-forget)
+// AI-powered KB article auto-generation (queue-limited, fire-and-forget)
 const { autoGenerateKBArticle } = require('../scripts/auto-generate-kb-article');
+const { enqueueKB } = require('../services/kbJobQueue');
 
 // AI-powered work type classification (fire-and-forget)
 const { triggerClassification, updateClassification, VALID_WORK_TYPES, VALID_EXECUTION_MODES } = require('../scripts/classify-ticket');
@@ -2568,18 +2569,8 @@ router.put('/:tenantId/:ticketId', writeOperationsLimiter, validateTicketUpdate,
         // Send Teams notification for resolved ticket
         triggerTeamsNotificationAsync('resolved', tickets[0], tenantCode, { resolutionComment: comment });
 
-        // Fire-and-forget: Auto-generate KB article from resolved ticket
-        autoGenerateKBArticle(tenantCode, parseInt(ticketId), { userId: req.user.userId })
-          .then(result => {
-            if (result.success && result.articleId) {
-              console.log(`📚 KB article generated from ticket #${ticketId}: ${result.articleId}`);
-            } else if (result.skipped) {
-              console.log(`📚 KB article skipped for ticket #${ticketId}: ${result.reason}`);
-            }
-          })
-          .catch(err => {
-            console.error(`KB article generation failed for ticket #${ticketId}:`, err.message);
-          });
+        // Queue-limited KB article auto-generation (never stampedes pool)
+        enqueueKB(tenantCode, () => autoGenerateKBArticle(tenantCode, parseInt(ticketId), { userId: req.user.userId }), { ticketId });
       } else if (status && status !== oldStatus) {
         await sendTicketNotificationEmail({
           ticket: tickets[0],
@@ -2781,12 +2772,8 @@ router.post('/:tenantId/bulk-action', writeOperationsLimiter, requireRole(['expe
               `UPDATE tickets SET status = ?, resolved_by = ?, resolved_at = NOW(), resolution_comment = ?, updated_at = NOW() WHERE id = ?`,
               [newStatus, req.user.userId, comment, ticketId]
             );
-            // Fire-and-forget: Auto-generate KB article from resolved ticket
-            // Skip KB generation for large bulk operations (>10 tickets) to prevent system overload
-            if (ticket_ids.length <= 10) {
-              autoGenerateKBArticle(tenantCode, parseInt(ticketId), { userId: req.user.userId })
-                .catch(err => console.error(`KB article generation failed for ticket #${ticketId}:`, err.message));
-            }
+            // Queue-limited KB article auto-generation (concurrency-safe even for bulk)
+            enqueueKB(tenantCode, () => autoGenerateKBArticle(tenantCode, parseInt(ticketId), { userId: req.user.userId }), { ticketId });
           } else {
             await connection.query(
               `UPDATE tickets SET status = ?, updated_at = NOW() WHERE id = ?`,
