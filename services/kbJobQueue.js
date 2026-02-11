@@ -21,6 +21,16 @@ const QUEUE_MAX    = parseInt(process.env.KB_QUEUE_MAX || '50', 10);
 const tenantState = new Map();
 let globalRunning = 0;
 
+// Metrics counters
+const metrics = {
+  enqueued: 0,
+  running: 0,
+  completed: 0,
+  failed: 0,
+  dropped: 0,
+  suppressed: 0,
+};
+
 /**
  * Enqueue a KB auto-gen job. Returns immediately (fire-and-forget).
  *
@@ -36,11 +46,14 @@ function enqueueKB(tenantCode, jobFn, meta = {}) {
   const state = tenantState.get(tenantCode);
 
   if (state.queue.length >= QUEUE_MAX) {
-    console.log(`[KB-Queue] Skipped KB auto-gen for tenant ${tenantCode} ticket #${meta.ticketId || '?'} (queue full: ${state.queue.length}/${QUEUE_MAX})`);
+    metrics.dropped++;
+    console.log(`[KB-Queue] Dropped KB auto-gen for tenant ${tenantCode} ticket #${meta.ticketId || '?'} (queue full: ${state.queue.length}/${QUEUE_MAX}) [dropped=${metrics.dropped}]`);
     return;
   }
 
+  metrics.enqueued++;
   state.queue.push({ jobFn, meta });
+  console.log(`[KB-Queue] Enqueued ticket #${meta.ticketId || '?'} (tenant: ${tenantCode}) [enqueued=${metrics.enqueued} globalRunning=${globalRunning}/${GLOBAL_LIMIT}]`);
   drain(tenantCode);
 }
 
@@ -60,18 +73,26 @@ function drain(tenantCode) {
     state.running++;
     globalRunning++;
 
+    const jobStart = Date.now();
+    metrics.running++;
+
     jobFn()
       .then(result => {
-        if (result && result.success && result.article_id) {
-          console.log(`[KB-Queue] Generated ${result.article_id} from ticket #${meta.ticketId || '?'} (tenant: ${tenantCode})`);
+        metrics.completed++;
+        const durationMs = Date.now() - jobStart;
+        if (result && result.success && result.article_id && !result.skipped) {
+          console.log(`[KB-Queue] Generated ${result.article_id} from ticket #${meta.ticketId || '?'} (tenant: ${tenantCode}) [${durationMs}ms]`);
         } else if (result && result.skipped) {
-          console.log(`[KB-Queue] Skipped ticket #${meta.ticketId || '?'}: ${result.reason || 'already exists'}`);
+          metrics.suppressed++;
+          console.log(`[KB-Queue] Skipped ticket #${meta.ticketId || '?'}: ${result.reason || 'already exists'} [${durationMs}ms suppressed=${metrics.suppressed}]`);
         }
       })
       .catch(err => {
-        console.error(`[KB-Queue] Failed for tenant ${tenantCode} ticket #${meta.ticketId || '?'}:`, err.message);
+        metrics.failed++;
+        console.error(`[KB-Queue] Failed for tenant ${tenantCode} ticket #${meta.ticketId || '?'}:`, err.message, `[failed=${metrics.failed}]`);
       })
       .finally(() => {
+        metrics.running--;
         state.running--;
         globalRunning--;
         drain(tenantCode);
@@ -83,7 +104,7 @@ function drain(tenantCode) {
  * Get queue statistics for observability.
  */
 function getQueueStats() {
-  const stats = { globalRunning, tenants: {} };
+  const stats = { globalRunning, metrics: { ...metrics }, tenants: {} };
   for (const [tenant, state] of tenantState) {
     stats.tenants[tenant] = {
       running: state.running,
