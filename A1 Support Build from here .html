@@ -3379,7 +3379,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           <div class="grid2">
             <div class="card p-16">
               <div class="mb-12"><div class="subtitle">Title</div><input id="td-title" class="input"/></div>
-              <div class="mb-12"><div class="subtitle">Description</div><textarea id="td-desc" class="input" placeholder="(Demo text)"></textarea></div>
+              <div class="mb-12"><div class="subtitle">Description</div><textarea id="td-desc" class="input" placeholder="(Demo text)" rows="6" style="min-height:120px;resize:vertical"></textarea></div>
               <div class="row mb-12">
                 <div style="flex:1"><div class="subtitle">Priority</div><select id="td-priority" class="input"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="critical">Critical</option></select></div>
                 <div style="flex:1"><div class="subtitle">Status</div><select id="td-status" class="input" disabled><option>Open</option><option>In Progress</option><option>Pending</option><option>Resolved</option></select></div>
@@ -16573,7 +16573,11 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         // Update form fields with latest data
         document.getElementById('td-id').innerHTML = '#' + ticket.id + systemSourceBadgeHTML(t, false);
         document.getElementById('td-title').value = ticket.title || '';
-        document.getElementById('td-desc').value = ticket.description || '';
+        const descEl = document.getElementById('td-desc');
+        descEl.value = ticket.description || '';
+        // Auto-resize to fit content (cap at 400px)
+        descEl.style.height = 'auto';
+        descEl.style.height = Math.min(descEl.scrollHeight, 400) + 'px';
         document.getElementById('td-priority').value = ticket.priority || 'medium';
         document.getElementById('td-status').value = ticket.status || 'open';
         document.getElementById('td-due').value = ticket.sla_deadline ? ticket.sla_deadline.split('T')[0] : '';
