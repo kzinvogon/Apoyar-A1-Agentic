@@ -54,8 +54,7 @@ async function logAudit({ tenantCode, user, action, entityType, entityId = null,
     if (details) {
       sanitizedDetails = {};
       // Only keep safe metadata fields
-      const safeFields = ['key', 'scope', 'countReturned', 'countExported', 'created', 'updated', 'errors', 'keysImported',
-        'title', 'priority', 'status', 'action', 'ticketCount', 'processed', 'failed', 'deleted', 'assignee', 'from', 'to'];
+      const safeFields = ['key', 'scope', 'countReturned', 'countExported', 'created', 'updated', 'errors', 'keysImported'];
       for (const field of safeFields) {
         if (details[field] !== undefined) {
           // For keysImported, just store the count not the actual keys
@@ -102,12 +101,6 @@ const AUDIT_ACTIONS = {
   LOGIN_FAILED: 'LOGIN_FAILED',
   PASSWORD_CHANGE: 'PASSWORD_CHANGE',
   PASSWORD_RESET: 'PASSWORD_RESET',
-  // Tickets
-  TICKET_CREATE: 'TICKET_CREATE',
-  TICKET_UPDATE: 'TICKET_UPDATE',
-  TICKET_DELETE: 'TICKET_DELETE',
-  TICKET_BULK_ACTION: 'TICKET_BULK_ACTION',
-  TICKET_BULK_DELETE: 'TICKET_BULK_DELETE',
   // User management
   USER_INVITE: 'USER_INVITE',
   USER_TOGGLE: 'USER_TOGGLE',
