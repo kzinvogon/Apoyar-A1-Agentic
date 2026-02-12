@@ -242,6 +242,22 @@ async function createMasterTables() {
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES master_users(id)
     )`,
+    `CREATE TABLE IF NOT EXISTS audit_log (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      tenant_code VARCHAR(50) NOT NULL,
+      user_id INT NULL,
+      username VARCHAR(100) NULL,
+      action VARCHAR(50) NOT NULL,
+      entity_type VARCHAR(50) NOT NULL,
+      entity_id VARCHAR(100) NULL,
+      details_json JSON NULL,
+      ip VARCHAR(64) NULL,
+      user_agent VARCHAR(255) NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_tenant_code (tenant_code),
+      INDEX idx_action (action),
+      INDEX idx_created_at (created_at)
+    )`,
   ];
 
   for (const sql of statements) {

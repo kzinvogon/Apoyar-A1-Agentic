@@ -16,6 +16,7 @@ const {
 } = require('../middleware/rateLimiter');
 const crypto = require('crypto');
 const { sendEmail } = require('../config/email');
+const { logAudit, AUDIT_ACTIONS } = require('../utils/auditLog');
 
 // Master user login
 router.post('/master/login', loginLimiter, validateLogin, async (req, res) => {
@@ -48,6 +49,7 @@ router.post('/tenant/login', loginLimiter, validateTenantLogin, async (req, res)
     const result = await authenticateTenantUser(tenant_code, username, password);
 
     if (!result.success) {
+      logAudit({ tenantCode: tenant_code, user: { username }, action: AUDIT_ACTIONS.LOGIN_FAILED, entityType: 'AUTH', req }).catch(() => {});
       return res.status(401).json({ success: false, message: result.message });
     }
 
@@ -61,6 +63,8 @@ router.post('/tenant/login', loginLimiter, validateTenantLogin, async (req, res)
         resetToken: result.resetToken
       });
     }
+
+    logAudit({ tenantCode: tenant_code, user: { userId: result.user.id, username }, action: AUDIT_ACTIONS.LOGIN, entityType: 'AUTH', req }).catch(() => {});
 
     res.json({
       success: true,
@@ -255,6 +259,7 @@ router.post('/tenant/change-password', passwordChangeLimiter, validateTenantPass
         [newPasswordHash, user.id]
       );
 
+      logAudit({ tenantCode: tenant_code, user: { userId: user.id, username }, action: AUDIT_ACTIONS.PASSWORD_CHANGE, entityType: 'AUTH', req }).catch(() => {});
       res.json({ success: true, message: 'Password changed successfully' });
     } finally {
       connection.release();

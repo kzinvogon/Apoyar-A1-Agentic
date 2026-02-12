@@ -54,7 +54,8 @@ async function logAudit({ tenantCode, user, action, entityType, entityId = null,
     if (details) {
       sanitizedDetails = {};
       // Only keep safe metadata fields
-      const safeFields = ['key', 'scope', 'countReturned', 'countExported', 'created', 'updated', 'errors', 'keysImported'];
+      const safeFields = ['key', 'scope', 'countReturned', 'countExported', 'created', 'updated', 'errors', 'keysImported',
+        'title', 'priority', 'status', 'action', 'ticketCount', 'processed', 'failed', 'deleted', 'assignee', 'from', 'to'];
       for (const field of safeFields) {
         if (details[field] !== undefined) {
           // For keysImported, just store the count not the actual keys
@@ -94,8 +95,25 @@ async function logAudit({ tenantCode, user, action, entityType, entityId = null,
   }
 }
 
-// Action constants for Raw Variables
+// Action constants
 const AUDIT_ACTIONS = {
+  // Auth
+  LOGIN: 'LOGIN',
+  LOGIN_FAILED: 'LOGIN_FAILED',
+  PASSWORD_CHANGE: 'PASSWORD_CHANGE',
+  PASSWORD_RESET: 'PASSWORD_RESET',
+  // Tickets
+  TICKET_CREATE: 'TICKET_CREATE',
+  TICKET_UPDATE: 'TICKET_UPDATE',
+  TICKET_DELETE: 'TICKET_DELETE',
+  TICKET_BULK_ACTION: 'TICKET_BULK_ACTION',
+  TICKET_BULK_DELETE: 'TICKET_BULK_DELETE',
+  // User management
+  USER_INVITE: 'USER_INVITE',
+  USER_TOGGLE: 'USER_TOGGLE',
+  // Settings
+  SETTINGS_UPDATE: 'SETTINGS_UPDATE',
+  // Raw Variables
   RAW_VARS_OPEN: 'RAW_VARS_OPEN',
   RAW_VAR_CREATE: 'RAW_VAR_CREATE',
   RAW_VAR_UPDATE: 'RAW_VAR_UPDATE',
