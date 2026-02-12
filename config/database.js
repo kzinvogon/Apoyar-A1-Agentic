@@ -164,6 +164,25 @@ async function initializeMasterDatabase() {
     console.log('✅ Master database tables created');
   } else {
     console.log('✅ Master database tables already exist');
+    // Ensure audit_log table exists (added later, may be missing on older deployments)
+    await hardenedPool.masterQuery(`
+      CREATE TABLE IF NOT EXISTS audit_log (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        tenant_code VARCHAR(50) NOT NULL,
+        user_id INT NULL,
+        username VARCHAR(100) NULL,
+        action VARCHAR(50) NOT NULL,
+        entity_type VARCHAR(50) NOT NULL,
+        entity_id VARCHAR(100) NULL,
+        details_json JSON NULL,
+        ip VARCHAR(64) NULL,
+        user_agent VARCHAR(255) NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_tenant_code (tenant_code),
+        INDEX idx_action (action),
+        INDEX idx_created_at (created_at)
+      )
+    `);
     // Ensure default admin exists
     const existingAdmin = await hardenedPool.masterQuery('SELECT id FROM master_users WHERE username = ?', ['admin']);
     if (existingAdmin.length === 0) {
