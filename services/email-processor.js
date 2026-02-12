@@ -1452,31 +1452,34 @@ class EmailProcessor {
     }
 
     // Method 4: Subject + Sender matching
-    // Strip Re:/Fwd: prefixes and look for an existing ticket with the same
-    // title created by the same sender (via requester email).  This catches
-    // replies where the email client drops the [Ticket #NNN] token and does
-    // not preserve In-Reply-To / References headers.
-    const cleanSubject = subject
-      .replace(/^(Re|Fwd|FW|RE|FWD):\s*/gi, '')
-      .trim();
+    // Strip Re:/Fwd: prefixes and look for an existing ticket whose title
+    // (also stripped) matches, created by someone at the same email domain.
+    // This catches replies where the [Ticket #NNN] token was dropped and
+    // In-Reply-To / References headers were not preserved.
+    const REPLY_PREFIX_RE = /^(Re|Fwd|FW|RE|FWD):\s*/gi;
+    const cleanSubject = subject.replace(REPLY_PREFIX_RE, '').trim();
 
     if (cleanSubject.length > 0 && email.from) {
       try {
         let senderEmail = email.from.toLowerCase().trim();
         const angleMatch = senderEmail.match(/<(.+?)>/);
         if (angleMatch) senderEmail = angleMatch[1];
+        const senderDomain = senderEmail.split('@')[1];
 
+        // Match against tickets whose title (after stripping Re:/Fwd:) equals
+        // the cleaned subject, from any user at the same email domain.
         const [subjectRows] = await connection.query(
           `SELECT t.id FROM tickets t
            JOIN users u ON t.requester_id = u.id
-           WHERE t.title = ? AND u.email = ?
+           WHERE TRIM(LEADING 'Re: ' FROM TRIM(LEADING 'RE: ' FROM TRIM(LEADING 'Fwd: ' FROM TRIM(LEADING 'FW: ' FROM t.title)))) = ?
+             AND u.email LIKE ?
              AND t.status NOT IN ('Closed', 'Cancelled')
-           ORDER BY t.created_at DESC LIMIT 1`,
-          [cleanSubject, senderEmail]
+           ORDER BY t.created_at ASC LIMIT 1`,
+          [cleanSubject, `%@${senderDomain}`]
         );
 
         if (subjectRows.length > 0) {
-          console.log(`🔗 [Threading] Subject+sender match: ticket #${subjectRows[0].id} (subject="${cleanSubject}", sender=${senderEmail})`);
+          console.log(`🔗 [Threading] Subject+domain match: ticket #${subjectRows[0].id} (subject="${cleanSubject}", domain=${senderDomain})`);
           return {
             ticketId: subjectRows[0].id,
             method: 'subject_sender_match',
