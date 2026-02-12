@@ -11,6 +11,7 @@ const {
   buildProfile,
   parseDaysOfWeek
 } = require('./sla-calculator');
+const { logTicketActivity } = require('./activityLogger');
 
 // Mutex to prevent overlapping runs
 let isRunning = false;
@@ -278,6 +279,13 @@ async function processTenant(tenantCode) {
           };
           await createNotification(connection, ticket.id, NOTIFICATION_TYPES.RESPONSE_PAST, msg, payload);
           await markNotified(connection, ticket.id, 'notified_response_past_at');
+          logTicketActivity(connection, {
+            ticketId: ticket.id, userId: null, activityType: 'sla_notification',
+            description: `SLA response past breach (${responsePercent}% of ${ticket.sla_name})`,
+            isPublic: false, source: 'system', actorType: 'system',
+            eventKey: 'sla.breached',
+            meta: { sla: 'response', thresholdMinutes: pastPercent, elapsedPercent: responsePercent, severity: 'breach', slaName: ticket.sla_name }
+          }).catch(e => console.error(`[SLA_NOTIFY] Activity log failed ticket=${ticket.id}:`, e.message));
           console.log(`[SLA_NOTIFY] ${tenantCode} ticket=${ticket.id} type=SLA_RESPONSE_PAST percent=${responsePercent}`);
           notificationCount++;
         }
@@ -294,6 +302,13 @@ async function processTenant(tenantCode) {
           };
           await createNotification(connection, ticket.id, NOTIFICATION_TYPES.RESPONSE_BREACHED, msg, payload);
           await markNotified(connection, ticket.id, 'notified_response_breached_at');
+          logTicketActivity(connection, {
+            ticketId: ticket.id, userId: null, activityType: 'sla_notification',
+            description: `SLA response breached (${responsePercent}% of ${ticket.sla_name})`,
+            isPublic: false, source: 'system', actorType: 'system',
+            eventKey: 'sla.breached',
+            meta: { sla: 'response', thresholdMinutes: 100, elapsedPercent: responsePercent, severity: 'breach', slaName: ticket.sla_name }
+          }).catch(e => console.error(`[SLA_NOTIFY] Activity log failed ticket=${ticket.id}:`, e.message));
           console.log(`[SLA_NOTIFY] ${tenantCode} ticket=${ticket.id} type=SLA_RESPONSE_BREACHED percent=${responsePercent}`);
           notificationCount++;
         }
@@ -310,6 +325,13 @@ async function processTenant(tenantCode) {
           };
           await createNotification(connection, ticket.id, NOTIFICATION_TYPES.RESPONSE_NEAR, msg, payload);
           await markNotified(connection, ticket.id, 'notified_response_near_at');
+          logTicketActivity(connection, {
+            ticketId: ticket.id, userId: null, activityType: 'sla_notification',
+            description: `SLA response near breach (${responsePercent}% of ${ticket.sla_name})`,
+            isPublic: false, source: 'system', actorType: 'system',
+            eventKey: 'sla.threshold.hit',
+            meta: { sla: 'response', thresholdMinutes: nearPercent, elapsedPercent: responsePercent, severity: 'warning', slaName: ticket.sla_name }
+          }).catch(e => console.error(`[SLA_NOTIFY] Activity log failed ticket=${ticket.id}:`, e.message));
           console.log(`[SLA_NOTIFY] ${tenantCode} ticket=${ticket.id} type=SLA_RESPONSE_NEAR percent=${responsePercent}`);
           notificationCount++;
         }
@@ -334,6 +356,13 @@ async function processTenant(tenantCode) {
           };
           await createNotification(connection, ticket.id, NOTIFICATION_TYPES.RESOLVE_PAST, msg, payload);
           await markNotified(connection, ticket.id, 'notified_resolve_past_at');
+          logTicketActivity(connection, {
+            ticketId: ticket.id, userId: null, activityType: 'sla_notification',
+            description: `SLA resolution past breach (${resolvePercent}% of ${ticket.sla_name})`,
+            isPublic: false, source: 'system', actorType: 'system',
+            eventKey: 'sla.breached',
+            meta: { sla: 'resolution', thresholdMinutes: pastPercent, elapsedPercent: resolvePercent, severity: 'breach', slaName: ticket.sla_name }
+          }).catch(e => console.error(`[SLA_NOTIFY] Activity log failed ticket=${ticket.id}:`, e.message));
           console.log(`[SLA_NOTIFY] ${tenantCode} ticket=${ticket.id} type=SLA_RESOLVE_PAST percent=${resolvePercent}`);
           notificationCount++;
         }
@@ -350,6 +379,13 @@ async function processTenant(tenantCode) {
           };
           await createNotification(connection, ticket.id, NOTIFICATION_TYPES.RESOLVE_BREACHED, msg, payload);
           await markNotified(connection, ticket.id, 'notified_resolve_breached_at');
+          logTicketActivity(connection, {
+            ticketId: ticket.id, userId: null, activityType: 'sla_notification',
+            description: `SLA resolution breached (${resolvePercent}% of ${ticket.sla_name})`,
+            isPublic: false, source: 'system', actorType: 'system',
+            eventKey: 'sla.breached',
+            meta: { sla: 'resolution', thresholdMinutes: 100, elapsedPercent: resolvePercent, severity: 'breach', slaName: ticket.sla_name }
+          }).catch(e => console.error(`[SLA_NOTIFY] Activity log failed ticket=${ticket.id}:`, e.message));
           console.log(`[SLA_NOTIFY] ${tenantCode} ticket=${ticket.id} type=SLA_RESOLVE_BREACHED percent=${resolvePercent}`);
           notificationCount++;
         }
@@ -366,6 +402,13 @@ async function processTenant(tenantCode) {
           };
           await createNotification(connection, ticket.id, NOTIFICATION_TYPES.RESOLVE_NEAR, msg, payload);
           await markNotified(connection, ticket.id, 'notified_resolve_near_at');
+          logTicketActivity(connection, {
+            ticketId: ticket.id, userId: null, activityType: 'sla_notification',
+            description: `SLA resolution near breach (${resolvePercent}% of ${ticket.sla_name})`,
+            isPublic: false, source: 'system', actorType: 'system',
+            eventKey: 'sla.threshold.hit',
+            meta: { sla: 'resolution', thresholdMinutes: nearPercent, elapsedPercent: resolvePercent, severity: 'warning', slaName: ticket.sla_name }
+          }).catch(e => console.error(`[SLA_NOTIFY] Activity log failed ticket=${ticket.id}:`, e.message));
           console.log(`[SLA_NOTIFY] ${tenantCode} ticket=${ticket.id} type=SLA_RESOLVE_NEAR percent=${resolvePercent}`);
           notificationCount++;
         }

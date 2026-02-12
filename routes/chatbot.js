@@ -3,6 +3,7 @@ const router = express.Router();
 const { getTenantConnection } = require('../config/database');
 const { verifyToken } = require('../middleware/auth');
 const { TicketRulesService } = require('../services/ticket-rules-service');
+const { logTicketActivity } = require('../services/activityLogger');
 
 // Apply verifyToken middleware to all chatbot routes
 router.use(verifyToken);
@@ -73,11 +74,14 @@ router.post('/:tenantId/chat/create-ticket', async (req, res) => {
       const ticketId = result.insertId;
 
       // Log activity
-      await connection.query(
-        `INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
-         VALUES (?, ?, ?, ?)`,
-        [ticketId, req.user.userId, 'created', `Ticket created via chatbot by ${req.user.username}`]
-      );
+      await logTicketActivity(connection, {
+        ticketId,
+        userId: req.user.userId,
+        activityType: 'created',
+        description: `Ticket created via chatbot by ${req.user.username}`,
+        source: 'chatbot',
+        eventKey: 'ticket.created'
+      });
 
       // Execute ticket processing rules (fire-and-forget)
       const rulesService = new TicketRulesService(tenantCode);

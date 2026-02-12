@@ -11,6 +11,7 @@ const { sendNotificationEmail } = require('../config/email');
 const { createTicketAccessToken } = require('../utils/tokenGenerator');
 const { resolveApplicableSLA } = require('./sla-selector');
 const { computeInitialDeadlines } = require('./sla-calculator');
+const { logTicketActivity } = require('./activityLogger');
 const Imap = require('imap');
 const { simpleParser } = require('mailparser');
 const bcrypt = require('bcrypt');
@@ -1510,11 +1511,14 @@ class EmailProcessor {
       const activityType = isAutomated ? 'auto_reply' : 'email_reply';
       const activityDescription = `**${label}**\n\nFrom: ${email.from}\nSubject: ${email.subject || '(No subject)'}\n\n${body}`;
 
-      const [result] = await connection.query(
-        `INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
-         VALUES (?, ?, ?, ?)`,
-        [ticketId, requesterId, activityType, activityDescription]
-      );
+      const result = await logTicketActivity(connection, {
+        ticketId,
+        userId: requesterId,
+        activityType,
+        description: activityDescription,
+        source: 'email',
+        eventKey: isAutomated ? 'ticket.auto_reply' : 'ticket.email_reply'
+      });
 
       const logLabel = isAutomated ? 'auto-reply' : 'email reply';
       console.log(`✅ [Threading] Added ${logLabel} as activity #${result.insertId} to ticket #${ticketId}`);
@@ -1978,10 +1982,14 @@ class EmailProcessor {
       sourceInfo = `Ticket created from email: ${email.from}`;
     }
 
-    await connection.query(
-      'INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description) VALUES (?, ?, ?, ?)',
-      [ticketId, requesterId, 'created', sourceInfo]
-    );
+    await logTicketActivity(connection, {
+      ticketId,
+      userId: requesterId,
+      activityType: 'created',
+      description: sourceInfo,
+      source: 'email',
+      eventKey: 'ticket.created'
+    });
 
     // Execute ticket processing rules (fire-and-forget)
     this.executeTicketRules(ticketId);

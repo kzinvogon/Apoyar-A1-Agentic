@@ -23,6 +23,7 @@ require('dotenv').config();
 
 const { getTenantConnection } = require('../config/database');
 const { AIAnalysisService, safeParseJson } = require('../services/ai-analysis-service');
+const { logTicketActivity } = require('../services/activityLogger');
 
 // ============================================================================
 // CONCURRENCY LIMITER (Simple semaphore for fire-and-forget classification)
@@ -217,13 +218,16 @@ async function classifyTicket(tenantCode, ticketId, options = {}) {
       }
 
       // Log activity
-      await connection.query(`
-        INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
-        VALUES (?, NULL, 'classified', ?)
-      `, [
+      await logTicketActivity(connection, {
         ticketId,
-        `AI classified as ${classification.work_type}/${classification.execution_mode} (${(classification.confidence * 100).toFixed(0)}% confidence)`
-      ]);
+        userId: null,
+        activityType: 'classified',
+        description: `AI classified as ${classification.work_type}/${classification.execution_mode} (${(classification.confidence * 100).toFixed(0)}% confidence)`,
+        source: 'system',
+        actorType: 'system',
+        eventKey: 'ticket.classified',
+        meta: { workType: classification.work_type, executionMode: classification.execution_mode, confidence: classification.confidence }
+      });
     }
 
     const processingTime = Date.now() - startTime;
@@ -691,14 +695,15 @@ async function updateClassification(tenantCode, ticketId, classification, userId
     });
 
     // Log activity
-    await connection.query(`
-      INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
-      VALUES (?, ?, 'classified', ?)
-    `, [
+    await logTicketActivity(connection, {
       ticketId,
       userId,
-      `Manually classified as ${classification.work_type || 'N/A'}/${classification.execution_mode || 'N/A'}`
-    ]);
+      activityType: 'classified',
+      description: `Manually classified as ${classification.work_type || 'N/A'}/${classification.execution_mode || 'N/A'}`,
+      source: 'web',
+      eventKey: 'ticket.classified',
+      meta: { workType: classification.work_type, executionMode: classification.execution_mode, classifiedBy: 'human' }
+    });
 
     return {
       success: true,

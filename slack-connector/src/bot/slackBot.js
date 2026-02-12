@@ -5,6 +5,7 @@
 
 const crypto = require('crypto');
 const { getTenantConnection, getMasterConnection } = require('../config/database');
+const { logTicketActivity } = require('../../../services/activityLogger');
 const {
   buildTicketBlocks,
   buildTicketListBlocks,
@@ -475,11 +476,14 @@ async function handleCreateTicket(respond, pool, userId, description, mode) {
 
   const ticketId = result.insertId;
 
-  await pool.query(
-    `INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
-     VALUES (?, ?, 'created', ?)`,
-    [ticketId, userId, `Ticket created via Slack`]
-  );
+  await logTicketActivity(pool, {
+    ticketId,
+    userId,
+    activityType: 'created',
+    description: 'Ticket created via Slack',
+    source: 'slack',
+    eventKey: 'ticket.created'
+  });
 
   // Get full ticket
   const [tickets] = await pool.query(
@@ -577,11 +581,14 @@ async function handleAssignTicket(respond, pool, userId, ticketId) {
     [userId, ticketId]
   );
 
-  await pool.query(
-    `INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
-     VALUES (?, ?, 'assigned', ?)`,
-    [ticketId, userId, `Assigned to ${userName} via Slack`]
-  );
+  await logTicketActivity(pool, {
+    ticketId,
+    userId,
+    activityType: 'assigned',
+    description: `Assigned to ${userName} via Slack`,
+    source: 'slack',
+    eventKey: 'ticket.assigned'
+  });
 
   await respond({ text: `:white_check_mark: Ticket #${ticketId} assigned to you.` });
 }
@@ -601,11 +608,14 @@ async function handleResolveTicket(respond, pool, userId, ticketId, comment) {
     [userId, comment, ticketId]
   );
 
-  await pool.query(
-    `INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
-     VALUES (?, ?, 'resolved', ?)`,
-    [ticketId, userId, `Resolved by ${userName} via Slack: ${comment}`]
-  );
+  await logTicketActivity(pool, {
+    ticketId,
+    userId,
+    activityType: 'resolved',
+    description: `Resolved by ${userName} via Slack: ${comment}`,
+    source: 'slack',
+    eventKey: 'ticket.resolved'
+  });
 
   await respond({ text: `:white_check_mark: Ticket #${ticketId} resolved.` });
 }

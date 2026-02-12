@@ -1,5 +1,6 @@
 const { getTenantConnection } = require('../config/database');
 const { buildSLAFacts } = require('./sla-calculator');
+const { logTicketActivity } = require('./activityLogger');
 
 /**
  * AI Email Analysis Service
@@ -1143,11 +1144,12 @@ Provide JSON suggestions for efficient ticket handling.`
               'UPDATE tickets SET assignee_id = ?, status = ? WHERE id = ?',
               [action.params.assignee_id, 'In Progress', ticketId]
             );
-            await connection.query(
-              `INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
-               VALUES (?, ?, 'assigned', ?)`,
-              [ticketId, userId, `AI suggested assignment accepted`]
-            );
+            await logTicketActivity(connection, {
+              ticketId, userId, activityType: 'assigned',
+              description: 'AI suggested assignment accepted',
+              source: 'system', eventKey: 'ticket.assigned',
+              meta: { assigneeId: action.params.assignee_id, triggeredBy: 'ai_suggestion' }
+            });
             results.push({ success: true, action: 'assign', message: 'Ticket assigned' });
           }
           break;
@@ -1158,11 +1160,12 @@ Provide JSON suggestions for efficient ticket handling.`
               'UPDATE tickets SET priority = ? WHERE id = ?',
               [action.params.priority, ticketId]
             );
-            await connection.query(
-              `INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
-               VALUES (?, ?, 'updated', ?)`,
-              [ticketId, userId, `Priority set to ${action.params.priority} (AI suggestion)`]
-            );
+            await logTicketActivity(connection, {
+              ticketId, userId, activityType: 'updated',
+              description: `Priority set to ${action.params.priority} (AI suggestion)`,
+              source: 'system', eventKey: 'ticket.priority.changed',
+              meta: { field: 'priority', to: action.params.priority, triggeredBy: 'ai_suggestion' }
+            });
             results.push({ success: true, action: 'priority', message: `Priority set to ${action.params.priority}` });
           }
           break;
@@ -1179,11 +1182,12 @@ Provide JSON suggestions for efficient ticket handling.`
 
         case 'respond':
           if (action.params.response) {
-            await connection.query(
-              `INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
-               VALUES (?, ?, 'comment', ?)`,
-              [ticketId, userId, action.params.response]
-            );
+            await logTicketActivity(connection, {
+              ticketId, userId, activityType: 'comment',
+              description: action.params.response,
+              source: 'system', eventKey: 'ticket.comment.added',
+              meta: { triggeredBy: 'ai_suggestion' }
+            });
             results.push({ success: true, action: 'respond', message: 'Response added to ticket' });
           }
           break;
@@ -1193,11 +1197,12 @@ Provide JSON suggestions for efficient ticket handling.`
             'UPDATE tickets SET status = ? WHERE id = ?',
             ['Closed', ticketId]
           );
-          await connection.query(
-            `INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
-             VALUES (?, ?, 'closed', 'Ticket closed via AI suggestion')`,
-            [ticketId, userId]
-          );
+          await logTicketActivity(connection, {
+            ticketId, userId, activityType: 'closed',
+            description: 'Ticket closed via AI suggestion',
+            source: 'system', eventKey: 'ticket.status.changed',
+            meta: { field: 'status', to: 'Closed', triggeredBy: 'ai_suggestion' }
+          });
           results.push({ success: true, action: 'close', message: 'Ticket closed' });
           break;
       }
@@ -2051,10 +2056,12 @@ Find all relevant infrastructure items. Respond with JSON only.`
       }
 
       // Log activity
-      await connection.query(`
-        INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
-        VALUES (?, ?, 'comment', ?)
-      `, [ticketId, userId, `CMDB Linked: ${results.cmdbLinked} CMDB items and ${results.ciLinked} CIs (${matchedBy})`]);
+      await logTicketActivity(connection, {
+        ticketId, userId, activityType: 'comment',
+        description: `CMDB Linked: ${results.cmdbLinked} CMDB items and ${results.ciLinked} CIs (${matchedBy})`,
+        source: 'system', eventKey: 'ticket.cmdb.linked',
+        meta: { cmdbLinked: results.cmdbLinked, ciLinked: results.ciLinked, matchedBy }
+      });
 
       return results;
 
@@ -2120,10 +2127,12 @@ Find all relevant infrastructure items. Respond with JSON only.`
         DELETE FROM ticket_cmdb_items WHERE ticket_id = ? AND cmdb_item_id = ?
       `, [ticketId, cmdbItemId]);
 
-      await connection.query(`
-        INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
-        VALUES (?, ?, 'comment', 'CMDB Unlinked: Removed CMDB item link')
-      `, [ticketId, userId]);
+      await logTicketActivity(connection, {
+        ticketId, userId, activityType: 'comment',
+        description: 'CMDB Unlinked: Removed CMDB item link',
+        source: 'system', eventKey: 'ticket.cmdb.unlinked',
+        meta: { cmdbItemId }
+      });
 
       return { success: true };
 
@@ -2143,10 +2152,12 @@ Find all relevant infrastructure items. Respond with JSON only.`
         DELETE FROM ticket_configuration_items WHERE ticket_id = ? AND ci_id = ?
       `, [ticketId, ciId]);
 
-      await connection.query(`
-        INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
-        VALUES (?, ?, 'comment', 'CMDB Unlinked: Removed CI link')
-      `, [ticketId, userId]);
+      await logTicketActivity(connection, {
+        ticketId, userId, activityType: 'comment',
+        description: 'CMDB Unlinked: Removed CI link',
+        source: 'system', eventKey: 'ticket.cmdb.unlinked',
+        meta: { ciId }
+      });
 
       return { success: true };
 
