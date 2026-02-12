@@ -81,6 +81,10 @@ class ProductionMonitor: ObservableObject {
     @AppStorage("notificationsEnabled") var notificationsEnabled = true
     @AppStorage("consecutiveFailuresBeforeAlert") var consecutiveFailuresBeforeAlert = 2
 
+    // SMS alerting via iMessage
+    @AppStorage("smsAlertEnabled") var smsAlertEnabled = false
+    @AppStorage("smsAlertNumber") var smsAlertNumber = ""
+
     // Auto-diagnose configuration
     @AppStorage("autoDiagnoseEnabled") var autoDiagnoseEnabled = false
     @AppStorage("projectPath") var projectPath = "/Users/davidhamilton/Dev/Apoyar-A1-Agentic"
@@ -335,6 +339,34 @@ class ProductionMonitor: ObservableObject {
 
         let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
         UNUserNotificationCenter.current().add(request)
+
+        // Also send SMS via iMessage if enabled
+        if smsAlertEnabled && !smsAlertNumber.isEmpty {
+            sendSMS(message: "\(title): \(body)")
+        }
+    }
+
+    private func sendSMS(message: String) {
+        let sanitizedNumber = smsAlertNumber.trimmingCharacters(in: .whitespacesAndNewlines)
+        let sanitizedMessage = message.replacingOccurrences(of: "\"", with: "'")
+
+        let script = """
+        tell application "Messages"
+            set targetService to 1st account whose service type = iMessage
+            set targetBuddy to participant "\(sanitizedNumber)" of targetService
+            send "\(sanitizedMessage)" to targetBuddy
+        end tell
+        """
+
+        if let appleScript = NSAppleScript(source: script) {
+            var error: NSDictionary?
+            appleScript.executeAndReturnError(&error)
+            if let error = error {
+                print("[SMS] Failed to send iMessage: \(error)")
+            } else {
+                print("[SMS] iMessage sent to \(sanitizedNumber)")
+            }
+        }
     }
 
     // MARK: - Auto-Diagnose Feature
