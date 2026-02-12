@@ -1189,16 +1189,19 @@ router.get('/:tenantId/:ticketId', readOperationsLimiter, validateTicketGet, asy
       // Enrich with SLA status
       await enrichTicketWithSLAStatus(ticket, connection);
 
+      res.json({ success: true, ticket, activities });
+
       // Log staff views (fire-and-forget, DB-level 5-min dedupe)
+      // Uses its own connection to avoid racing with the release below
       if (req.user.role !== 'customer') {
-        logTicketViewIfNotRecent(connection, {
-          ticketId: parseInt(ticketId, 10),
-          userId: req.user.userId,
-          source: 'web'
+        getTenantConnection(tenantCode).then(viewConn => {
+          logTicketViewIfNotRecent(viewConn, {
+            ticketId: parseInt(ticketId, 10),
+            userId: req.user.userId,
+            source: 'web'
+          }).catch(() => {}).finally(() => viewConn.release());
         }).catch(() => {});
       }
-
-      res.json({ success: true, ticket, activities });
     } finally {
       connection.release();
     }
