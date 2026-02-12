@@ -16488,17 +16488,17 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const navList = window.ticketNavList || [];
 
     if (navList.length <= 1) {
-      navButtons.style.display = 'none';
-      navPlaceholder.style.display = 'block';
+      if (navButtons) navButtons.style.display = 'none';
+      if (navPlaceholder) navPlaceholder.style.display = 'block';
       return;
     }
 
-    navButtons.style.display = 'flex';
-    navPlaceholder.style.display = 'none';
+    if (navButtons) navButtons.style.display = 'flex';
+    if (navPlaceholder) navPlaceholder.style.display = 'none';
     const currentIndex = navList.indexOf(currentTicketId);
 
-    prevBtn.disabled = currentIndex <= 0;
-    nextBtn.disabled = currentIndex >= navList.length - 1 || currentIndex === -1;
+    if (prevBtn) prevBtn.disabled = currentIndex <= 0;
+    if (nextBtn) nextBtn.disabled = currentIndex >= navList.length - 1 || currentIndex === -1;
   }
 
   function navigateToPrevTicket() {
