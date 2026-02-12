@@ -6846,8 +6846,15 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const targetScreen = document.getElementById(where==='login'?'scr-login':'scr-app');
     targetScreen.classList.add('active');
     targetScreen.style.display = 'block';
-    // Show/hide top nav user section based on screen
-    document.getElementById('topnav-right').style.display = (where==='login') ? 'none' : 'flex';
+    const isLogin = where === 'login';
+    // Show/hide top nav elements based on screen
+    document.getElementById('topnav-right').style.display = isLogin ? 'none' : 'flex';
+    const sidebarBtn = document.getElementById('sidebar-toggle-btn');
+    if (sidebarBtn) sidebarBtn.style.display = isLogin ? 'none' : 'flex';
+    const menuToggle = document.getElementById('mobile-menu-toggle');
+    if (menuToggle) menuToggle.style.display = isLogin ? 'none' : '';
+    const searchBtn = document.querySelector('.topnav-search-btn');
+    if (searchBtn) searchBtn.style.display = isLogin ? 'none' : '';
   }
 
   // Theme Controller
