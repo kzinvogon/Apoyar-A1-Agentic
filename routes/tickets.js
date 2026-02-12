@@ -2364,11 +2364,11 @@ router.put('/:tenantId/:ticketId', writeOperationsLimiter, validateTicketUpdate,
         'SELECT * FROM tickets WHERE id = ?',
         [ticketId]
       );
-      
+
       if (currentTickets.length === 0) {
         return res.status(404).json({ success: false, message: 'Ticket not found' });
       }
-      
+
       const currentTicket = currentTickets[0];
       const oldStatus = currentTicket.status;
       const oldAssigneeId = currentTicket.assignee_id;
@@ -2376,7 +2376,7 @@ router.put('/:tenantId/:ticketId', writeOperationsLimiter, validateTicketUpdate,
       // Update ticket
       const updates = [];
       const values = [];
-      
+
       if (status !== undefined) {
         updates.push('status = ?');
         values.push(status);
@@ -2421,32 +2421,31 @@ router.put('/:tenantId/:ticketId', writeOperationsLimiter, validateTicketUpdate,
         updates.push('priority = ?');
         values.push(priority);
       }
-      
+
       if (updates.length === 0) {
         return res.status(400).json({ success: false, message: 'No fields to update' });
       }
-      
+
       values.push(ticketId);
-      
-      await connection.query(
-        `UPDATE tickets SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-        values
-      );
-      
-      // Log activity
+
+      // Build activity description before the transaction so lookups don't block it
       const actionDescription = [];
       let activityType = 'updated';
 
       if (status && status !== oldStatus) {
         if (status.toLowerCase() === 'resolved') {
           activityType = 'resolved';
-          // For resolved status, create a detailed description
-          const [resolverUser] = await connection.query(
-            'SELECT full_name FROM users WHERE id = ?',
-            [req.user.userId]
-          );
-          const resolverName = resolverUser[0]?.full_name || req.user.username;
-          actionDescription.push(`Resolved by ${resolverName}`);
+          try {
+            const [resolverUser] = await connection.query(
+              'SELECT full_name FROM users WHERE id = ?',
+              [req.user.userId]
+            );
+            const resolverName = resolverUser[0]?.full_name || req.user.username;
+            actionDescription.push(`Resolved by ${resolverName}`);
+          } catch (lookupErr) {
+            console.error('Failed to look up resolver name:', lookupErr.message);
+            actionDescription.push(`Resolved by ${req.user.username || 'Unknown'}`);
+          }
           if (comment) {
             actionDescription.push(`Resolution: ${comment}`);
           }
@@ -2455,13 +2454,17 @@ router.put('/:tenantId/:ticketId', writeOperationsLimiter, validateTicketUpdate,
         }
       }
       if (assignee_id && status && status.toLowerCase() !== 'resolved') {
-        // Look up the assignee's name
-        const [assigneeUser] = await connection.query(
-          'SELECT full_name FROM users WHERE id = ?',
-          [assignee_id]
-        );
-        const assigneeName = assigneeUser[0]?.full_name || `User ID ${assignee_id}`;
-        actionDescription.push(`Assigned to ${assigneeName}`);
+        try {
+          const [assigneeUser] = await connection.query(
+            'SELECT full_name FROM users WHERE id = ?',
+            [assignee_id]
+          );
+          const assigneeName = assigneeUser[0]?.full_name || `User ID ${assignee_id}`;
+          actionDescription.push(`Assigned to ${assigneeName}`);
+        } catch (lookupErr) {
+          console.error('Failed to look up assignee name:', lookupErr.message);
+          actionDescription.push(`Assigned to User ID ${assignee_id}`);
+        }
       }
       if (priority) {
         actionDescription.push(`Priority changed to ${priority}`);
@@ -2470,12 +2473,26 @@ router.put('/:tenantId/:ticketId', writeOperationsLimiter, validateTicketUpdate,
         actionDescription.push(`Comment: ${comment}`);
       }
 
-      await connection.query(
-        `INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
-         VALUES (?, ?, ?, ?)`,
-        [ticketId, req.user.userId, activityType, actionDescription.join('. ')]
-      );
-      
+      // Use a transaction so ticket update + activity log succeed or fail together
+      await connection.query('START TRANSACTION');
+      try {
+        await connection.query(
+          `UPDATE tickets SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+          values
+        );
+
+        await connection.query(
+          `INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
+           VALUES (?, ?, ?, ?)`,
+          [ticketId, req.user.userId, activityType, actionDescription.join('. ')]
+        );
+
+        await connection.query('COMMIT');
+      } catch (txErr) {
+        await connection.query('ROLLBACK');
+        throw txErr;
+      }
+
       // Get updated ticket
       const [tickets] = await connection.query(
         `SELECT t.*,
@@ -2496,109 +2513,116 @@ router.put('/:tenantId/:ticketId', writeOperationsLimiter, validateTicketUpdate,
         [ticketId]
       );
 
-      // Send email notification if status changed to Resolved
-      if (status === 'Resolved' && oldStatus !== 'Resolved') {
-        // Check if resolution requires customer acceptance
-        const [settings] = await connection.query(
-          'SELECT setting_value FROM tenant_settings WHERE setting_key = ?',
-          ['resolution_requires_acceptance']
-        );
-
-        const requiresAcceptance = settings.length > 0 && settings[0].setting_value === 'true';
-
-        if (requiresAcceptance) {
-          // Set resolution status to pending_acceptance
-          await connection.query(
-            'UPDATE tickets SET resolution_status = ?, resolved_at = NOW() WHERE id = ?',
-            ['pending_acceptance', ticketId]
+      // Post-update side effects (emails, Teams, KB) - fire-and-forget so they
+      // never cause the response to fail after the ticket was already updated.
+      try {
+        // Send email notification if status changed to Resolved
+        if (status === 'Resolved' && oldStatus !== 'Resolved') {
+          // Check if resolution requires customer acceptance
+          const [settings] = await connection.query(
+            'SELECT setting_value FROM tenant_settings WHERE setting_key = ?',
+            ['resolution_requires_acceptance']
           );
 
-          // Generate token for public access
-          const token = Buffer.from(`${tenantCode}:${ticketId}:${Date.now()}`).toString('base64');
-          const acceptRejectUrl = `${process.env.BASE_URL || 'https://serviflow.app'}/ticket-resolution.html?token=${token}`;
+          const requiresAcceptance = settings.length > 0 && settings[0].setting_value === 'true';
 
-          // Send email with Accept/Reject links
-          const { sendEmail } = require('../config/email');
-          await sendEmail(tenantCode, {
-            to: tickets[0].requester_email,
-            subject: `Ticket #${ticketId} - Resolution Pending Your Approval`,
-            html: `
-              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                <h2 style="color: #48bb78;">Ticket Resolved - Awaiting Your Approval</h2>
-                <p><strong>Ticket #${ticketId}</strong></p>
-                <p><strong>Title:</strong> ${tickets[0].title}</p>
-                ${comment ? `<p><strong>Resolution Notes:</strong> ${comment}</p>` : ''}
+          if (requiresAcceptance) {
+            // Set resolution status to pending_acceptance
+            await connection.query(
+              'UPDATE tickets SET resolution_status = ?, resolved_at = NOW() WHERE id = ?',
+              ['pending_acceptance', ticketId]
+            );
 
-                <hr style="border: 1px solid #ddd; margin: 20px 0;">
+            // Generate token for public access
+            const token = Buffer.from(`${tenantCode}:${ticketId}:${Date.now()}`).toString('base64');
+            const acceptRejectUrl = `${process.env.BASE_URL || 'https://serviflow.app'}/ticket-resolution.html?token=${token}`;
 
-                <h3>Review & Respond</h3>
-                <p>Our team has marked your ticket as resolved. Please review the resolution and let us know if it meets your expectations:</p>
+            // Send email with Accept/Reject links
+            const { sendEmail } = require('../config/email');
+            await sendEmail(tenantCode, {
+              to: tickets[0].requester_email,
+              subject: `Ticket #${ticketId} - Resolution Pending Your Approval`,
+              html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                  <h2 style="color: #48bb78;">Ticket Resolved - Awaiting Your Approval</h2>
+                  <p><strong>Ticket #${ticketId}</strong></p>
+                  <p><strong>Title:</strong> ${tickets[0].title}</p>
+                  ${comment ? `<p><strong>Resolution Notes:</strong> ${comment}</p>` : ''}
 
-                <p style="text-align: center; margin: 30px 0;">
-                  <a href="${acceptRejectUrl}"
-                     style="background-color: #48bb78; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: 600;">
-                    Review Resolution
-                  </a>
-                </p>
+                  <hr style="border: 1px solid #ddd; margin: 20px 0;">
 
-                <p style="color: #666; font-size: 14px;">
-                  <strong>What happens next?</strong><br>
-                  • If you accept, we'll ask for your feedback to help us improve<br>
-                  • If you reject, please tell us why so we can address your concerns
-                </p>
+                  <h3>Review & Respond</h3>
+                  <p>Our team has marked your ticket as resolved. Please review the resolution and let us know if it meets your expectations:</p>
 
-                <hr style="border: 1px solid #ddd; margin: 20px 0;">
+                  <p style="text-align: center; margin: 30px 0;">
+                    <a href="${acceptRejectUrl}"
+                       style="background-color: #48bb78; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: 600;">
+                      Review Resolution
+                    </a>
+                  </p>
 
-                <p style="color: #666; font-size: 12px;">
-                  This link will remain active until you respond. If you have any questions, please reply to this email.
-                </p>
-              </div>
-            `,
-            emailType: 'customers'
-          });
-        } else {
-          // Normal resolution email (no acceptance required)
+                  <p style="color: #666; font-size: 14px;">
+                    <strong>What happens next?</strong><br>
+                    • If you accept, we'll ask for your feedback to help us improve<br>
+                    • If you reject, please tell us why so we can address your concerns
+                  </p>
+
+                  <hr style="border: 1px solid #ddd; margin: 20px 0;">
+
+                  <p style="color: #666; font-size: 12px;">
+                    This link will remain active until you respond. If you have any questions, please reply to this email.
+                  </p>
+                </div>
+              `,
+              emailType: 'customers'
+            });
+          } else {
+            // Normal resolution email (no acceptance required)
+            await sendTicketNotificationEmail({
+              ticket: tickets[0],
+              customer_email: tickets[0].requester_email,
+              customer_name: tickets[0].requester_name,
+              tenantCode: tenantCode
+            }, 'resolved', { comment });
+          }
+
+          // Send Teams notification for resolved ticket
+          triggerTeamsNotificationAsync('resolved', tickets[0], tenantCode, { resolutionComment: comment });
+
+          // Queue-limited KB article auto-generation (never stampedes pool)
+          enqueueKB(tenantCode, () => autoGenerateKBArticle(tenantCode, parseInt(ticketId), { userId: req.user.userId }), { ticketId });
+        } else if (status && status !== oldStatus) {
           await sendTicketNotificationEmail({
             ticket: tickets[0],
             customer_email: tickets[0].requester_email,
             customer_name: tickets[0].requester_name,
             tenantCode: tenantCode
-          }, 'resolved', { comment });
+          }, 'status_changed', { oldStatus, newStatus: status });
+
+          // Send Teams notification for status change
+          triggerTeamsNotificationAsync('status_changed', tickets[0], tenantCode, { previous_status: oldStatus });
         }
 
-        // Send Teams notification for resolved ticket
-        triggerTeamsNotificationAsync('resolved', tickets[0], tenantCode, { resolutionComment: comment });
+        // Send email notification if ticket was assigned
+        if (assignee_id && assignee_id !== oldAssigneeId && tickets[0].assignee_email) {
+          await sendTicketNotificationEmail({
+            ticket: tickets[0],
+            customer_email: tickets[0].assignee_email,
+            customer_name: tickets[0].assignee_name,
+            tenantCode: tenantCode
+          }, 'assigned', {
+            assignee_email: tickets[0].assignee_email,
+            assignee_username: tickets[0].assignee_username,
+            assignee_role: tickets[0].assignee_role,
+            comment
+          });
 
-        // Queue-limited KB article auto-generation (never stampedes pool)
-        enqueueKB(tenantCode, () => autoGenerateKBArticle(tenantCode, parseInt(ticketId), { userId: req.user.userId }), { ticketId });
-      } else if (status && status !== oldStatus) {
-        await sendTicketNotificationEmail({
-          ticket: tickets[0],
-          customer_email: tickets[0].requester_email,
-          customer_name: tickets[0].requester_name,
-          tenantCode: tenantCode
-        }, 'status_changed', { oldStatus, newStatus: status });
-
-        // Send Teams notification for status change
-        triggerTeamsNotificationAsync('status_changed', tickets[0], tenantCode, { previous_status: oldStatus });
-      }
-
-      // Send email notification if ticket was assigned
-      if (assignee_id && assignee_id !== oldAssigneeId && tickets[0].assignee_email) {
-        await sendTicketNotificationEmail({
-          ticket: tickets[0],
-          customer_email: tickets[0].assignee_email,
-          customer_name: tickets[0].assignee_name,
-          tenantCode: tenantCode
-        }, 'assigned', {
-          assignee_email: tickets[0].assignee_email,
-          assignee_username: tickets[0].assignee_username,
-          assignee_role: tickets[0].assignee_role,
-          comment
-        });
-
-        // Send Teams notification for assignment
-        triggerTeamsNotificationAsync('assigned', tickets[0], tenantCode, { assignedTo: tickets[0].assignee_name });
+          // Send Teams notification for assignment
+          triggerTeamsNotificationAsync('assigned', tickets[0], tenantCode, { assignedTo: tickets[0].assignee_name });
+        }
+      } catch (notifyErr) {
+        // Log but don't fail the response - the ticket update already succeeded
+        console.error('Post-update notification error (ticket update was successful):', notifyErr);
       }
 
       // Re-trigger AI CMDB auto-linking if a meaningful comment was added
