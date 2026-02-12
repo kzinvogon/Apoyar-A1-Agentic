@@ -1460,8 +1460,6 @@ router.post('/:tenantId', writeOperationsLimiter, validateTicketCreate, async (r
       // Enrich with SLA status
       await enrichTicketWithSLAStatus(tickets[0], connection);
 
-      logAudit({ tenantCode, user: req.user, action: AUDIT_ACTIONS.TICKET_CREATE, entityType: 'TICKET', entityId: String(ticketId), details: { title, priority: mappedPriority }, req }).catch(() => {});
-
       res.json({ success: true, ticket: tickets[0] });
     } finally {
       connection.release();
@@ -2655,12 +2653,6 @@ router.put('/:tenantId/:ticketId', writeOperationsLimiter, validateTicketUpdate,
       // Enrich with SLA status
       await enrichTicketWithSLAStatus(tickets[0], connection);
 
-      const changes = {};
-      if (status && status !== oldStatus) changes.status = { from: oldStatus, to: status };
-      if (assignee_id && assignee_id !== oldAssigneeId) changes.assignee = true;
-      if (priority) changes.priority = priority;
-      logAudit({ tenantCode, user: req.user, action: AUDIT_ACTIONS.TICKET_UPDATE, entityType: 'TICKET', entityId: String(ticketId), details: changes, req }).catch(() => {});
-
       res.json({ success: true, ticket: tickets[0] });
     } finally {
       connection.release();
@@ -2848,8 +2840,6 @@ router.post('/:tenantId/bulk-action', writeOperationsLimiter, requireRole(['expe
         }
       }
 
-      logAudit({ tenantCode, user: req.user, action: AUDIT_ACTIONS.TICKET_BULK_ACTION, entityType: 'TICKET', details: { action, ticketCount: ticket_ids.length, processed, failed }, req }).catch(() => {});
-
       res.json({
         success: true,
         message: `Bulk ${action} completed`,
@@ -2893,8 +2883,6 @@ router.post('/:tenantId/bulk-delete', writeOperationsLimiter, requireRole(['admi
         `DELETE FROM tickets WHERE id IN (${placeholders})`,
         ticket_ids
       );
-
-      logAudit({ tenantCode, user: req.user, action: AUDIT_ACTIONS.TICKET_BULK_DELETE, entityType: 'TICKET', details: { ticketCount: ticket_ids.length, deleted: result.affectedRows }, req }).catch(() => {});
 
       res.json({
         success: true,
