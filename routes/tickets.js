@@ -1930,10 +1930,10 @@ router.post('/:tenantId/:ticketId/take-over', writeOperationsLimiter, requireRol
 
       const ticket = tickets[0];
 
-      // Take Over is for reassigning tickets that are already owned
-      // For unowned tickets (OPEN_POOL), use Claim instead
-      const ownedStatuses = ['IN_PROGRESS_OWNED', 'WAITING_CUSTOMER', 'CLAIMED_LOCKED'];
-      if (!ownedStatuses.includes(ticket.pool_status)) {
+      // Take Over is for reassigning owned tickets OR taking automated OPEN_POOL tickets directly
+      const allowedStatuses = ['IN_PROGRESS_OWNED', 'WAITING_CUSTOMER', 'CLAIMED_LOCKED'];
+      const isAutomatedOpenPool = ticket.pool_status === 'OPEN_POOL' && ticket.execution_mode === 'automated';
+      if (!allowedStatuses.includes(ticket.pool_status) && !isAutomatedOpenPool) {
         return res.status(400).json({
           success: false,
           message: ticket.pool_status === 'OPEN_POOL'
