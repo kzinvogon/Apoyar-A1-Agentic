@@ -143,6 +143,20 @@ struct NotificationsSettingsView: View {
             }
 
             Section {
+                Toggle("Enable iMessage Alerts", isOn: $monitor.smsAlertEnabled)
+
+                TextField("Phone Number", text: $monitor.smsAlertNumber)
+                    .textFieldStyle(.roundedBorder)
+                    .disabled(!monitor.smsAlertEnabled)
+            } header: {
+                Text("SMS via iMessage")
+            } footer: {
+                Text("Send an iMessage when production goes down or recovers. Use full number with country code (e.g. +44...).")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            Section {
                 Button("Send Test Notification") {
                     sendTestNotification()
                 }
