@@ -16685,7 +16685,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             const isViewed = ek === 'ticket.viewed' || at === 'viewed';
             const div=document.createElement('div');
             div.className = isViewed ? 'card p-8 mb-4' : 'card p-12 mb-8';
-            if (isViewed) div.style.opacity = '0.55';
+            if (isViewed) div.style.opacity = '0.7';
 
             const icon = eventIcons[ek] || typeIcons[at] || '&#x25CF;';
             const userName = a.user_full_name || a.user_name || 'System';
