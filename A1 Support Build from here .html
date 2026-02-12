@@ -16684,8 +16684,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             const at = a.activity_type || '';
             const isViewed = ek === 'ticket.viewed' || at === 'viewed';
             const div=document.createElement('div');
-            div.className = isViewed ? 'card p-8 mb-4' : 'card p-12 mb-8';
-            if (isViewed) div.style.opacity = '0.7';
+            div.className = 'card p-6 mb-4';
+            div.style.fontSize = '12px';
+            div.style.lineHeight = '1.4';
 
             const icon = eventIcons[ek] || typeIcons[at] || '&#x25CF;';
             const userName = a.user_full_name || a.user_name || 'System';
@@ -16696,13 +16697,14 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             let badgeHTML = '';
             if (src !== 'web') {
               const b = sourceBadges[src] || sourceBadges.system;
-              badgeHTML = `<span style="display:inline-block;font-size:10px;font-weight:700;padding:1px 6px;border-radius:3px;margin-left:6px;background:${b.bg};color:${b.fg};vertical-align:middle;letter-spacing:0.5px">${b.label}</span>`;
+              badgeHTML = `<span style="display:inline-block;font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;margin-left:4px;background:${b.bg};color:${b.fg};vertical-align:middle;letter-spacing:0.5px">${b.label}</span>`;
             }
 
             if (isViewed) {
-              div.innerHTML = `<small class="subtitle">${icon} ${userName} viewed &middot; ${actDate}</small>`;
+              div.style.opacity = '0.75';
+              div.innerHTML = `<span style="font-weight:600">${icon} ${userName}</span> <span class="subtitle">viewed &middot; ${actDate}</span>`;
             } else {
-              div.innerHTML = `${icon} <strong>${userName}</strong>${badgeHTML}: ${a.description || ''}<br><small class="subtitle">${actDate}</small>`;
+              div.innerHTML = `${icon} <strong>${userName}</strong>${badgeHTML}: ${a.description || ''}<br><span class="subtitle" style="font-size:11px">${actDate}</span>`;
             }
             act.appendChild(div);
           });
