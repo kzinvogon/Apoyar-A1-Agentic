@@ -5,7 +5,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { masterPool } = require('../config/database');
+const { masterQuery } = require('../config/database');
 const { verifyToken, requireRole } = require('../middleware/auth');
 
 // Apply authentication to all routes
@@ -55,14 +55,14 @@ router.get('/audit-log', async (req, res) => {
     }
 
     // Get total count
-    const [countResult] = await masterPool.query(
+    const [countResult] = await masterQuery(
       `SELECT COUNT(*) as total FROM audit_log ${whereClause}`,
       params
     );
     const total = countResult[0].total;
 
     // Get paginated results
-    const [rows] = await masterPool.query(
+    const [rows] = await masterQuery(
       `SELECT id, tenant_code, user_id, username, action, entity_type, entity_id,
               details_json, ip, created_at
        FROM audit_log
@@ -104,7 +104,7 @@ router.get('/audit-log/actions', async (req, res) => {
   try {
     const tenantCode = req.user.tenantCode;
 
-    const [rows] = await masterPool.query(
+    const [rows] = await masterQuery(
       `SELECT DISTINCT action FROM audit_log WHERE tenant_code = ? ORDER BY action`,
       [tenantCode]
     );

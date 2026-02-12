@@ -8,7 +8,7 @@
  * - Debounced: RAW_VARS_OPEN is debounced to prevent spam
  */
 
-const { masterPool } = require('../config/database');
+const { masterQuery } = require('../config/database');
 
 // Debounce cache for RAW_VARS_OPEN (userId -> timestamp)
 const openDebounceCache = new Map();
@@ -71,8 +71,8 @@ async function logAudit({ tenantCode, user, action, entityType, entityId = null,
       }
     }
 
-    // Use masterPool.query() directly - no connection management needed
-    await masterPool.query(
+    // Use masterQuery() - delegates to hardened pool
+    await masterQuery(
       `INSERT INTO audit_log (tenant_code, user_id, username, action, entity_type, entity_id, details_json, ip, user_agent)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
