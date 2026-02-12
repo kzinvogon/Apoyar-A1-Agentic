@@ -1582,6 +1582,16 @@ class EmailProcessor {
       console.log(`Processing email from: ${fromEmail}, domain: ${domain}, displayName: ${displayName}`);
 
       // ============================================
+      // SELF-LOOP PREVENTION
+      // Skip emails sent by our own SMTP address (outbound notifications)
+      // ============================================
+      const smtpEmail = (process.env.SMTP_EMAIL || '').toLowerCase().trim();
+      if (smtpEmail && fromEmail === smtpEmail) {
+        console.log(`🔁 [Self-Loop] Skipping own outbound notification from ${fromEmail}`);
+        return { success: false, reason: 'skipped_self_loop' };
+      }
+
+      // ============================================
       // EMAIL REPLY THREADING DETECTION (CHECK FIRST)
       // Always check if this is a reply to an existing ticket BEFORE
       // bounce/automated checks, so replies get threaded even if automated

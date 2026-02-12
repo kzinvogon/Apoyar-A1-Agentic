@@ -1182,7 +1182,7 @@ router.get('/:tenantId/:ticketId', readOperationsLimiter, validateTicketGet, asy
         )`;
       }
 
-      activityQuery += ` ORDER BY ta.created_at DESC`;
+      activityQuery += ` ORDER BY ta.created_at ASC`;
 
       const activityParams = req.user.role === 'customer'
         ? [ticketId, req.user.userId]
