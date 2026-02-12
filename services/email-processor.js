@@ -1451,6 +1451,43 @@ class EmailProcessor {
       }
     }
 
+    // Method 4: Subject + Sender matching
+    // Strip Re:/Fwd: prefixes and look for an existing ticket with the same
+    // title created by the same sender (via requester email).  This catches
+    // replies where the email client drops the [Ticket #NNN] token and does
+    // not preserve In-Reply-To / References headers.
+    const cleanSubject = subject
+      .replace(/^(Re|Fwd|FW|RE|FWD):\s*/gi, '')
+      .trim();
+
+    if (cleanSubject.length > 0 && email.from) {
+      try {
+        let senderEmail = email.from.toLowerCase().trim();
+        const angleMatch = senderEmail.match(/<(.+?)>/);
+        if (angleMatch) senderEmail = angleMatch[1];
+
+        const [subjectRows] = await connection.query(
+          `SELECT t.id FROM tickets t
+           JOIN users u ON t.requester_id = u.id
+           WHERE t.title = ? AND u.email = ?
+             AND t.status NOT IN ('Closed', 'Cancelled')
+           ORDER BY t.created_at DESC LIMIT 1`,
+          [cleanSubject, senderEmail]
+        );
+
+        if (subjectRows.length > 0) {
+          console.log(`🔗 [Threading] Subject+sender match: ticket #${subjectRows[0].id} (subject="${cleanSubject}", sender=${senderEmail})`);
+          return {
+            ticketId: subjectRows[0].id,
+            method: 'subject_sender_match',
+            debugInfo
+          };
+        }
+      } catch (error) {
+        console.error('Error in subject+sender matching:', error.message);
+      }
+    }
+
     // No match found
     return { ticketId: null, method: null, debugInfo };
   }
