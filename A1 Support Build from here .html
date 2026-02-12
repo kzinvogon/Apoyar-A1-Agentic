@@ -3378,8 +3378,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           </div>
           <div class="grid2">
             <div class="card p-16">
-              <div class="mb-12"><div class="subtitle">Title</div><input id="td-title" class="input"/></div>
-              <div class="mb-12"><div class="subtitle">Description</div><textarea id="td-desc" class="input" placeholder="(Demo text)" rows="6" style="min-height:120px;resize:vertical"></textarea></div>
+              <div class="mb-12"><div class="subtitle">Title</div><textarea id="td-title" class="input" rows="2" style="max-height:80px;overflow-y:auto;resize:vertical"></textarea></div>
+              <div class="mb-12"><div class="subtitle">Description</div><textarea id="td-desc" class="input" placeholder="(Demo text)" rows="6" style="max-height:300px;overflow-y:auto;resize:vertical"></textarea></div>
               <div class="row mb-12">
                 <div style="flex:1"><div class="subtitle">Priority</div><select id="td-priority" class="input"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="critical">Critical</option></select></div>
                 <div style="flex:1"><div class="subtitle">Status</div><select id="td-status" class="input" disabled><option>Open</option><option>In Progress</option><option>Pending</option><option>Resolved</option></select></div>
@@ -3482,10 +3482,10 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             <div class="card p-16" style="background:#fafafa;border-color:#e5e7eb">
               <div class="row space" style="cursor:pointer" onclick="toggleActivityPanel()">
                 <div class="subtitle" style="color:#6b7280"><strong>Activity</strong></div>
-                <span id="activity-toggle-icon" style="color:#9ca3af;font-size:12px">▶ Show</span>
+                <span id="activity-toggle-icon" style="color:#9ca3af;font-size:12px">▼ Hide</span>
               </div>
-              <div id="td-activity-wrapper" style="display:none">
-                <div id="td-activity" class="mb-12 mt-12" style="max-height:200px;overflow:auto;word-break:break-word;overflow-wrap:break-word"></div>
+              <div id="td-activity-wrapper" style="display:block">
+                <div id="td-activity" class="mb-12 mt-12" style="max-height:400px;overflow-y:auto;word-break:break-word;overflow-wrap:break-word"></div>
               </div>
               <div class="row mt-12">
                 <input id="td-note" class="input" placeholder="Add an internal note…"/>
