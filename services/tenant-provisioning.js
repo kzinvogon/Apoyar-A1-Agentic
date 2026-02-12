@@ -519,10 +519,20 @@ async function createTenantTables(connection) {
       user_id INT,
       activity_type VARCHAR(50) NOT NULL,
       description TEXT,
+      source VARCHAR(20) NOT NULL DEFAULT 'web',
+      actor_type VARCHAR(20) NOT NULL DEFAULT 'user',
+      actor_id INT NULL,
+      event_key VARCHAR(50) NOT NULL DEFAULT 'ticket.activity',
+      meta JSON NULL,
+      request_id VARCHAR(64) NULL,
       is_public BOOLEAN DEFAULT TRUE,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+      INDEX idx_ticket_activity_ticket_created (ticket_id, created_at),
+      INDEX idx_ticket_activity_ticket_public_created (ticket_id, is_public, created_at),
+      INDEX idx_ticket_activity_event_created (event_key, created_at),
+      INDEX idx_ticket_activity_actor_created (actor_id, created_at)
     )
   `);
 

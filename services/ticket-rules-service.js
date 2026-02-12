@@ -1,4 +1,5 @@
 const { getTenantConnection } = require('../config/database');
+const { logTicketActivity } = require('./activityLogger');
 
 // Default batch processing values (can be overridden by tenant settings)
 const DEFAULT_BATCH_SIZE = 5;
@@ -346,6 +347,36 @@ class TicketRulesService {
 
         default:
           throw new Error(`Unknown action type: ${rule.action_type}`);
+      }
+
+      // Log activity (skip for delete since ticket is gone)
+      if (rule.action_type !== 'delete') {
+        const activityMap = {
+          assign_to_expert:    { type: 'assigned',  key: 'ticket.assigned',       desc: actionResult.message },
+          create_for_customer: { type: 'updated',   key: 'ticket.forwarded',      desc: actionResult.message },
+          set_priority:        { type: 'updated',   key: 'ticket.priority.changed', desc: actionResult.message },
+          set_status:          { type: 'updated',   key: 'ticket.status.changed', desc: actionResult.message },
+          add_tag:             { type: 'updated',   key: 'ticket.tag.added',      desc: actionResult.message },
+          add_to_monitoring:   { type: 'updated',   key: 'ticket.monitoring.set', desc: actionResult.message },
+          set_sla_deadlines:   { type: 'updated',   key: 'ticket.sla.deadlines',  desc: actionResult.message },
+          set_sla_definition:  { type: 'updated',   key: 'ticket.sla.applied',    desc: actionResult.message }
+        };
+        const info = activityMap[rule.action_type] || { type: 'updated', key: 'ticket.rule.action', desc: actionResult.message };
+        try {
+          await logTicketActivity(connection, {
+            ticketId,
+            userId: null,
+            activityType: info.type,
+            description: `${info.desc} (Rule: ${rule.name})`,
+            isPublic: false,
+            source: 'system',
+            actorType: 'system',
+            eventKey: info.key,
+            meta: { ruleId: rule.id, ruleName: rule.name, actionType: rule.action_type, params: rule.action_params }
+          });
+        } catch (actErr) {
+          console.error(`[TicketRules] Activity log failed for ticket #${ticketId}:`, actErr.message);
+        }
       }
 
       // Log the execution

@@ -45,6 +45,9 @@ const { resolveApplicableSLA } = require('../services/sla-selector');
 // Ticket rules service
 const { TicketRulesService } = require('../services/ticket-rules-service');
 
+// Activity logger
+const { logTicketViewIfNotRecent } = require('../services/activityLogger');
+
 // Fire-and-forget ticket rules execution
 async function triggerTicketRulesAsync(tenantCode, ticketId) {
   try {
@@ -1163,10 +1166,10 @@ router.get('/:tenantId/:ticketId', readOperationsLimiter, validateTicketGet, asy
         LEFT JOIN users u ON ta.user_id = u.id
         WHERE ta.ticket_id = ?`;
 
-      // For customers, filter out internal notes
-      // Customers see: created, resolved, closed, their own comments, and public replies from staff
+      // For customers, filter out internal/private activity
+      // Customers see: public entries only + their own comments
       if (req.user.role === 'customer') {
-        activityQuery += ` AND (
+        activityQuery += ` AND ta.is_public = TRUE AND (
           ta.activity_type IN ('created', 'resolved', 'closed')
           OR (ta.activity_type = 'comment' AND ta.user_id = ?)
           OR (ta.activity_type = 'comment' AND ta.description LIKE 'Public reply%')
@@ -1185,6 +1188,15 @@ router.get('/:tenantId/:ticketId', readOperationsLimiter, validateTicketGet, asy
 
       // Enrich with SLA status
       await enrichTicketWithSLAStatus(ticket, connection);
+
+      // Log staff views (fire-and-forget, DB-level 5-min dedupe)
+      if (req.user.role !== 'customer') {
+        logTicketViewIfNotRecent(connection, {
+          ticketId: parseInt(ticketId, 10),
+          userId: req.user.userId,
+          source: 'web'
+        }).catch(() => {});
+      }
 
       res.json({ success: true, ticket, activities });
     } finally {

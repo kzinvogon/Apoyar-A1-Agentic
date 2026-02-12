@@ -16640,17 +16640,64 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         const act=document.getElementById('td-activity');
         act.innerHTML='';
 
+        // Icon + label map by event_key (preferred) then activity_type fallback
+        const eventIcons = {
+          'ticket.created':'&#x1F195;','ticket.assigned':'&#x1F464;','ticket.resolved':'&#x2705;',
+          'ticket.closed':'&#x1F512;','ticket.classified':'&#x1F916;','ticket.comment.added':'&#x1F4AC;',
+          'ticket.email_reply':'&#x1F4E7;','ticket.auto_reply':'&#x1F916;',
+          'ticket.status.changed':'&#x1F504;','ticket.priority.changed':'&#x26A1;',
+          'ticket.tag.added':'&#x1F3F7;','ticket.viewed':'&#x1F441;',
+          'ticket.cmdb.linked':'&#x1F517;','ticket.cmdb.unlinked':'&#x1F517;',
+          'ticket.kb.generated':'&#x1F4DA;','ticket.forwarded':'&#x27A1;',
+          'ticket.sla.applied':'&#x23F0;','ticket.sla.deadlines':'&#x23F0;',
+          'ticket.monitoring.set':'&#x1F4E1;','ticket.rule.action':'&#x2699;',
+          'sla.threshold.hit':'&#x26A0;','sla.breached':'&#x1F6A8;'
+        };
+        const typeIcons = {
+          created:'&#x1F195;',resolved:'&#x2705;',closed:'&#x1F512;',assigned:'&#x1F464;',
+          updated:'&#x1F504;',comment:'&#x1F4AC;',classified:'&#x1F916;',
+          email_reply:'&#x1F4E7;',auto_reply:'&#x1F916;',sla_notification:'&#x23F0;',
+          viewed:'&#x1F441;',system_note:'&#x1F4CB;',marked_as_system:'&#x1F6E0;'
+        };
+        // Source badge colors
+        const sourceBadges = {
+          email:{label:'EMAIL',bg:'#7c3aed',fg:'#fff'},
+          teams:{label:'TEAMS',bg:'#6264a7',fg:'#fff'},
+          slack:{label:'SLACK',bg:'#4a154b',fg:'#fff'},
+          chatbot:{label:'CHATBOT',bg:'#0ea5e9',fg:'#fff'},
+          system:{label:'SYSTEM',bg:'#6b7280',fg:'#fff'},
+          web:{label:'WEB',bg:'#e5e7eb',fg:'#374151'}
+        };
+
         if (data.activities && data.activities.length > 0) {
           data.activities.forEach(a => {
+            const ek = a.event_key || '';
+            const at = a.activity_type || '';
+            const isViewed = ek === 'ticket.viewed' || at === 'viewed';
             const div=document.createElement('div');
-            div.className='card p-12 mb-8';
+            div.className = isViewed ? 'card p-8 mb-4' : 'card p-12 mb-8';
+            if (isViewed) div.style.opacity = '0.55';
+
+            const icon = eventIcons[ek] || typeIcons[at] || '&#x25CF;';
             const userName = a.user_full_name || a.user_name || 'System';
             const actDate = new Date(a.created_at).toLocaleString();
-            div.innerHTML = `<strong>${userName}</strong>: ${a.description}<br><small class="subtitle">${actDate}</small>`;
+
+            // Source badge (skip for 'web' default to reduce noise)
+            const src = (a.source || 'web').toLowerCase();
+            let badgeHTML = '';
+            if (src !== 'web') {
+              const b = sourceBadges[src] || sourceBadges.system;
+              badgeHTML = `<span style="display:inline-block;font-size:10px;font-weight:700;padding:1px 6px;border-radius:3px;margin-left:6px;background:${b.bg};color:${b.fg};vertical-align:middle;letter-spacing:0.5px">${b.label}</span>`;
+            }
+
+            if (isViewed) {
+              div.innerHTML = `<small class="subtitle">${icon} ${userName} viewed &middot; ${actDate}</small>`;
+            } else {
+              div.innerHTML = `${icon} <strong>${userName}</strong>${badgeHTML}: ${a.description || ''}<br><small class="subtitle">${actDate}</small>`;
+            }
             act.appendChild(div);
           });
         } else {
-          // No activities yet
           const div=document.createElement('div');
           div.className='card p-12 mb-8 subtitle';
           div.textContent = 'No activity recorded yet';
@@ -16658,7 +16705,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         }
 
         // Auto-expand Activity panel if there are email replies
-        if (data.activities && data.activities.some(a => a.activity_type === 'email_reply')) {
+        if (data.activities && data.activities.some(a => a.activity_type === 'email_reply' || a.event_key === 'ticket.email_reply')) {
           const wrapper = document.getElementById('td-activity-wrapper');
           if (wrapper && wrapper.style.display === 'none') {
             toggleActivityPanel();

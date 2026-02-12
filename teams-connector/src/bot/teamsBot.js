@@ -6,6 +6,7 @@ const { createTicketViewUrl } = require('../utils/tokenGenerator');
 // Import database utilities (local for standalone deployment)
 // NOTE: These functions return mysql2 *pools*, not single connections.
 const { getTenantConnection, getMasterConnection } = require('../config/database');
+const { logTicketActivity } = require('../../../services/activityLogger');
 
 // Fallback tenant code if no mapping found
 const DEFAULT_TENANT_CODE = process.env.SERVIFLOW_TENANT_CODE || 'apoyar';
@@ -852,11 +853,14 @@ class ServiFlowBot extends TeamsActivityHandler {
         ? `Ticket raised by customer ${userName} via Teams`
         : `Ticket created by ${userName} via Teams (Expert mode)`;
 
-      await pool.query(
-        `INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
-         VALUES (?, ?, 'created', ?)`,
-        [ticketId, requesterId, activityDesc]
-      );
+      await logTicketActivity(pool, {
+        ticketId,
+        userId: requesterId,
+        activityType: 'created',
+        description: activityDesc,
+        source: 'teams',
+        eventKey: 'ticket.created'
+      });
 
       // Get full ticket with joins
       const [tickets] = await pool.query(
@@ -1046,11 +1050,14 @@ class ServiFlowBot extends TeamsActivityHandler {
         [userId, ticketId]
       );
 
-      await pool.query(
-        `INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
-         VALUES (?, ?, 'assigned', ?)`,
-        [ticketId, userId, `Assigned to ${userName} via Teams`]
-      );
+      await logTicketActivity(pool, {
+        ticketId,
+        userId,
+        activityType: 'assigned',
+        description: `Assigned to ${userName} via Teams`,
+        source: 'teams',
+        eventKey: 'ticket.assigned'
+      });
 
       await context.sendActivity(`✅ Ticket #${ticketId} assigned to you.`);
       await this.handleViewTicket(context, ticketId);
@@ -1093,11 +1100,14 @@ class ServiFlowBot extends TeamsActivityHandler {
         [userId, comment, ticketId]
       );
 
-      await pool.query(
-        `INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
-         VALUES (?, ?, 'resolved', ?)`,
-        [ticketId, userId, `Resolved by ${userName} via Teams: ${comment}`]
-      );
+      await logTicketActivity(pool, {
+        ticketId,
+        userId,
+        activityType: 'resolved',
+        description: `Resolved by ${userName} via Teams: ${comment}`,
+        source: 'teams',
+        eventKey: 'ticket.resolved'
+      });
 
       await context.sendActivity(`✅ Ticket #${ticketId} resolved.`);
       await this.handleViewTicket(context, ticketId);

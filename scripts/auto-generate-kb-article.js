@@ -24,6 +24,7 @@ require('dotenv').config();
 
 const { getTenantPool, withTenantConnection } = require('../config/database');
 const { EmbeddingService } = require('../services/embedding-service');
+const { logTicketActivity } = require('../services/activityLogger');
 
 // Constants
 const SIMILARITY_THRESHOLD = 0.85;
@@ -270,14 +271,12 @@ async function autoGenerateKBArticle(tenantCode, ticketId, options = {}) {
       }
 
       // INSERT ticket_activity
-      await conn.query(`
-        INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
-        VALUES (?, ?, 'comment', ?)
-      `, [
-        ticketId,
-        userId,
-        `🤖 AI-generated KB draft created: Article ${articleId}${hasSimilar ? ' (potential duplicate detected)' : ''}`
-      ]);
+      await logTicketActivity(conn, {
+        ticketId, userId, activityType: 'comment',
+        description: `AI-generated KB draft created: Article ${articleId}${hasSimilar ? ' (potential duplicate detected)' : ''}`,
+        source: 'system', eventKey: 'ticket.kb.generated',
+        meta: { articleId, hasSimilar }
+      });
 
       // UPDATE category count
       await conn.query(`
