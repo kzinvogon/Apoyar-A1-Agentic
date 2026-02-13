@@ -7,6 +7,7 @@ const express = require('express');
 const router = express.Router();
 const { masterQuery } = require('../config/database');
 const { verifyToken, requireRole } = require('../middleware/auth');
+const { runHousekeepingForTenant } = require('../services/housekeeping');
 
 // Apply authentication to all routes
 router.use(verifyToken);
@@ -117,6 +118,34 @@ router.get('/audit-log/actions', async (req, res) => {
   } catch (error) {
     console.error('[Admin] Audit actions error:', error);
     res.status(500).json({ success: false, error: 'Failed to retrieve actions' });
+  }
+});
+
+/**
+ * POST /api/admin/housekeeping/run
+ * Manually trigger housekeeping for the current tenant
+ */
+router.post('/housekeeping/run', async (req, res) => {
+  try {
+    const tenantCode = req.user.tenantCode;
+
+    // Look up the tenant's plan slug
+    const rows = await masterQuery(
+      `SELECT sp.slug as plan_slug
+       FROM tenants t
+       LEFT JOIN tenant_subscriptions ts ON t.id = ts.tenant_id
+       LEFT JOIN subscription_plans sp ON ts.plan_id = sp.id
+       WHERE t.tenant_code = ?`,
+      [tenantCode]
+    );
+    const planSlug = rows.length > 0 ? rows[0].plan_slug : null;
+
+    const result = await runHousekeepingForTenant(tenantCode, planSlug);
+
+    res.json({ success: true, tenantCode, ...result });
+  } catch (error) {
+    console.error('[Admin] Housekeeping error:', error);
+    res.status(500).json({ success: false, error: 'Housekeeping failed: ' + error.message });
   }
 });
 

@@ -148,10 +148,15 @@ struct NotificationsSettingsView: View {
                 TextField("Phone Number", text: $monitor.smsAlertNumber)
                     .textFieldStyle(.roundedBorder)
                     .disabled(!monitor.smsAlertEnabled)
+
+                Button("Send Test iMessage") {
+                    monitor.sendSMS(message: "ServiFlow Monitor: Test iMessage - alerts are working!")
+                }
+                .disabled(!monitor.smsAlertEnabled || monitor.smsAlertNumber.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             } header: {
                 Text("SMS via iMessage")
             } footer: {
-                Text("Send an iMessage when production goes down or recovers. Use full number with country code (e.g. +44...).")
+                Text("Send an iMessage when production goes down or recovers. Use full number with country code (e.g. +44...). macOS will ask permission to control Messages on first use.")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
