@@ -16613,12 +16613,13 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
         progressText.textContent = `${completed} of ${total} completed` + (failed > 0 ? `, ${failed} failed` : '');
 
+        // Capture action word before closeBulkActionDialog() clears currentBulkAction
+        const actionWord = currentBulkAction === 'close' ? 'closed' : currentBulkAction === 'assign' ? 'assigned' : 'resolved';
         // Close dialog after short delay and refresh
         setTimeout(() => {
           closeBulkActionDialog();
           clearBulkSelection();
           renderList();
-          const actionWord = currentBulkAction === 'close' ? 'closed' : currentBulkAction === 'assign' ? 'assigned' : 'resolved';
           alert(`Bulk action completed: ${completed} ticket${completed !== 1 ? 's' : ''} ${actionWord}` + (failed > 0 ? ` (${failed} failed)` : ''));
         }, 500);
       } else {
