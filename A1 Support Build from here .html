@@ -13387,7 +13387,11 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       if (btn) { btn.disabled = false; btn.textContent = 'Run Now'; }
       if (data.success && data.logs) {
         const rows = Object.entries(data.logs).map(([table, count]) => ({ table, count }));
-        if (data.tickets != null) rows.push({ table: 'tickets (closed)', count: data.tickets });
+        if (data.tickets != null) {
+          const t = data.tickets;
+          rows.push({ table: 'tickets (closed activity)', count: t.activityDeleted || 0 });
+          rows.push({ table: 'tickets (closed)', count: t.ticketsDeleted || 0 });
+        }
         const tbody = document.getElementById('hk-results-body');
         if (tbody) {
           tbody.innerHTML = rows.map(r =>
