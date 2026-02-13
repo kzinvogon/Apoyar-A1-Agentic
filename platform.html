@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ServiFlow Platform Documentation</title>
+<style>
+  :root{--primary:#2563eb;--bg:#fff;--sidebar-bg:#f8fafc;--ink:#1e293b;--muted:#64748b;--border:#e2e8f0;--code-bg:#f1f5f9;--radius:8px}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:var(--ink);background:var(--bg);line-height:1.6;display:flex;min-height:100vh}
+
+  /* Sidebar */
+  .doc-sidebar{position:fixed;top:0;left:0;width:260px;height:100vh;background:var(--sidebar-bg);border-right:1px solid var(--border);overflow-y:auto;padding:20px 0;z-index:10}
+  .doc-sidebar .brand{padding:0 20px 16px;font-weight:800;font-size:18px;color:var(--primary);border-bottom:1px solid var(--border);margin-bottom:12px}
+  .doc-sidebar .brand span{color:var(--ink)}
+  .doc-sidebar a{display:block;padding:7px 20px;color:var(--muted);text-decoration:none;font-size:13px;font-weight:500;transition:color .15s,background .15s}
+  .doc-sidebar a:hover,.doc-sidebar a.active{color:var(--primary);background:rgba(37,99,235,.06)}
+  .doc-sidebar .search-box{padding:0 16px 12px}
+  .doc-sidebar .search-box input{width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;outline:none}
+  .doc-sidebar .search-box input:focus{border-color:var(--primary)}
+
+  /* Main */
+  .doc-main{margin-left:260px;flex:1;padding:32px 40px 80px;max-width:900px}
+  .doc-main section{margin-bottom:48px}
+  .doc-main h1{font-size:28px;margin-bottom:8px;color:var(--ink)}
+  .doc-main h2{font-size:22px;margin:32px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--border);color:var(--ink)}
+  .doc-main h3{font-size:16px;margin:20px 0 8px;color:var(--ink)}
+  .doc-main p,.doc-main li{font-size:14px;color:var(--ink);margin-bottom:8px}
+  .doc-main ul,.doc-main ol{padding-left:24px;margin-bottom:12px}
+  .doc-main code{background:var(--code-bg);padding:2px 5px;border-radius:4px;font-size:13px;font-family:'SF Mono',Consolas,monospace}
+  .doc-main pre{background:var(--code-bg);border:1px solid var(--border);border-radius:var(--radius);padding:14px;overflow-x:auto;margin:10px 0 16px;line-height:1.5}
+  .doc-main pre code{background:none;padding:0;font-size:12.5px}
+  .doc-main table{width:100%;border-collapse:collapse;margin:10px 0 16px;font-size:13px}
+  .doc-main th,.doc-main td{text-align:left;padding:8px 12px;border:1px solid var(--border)}
+  .doc-main th{background:var(--code-bg);font-weight:600}
+  .doc-main .badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600}
+  .doc-main .badge-get{background:#dcfce7;color:#166534}
+  .doc-main .badge-post{background:#dbeafe;color:#1e40af}
+  .doc-main .badge-put{background:#fef9c3;color:#854d0e}
+  .doc-main .badge-del{background:#fee2e2;color:#991b1b}
+  .back-link{display:inline-block;margin-bottom:20px;color:var(--primary);text-decoration:none;font-size:13px;font-weight:500}
+  .back-link:hover{text-decoration:underline}
+  .cross-link-banner{background:linear-gradient(135deg,#eff6ff,#f0f9ff);border:1px solid #bfdbfe;border-radius:var(--radius);padding:12px 16px;margin-bottom:24px;font-size:13px;display:flex;align-items:center;gap:8px}
+  .cross-link-banner a{color:var(--primary);font-weight:600;text-decoration:none}
+  .cross-link-banner a:hover{text-decoration:underline}
+
+  /* Mobile */
+  .menu-toggle{display:none;position:fixed;top:12px;left:12px;z-index:20;background:var(--primary);color:#fff;border:none;border-radius:var(--radius);padding:8px 12px;font-size:14px;cursor:pointer}
+  @media(max-width:768px){
+    .doc-sidebar{transform:translateX(-100%);transition:transform .2s}
+    .doc-sidebar.open{transform:translateX(0)}
+    .doc-main{margin-left:0;padding:24px 16px 60px}
+    .menu-toggle{display:block}
+  }
+</style>
+</head>
+<body>
+
+<button class="menu-toggle" onclick="document.querySelector('.doc-sidebar').classList.toggle('open')">Menu</button>
+
+<nav class="doc-sidebar">
+  <div class="brand"><span>ServiFlow</span> Platform</div>
+  <div class="search-box"><input type="text" id="doc-search" placeholder="Search docs..." oninput="filterSections(this.value)"></div>
+  <a href="#getting-started">Getting Started</a>
+  <a href="#architecture">Architecture</a>
+  <a href="#features">Feature Overview</a>
+  <a href="#tickets">Ticket Management</a>
+  <a href="#customers">Customer Management</a>
+  <a href="#ai-insights">AI Insights</a>
+  <a href="#ticket-rules">Ticket Processing Rules</a>
+  <a href="#api-reference">API Reference</a>
+  <a href="#troubleshooting">Troubleshooting</a>
+</nav>
+
+<div class="doc-main">
+<a href="/" class="back-link">&larr; Back to ServiFlow</a>
+<div class="cross-link-banner">
+  Looking for the user manual? <a href="/docs.html">ServiFlow User Guide &rarr;</a> &mdash; step-by-step instructions for admins, experts, and customers.
+</div>
+
+<!-- ─── 1. Getting Started ─── -->
+<section id="getting-started" data-section>
+<h1>Getting Started</h1>
+<p>Get ServiFlow running locally in under five minutes.</p>
+
+<h2>Prerequisites</h2>
+<ul>
+  <li>Node.js 14 or later</li>
+  <li>MySQL 8.x running locally (or a remote instance)</li>
+</ul>
+
+<h2>Install &amp; Run</h2>
+<pre><code># Install dependencies
+npm install
+
+# Create databases &amp; seed data
+npm run setup-db
+
+# Start the server
+npm start</code></pre>
+<p>Open <code>http://localhost:3000</code> in your browser.</p>
+
+<h2>Default Credentials</h2>
+<table>
+  <tr><th>Role</th><th>Username</th><th>Password</th></tr>
+  <tr><td>Master Admin</td><td><code>admin</code></td><td><code>admin123</code></td></tr>
+  <tr><td>Tenant Admin</td><td><code>admin</code></td><td><code>password123</code></td></tr>
+  <tr><td>Expert</td><td><code>expert</code></td><td><code>password123</code></td></tr>
+  <tr><td>Customer</td><td><code>customer</code></td><td><code>password123</code></td></tr>
+</table>
+<p>When logging in as a tenant user, use the tenant code <code>apoyar</code>.</p>
+
+<h2>Environment Variables</h2>
+<pre><code># .env file
+MASTER_DB_HOST=localhost
+MASTER_DB_PORT=3306
+MASTER_DB_USER=root
+MASTER_DB_PASSWORD=
+MASTER_DB_NAME=a1_master
+PORT=3000
+
+# Email (Gmail SMTP)
+SMTP_EMAIL=your-email@gmail.com
+SMTP_PASSWORD=your-app-password</code></pre>
+</section>
+
+<!-- ─── 2. Architecture ─── -->
+<section id="architecture" data-section>
+<h1>Architecture</h1>
+
+<h2>Multi-Tenant Database</h2>
+<p>ServiFlow uses a <strong>database-per-tenant</strong> isolation model:</p>
+<ul>
+  <li><strong>Master DB</strong> (<code>a1_master</code>) &mdash; tenants, master_users, plans, subscriptions, billing</li>
+  <li><strong>Tenant DBs</strong> (<code>a1_tenant_{code}</code>) &mdash; users, tickets, cmdb_items, sla_definitions, etc.</li>
+</ul>
+<pre><code>┌─────────────┐   ┌────────────────┐   ┌────────────────┐
+│  a1_master  │   │ a1_tenant_     │   │ a1_tenant_     │
+│             │   │ apoyar         │   │ bleckmann      │
+│ master_users│   │ users          │   │ users          │
+│ tenants     │   │ tickets        │   │ tickets        │
+│ plans       │   │ cmdb_items     │   │ cmdb_items     │
+└─────────────┘   └────────────────┘   └────────────────┘
+        │                  │                    │
+        └──────────────────┼────────────────────┘
+                           │
+                   ┌───────────────┐
+                   │  Express API  │
+                   │  + SPA Front  │
+                   └───────────────┘</code></pre>
+
+<h2>Key Files</h2>
+<table>
+  <tr><th>File</th><th>Purpose</th></tr>
+  <tr><td><code>server.js</code></td><td>Main Express entry point</td></tr>
+  <tr><td><code>config/database.js</code></td><td>Database connection management</td></tr>
+  <tr><td><code>services/tenant-provisioning.js</code></td><td>New tenant creation &amp; schema</td></tr>
+  <tr><td><code>routes/auth.js</code></td><td>Authentication endpoints</td></tr>
+  <tr><td><code>routes/master.js</code></td><td>Master admin API</td></tr>
+  <tr><td><code>routes/admin.js</code></td><td>Tenant admin settings &amp; housekeeping</td></tr>
+  <tr><td><code>services/sla-notifier.js</code></td><td>SLA notification scheduler</td></tr>
+  <tr><td><code>services/email-processor.js</code></td><td>Inbound email &rarr; ticket processing</td></tr>
+  <tr><td><code>services/ai-analysis-service.js</code></td><td>AI ticket analysis</td></tr>
+  <tr><td><code>services/housekeeping.js</code></td><td>Data retention &amp; pruning</td></tr>
+</table>
+
+<h2>Technology Stack</h2>
+<ul>
+  <li><strong>Backend:</strong> Node.js + Express</li>
+  <li><strong>Database:</strong> MySQL (mysql2)</li>
+  <li><strong>Auth:</strong> JWT (jsonwebtoken) + bcrypt</li>
+  <li><strong>Security:</strong> Helmet, CORS, rate limiting</li>
+  <li><strong>Email:</strong> Nodemailer (Gmail SMTP)</li>
+  <li><strong>Frontend:</strong> Single-page HTML + vanilla JS</li>
+</ul>
+
+<h2>Security</h2>
+<ul>
+  <li>JWT token authentication on every API call</li>
+  <li>bcrypt password hashing (10 rounds)</li>
+  <li>Strict tenant isolation &mdash; queries always scoped to tenant DB</li>
+  <li>Role-based access control (Master Admin, Admin, Expert, Customer)</li>
+  <li>Helmet.js security headers</li>
+  <li>CORS protection</li>
+</ul>
+</section>
+
+<!-- ─── 3. Feature Overview ─── -->
+<section id="features" data-section>
+<h1>Feature Overview</h1>
+
+<h2>Core Capabilities</h2>
+<ul>
+  <li><strong>Multi-Tenant SaaS</strong> &mdash; database-per-tenant isolation, self-service signup</li>
+  <li><strong>Ticket Management</strong> &mdash; create, assign, track, resolve with full activity logging</li>
+  <li><strong>SLA Tracking</strong> &mdash; real-time countdowns, breach notifications, pause/resume</li>
+  <li><strong>CMDB</strong> &mdash; configuration item management, asset viewer, custom fields</li>
+  <li><strong>Knowledge Base</strong> &mdash; article creation, categorisation, search</li>
+  <li><strong>AI Insights</strong> &mdash; sentiment analysis, trend detection, root-cause identification</li>
+  <li><strong>Email Processing</strong> &mdash; inbound email creates/updates tickets with threading</li>
+  <li><strong>Ticket Processing Rules</strong> &mdash; automated actions on matching tickets</li>
+  <li><strong>Customer Management</strong> &mdash; CRUD with domain-based email matching</li>
+  <li><strong>Analytics Dashboard</strong> &mdash; charts, SLA compliance, resolution trends</li>
+  <li><strong>Housekeeping</strong> &mdash; configurable data retention and ticket pruning</li>
+</ul>
+
+<h2>User Roles</h2>
+<table>
+  <tr><th>Role</th><th>Access</th></tr>
+  <tr><td>Master Admin</td><td>Platform-wide: tenants, plans, billing, system health</td></tr>
+  <tr><td>Admin</td><td>Tenant-level: tickets, users, CMDB, settings, rules, analytics</td></tr>
+  <tr><td>Expert</td><td>Assigned tickets, CMDB, knowledge base, AI insights</td></tr>
+  <tr><td>Customer</td><td>Own tickets, raise requests, company CMDB, analytics</td></tr>
+</table>
+
+<h2>Email System</h2>
+<ul>
+  <li>Nodemailer + Gmail SMTP integration</li>
+  <li>Notifications for ticket creation, status changes, and resolution</li>
+  <li>Inbound email processing with reply threading (header &rarr; subject token &rarr; URL &rarr; domain match)</li>
+  <li>HTML email templates</li>
+</ul>
+</section>
+
+<!-- ─── 4. Ticket Management ─── -->
+<section id="tickets" data-section>
+<h1>Ticket Management</h1>
+
+<h2>Ticket Workflow</h2>
+<p>Tickets progress through the following statuses:</p>
+<p><code>Open</code> &rarr; <code>In Progress</code> &rarr; <code>Pending</code> &rarr; <code>Resolved</code> &rarr; <code>Closed</code></p>
+
+<h3>Status Descriptions</h3>
+<table>
+  <tr><th>Status</th><th>Description</th></tr>
+  <tr><td>Open</td><td>New ticket awaiting assignment or triage</td></tr>
+  <tr><td>In Progress</td><td>Being actively worked on by an expert</td></tr>
+  <tr><td>Pending</td><td>Waiting for customer response or external input</td></tr>
+  <tr><td>Resolved</td><td>Fix applied, awaiting customer confirmation</td></tr>
+  <tr><td>Closed</td><td>Completed &mdash; no further action needed</td></tr>
+</table>
+
+<h2>SLA Tracking</h2>
+<p>Each ticket can have an SLA definition applied that tracks:</p>
+<ul>
+  <li><strong>Response time</strong> &mdash; time until first response (<code>first_responded_at</code>)</li>
+  <li><strong>Resolution time</strong> &mdash; time until ticket is resolved</li>
+  <li>Real-time countdown timers in the UI</li>
+  <li>Colour-coded risk indicators (OK &rarr; Warning &rarr; Danger)</li>
+  <li>Email notifications at near-breach, breach, and past-breach thresholds</li>
+  <li>Pause and resume SLA timers (e.g. waiting for customer)</li>
+</ul>
+
+<h2>Activity Logging</h2>
+<p>Every ticket action is recorded in the <code>ticket_activity</code> table:</p>
+<table>
+  <tr><th>Activity Type</th><th>Trigger</th></tr>
+  <tr><td><code>created</code></td><td>Ticket created</td></tr>
+  <tr><td><code>assigned</code></td><td>Expert assigned</td></tr>
+  <tr><td><code>updated</code></td><td>Status or field changed</td></tr>
+  <tr><td><code>comment</code></td><td>Internal note added</td></tr>
+  <tr><td><code>resolved</code></td><td>Ticket resolved with comment</td></tr>
+  <tr><td><code>closed</code></td><td>Ticket closed</td></tr>
+  <tr><td><code>classified</code></td><td>AI classification applied</td></tr>
+  <tr><td><code>email_reply</code></td><td>Customer replied via email</td></tr>
+  <tr><td><code>auto_reply</code></td><td>System auto-response sent</td></tr>
+</table>
+
+<h2>Demo Scenarios</h2>
+<ol>
+  <li><strong>Admin:</strong> View all tickets, assign to experts, manage SLA definitions</li>
+  <li><strong>Expert:</strong> Work assigned tickets, update status, use completion modal</li>
+  <li><strong>Customer:</strong> Raise requests, track status, view CMDB assets</li>
+</ol>
+</section>
+
+<!-- ─── 5. Customer Management ─── -->
+<section id="customers" data-section>
+<h1>Customer Management</h1>
+
+<h2>CRUD Operations</h2>
+<table>
+  <tr><th>Action</th><th>Endpoint</th><th>Role</th></tr>
+  <tr><td>List all</td><td><span class="badge badge-get">GET</span> <code>/api/customers</code></td><td>Admin, Expert</td></tr>
+  <tr><td>Get one</td><td><span class="badge badge-get">GET</span> <code>/api/customers/:id</code></td><td>Admin, Expert</td></tr>
+  <tr><td>Create</td><td><span class="badge badge-post">POST</span> <code>/api/customers</code></td><td>Admin</td></tr>
+  <tr><td>Update</td><td><span class="badge badge-put">PUT</span> <code>/api/customers/:id</code></td><td>Admin</td></tr>
+  <tr><td>Deactivate</td><td><span class="badge badge-del">DELETE</span> <code>/api/customers/:id</code></td><td>Admin</td></tr>
+  <tr><td>Reactivate</td><td><span class="badge badge-post">POST</span> <code>/api/customers/:id/reactivate</code></td><td>Admin</td></tr>
+</table>
+
+<h2>Company Domain Matching</h2>
+<p>The <code>company_domain</code> field is critical for the email-to-ticket system:</p>
+<ol>
+  <li>Customer sends email from <code>john@acme.com</code></li>
+  <li>System extracts domain: <code>acme.com</code></li>
+  <li>Looks up domain in customers table</li>
+  <li>Creates ticket for that customer (or creates a new customer user if none exists)</li>
+</ol>
+
+<h2>Database Schema</h2>
+<table>
+  <tr><th>Column</th><th>Type</th><th>Description</th></tr>
+  <tr><td><code>id</code></td><td>int</td><td>Primary key</td></tr>
+  <tr><td><code>user_id</code></td><td>int</td><td>FK to users table</td></tr>
+  <tr><td><code>company_name</code></td><td>varchar(100)</td><td>Company display name</td></tr>
+  <tr><td><code>company_domain</code></td><td>varchar(255)</td><td>Email domain for matching</td></tr>
+  <tr><td><code>contact_phone</code></td><td>varchar(20)</td><td>Contact phone</td></tr>
+  <tr><td><code>address</code></td><td>text</td><td>Company address</td></tr>
+  <tr><td><code>sla_level</code></td><td>enum</td><td>basic / premium / enterprise</td></tr>
+</table>
+
+<h2>Security</h2>
+<ul>
+  <li>Domain format validation (regex: <code>[a-z0-9][a-z0-9-]*\.[a-z]{2,}</code>)</li>
+  <li>Random 10-character password generated on creation (bcrypt hashed)</li>
+  <li>Soft delete preserves data; cannot delete customers with active tickets</li>
+  <li>Rate limiting: 30 write operations per 15 minutes</li>
+</ul>
+</section>
+
+<!-- ─── 6. AI Insights ─── -->
+<section id="ai-insights" data-section>
+<h1>AI Insights</h1>
+
+<h2>Automatic Analysis</h2>
+<p>Every incoming ticket is analysed for:</p>
+<ul>
+  <li><strong>Sentiment:</strong> urgent, negative, neutral, positive</li>
+  <li><strong>Category:</strong> Infrastructure, Database, Storage, Network, Performance</li>
+  <li><strong>Root Cause:</strong> system, hardware, software, network, database, resource</li>
+  <li><strong>Impact Level:</strong> low, medium, high, critical</li>
+  <li><strong>Key Phrases &amp; Technical Terms</strong></li>
+  <li><strong>Confidence Score</strong> (0&ndash;100%)</li>
+  <li><strong>Estimated Resolution Time</strong></li>
+</ul>
+
+<h2>Trend Detection</h2>
+<p>Automatically detects:</p>
+<ul>
+  <li><strong>Volume Spikes</strong> &mdash; unusual increases in ticket volume</li>
+  <li><strong>Recurring Issues</strong> &mdash; same category appearing repeatedly</li>
+  <li><strong>SLA Risks</strong> &mdash; tickets approaching deadline</li>
+  <li><strong>Urgent Backlogs</strong> &mdash; critical tickets not being addressed</li>
+</ul>
+
+<h2>Dashboard Actions</h2>
+<table>
+  <tr><th>Action</th><th>Description</th></tr>
+  <tr><td>Refresh</td><td>Reload latest insights</td></tr>
+  <tr><td>Detect Trends</td><td>Manually trigger trend analysis for the last 24 hours</td></tr>
+  <tr><td>Acknowledge</td><td>Mark insight as reviewed (tracked with user + timestamp)</td></tr>
+  <tr><td>Dismiss</td><td>Remove false positive or resolved insight from view</td></tr>
+</table>
+
+<h2>API Endpoints</h2>
+<table>
+  <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+  <tr><td><span class="badge badge-get">GET</span></td><td><code>/api/analytics/:tenantId/ai-insights</code></td><td>Dashboard data</td></tr>
+  <tr><td><span class="badge badge-post">POST</span></td><td><code>/api/analytics/:tenantId/detect-trends</code></td><td>Manual trend analysis</td></tr>
+  <tr><td><span class="badge badge-post">POST</span></td><td><code>/api/analytics/:tenantId/insights/:id/acknowledge</code></td><td>Acknowledge insight</td></tr>
+  <tr><td><span class="badge badge-post">POST</span></td><td><code>/api/analytics/:tenantId/insights/:id/dismiss</code></td><td>Dismiss insight</td></tr>
+</table>
+
+<h2>Database Tables</h2>
+<ul>
+  <li><code>ai_email_analysis</code> &mdash; per-ticket analysis results</li>
+  <li><code>ai_insights</code> &mdash; detected trends and alerts</li>
+  <li><code>ai_category_mappings</code> &mdash; pattern learning</li>
+  <li><code>ai_system_metrics</code> &mdash; performance tracking</li>
+</ul>
+</section>
+
+<!-- ─── 7. Ticket Processing Rules ─── -->
+<section id="ticket-rules" data-section>
+<h1>Ticket Processing Rules</h1>
+<p>Create automated rules that match tickets by search criteria and perform actions.</p>
+
+<h2>Rule Configuration</h2>
+<table>
+  <tr><th>Field</th><th>Description</th></tr>
+  <tr><td>Rule Name</td><td>Descriptive label</td></tr>
+  <tr><td>Search In</td><td><code>title</code>, <code>body</code>, or <code>both</code></td></tr>
+  <tr><td>Search Text</td><td>Text to match</td></tr>
+  <tr><td>Case Sensitive</td><td>Toggle case-sensitive matching</td></tr>
+  <tr><td>Action Type</td><td>What to do when a match is found</td></tr>
+  <tr><td>Enabled</td><td>Toggle rule on/off without deleting</td></tr>
+</table>
+
+<h2>Action Types</h2>
+<table>
+  <tr><th>Type</th><th>Description</th><th>Parameters</th></tr>
+  <tr><td><code>delete</code></td><td>Delete matching tickets</td><td>(none)</td></tr>
+  <tr><td><code>assign_to_expert</code></td><td>Assign to a specific expert</td><td><code>expert_id</code>, <code>expert_name</code></td></tr>
+  <tr><td><code>create_for_customer</code></td><td>Forward ticket to another customer</td><td><code>customer_id</code></td></tr>
+  <tr><td><code>set_priority</code></td><td>Set ticket priority</td><td><code>priority</code> (low/medium/high/critical)</td></tr>
+  <tr><td><code>set_status</code></td><td>Set ticket status</td><td><code>status</code></td></tr>
+  <tr><td><code>add_tag</code></td><td>Add a tag to the ticket</td><td><code>tag</code></td></tr>
+</table>
+
+<h2>Examples</h2>
+<h3>Auto-assign infrastructure alerts</h3>
+<pre><code>{
+  "rule_name": "Auto-assign Infrastructure",
+  "search_in": "title",
+  "search_text": "Infrastructure Monitoring",
+  "action_type": "assign_to_expert",
+  "action_params": { "expert_id": 1, "expert_name": "Infrastructure Team" }
+}</code></pre>
+
+<h3>Escalate urgent tickets</h3>
+<pre><code>{
+  "rule_name": "Escalate Critical",
+  "search_in": "title",
+  "search_text": "URGENT",
+  "case_sensitive": true,
+  "action_type": "set_priority",
+  "action_params": { "priority": "critical" }
+}</code></pre>
+
+<h2>API Endpoints</h2>
+<p>All prefixed with <code>/api/ticket-rules/:tenantId</code>.</p>
+<table>
+  <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+  <tr><td><span class="badge badge-get">GET</span></td><td><code>/</code></td><td>List all rules</td></tr>
+  <tr><td><span class="badge badge-get">GET</span></td><td><code>/:ruleId</code></td><td>Get single rule</td></tr>
+  <tr><td><span class="badge badge-post">POST</span></td><td><code>/</code></td><td>Create rule</td></tr>
+  <tr><td><span class="badge badge-put">PUT</span></td><td><code>/:ruleId</code></td><td>Update rule</td></tr>
+  <tr><td><span class="badge badge-del">DELETE</span></td><td><code>/:ruleId</code></td><td>Delete rule</td></tr>
+  <tr><td><span class="badge badge-post">POST</span></td><td><code>/:ruleId/test</code></td><td>Preview matching tickets</td></tr>
+  <tr><td><span class="badge badge-post">POST</span></td><td><code>/:ruleId/execute/:ticketId</code></td><td>Execute on specific ticket</td></tr>
+  <tr><td><span class="badge badge-post">POST</span></td><td><code>/execute-all/:ticketId</code></td><td>Execute all enabled rules on ticket</td></tr>
+  <tr><td><span class="badge badge-get">GET</span></td><td><code>/:ruleId/history</code></td><td>Execution history</td></tr>
+  <tr><td><span class="badge badge-get">GET</span></td><td><code>/statistics</code></td><td>Rule statistics</td></tr>
+</table>
+</section>
+
+<!-- ─── 8. API Reference ─── -->
+<section id="api-reference" data-section>
+<h1>API Reference</h1>
+<p>All endpoints require a <code>Bearer</code> token in the <code>Authorization</code> header unless noted.</p>
+
+<h2>Authentication</h2>
+<table>
+  <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+  <tr><td><span class="badge badge-post">POST</span></td><td><code>/api/auth/master/login</code></td><td>Master admin login</td></tr>
+  <tr><td><span class="badge badge-post">POST</span></td><td><code>/api/auth/tenant/login</code></td><td>Tenant user login</td></tr>
+  <tr><td><span class="badge badge-post">POST</span></td><td><code>/api/auth/master/change-password</code></td><td>Change master password</td></tr>
+  <tr><td><span class="badge badge-post">POST</span></td><td><code>/api/auth/tenant/change-password</code></td><td>Change tenant password</td></tr>
+  <tr><td><span class="badge badge-get">GET</span></td><td><code>/api/auth/verify</code></td><td>Verify token validity</td></tr>
+  <tr><td><span class="badge badge-get">GET</span></td><td><code>/api/auth/profile</code></td><td>Get user profile</td></tr>
+  <tr><td><span class="badge badge-put">PUT</span></td><td><code>/api/auth/profile</code></td><td>Update user profile</td></tr>
+  <tr><td><span class="badge badge-get">GET</span></td><td><code>/api/auth/tenants</code></td><td>List available tenants (public)</td></tr>
+</table>
+
+<h2>Tickets</h2>
+<table>
+  <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+  <tr><td><span class="badge badge-get">GET</span></td><td><code>/api/tickets/:tenantId</code></td><td>Get all tickets</td></tr>
+  <tr><td><span class="badge badge-get">GET</span></td><td><code>/api/tickets/:tenantId/:ticketId</code></td><td>Get specific ticket + activity</td></tr>
+  <tr><td><span class="badge badge-post">POST</span></td><td><code>/api/tickets/:tenantId</code></td><td>Create new ticket</td></tr>
+  <tr><td><span class="badge badge-put">PUT</span></td><td><code>/api/tickets/:tenantId/:ticketId</code></td><td>Update ticket (resolve, assign, etc.)</td></tr>
+</table>
+
+<h2>Master Admin</h2>
+<table>
+  <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+  <tr><td><span class="badge badge-get">GET</span></td><td><code>/api/master/tenants</code></td><td>Get all tenants</td></tr>
+  <tr><td><span class="badge badge-get">GET</span></td><td><code>/api/master/overview</code></td><td>Platform overview</td></tr>
+  <tr><td><span class="badge badge-get">GET</span></td><td><code>/api/master/subscriptions</code></td><td>Get subscriptions</td></tr>
+  <tr><td><span class="badge badge-get">GET</span></td><td><code>/api/master/billing</code></td><td>Get billing information</td></tr>
+  <tr><td><span class="badge badge-get">GET</span></td><td><code>/api/master/plans</code></td><td>Get subscription plans</td></tr>
+  <tr><td><span class="badge badge-get">GET</span></td><td><code>/api/master/email-settings</code></td><td>Get email settings</td></tr>
+  <tr><td><span class="badge badge-post">POST</span></td><td><code>/api/master/email-settings/test</code></td><td>Test email processing</td></tr>
+  <tr><td><span class="badge badge-get">GET</span></td><td><code>/api/master/audit-logs</code></td><td>Get audit logs</td></tr>
+</table>
+
+<h2>Customers</h2>
+<table>
+  <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+  <tr><td><span class="badge badge-get">GET</span></td><td><code>/api/customers</code></td><td>List all customers</td></tr>
+  <tr><td><span class="badge badge-get">GET</span></td><td><code>/api/customers/:id</code></td><td>Get single customer</td></tr>
+  <tr><td><span class="badge badge-post">POST</span></td><td><code>/api/customers</code></td><td>Create customer</td></tr>
+  <tr><td><span class="badge badge-put">PUT</span></td><td><code>/api/customers/:id</code></td><td>Update customer</td></tr>
+  <tr><td><span class="badge badge-del">DELETE</span></td><td><code>/api/customers/:id</code></td><td>Deactivate customer</td></tr>
+  <tr><td><span class="badge badge-post">POST</span></td><td><code>/api/customers/:id/reactivate</code></td><td>Reactivate customer</td></tr>
+</table>
+
+<h2>Analytics &amp; AI</h2>
+<table>
+  <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+  <tr><td><span class="badge badge-get">GET</span></td><td><code>/api/analytics/:tenantId/ai-insights</code></td><td>AI dashboard data</td></tr>
+  <tr><td><span class="badge badge-post">POST</span></td><td><code>/api/analytics/:tenantId/detect-trends</code></td><td>Manual trend detection</td></tr>
+  <tr><td><span class="badge badge-post">POST</span></td><td><code>/api/analytics/:tenantId/insights/:id/acknowledge</code></td><td>Acknowledge insight</td></tr>
+  <tr><td><span class="badge badge-post">POST</span></td><td><code>/api/analytics/:tenantId/insights/:id/dismiss</code></td><td>Dismiss insight</td></tr>
+</table>
+
+<h2>Admin Settings</h2>
+<table>
+  <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+  <tr><td><span class="badge badge-get">GET</span></td><td><code>/api/admin/:tenantId/housekeeping</code></td><td>Get housekeeping config</td></tr>
+  <tr><td><span class="badge badge-put">PUT</span></td><td><code>/api/admin/:tenantId/housekeeping</code></td><td>Update housekeeping config</td></tr>
+  <tr><td><span class="badge badge-post">POST</span></td><td><code>/api/admin/:tenantId/housekeeping/run</code></td><td>Run housekeeping now</td></tr>
+</table>
+
+<h2>Health &amp; Status</h2>
+<table>
+  <tr><th>Method</th><th>Endpoint</th><th>Auth</th><th>Description</th></tr>
+  <tr><td><span class="badge badge-get">GET</span></td><td><code>/health</code></td><td>No</td><td>Server health check</td></tr>
+  <tr><td><span class="badge badge-get">GET</span></td><td><code>/api/db/status</code></td><td>No</td><td>Database connection status</td></tr>
+</table>
+</section>
+
+<!-- ─── 9. Troubleshooting ─── -->
+<section id="troubleshooting" data-section>
+<h1>Troubleshooting</h1>
+
+<h2>Server Hangs on Login</h2>
+<p>Usually caused by MySQL connection pool exhaustion.</p>
+<pre><code># Kill stale node processes
+pkill -f "node.*server"
+lsof -ti:3000 | xargs kill -9
+
+# Clean stale MySQL connections
+mysql -u root -e "SELECT CONCAT('KILL ', id, ';') \
+  FROM information_schema.processlist \
+  WHERE user='root' AND command='Sleep' AND time > 60;" -N | mysql -u root
+
+# Restart
+npm start</code></pre>
+
+<h2>MySQL Connection Issues</h2>
+<pre><code># Check MySQL service
+sudo systemctl start mysql
+sudo systemctl enable mysql
+
+# Ensure root has privileges
+mysql -u root -p
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost';
+FLUSH PRIVILEGES;</code></pre>
+
+<h2>Port Conflicts</h2>
+<pre><code># Use a different port
+PORT=3001 npm start</code></pre>
+
+<h2>Railway Deployment Not Updating</h2>
+<p>Changes must be committed to git before <code>railway up</code>. Railway deploys from git, not local files.</p>
+<pre><code>git add .
+git commit -m "Your message"
+railway up --detach</code></pre>
+
+<h2>Customer Domain Issues</h2>
+<table>
+  <tr><th>Error</th><th>Solution</th></tr>
+  <tr><td>"Domain not found in customers"</td><td>Add the sender's email domain to a customer record</td></tr>
+  <tr><td>"Username or email already exists"</td><td>Choose a different username or update the existing customer</td></tr>
+  <tr><td>"Cannot delete customer with X active tickets"</td><td>Close all tickets first, then deactivate</td></tr>
+  <tr><td>Customer can't login</td><td>Check: active status, correct password, tenant code = "apoyar"</td></tr>
+</table>
+
+<h2>Ticket Rules Not Matching</h2>
+<ol>
+  <li>Verify search text is correct</li>
+  <li>Try with case-sensitive disabled</li>
+  <li>Check if searching in the correct field (title / body / both)</li>
+  <li>Use the Test button to preview matches before enabling</li>
+</ol>
+
+<h2>AI Insights Not Loading</h2>
+<ol>
+  <li>Check browser console for API errors</li>
+  <li>Verify authentication token is valid (re-login if expired)</li>
+  <li>Ensure the <code>ai_email_analysis</code> table exists in the tenant database</li>
+  <li>Try clicking Refresh or Detect Trends to regenerate data</li>
+</ol>
+
+<h2>Adding Columns to Existing Tenant DBs</h2>
+<p>When adding new columns, update all tenant databases:</p>
+<pre><code># Get Railway MySQL password
+railway variables | grep MYSQLPASSWORD
+
+# Run migration on each tenant DB
+mysql -h tramway.proxy.rlwy.net -P 19355 -u root -p{PASSWORD} -e "
+ALTER TABLE a1_tenant_{code}.tickets ADD COLUMN new_col TYPE;"</code></pre>
+</section>
+
+</div>
+
+<script>
+function filterSections(q) {
+  q = q.toLowerCase().trim();
+  document.querySelectorAll('.doc-main section[data-section]').forEach(function(sec) {
+    if (!q) { sec.style.display = ''; return; }
+    sec.style.display = sec.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+// Highlight active sidebar link on scroll
+var sidebarLinks = document.querySelectorAll('.doc-sidebar a[href^="#"]');
+window.addEventListener('scroll', function() {
+  var fromTop = window.scrollY + 60;
+  sidebarLinks.forEach(function(link) {
+    var sec = document.querySelector(link.getAttribute('href'));
+    if (sec && sec.offsetTop <= fromTop && sec.offsetTop + sec.offsetHeight > fromTop) {
+      sidebarLinks.forEach(function(l) { l.classList.remove('active'); });
+      link.classList.add('active');
+    }
+  });
+});
+// Close mobile menu on link click
+sidebarLinks.forEach(function(link) {
+  link.addEventListener('click', function() {
+    document.querySelector('.doc-sidebar').classList.remove('open');
+  });
+});
+</script>
+</body>
+</html>
