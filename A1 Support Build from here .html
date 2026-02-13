@@ -1551,6 +1551,7 @@ vNext-FULL-ActionsSLA:
                 <div class="nav-subitem" data-section="admin-section-sla" onclick="openAdminSettings('admin-section-sla')">⏱️ SLA Management</div>
                 <div class="nav-subitem" data-section="admin-section-cmdb-fields" onclick="openAdminSettings('admin-section-cmdb-fields')">🗃️ CMDB Custom Fields</div>
                 <div class="nav-subitem" data-section="admin-section-billing" onclick="openAdminSettings('admin-section-billing')">💳 Billing & Subscription</div>
+                <div class="nav-subitem" data-section="admin-section-housekeeping" onclick="openAdminSettings('admin-section-housekeeping')">🧹 Housekeeping</div>
               </div>
             </div>
             <div class="navlink" data-target="system-control" onclick="nav(this)">🔧 System Control</div>
@@ -5092,6 +5093,39 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
             <div id="billing-message" class="subtitle" style="color:#16a34a;display:none;margin-top:12px"></div>
             <div id="billing-error" class="subtitle" style="color:#b91c1c;display:none;margin-top:12px"></div>
+          </div>
+
+          <!-- Data Retention & Housekeeping Section -->
+          <div id="admin-section-housekeeping" class="wizard-section card p-16 mb-12" style="display:none">
+            <div class="row space mb-12">
+              <h4 class="subtitle" style="margin:0;font-weight:600">Data Retention & Housekeeping</h4>
+              <button class="btn primary" onclick="runHousekeepingNow()" id="hk-run-btn">Run Now</button>
+            </div>
+
+            <div id="hk-info" class="card p-16 mb-12" style="background:#f8fafc;border:1px solid #e2e8f0">
+              <p class="subtitle" style="margin:0 0 8px 0"><strong>Plan:</strong> <span id="hk-plan-name">—</span></p>
+              <p class="subtitle" style="margin:0 0 4px 0"><strong>Log retention:</strong> <span id="hk-log-days">—</span> days</p>
+              <p class="subtitle" style="margin:0"><strong>Closed ticket retention:</strong> <span id="hk-ticket-days">—</span> days</p>
+            </div>
+
+            <div class="mb-12">
+              <label class="subtitle">Custom Log Retention (days) — leave blank to use plan default</label>
+              <div class="row" style="gap:8px;align-items:center;margin-top:4px">
+                <input id="hk-override-days" class="input" type="number" min="30" max="730" placeholder="e.g., 180" style="width:160px"/>
+                <button class="btn secondary" onclick="saveHousekeepingOverride()">Save Override</button>
+              </div>
+            </div>
+
+            <div id="hk-results" style="display:none" class="mb-12">
+              <h5 class="subtitle" style="font-weight:600;margin:0 0 8px 0">Last Run Results</h5>
+              <table class="table" style="width:100%">
+                <thead><tr><th>Table</th><th>Rows Pruned</th></tr></thead>
+                <tbody id="hk-results-body"></tbody>
+              </table>
+            </div>
+
+            <div id="hk-message" class="subtitle" style="color:#16a34a;display:none;margin-top:12px"></div>
+            <div id="hk-error" class="subtitle" style="color:#b91c1c;display:none;margin-top:12px"></div>
           </div>
         </div>
 
@@ -11179,6 +11213,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     }
     if (sectionId === 'admin-section-cmdb-fields') loadCustomFieldDefinitions();
     if (sectionId === 'admin-section-sla') loadSLAData();
+    if (sectionId === 'admin-section-housekeeping') loadHousekeepingInfo();
   }
 
   function initWizardSection() {
@@ -13286,6 +13321,89 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   function showBillingError(msg) {
     showBillingMessage(msg, true);
+  }
+
+  // Housekeeping Functions
+  async function loadHousekeepingInfo() {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/housekeeping/info`, {
+        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (!data.success) return;
+      const el = id => document.getElementById(id);
+      if (el('hk-plan-name')) el('hk-plan-name').textContent = data.plan || 'unknown';
+      if (el('hk-log-days')) el('hk-log-days').textContent = data.retention?.logDays ?? '—';
+      if (el('hk-ticket-days')) el('hk-ticket-days').textContent = data.retention?.ticketDays ?? '—';
+      if (el('hk-override-days')) el('hk-override-days').value = data.override || '';
+    } catch (e) {
+      console.error('Error loading housekeeping info:', e);
+    }
+  }
+
+  async function saveHousekeepingOverride() {
+    const val = document.getElementById('hk-override-days')?.value;
+    const msgEl = document.getElementById('hk-message');
+    const errEl = document.getElementById('hk-error');
+    if (msgEl) { msgEl.style.display = 'none'; }
+    if (errEl) { errEl.style.display = 'none'; }
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/housekeeping/override`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + localStorage.getItem('token')
+        },
+        body: JSON.stringify({ days: val || null })
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (msgEl) { msgEl.textContent = val ? 'Override saved — logs will be retained for ' + val + ' days.' : 'Override removed — using plan default.'; msgEl.style.display = 'block'; }
+        loadHousekeepingInfo();
+      } else {
+        if (errEl) { errEl.textContent = data.error || 'Failed to save override'; errEl.style.display = 'block'; }
+      }
+    } catch (e) {
+      if (errEl) { errEl.textContent = 'Error saving override: ' + e.message; errEl.style.display = 'block'; }
+    }
+  }
+
+  async function runHousekeepingNow() {
+    const btn = document.getElementById('hk-run-btn');
+    const msgEl = document.getElementById('hk-message');
+    const errEl = document.getElementById('hk-error');
+    const resultsDiv = document.getElementById('hk-results');
+    if (msgEl) { msgEl.style.display = 'none'; }
+    if (errEl) { errEl.style.display = 'none'; }
+    if (resultsDiv) { resultsDiv.style.display = 'none'; }
+    if (btn) { btn.disabled = true; btn.textContent = 'Running...'; }
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/housekeeping/run`, {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+      });
+      const data = await res.json();
+      if (btn) { btn.disabled = false; btn.textContent = 'Run Now'; }
+      if (data.success && data.logs) {
+        const rows = Object.entries(data.logs).map(([table, count]) => ({ table, count }));
+        if (data.tickets != null) rows.push({ table: 'tickets (closed)', count: data.tickets });
+        const tbody = document.getElementById('hk-results-body');
+        if (tbody) {
+          tbody.innerHTML = rows.map(r =>
+            `<tr><td>${r.table}</td><td>${r.count === 'table_not_found' ? 'n/a' : r.count}</td></tr>`
+          ).join('');
+        }
+        if (resultsDiv) resultsDiv.style.display = 'block';
+        const total = rows.reduce((s, r) => s + (typeof r.count === 'number' ? r.count : 0), 0);
+        if (msgEl) { msgEl.textContent = 'Housekeeping complete — ' + total + ' total rows pruned.'; msgEl.style.display = 'block'; }
+      } else {
+        if (errEl) { errEl.textContent = data.error || 'Housekeeping failed'; errEl.style.display = 'block'; }
+      }
+    } catch (e) {
+      if (btn) { btn.disabled = false; btn.textContent = 'Run Now'; }
+      if (errEl) { errEl.textContent = 'Error: ' + e.message; errEl.style.display = 'block'; }
+    }
   }
 
   // Email Ingest Functions
