@@ -119,15 +119,15 @@ async function pruneLogsForTenant(tenantCode, config) {
     [config.logDays, BATCH_LIMIT]
   );
 
-  // ai_action_log
+  // ai_action_log (uses executed_at)
   await safePrune('ai_action_log',
-    `DELETE FROM ai_action_log WHERE created_at < DATE_SUB(NOW(), INTERVAL ? DAY) LIMIT ?`,
+    `DELETE FROM ai_action_log WHERE executed_at < DATE_SUB(NOW(), INTERVAL ? DAY) LIMIT ?`,
     [config.logDays, BATCH_LIMIT]
   );
 
-  // ai_email_analysis
+  // ai_email_analysis (uses analysis_timestamp)
   await safePrune('ai_email_analysis',
-    `DELETE FROM ai_email_analysis WHERE created_at < DATE_SUB(NOW(), INTERVAL ? DAY) LIMIT ?`,
+    `DELETE FROM ai_email_analysis WHERE analysis_timestamp < DATE_SUB(NOW(), INTERVAL ? DAY) LIMIT ?`,
     [config.logDays, BATCH_LIMIT]
   );
 
@@ -161,9 +161,9 @@ async function pruneLogsForTenant(tenantCode, config) {
     [config.logDays, BATCH_LIMIT]
   );
 
-  // teams_notification_log
+  // teams_notification_log (uses sent_at)
   await safePrune('teams_notification_log',
-    `DELETE FROM teams_notification_log WHERE created_at < DATE_SUB(NOW(), INTERVAL ? DAY) LIMIT ?`,
+    `DELETE FROM teams_notification_log WHERE sent_at < DATE_SUB(NOW(), INTERVAL ? DAY) LIMIT ?`,
     [config.logDays, BATCH_LIMIT]
   );
 
