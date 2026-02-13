@@ -66,6 +66,9 @@ const billingRoutes = require('./routes/billing');
 // Import email processor service
 const { startEmailProcessing } = require('./services/email-processor');
 
+// Import housekeeping service
+const housekeeping = require('./services/housekeeping');
+
 // Import rate limiter
 const { apiLimiter } = require('./middleware/rateLimiter');
 
@@ -494,6 +497,13 @@ async function startServer() {
         console.warn(`⚠️  Warning: Could not initialize tenant 'apoyar':`, error.message);
       }
 
+      // Start housekeeping scheduler (daily at 3 AM)
+      try {
+        housekeeping.startScheduler();
+      } catch (hkError) {
+        console.warn(`⚠️  Warning: Could not start housekeeping scheduler:`, hkError.message);
+      }
+
       console.log(`\n✨ Features available:`);
       console.log(`   • Multi-tenant MySQL backend`);
       console.log(`   • Master admin system`);
@@ -531,6 +541,8 @@ process.on('SIGINT', async () => {
     } catch (e) {
       // Ignore if not loaded
     }
+    // Stop housekeeping scheduler
+    housekeeping.stopScheduler();
     await closeAllConnections();
     console.log('✅ Database connections closed');
   } catch (error) {
@@ -542,6 +554,7 @@ process.on('SIGINT', async () => {
 process.on('SIGTERM', async () => {
   console.log('\n🛑 Received SIGTERM, shutting down...');
   try {
+    housekeeping.stopScheduler();
     await closeAllConnections();
     console.log('✅ Database connections closed');
   } catch (error) {

@@ -346,25 +346,44 @@ class ProductionMonitor: ObservableObject {
         }
     }
 
-    private func sendSMS(message: String) {
+    func sendSMS(message: String) {
         let sanitizedNumber = smsAlertNumber.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !sanitizedNumber.isEmpty else {
+            print("[SMS] No phone number configured")
+            return
+        }
         let sanitizedMessage = message.replacingOccurrences(of: "\"", with: "'")
 
-        let script = """
-        tell application "Messages"
-            set targetService to 1st account whose service type = iMessage
-            set targetBuddy to participant "\(sanitizedNumber)" of targetService
-            send "\(sanitizedMessage)" to targetBuddy
-        end tell
-        """
+        // Run on background thread to avoid blocking UI
+        DispatchQueue.global(qos: .userInitiated).async {
+            let script = """
+            tell application "Messages"
+                send "\(sanitizedMessage)" to buddy "\(sanitizedNumber)" of account 1
+            end tell
+            """
 
-        if let appleScript = NSAppleScript(source: script) {
-            var error: NSDictionary?
-            appleScript.executeAndReturnError(&error)
-            if let error = error {
-                print("[SMS] Failed to send iMessage: \(error)")
-            } else {
-                print("[SMS] iMessage sent to \(sanitizedNumber)")
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+            process.arguments = ["-e", script]
+
+            let pipe = Pipe()
+            process.standardOutput = pipe
+            process.standardError = pipe
+
+            do {
+                try process.run()
+                process.waitUntilExit()
+
+                let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                let output = String(data: data, encoding: .utf8) ?? ""
+
+                if process.terminationStatus == 0 {
+                    print("[SMS] iMessage sent to \(sanitizedNumber)")
+                } else {
+                    print("[SMS] Failed to send iMessage (exit \(process.terminationStatus)): \(output)")
+                }
+            } catch {
+                print("[SMS] Failed to run osascript: \(error)")
             }
         }
     }
