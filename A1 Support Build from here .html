@@ -1175,6 +1175,18 @@ vNext-FULL-ActionsSLA:
     .global-search-footer { display: none; }
     .global-search-results { max-height: 50vh; }
   }
+  /* Walkthrough overlay + tooltip */
+  #wt-overlay{position:fixed;top:0;left:0;width:100%;height:100%;z-index:1100;cursor:pointer;display:none}
+  #wt-tooltip{position:fixed;z-index:1101;background:var(--bg);border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.25);max-width:340px;width:90vw;display:none;animation:wtFadeIn .2s ease}
+  @keyframes wtFadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+  .wt-head{padding:14px 16px 0;font-weight:700;font-size:15px;color:var(--ink)}
+  .wt-body{padding:8px 16px 12px;font-size:13px;line-height:1.5;color:var(--muted)}
+  .wt-foot{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-top:1px solid var(--border)}
+  .wt-foot .wt-counter{font-size:11px;color:var(--muted)}
+  .wt-foot .wt-btns{display:flex;gap:6px}
+  .wt-foot .wt-btns button{padding:5px 12px;font-size:12px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--ink);cursor:pointer;font-weight:500}
+  .wt-foot .wt-btns button.wt-primary{background:var(--primary);color:#fff;border-color:var(--primary)}
+  .wt-foot .wt-btns button:hover{opacity:.85}
 </style>
 </head>
 <body>
@@ -1381,6 +1393,7 @@ vNext-FULL-ActionsSLA:
         <button onclick="clearImpersonation()" style="background:none;border:none;cursor:pointer;color:#92400e;font-weight:bold;padding:0 2px;font-size:14px;line-height:1;" title="Exit impersonation">×</button>
       </div>
       <div class="topnav-actions">
+        <button id="wt-help-btn" class="topnav-btn ghost" onclick="startWalkthrough()" title="Take a tour">? Help</button>
         <button class="topnav-btn ghost" id="topnav-switch-btn" onclick="switchRole()">Switch</button>
         <button class="topnav-btn ghost" onclick="logout()">Sign out</button>
       </div>
@@ -1391,6 +1404,19 @@ vNext-FULL-ActionsSLA:
 
 <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeMobileMenu()"></div>
 <div id="err"></div>
+<canvas id="wt-overlay" onclick="endWalkthrough()"></canvas>
+<div id="wt-tooltip">
+  <div class="wt-head" id="wt-title"></div>
+  <div class="wt-body" id="wt-body"></div>
+  <div class="wt-foot">
+    <span class="wt-counter" id="wt-counter"></span>
+    <div class="wt-btns">
+      <button id="wt-back" onclick="wtBack()">Back</button>
+      <button onclick="endWalkthrough()">Skip</button>
+      <button id="wt-next" class="wt-primary" onclick="wtNext()">Next</button>
+    </div>
+  </div>
+</div>
 <div class="container">
   <div class="brandbar">
     <div class="logo-icon">
@@ -6671,6 +6697,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           configureRole();
           switchView('dash');
           go('app');
+          if (!localStorage.getItem('walkthrough_done')) setTimeout(startWalkthrough, 800);
 
           // Check for OAuth callbacks
           checkTeamsOAuthCallback();
@@ -7154,7 +7181,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         configureRole();
         switchView('dash');
         go('app');
-        
+        if (!localStorage.getItem('walkthrough_done')) setTimeout(startWalkthrough, 800);
+
         // Load tickets from API before rendering
         await fetchTicketsFromAPI();
         
@@ -26243,6 +26271,151 @@ observer.observe(document.body, { attributes: true, attributeFilter: ['style'] }
 if (document.querySelector('ion-app')) {
   observer.observe(document.querySelector('ion-app'), { attributes: true, attributeFilter: ['style'] });
 }
+
+/* ── Walkthrough Tour ── */
+const wtSteps = [
+  { sel:null, pos:'center', title:'Welcome to ServiFlow', body:'This is your Dashboard — a real-time overview of tickets, SLA health, and key metrics. Let\'s take a quick tour of the main areas.' },
+  { sel:'.leftnav', pos:'right', title:'Sidebar Navigation', body:'Use the sidebar to move between sections. The menu adapts to your role — admins, experts, and customers each see relevant options.' },
+  { sel:'[data-target="tickets"]', pos:'right', title:'Tickets', body:'View, filter, and manage all support tickets here. Track status, SLA timers, and assignment at a glance.' },
+  { sel:'[data-target="raise"]', pos:'right', title:'Raise a Request', body:'Create a new support request with priority, category, and attachments. Tickets are automatically routed based on your processing rules.' },
+  { sel:'[data-target="knowledge-base"]', pos:'right', title:'Knowledge Base', body:'Browse and search help articles. Admins can create and organise content so customers and experts find answers fast.' },
+  { sel:'[data-target="analytics"]', pos:'right', title:'Analytics', body:'Charts and tables that show ticket volumes, SLA compliance, resolution times, and trends over time.' },
+  { sel:null, pos:'center', title:'You\'re All Set!', body:'That covers the essentials. Click the <b>? Help</b> button in the top bar any time to replay this tour. For detailed documentation, visit <a href="/docs.html" target="_blank" style="color:var(--primary)">the Documentation page</a>.' }
+];
+let wtIdx = 0;
+
+function wtFindVisible(sel) {
+  if (!sel) return null;
+  const els = document.querySelectorAll(sel);
+  for (const el of els) { if (el.offsetParent !== null) return el; }
+  return null;
+}
+
+function wtGetOffset() {
+  // Canvas & tooltip are position:fixed inside ion-app which creates a new
+  // containing block (contain/transform). getBoundingClientRect() returns
+  // viewport coords, but style.left/top and canvas drawing use containing-
+  // block coords. Subtract the canvas origin to convert.
+  const c = document.getElementById('wt-overlay');
+  const r = c.getBoundingClientRect();
+  return { x: r.left, y: r.top, w: r.width, h: r.height };
+}
+
+function wtDrawSpotlight(rect) {
+  const c = document.getElementById('wt-overlay');
+  const o = wtGetOffset();
+  c.width = o.w;
+  c.height = o.h;
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, c.width, c.height);
+  ctx.fillStyle = 'rgba(0,0,0,.55)';
+  ctx.fillRect(0, 0, c.width, c.height);
+  if (rect) {
+    const p = 6, r = 8;
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.beginPath();
+    // Convert viewport coords to canvas coords
+    const x = rect.left - o.x - p, y = rect.top - o.y - p, w = rect.width + p * 2, h = rect.height + p * 2;
+    ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+    ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+    ctx.stroke();
+  }
+}
+
+function wtPosition(rect, pos) {
+  const tt = document.getElementById('wt-tooltip');
+  tt.style.display = 'block';
+  const o = wtGetOffset();
+  const tw = tt.offsetWidth, th = tt.offsetHeight;
+  let left, top; // viewport coords
+  if (!rect || pos === 'center') {
+    left = o.x + (o.w - tw) / 2;
+    top = o.y + (o.h - th) / 2;
+  } else if (pos === 'right') {
+    left = rect.right + 14;
+    top = rect.top + (rect.height - th) / 2;
+    // If tooltip goes off right edge, try left side
+    if (left + tw > o.x + o.w - 8) left = rect.left - tw - 14;
+  } else {
+    left = rect.left;
+    top = rect.bottom + 14;
+    // If tooltip goes off bottom, try above
+    if (top + th > o.y + o.h - 8) top = rect.top - th - 14;
+  }
+  left = Math.max(o.x + 8, Math.min(left, o.x + o.w - tw - 8));
+  top = Math.max(o.y + 8, Math.min(top, o.y + o.h - th - 8));
+  // Convert viewport coords to containing-block coords for style
+  tt.style.left = (left - o.x) + 'px';
+  tt.style.top = (top - o.y) + 'px';
+}
+
+function wtShowStep() {
+  const s = wtSteps[wtIdx];
+  document.getElementById('wt-title').textContent = s.title;
+  document.getElementById('wt-body').innerHTML = s.body;
+  document.getElementById('wt-counter').textContent = 'Step ' + (wtIdx + 1) + ' of ' + wtSteps.length;
+  document.getElementById('wt-back').style.display = wtIdx === 0 ? 'none' : '';
+  document.getElementById('wt-next').textContent = wtIdx === wtSteps.length - 1 ? 'Done' : 'Next';
+  const el = wtFindVisible(s.sel);
+  // Scroll sidebar target into view before measuring
+  if (el) {
+    el.scrollIntoView({ block: 'nearest', behavior: 'instant' });
+  }
+  const rect = el ? el.getBoundingClientRect() : null;
+  // If element is off-screen (below or above viewport), skip spotlight
+  const offScreen = rect && (rect.bottom < 0 || rect.top > window.innerHeight);
+  wtDrawSpotlight(offScreen ? null : rect);
+  wtPosition(offScreen ? null : rect, offScreen ? 'center' : s.pos);
+}
+
+function wtNext() { if (wtIdx < wtSteps.length - 1) { wtIdx++; wtShowStep(); } else { endWalkthrough(); } }
+function wtBack() { if (wtIdx > 0) { wtIdx--; wtShowStep(); } }
+
+function startWalkthrough() {
+  wtIdx = 0;
+  // Ensure sidebar is visible so walkthrough targets are reachable
+  const container = document.querySelector('.container');
+  if (container && container.classList.contains('sidebar-collapsed')) {
+    container.classList.remove('sidebar-collapsed');
+    localStorage.setItem('serviflow.sidebarCollapsed', '0');
+  }
+  if (document.body.classList.contains('fullscreen-mode')) {
+    exitFullscreen();
+  }
+  // Make sidebar scrollable during walkthrough so items can scroll into view
+  const leftnav = document.querySelector('.leftnav');
+  if (leftnav) {
+    leftnav.style.maxHeight = 'calc(100vh - 80px)';
+    leftnav.style.overflowY = 'auto';
+  }
+  // Scroll to top of page
+  window.scrollTo({ top: 0, behavior: 'instant' });
+  document.getElementById('wt-overlay').style.display = 'block';
+  document.getElementById('wt-tooltip').style.display = 'block';
+  wtShowStep();
+}
+
+function endWalkthrough() {
+  document.getElementById('wt-overlay').style.display = 'none';
+  document.getElementById('wt-tooltip').style.display = 'none';
+  localStorage.setItem('walkthrough_done', '1');
+  // Restore sidebar styles
+  const leftnav = document.querySelector('.leftnav');
+  if (leftnav) {
+    leftnav.style.maxHeight = '';
+    leftnav.style.overflowY = '';
+  }
+}
+
+window.addEventListener('resize', function() {
+  if (document.getElementById('wt-overlay').style.display === 'block') wtShowStep();
+});
 </script>
 </body>
 </html>
