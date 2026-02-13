@@ -7,7 +7,8 @@ const express = require('express');
 const router = express.Router();
 const { masterQuery } = require('../config/database');
 const { verifyToken, requireRole } = require('../middleware/auth');
-const { runHousekeepingForTenant } = require('../services/housekeeping');
+const { runHousekeepingForTenant, getRetentionConfig } = require('../services/housekeeping');
+const { getTenantConnection } = require('../config/database');
 
 // Apply authentication to all routes
 router.use(verifyToken);
@@ -146,6 +147,83 @@ router.post('/housekeeping/run', async (req, res) => {
   } catch (error) {
     console.error('[Admin] Housekeeping error:', error);
     res.status(500).json({ success: false, error: 'Housekeeping failed: ' + error.message });
+  }
+});
+
+/**
+ * GET /api/admin/housekeeping/info
+ * Return plan name, retention config, and tenant override
+ */
+router.get('/housekeeping/info', async (req, res) => {
+  try {
+    const tenantCode = req.user.tenantCode;
+
+    // Look up plan slug
+    const rows = await masterQuery(
+      `SELECT sp.slug as plan_slug, sp.name as plan_name
+       FROM tenants t
+       LEFT JOIN tenant_subscriptions ts ON t.id = ts.tenant_id
+       LEFT JOIN subscription_plans sp ON ts.plan_id = sp.id
+       WHERE t.tenant_code = ?`,
+      [tenantCode]
+    );
+    const planSlug = rows.length > 0 ? rows[0].plan_slug : null;
+    const planName = rows.length > 0 ? rows[0].plan_name : 'Unknown';
+
+    // Look up tenant override
+    let override = null;
+    try {
+      const conn = await getTenantConnection(tenantCode);
+      try {
+        const [settings] = await conn.query(
+          `SELECT setting_value FROM tenant_settings WHERE setting_key = 'data_retention_days'`
+        );
+        if (settings.length > 0 && settings[0].setting_value) {
+          override = parseInt(settings[0].setting_value, 10) || null;
+        }
+      } finally {
+        conn.release();
+      }
+    } catch (e) {
+      // tenant_settings may not exist — fine
+    }
+
+    const retention = getRetentionConfig(planSlug, override);
+
+    res.json({ success: true, plan: planName, planSlug, retention, override });
+  } catch (error) {
+    console.error('[Admin] Housekeeping info error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /api/admin/housekeeping/override
+ * Save or clear the data_retention_days override
+ */
+router.post('/housekeeping/override', async (req, res) => {
+  try {
+    const tenantCode = req.user.tenantCode;
+    const { days } = req.body;
+    const conn = await getTenantConnection(tenantCode);
+    try {
+      if (days && parseInt(days, 10) > 0) {
+        await conn.query(
+          `INSERT INTO tenant_settings (setting_key, setting_value, setting_type, description)
+           VALUES ('data_retention_days', ?, 'number', 'Custom log retention days override')
+           ON DUPLICATE KEY UPDATE setting_value = ?, updated_at = NOW()`,
+          [String(days), String(days)]
+        );
+      } else {
+        await conn.query(`DELETE FROM tenant_settings WHERE setting_key = 'data_retention_days'`);
+      }
+    } finally {
+      conn.release();
+    }
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[Admin] Housekeeping override error:', error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
