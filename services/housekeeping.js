@@ -157,7 +157,7 @@ async function pruneLogsForTenant(tenantCode, config) {
 
   // cmdb_change_history
   await safePrune('cmdb_change_history',
-    `DELETE FROM cmdb_change_history WHERE changed_at < DATE_SUB(NOW(), INTERVAL ? DAY) LIMIT ?`,
+    `DELETE FROM cmdb_change_history WHERE created_at < DATE_SUB(NOW(), INTERVAL ? DAY) LIMIT ?`,
     [config.logDays, BATCH_LIMIT]
   );
 
