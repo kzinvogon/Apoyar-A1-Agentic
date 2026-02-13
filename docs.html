@@ -1,0 +1,1592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ServiFlow User Guide</title>
+<style>
+  :root{--primary:#2563eb;--bg:#fff;--sidebar-bg:#f8fafc;--ink:#1e293b;--muted:#64748b;--border:#e2e8f0;--code-bg:#f1f5f9;--radius:8px;--success:#16a34a;--warning:#d97706;--danger:#dc2626}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:var(--ink);background:var(--bg);line-height:1.7;display:flex;min-height:100vh}
+
+  /* Sidebar */
+  .doc-sidebar{position:fixed;top:0;left:0;width:270px;height:100vh;background:var(--sidebar-bg);border-right:1px solid var(--border);overflow-y:auto;padding:20px 0;z-index:10}
+  .doc-sidebar .brand{padding:0 20px 16px;font-weight:800;font-size:18px;color:var(--primary);border-bottom:1px solid var(--border);margin-bottom:12px}
+  .doc-sidebar .brand span{color:var(--ink)}
+  .doc-sidebar a{display:block;padding:6px 20px 6px 24px;color:var(--muted);text-decoration:none;font-size:12.5px;font-weight:500;transition:color .15s,background .15s;border-left:3px solid transparent}
+  .doc-sidebar a:hover,.doc-sidebar a.active{color:var(--primary);background:rgba(37,99,235,.06);border-left-color:var(--primary)}
+  .doc-sidebar .search-box{padding:0 16px 12px}
+  .doc-sidebar .search-box input{width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;outline:none}
+  .doc-sidebar .search-box input:focus{border-color:var(--primary)}
+  .section-label{display:block;padding:14px 20px 4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);pointer-events:none}
+
+  /* Main */
+  .doc-main{margin-left:270px;flex:1;padding:32px 48px 80px;max-width:880px}
+  .doc-main section{margin-bottom:56px}
+  .doc-main h1{font-size:26px;margin-bottom:8px;color:var(--ink)}
+  .doc-main h2{font-size:20px;margin:28px 0 10px;padding-bottom:5px;border-bottom:1px solid var(--border);color:var(--ink)}
+  .doc-main h3{font-size:15px;margin:18px 0 6px;color:var(--ink)}
+  .doc-main p,.doc-main li{font-size:14px;color:var(--ink);margin-bottom:8px}
+  .doc-main ul,.doc-main ol{padding-left:24px;margin-bottom:12px}
+  .doc-main code{background:var(--code-bg);padding:2px 5px;border-radius:4px;font-size:13px;font-family:'SF Mono',Consolas,monospace}
+  .doc-main pre{background:var(--code-bg);border:1px solid var(--border);border-radius:var(--radius);padding:14px;overflow-x:auto;margin:10px 0 16px;line-height:1.5}
+  .doc-main pre code{background:none;padding:0;font-size:12.5px}
+  .doc-main table{width:100%;border-collapse:collapse;margin:10px 0 16px;font-size:13px}
+  .doc-main th,.doc-main td{text-align:left;padding:8px 12px;border:1px solid var(--border)}
+  .doc-main th{background:var(--code-bg);font-weight:600}
+  .back-link{display:inline-block;margin-bottom:20px;color:var(--primary);text-decoration:none;font-size:13px;font-weight:500}
+  .back-link:hover{text-decoration:underline}
+
+  /* New classes */
+  .tip-box,.warning-box,.note-box{border-radius:var(--radius);padding:12px 16px;margin:12px 0 16px;font-size:13px;line-height:1.6}
+  .tip-box{background:#f0fdf4;border-left:4px solid var(--success);color:#15803d}
+  .warning-box{background:#fffbeb;border-left:4px solid var(--warning);color:#92400e}
+  .note-box{background:#eff6ff;border-left:4px solid var(--primary);color:#1e40af}
+  .tip-box strong,.warning-box strong,.note-box strong{display:block;margin-bottom:2px}
+  .role-badge{display:inline-block;padding:1px 7px;border-radius:10px;font-size:11px;font-weight:600;vertical-align:middle;margin-left:4px}
+  .role-admin{background:#dbeafe;color:#1e40af}
+  .role-expert{background:#f3e8ff;color:#6b21a8}
+  .role-customer{background:#dcfce7;color:#166534}
+  .role-all{background:#f1f5f9;color:#475569}
+  .steps{counter-reset:step;list-style:none;padding-left:0}
+  .steps li{counter-increment:step;padding:8px 0 8px 40px;position:relative;margin-bottom:4px;font-size:14px}
+  .steps li::before{content:counter(step);position:absolute;left:0;top:7px;width:28px;height:28px;border-radius:50%;background:var(--primary);color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center}
+  kbd{display:inline-block;padding:2px 6px;border:1px solid var(--border);border-radius:4px;background:var(--code-bg);font-size:12px;font-family:'SF Mono',Consolas,monospace;box-shadow:0 1px 0 var(--border)}
+  .cross-link-banner{background:linear-gradient(135deg,#eff6ff,#f0f9ff);border:1px solid #bfdbfe;border-radius:var(--radius);padding:12px 16px;margin-bottom:24px;font-size:13px;display:flex;align-items:center;gap:8px}
+  .cross-link-banner a{color:var(--primary);font-weight:600;text-decoration:none}
+  .cross-link-banner a:hover{text-decoration:underline}
+  .feature-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:12px 0 16px}
+  .feature-card{border:1px solid var(--border);border-radius:var(--radius);padding:14px;font-size:13px}
+  .feature-card strong{display:block;margin-bottom:4px;font-size:14px}
+
+  /* Mobile */
+  .menu-toggle{display:none;position:fixed;top:12px;left:12px;z-index:20;background:var(--primary);color:#fff;border:none;border-radius:var(--radius);padding:8px 12px;font-size:14px;cursor:pointer}
+  @media(max-width:768px){
+    .doc-sidebar{transform:translateX(-100%);transition:transform .2s}
+    .doc-sidebar.open{transform:translateX(0)}
+    .doc-main{margin-left:0;padding:24px 16px 60px}
+    .menu-toggle{display:block}
+    .feature-grid{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+
+<button class="menu-toggle" onclick="document.querySelector('.doc-sidebar').classList.toggle('open')">Menu</button>
+
+<nav class="doc-sidebar">
+  <div class="brand"><span>ServiFlow</span> Guide</div>
+  <div class="search-box"><input type="text" id="doc-search" placeholder="Search guide..." oninput="filterSections(this.value)"></div>
+
+  <span class="section-label">Getting Started</span>
+  <a href="#welcome">Welcome to ServiFlow</a>
+  <a href="#signup">Signing Up &amp; First Login</a>
+  <a href="#setup-guide">Initial Setup Guide</a>
+
+  <span class="section-label">Dashboard</span>
+  <a href="#admin-dashboard">Admin Dashboard</a>
+  <a href="#expert-dashboard">Expert Dashboard</a>
+  <a href="#customer-dashboard">Customer Dashboard</a>
+
+  <span class="section-label">Tickets</span>
+  <a href="#creating-tickets">Creating Tickets</a>
+  <a href="#ticket-list">Ticket List View</a>
+  <a href="#ticket-detail">Ticket Detail View</a>
+  <a href="#ticket-workflow">Ticket Workflow</a>
+  <a href="#ticket-actions">Ticket Actions</a>
+  <a href="#expert-pool">Expert Pool</a>
+
+  <span class="section-label">AI Features</span>
+  <a href="#ai-classification">AI Classification</a>
+  <a href="#ai-assist">AI Assist</a>
+  <a href="#ai-insights">AI Insights Dashboard</a>
+  <a href="#ai-chatbot">AI Chatbot</a>
+  <a href="#ai-kb-generation">AI KB Generation</a>
+
+  <span class="section-label">SLA Management</span>
+  <a href="#understanding-slas">Understanding SLAs</a>
+  <a href="#sla-definitions">SLA Definitions</a>
+  <a href="#business-hours">Business Hours</a>
+  <a href="#sla-assignment">How SLAs Apply</a>
+  <a href="#category-sla">Category-SLA Mappings</a>
+  <a href="#sla-notifications">Breach Notifications</a>
+  <a href="#sla-pause">SLA Pause &amp; Resume</a>
+
+  <span class="section-label">CMDB</span>
+  <a href="#cmdb-overview">Overview</a>
+  <a href="#managing-assets">Managing Assets</a>
+  <a href="#cmdb-types">Categories, Brands, Models</a>
+  <a href="#cmdb-custom-fields">Custom Fields</a>
+  <a href="#cmdb-relationships">Relationships</a>
+  <a href="#cmdb-history">Change History</a>
+  <a href="#cmdb-csv">CSV Import &amp; Export</a>
+  <a href="#cmdb-tickets">CMDB and Tickets</a>
+
+  <span class="section-label">Knowledge Base</span>
+  <a href="#kb-overview">Overview</a>
+  <a href="#kb-articles">Managing Articles</a>
+  <a href="#kb-customer">Customer-Facing KB</a>
+  <a href="#kb-ai">AI-Generated Articles</a>
+
+  <span class="section-label">Email</span>
+  <a href="#email-to-ticket">Email to Ticket</a>
+  <a href="#email-threading">Email Threading</a>
+  <a href="#auto-reply">Auto-Reply</a>
+  <a href="#email-notifications">Notifications</a>
+
+  <span class="section-label">People</span>
+  <a href="#managing-customers">Managing Customers</a>
+  <a href="#companies">Companies</a>
+  <a href="#customer-portal">Customer Portal</a>
+  <a href="#managing-experts">Managing Experts</a>
+  <a href="#expert-permissions">Expert Permissions</a>
+
+  <span class="section-label">Automation</span>
+  <a href="#rules-overview">Understanding Rules</a>
+  <a href="#creating-rules">Creating Rules</a>
+  <a href="#testing-rules">Testing &amp; Running</a>
+  <a href="#rules-best-practices">Best Practices</a>
+
+  <span class="section-label">Analytics &amp; More</span>
+  <a href="#analytics">Analytics Dashboard</a>
+  <a href="#teams-integration">Microsoft Teams</a>
+  <a href="#slack-integration">Slack</a>
+
+  <span class="section-label">Settings</span>
+  <a href="#tenant-settings">Tenant Settings</a>
+  <a href="#email-ingest-config">Email Ingest Config</a>
+  <a href="#system-control">System Control</a>
+  <a href="#housekeeping">Housekeeping</a>
+  <a href="#audit-log">Audit Log</a>
+  <a href="#raw-variables">Raw Variables</a>
+
+  <span class="section-label">Billing</span>
+  <a href="#plans">Plans</a>
+  <a href="#subscription">Subscription</a>
+  <a href="#usage">Usage &amp; Limits</a>
+</nav>
+
+<div class="doc-main">
+<a href="/" class="back-link">&larr; Back to ServiFlow</a>
+<div class="cross-link-banner">
+  For API reference, architecture details, and developer documentation, see <a href="/platform.html">Platform Docs &rarr;</a>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!--  CHAPTER 1: GETTING STARTED                        -->
+<!-- ═══════════════════════════════════════════════════ -->
+<section id="welcome" data-section>
+<h1>Welcome to ServiFlow</h1>
+<p>ServiFlow is a modern IT Service Management (ITSM) platform that helps your team manage support tickets, track SLAs, maintain a configuration database, build a knowledge base, and leverage AI to work smarter.</p>
+
+<h2>Who Is This Guide For?</h2>
+<p>This guide covers everything you need to use ServiFlow day-to-day. It is written for three audiences:</p>
+<div class="feature-grid">
+  <div class="feature-card"><strong>Admins <span class="role-badge role-admin">Admin</span></strong>Configure your tenant, manage users, define SLAs, set up email, and oversee all operations.</div>
+  <div class="feature-card"><strong>Experts <span class="role-badge role-expert">Expert</span></strong>Work tickets, claim from the expert pool, use AI assist, and contribute to the knowledge base.</div>
+  <div class="feature-card"><strong>Customers <span class="role-badge role-customer">Customer</span></strong>Raise support requests, track progress, search the knowledge base, and provide feedback.</div>
+</div>
+
+<h2>How to Use This Guide</h2>
+<ul>
+  <li>Use the <strong>sidebar</strong> to jump to any topic.</li>
+  <li>Use the <strong>search box</strong> at the top of the sidebar to filter sections by keyword.</li>
+  <li>Look for role badges (<span class="role-badge role-admin">Admin</span> <span class="role-badge role-expert">Expert</span> <span class="role-badge role-customer">Customer</span>) to see who can access each feature.</li>
+  <li>Tip, warning, and note boxes highlight important information throughout.</li>
+</ul>
+<div class="tip-box"><strong>Tip</strong>Press <kbd>Ctrl</kbd>+<kbd>F</kbd> (or <kbd>Cmd</kbd>+<kbd>F</kbd> on Mac) for full-page browser search.</div>
+</section>
+
+<!-- ─── 1.2 Signing Up & First Login ─── -->
+<section id="signup" data-section>
+<h1>Signing Up &amp; First Login</h1>
+
+<h2>Trial Signup</h2>
+<p>ServiFlow offers a free trial so you can explore the platform before committing to a plan.</p>
+<ol class="steps">
+  <li>Visit the ServiFlow signup page and click <strong>Start Free Trial</strong>.</li>
+  <li>Enter your <strong>email address</strong>, <strong>company name</strong>, estimated number of technicians, and estimated number of clients.</li>
+  <li>Click <strong>Create Account</strong>. ServiFlow will provision your dedicated tenant in seconds.</li>
+  <li>A <strong>welcome email</strong> arrives with your tenant code, admin username, temporary password, and trial end date.</li>
+</ol>
+
+<h2>Logging In</h2>
+<p>The login screen asks for three fields:</p>
+<table>
+  <tr><th>Field</th><th>Description</th></tr>
+  <tr><td>Tenant Code</td><td>Your unique company identifier (e.g. <code>acme</code>). Provided in the welcome email.</td></tr>
+  <tr><td>Username</td><td>Your personal username. The first admin account is <code>admin</code>.</td></tr>
+  <tr><td>Password</td><td>Your password. Change it after first login.</td></tr>
+</table>
+<div class="note-box"><strong>Note</strong>The tenant code is shared across your entire organisation. Every user in your company uses the same tenant code but their own username and password.</div>
+
+<h2>The Walkthrough Tour</h2>
+<p>On your first login, ServiFlow offers a <strong>15-step guided tour</strong> that highlights key areas of the interface, including the dashboard, navigation, ticket management, SLA setup, and integrations. You can restart the tour at any time by clicking the <strong>?</strong> help button in the top navigation bar.</p>
+
+<h2>Changing Your Password</h2>
+<p>Click your <strong>profile icon</strong> in the top-right corner and select <strong>Change Password</strong>. Enter your current password and choose a new one.</p>
+</section>
+
+<!-- ─── 1.3 Initial Setup Guide ─── -->
+<section id="setup-guide" data-section>
+<h1>Initial Setup Guide <span class="role-badge role-admin">Admin</span></h1>
+<p>After your first login, follow this checklist to configure ServiFlow for your organisation.</p>
+
+<ol class="steps">
+  <li><strong>Company Profile</strong> &mdash; Go to <strong>Settings &gt; Tenant Settings</strong>. Enter your company name, logo, support email, phone number, and website.</li>
+  <li><strong>Email Integration</strong> &mdash; Go to <strong>Settings &gt; Email Ingest</strong>. Configure your IMAP server so that emails sent to your support address automatically create tickets. See <a href="#email-to-ticket">Email to Ticket</a>.</li>
+  <li><strong>Business Hours</strong> &mdash; Go to <strong>SLA Management &gt; Business Hours</strong>. Create at least one business hours profile defining your working days, hours, and timezone. See <a href="#business-hours">Business Hours</a>.</li>
+  <li><strong>SLA Definitions</strong> &mdash; Go to <strong>SLA Management &gt; Definitions</strong>. Create SLA targets for response and resolution times. See <a href="#sla-definitions">SLA Definitions</a>.</li>
+  <li><strong>Invite Experts</strong> &mdash; Go to <strong>Experts</strong> and click <strong>Invite Expert</strong>. Each expert receives an email with an invitation link. See <a href="#managing-experts">Managing Experts</a>.</li>
+  <li><strong>Add Customers</strong> &mdash; Go to <strong>Customers</strong> and click <strong>Add Customer</strong>. Enter company name, domain, and contact details. See <a href="#managing-customers">Managing Customers</a>.</li>
+  <li><strong>Ticket Processing Rules</strong> &mdash; Go to <strong>Ticket Rules</strong> to create automation rules that auto-assign, categorise, or escalate tickets. See <a href="#rules-overview">Understanding Rules</a>.</li>
+  <li><strong>CMDB</strong> &mdash; Go to <strong>CMDB</strong> and start adding your configuration items (servers, network devices, software). You can also bulk-import via CSV. See <a href="#cmdb-overview">CMDB Overview</a>.</li>
+  <li><strong>Integrations</strong> &mdash; Connect Microsoft Teams or Slack to receive ticket notifications in your chat channels. See <a href="#teams-integration">Microsoft Teams</a> or <a href="#slack-integration">Slack</a>.</li>
+</ol>
+<div class="tip-box"><strong>Tip</strong>You do not need to complete every step before using ServiFlow. Tickets can be created immediately &mdash; you can refine SLAs, rules, and integrations over time.</div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!--  CHAPTER 2: DASHBOARD                              -->
+<!-- ═══════════════════════════════════════════════════ -->
+<section id="admin-dashboard" data-section>
+<h1>Admin Dashboard <span class="role-badge role-admin">Admin</span></h1>
+<p>The admin dashboard gives you a bird's-eye view of your service desk operations.</p>
+
+<h2>Quick Admin</h2>
+<p>At the top of the dashboard, the <strong>Quick Admin</strong> panel provides one-click access to common tasks:</p>
+<ul>
+  <li><strong>Manage Experts</strong> &mdash; view, invite, or deactivate experts</li>
+  <li><strong>Manage Customers</strong> &mdash; view, add, or edit customers</li>
+  <li><strong>Open CMDB</strong> &mdash; jump to the configuration database</li>
+  <li><strong>Ticket Rules</strong> &mdash; manage automation rules</li>
+  <li><strong>SLA Management</strong> &mdash; configure SLA definitions and business hours</li>
+  <li><strong>Settings</strong> &mdash; tenant configuration and email setup</li>
+</ul>
+
+<h2>KPI Cards</h2>
+<p>Below Quick Admin, a row of cards shows real-time metrics:</p>
+<table>
+  <tr><th>Card</th><th>What It Shows</th></tr>
+  <tr><td>Open Tickets</td><td>Number of tickets in <code>Open</code> status, awaiting assignment or triage.</td></tr>
+  <tr><td>In Progress</td><td>Tickets currently being worked on by experts.</td></tr>
+  <tr><td>SLA at Risk</td><td>Tickets approaching or past their SLA deadline. Click to filter the ticket list.</td></tr>
+  <tr><td>Resolved Today</td><td>Tickets resolved in the current calendar day.</td></tr>
+  <tr><td>Avg Response Time</td><td>Average time from ticket creation to first expert response.</td></tr>
+  <tr><td>CSAT Score</td><td>Average customer satisfaction rating (1&ndash;5 stars).</td></tr>
+</table>
+
+<h2>AI Insights Panel</h2>
+<p>The dashboard includes a live <strong>AI Insights</strong> section showing recent trends detected by ServiFlow&rsquo;s AI engine &mdash; volume spikes, recurring issues, and SLA risks. See <a href="#ai-insights">AI Insights Dashboard</a> for details.</p>
+
+<h2>CSAT Scoreboard</h2>
+<p>The <strong>Customer Satisfaction</strong> panel shows your average rating, star distribution, and recent feedback comments. This helps you spot service quality issues at a glance.</p>
+</section>
+
+<section id="expert-dashboard" data-section>
+<h1>Expert Dashboard <span class="role-badge role-expert">Expert</span></h1>
+<p>When you log in as an expert, the dashboard focuses on your personal workload.</p>
+
+<h2>My Tickets</h2>
+<p>A summary of tickets assigned to you, grouped by status (Open, In Progress, Paused). Click any ticket to open the detail view.</p>
+
+<h2>Expert Pool</h2>
+<p>A count of unassigned tickets available in the pool, ranked by AI priority score. Click to open the pool view and claim tickets. See <a href="#expert-pool">Expert Pool</a>.</p>
+
+<h2>Activity Summary</h2>
+<p>A feed of recent activity on your tickets &mdash; new comments, status changes, SLA warnings, and customer replies.</p>
+</section>
+
+<section id="customer-dashboard" data-section>
+<h1>Customer Dashboard <span class="role-badge role-customer">Customer</span></h1>
+<p>Customers see a simplified dashboard focused on their own support requests.</p>
+
+<h2>My Requests</h2>
+<p>A list of all tickets you have raised, with current status, priority, and last update time. Click any ticket to view details, add comments, or accept a resolution.</p>
+
+<h2>Raising a Ticket</h2>
+<p>Click the <strong>New Ticket</strong> button to submit a support request. Fill in the title, description, priority, and category. You can also raise tickets by email or via the AI chatbot.</p>
+
+<h2>Status Tracking</h2>
+<p>Each ticket card shows a colour-coded status badge so you can see at a glance which requests are open, in progress, or resolved.</p>
+
+<h2>Company Admin</h2>
+<p>If you are a <strong>Company Admin</strong>, you also see a <strong>Manage Company Users</strong> section where you can view all users in your company, invite new users, and manage permissions.</p>
+</section>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!--  CHAPTER 3: TICKET MANAGEMENT                     -->
+<!-- ═══════════════════════════════════════════════════ -->
+<section id="creating-tickets" data-section>
+<h1>Creating Tickets <span class="role-badge role-all">All Roles</span></h1>
+<p>There are three ways to create tickets in ServiFlow:</p>
+
+<h2>1. Web Form</h2>
+<p>Click <strong>New Ticket</strong> from the dashboard or ticket list. Fill in:</p>
+<table>
+  <tr><th>Field</th><th>Required</th><th>Description</th></tr>
+  <tr><td>Title</td><td>Yes</td><td>A short summary of the issue.</td></tr>
+  <tr><td>Description</td><td>Yes</td><td>Full details of the problem or request.</td></tr>
+  <tr><td>Priority</td><td>No</td><td>Low, Medium, High, or Critical. Defaults to Medium.</td></tr>
+  <tr><td>Category</td><td>No</td><td>e.g. Infrastructure, Database, Network. Used for SLA assignment and AI classification.</td></tr>
+  <tr><td>Customer</td><td>Admin only</td><td>Which customer is raising this request. Auto-filled for customer users.</td></tr>
+</table>
+
+<h2>2. Email-to-Ticket</h2>
+<p>When email integration is configured, any email sent to your support address automatically creates a ticket. The sender is matched to a customer by their email domain. See <a href="#email-to-ticket">Email to Ticket</a>.</p>
+
+<h2>3. AI Chatbot</h2>
+<p>Customers can type <code>raise ticket: [description]</code> in the chat widget to create a ticket without leaving the current page. See <a href="#ai-chatbot">AI Chatbot</a>.</p>
+
+<h2>What Happens After Creation</h2>
+<p>When a ticket is created, ServiFlow automatically:</p>
+<ul>
+  <li>Assigns an SLA based on the priority cascade (see <a href="#sla-assignment">How SLAs Apply</a>)</li>
+  <li>Runs AI classification to detect category, sentiment, and urgency</li>
+  <li>Executes any matching ticket processing rules</li>
+  <li>Sends a confirmation email to the requester (if email notifications are enabled)</li>
+  <li>Logs a <code>created</code> activity entry</li>
+</ul>
+</section>
+
+<section id="ticket-list" data-section>
+<h1>Ticket List View <span class="role-badge role-admin">Admin</span> <span class="role-badge role-expert">Expert</span></h1>
+<p>The ticket list is your main workspace for managing tickets.</p>
+
+<h2>Filters</h2>
+<p>Use the filter bar at the top to narrow the list:</p>
+<ul>
+  <li><strong>Status</strong> &mdash; Open, In Progress, Paused, Resolved, Closed</li>
+  <li><strong>Priority</strong> &mdash; Low, Medium, High, Critical</li>
+  <li><strong>Category</strong> &mdash; filter by ticket category</li>
+  <li><strong>Assignee</strong> &mdash; filter by assigned expert</li>
+  <li><strong>Customer</strong> &mdash; filter by requester</li>
+  <li><strong>Date range</strong> &mdash; tickets created within a period</li>
+  <li><strong>SLA status</strong> &mdash; at risk, breached, on track</li>
+</ul>
+
+<h2>Search</h2>
+<p>The search box performs a text search across ticket titles and descriptions. Results update as you type.</p>
+
+<h2>Sorting</h2>
+<p>Click any column header to sort the list. Click again to reverse the sort order. Common sort columns include created date, priority, status, and SLA deadline.</p>
+
+<h2>Bulk Actions</h2>
+<p>Select multiple tickets using the checkboxes, then choose a bulk action:</p>
+<table>
+  <tr><th>Action</th><th>Description</th></tr>
+  <tr><td>Close Selected</td><td>Mark all selected tickets as Closed.</td></tr>
+  <tr><td>Resolve Selected</td><td>Resolve all selected tickets with a shared resolution note.</td></tr>
+  <tr><td>Assign Selected</td><td>Assign all selected tickets to a chosen expert.</td></tr>
+</table>
+
+<h2>CSV Export</h2>
+<p>Click the <strong>Export</strong> button to download the current filtered ticket list as a CSV file, including all visible columns.</p>
+</section>
+
+<section id="ticket-detail" data-section>
+<h1>Ticket Detail View</h1>
+<p>Click any ticket to open its full detail view.</p>
+
+<h2>Header</h2>
+<p>The top section shows the ticket ID, title, current status badge, priority badge, category, requester name, assigned expert, and creation date.</p>
+
+<h2>SLA Timers</h2>
+<p>If an SLA is applied, two live countdown timers appear:</p>
+<ul>
+  <li><strong>Response Timer</strong> &mdash; time remaining until the first response is due</li>
+  <li><strong>Resolve Timer</strong> &mdash; time remaining until the ticket must be resolved</li>
+</ul>
+<p>Timers are colour-coded:</p>
+<table>
+  <tr><th>Colour</th><th>Meaning</th></tr>
+  <tr><td style="color:#16a34a;font-weight:600">Green</td><td>On track &mdash; plenty of time remaining</td></tr>
+  <tr><td style="color:#d97706;font-weight:600">Amber</td><td>Near breach &mdash; approaching the deadline (85% of time elapsed)</td></tr>
+  <tr><td style="color:#dc2626;font-weight:600">Red</td><td>Breached &mdash; the deadline has passed</td></tr>
+</table>
+<p>Deadlines are shown as absolute timestamps below each timer (e.g. <em>Response due: 2026-02-14 09:30</em>).</p>
+
+<h2>Activity Feed</h2>
+<p>A chronological log of everything that has happened on the ticket:</p>
+<ul>
+  <li>Status changes (with who changed it and when)</li>
+  <li>Assignments and reassignments</li>
+  <li>Comments and internal notes</li>
+  <li>AI classification events</li>
+  <li>Email replies from the customer</li>
+  <li>Auto-reply confirmations</li>
+  <li>SLA application and breach events</li>
+  <li>CMDB link events</li>
+</ul>
+
+<h2>AI Assistant Panel</h2>
+<p>On the right side of the ticket detail, the AI panel shows:</p>
+<ul>
+  <li><strong>Summary</strong> &mdash; AI-generated concise summary of the issue</li>
+  <li><strong>Urgency</strong> &mdash; recommended urgency level</li>
+  <li><strong>Draft Response</strong> &mdash; a suggested reply for the expert</li>
+  <li><strong>CMDB Matches</strong> &mdash; configuration items that may be related</li>
+  <li><strong>Next Steps</strong> &mdash; recommended actions</li>
+</ul>
+<p>Each suggestion has <strong>Accept</strong> and <strong>Dismiss</strong> buttons. See <a href="#ai-assist">AI Assist</a>.</p>
+</section>
+
+<section id="ticket-workflow" data-section>
+<h1>Ticket Workflow</h1>
+<p>Every ticket moves through a defined set of statuses:</p>
+<pre><code>Open &rarr; In Progress &rarr; Paused &rarr; Resolved &rarr; Closed</code></pre>
+
+<h2>Status Descriptions</h2>
+<table>
+  <tr><th>Status</th><th>Description</th><th>SLA Effect</th></tr>
+  <tr><td><strong>Open</strong></td><td>New ticket awaiting assignment or triage.</td><td>Response and resolve timers are running.</td></tr>
+  <tr><td><strong>In Progress</strong></td><td>An expert is actively working on the ticket.</td><td>Moving from Open to In Progress records <code>first_responded_at</code> and stops the response timer.</td></tr>
+  <tr><td><strong>Paused</strong></td><td>Waiting for customer response or external input.</td><td>SLA timers are <strong>paused</strong>. Time spent waiting is not counted.</td></tr>
+  <tr><td><strong>Resolved</strong></td><td>The expert has applied a fix. Awaiting customer confirmation.</td><td>Resolve timer stops.</td></tr>
+  <tr><td><strong>Closed</strong></td><td>Completed &mdash; no further action needed.</td><td>SLA timers stopped. CSAT feedback may be requested.</td></tr>
+</table>
+
+<div class="note-box"><strong>Note</strong>Customers can <strong>decline a resolution</strong> if they are not satisfied, which reopens the ticket back to In Progress. They must provide a reason (minimum 10 characters).</div>
+
+<h2>Completion Modals</h2>
+<p>Certain status transitions require a note:</p>
+<ul>
+  <li><strong>Resolve</strong> &mdash; you must enter a resolution description.</li>
+  <li><strong>Reassign</strong> &mdash; you must select the new assignee and add a handover note.</li>
+</ul>
+</section>
+
+<section id="ticket-actions" data-section>
+<h1>Ticket Actions</h1>
+<p>The actions available depend on your role and the ticket's current state.</p>
+
+<h2>Expert Actions <span class="role-badge role-expert">Expert</span></h2>
+<table>
+  <tr><th>Action</th><th>Description</th></tr>
+  <tr><td><strong>Self-Assign</strong></td><td>Claim an unassigned ticket. Sets you as the assignee and moves the ticket to In Progress.</td></tr>
+  <tr><td><strong>Resolve</strong></td><td>Mark the ticket as resolved. Opens the completion modal for a resolution note.</td></tr>
+  <tr><td><strong>Release Claim</strong></td><td>Release a claimed pool ticket back to the pool so another expert can pick it up.</td></tr>
+</table>
+
+<h2>Admin Actions <span class="role-badge role-admin">Admin</span></h2>
+<table>
+  <tr><th>Action</th><th>Description</th></tr>
+  <tr><td><strong>Reassign</strong></td><td>Transfer the ticket to a different expert. Opens the reassign modal.</td></tr>
+  <tr><td><strong>Escalate</strong></td><td>Flag the ticket as escalated. Sets the <code>escalated_at</code> timestamp.</td></tr>
+  <tr><td><strong>Take Over</strong></td><td>Take ownership of a ticket from another expert.</td></tr>
+  <tr><td><strong>Mark as System</strong></td><td>Flag the ticket as a monitoring/system alert (e.g. Nagios, Zabbix). Marked with a satellite dish icon.</td></tr>
+</table>
+
+<h2>Customer Actions <span class="role-badge role-customer">Customer</span></h2>
+<table>
+  <tr><th>Action</th><th>Description</th></tr>
+  <tr><td><strong>Add Comment</strong></td><td>Post a comment to the ticket activity feed.</td></tr>
+  <tr><td><strong>Accept Resolution</strong></td><td>Confirm the fix is satisfactory. Moves the ticket to Closed.</td></tr>
+  <tr><td><strong>Decline Resolution</strong></td><td>Reject the fix with a reason. Reopens the ticket to In Progress.</td></tr>
+</table>
+</section>
+
+<section id="expert-pool" data-section>
+<h1>Expert Pool <span class="role-badge role-expert">Expert</span></h1>
+<p>The Expert Pool is a shared queue of unassigned tickets, ranked by AI priority scoring, that experts can claim.</p>
+
+<h2>How Pool Ranking Works</h2>
+<p>ServiFlow's AI engine scores each pool ticket based on:</p>
+<ul>
+  <li><strong>SLA risk level</strong> &mdash; tickets closest to breaching SLA rank highest</li>
+  <li><strong>Ticket priority</strong> &mdash; Critical and High tickets rank above Medium and Low</li>
+  <li><strong>Category match</strong> &mdash; tickets matching your skill categories may be highlighted</li>
+  <li><strong>Ticket age</strong> &mdash; older tickets are ranked higher to prevent stagnation</li>
+</ul>
+
+<h2>Claim Workflow</h2>
+<ol class="steps">
+  <li>Open the <strong>Expert Pool</strong> tab on your dashboard.</li>
+  <li>Use the filters (Work Type, Status, Priority) to narrow the list.</li>
+  <li>Click <strong>Claim</strong> on a ticket to reserve it. The ticket shows as "Claimed by [your name]".</li>
+  <li>Click <strong>Accept &amp; Own</strong> to take full ownership and start working on it.</li>
+  <li>If you change your mind, click <strong>Release</strong> to return the ticket to the pool.</li>
+</ol>
+
+<h2>Pool Statuses</h2>
+<table>
+  <tr><th>Status</th><th>Meaning</th></tr>
+  <tr><td>Available</td><td>Ticket is in the pool, unclaimed, and ready for any expert.</td></tr>
+  <tr><td>Claimed</td><td>An expert has claimed the ticket but has not yet accepted full ownership.</td></tr>
+  <tr><td>Accepted</td><td>The expert has accepted ownership. The ticket moves to their personal queue.</td></tr>
+</table>
+<div class="tip-box"><strong>Tip</strong>Claiming a ticket gives you a brief window to review it before committing. If it is outside your expertise, release it so someone else can pick it up.</div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!--  CHAPTER 4: AI FEATURES                           -->
+<!-- ═══════════════════════════════════════════════════ -->
+<section id="ai-classification" data-section>
+<h1>AI Classification <span class="role-badge role-admin">Admin</span> <span class="role-badge role-expert">Expert</span></h1>
+<p>When a new ticket is created, ServiFlow's AI engine automatically analyses the title and description to classify it.</p>
+
+<h2>What Gets Classified</h2>
+<table>
+  <tr><th>Field</th><th>Description</th></tr>
+  <tr><td>Work Type</td><td>Incident, Service Request, Question, Feedback, Operational Action, or Unknown.</td></tr>
+  <tr><td>Category</td><td>e.g. Infrastructure, Database, Storage, Network, Performance.</td></tr>
+  <tr><td>Sentiment</td><td>Positive, Neutral, Negative, or Mixed.</td></tr>
+  <tr><td>Root Cause</td><td>System, Hardware, Software, Network, Database, or Resource.</td></tr>
+  <tr><td>Impact Level</td><td>Low, Medium, High, or Critical.</td></tr>
+  <tr><td>Confidence Score</td><td>0&ndash;100% indicating how certain the AI is about its classification.</td></tr>
+  <tr><td>Key Phrases</td><td>Technical terms and important phrases extracted from the description.</td></tr>
+  <tr><td>Estimated Resolution Time</td><td>AI-predicted time to resolve based on similar past tickets.</td></tr>
+</table>
+
+<h2>Overriding Classifications</h2>
+<p>Admins and experts can override any AI classification by editing the ticket's category, priority, or work type fields. The override is logged in the activity feed.</p>
+
+<div class="note-box"><strong>Note</strong>Classification runs automatically on creation. It also fires during batch rule processing or when manually triggered via the AI Assist panel.</div>
+</section>
+
+<section id="ai-assist" data-section>
+<h1>AI Assist <span class="role-badge role-expert">Expert</span></h1>
+<p>The AI Assist panel appears on the right side of the ticket detail view, providing intelligent suggestions to help experts resolve tickets faster.</p>
+
+<h2>Available Suggestions</h2>
+<table>
+  <tr><th>Section</th><th>What It Provides</th></tr>
+  <tr><td>Summary</td><td>A concise AI-generated summary of the ticket content.</td></tr>
+  <tr><td>Urgency</td><td>A recommended urgency level based on content analysis.</td></tr>
+  <tr><td>Sentiment</td><td>Detected customer sentiment with confidence indicator.</td></tr>
+  <tr><td>Draft Response</td><td>A suggested reply that the expert can edit before sending.</td></tr>
+  <tr><td>CMDB Matches</td><td>Configuration items that may be related to the issue. Accept to link them to the ticket.</td></tr>
+  <tr><td>Next Steps</td><td>An ordered list of recommended actions.</td></tr>
+  <tr><td>Warnings</td><td>Critical concerns or issues flagged by the AI.</td></tr>
+</table>
+
+<h2>Using Suggestions</h2>
+<p>Each suggestion has two buttons:</p>
+<ul>
+  <li><strong>Accept</strong> &mdash; apply the suggestion (e.g. link the CMDB item, insert the draft response).</li>
+  <li><strong>Dismiss</strong> &mdash; hide the suggestion if it is not relevant.</li>
+</ul>
+<p>You can also click <strong>Accept All</strong> or <strong>Dismiss All</strong> at the top of the panel.</p>
+</section>
+
+<section id="ai-insights" data-section>
+<h1>AI Insights Dashboard <span class="role-badge role-admin">Admin</span> <span class="role-badge role-expert">Expert</span></h1>
+<p>The AI Insights dashboard surfaces trends and patterns detected across your tickets.</p>
+
+<h2>What It Detects</h2>
+<ul>
+  <li><strong>Volume Spikes</strong> &mdash; unusual increases in ticket volume compared to normal patterns</li>
+  <li><strong>Recurring Issues</strong> &mdash; the same category or root cause appearing repeatedly</li>
+  <li><strong>SLA Risks</strong> &mdash; tickets approaching or past their deadline</li>
+  <li><strong>Urgent Backlogs</strong> &mdash; critical tickets that have not been addressed</li>
+  <li><strong>Sentiment Shifts</strong> &mdash; emerging patterns of negative customer sentiment</li>
+</ul>
+
+<h2>Period Selector</h2>
+<p>Choose the analysis window: <strong>Last 7 days</strong>, <strong>Last 30 days</strong>, or <strong>Last 90 days</strong>. The dashboard refreshes to show trends for the selected period.</p>
+
+<h2>Insight Actions</h2>
+<table>
+  <tr><th>Action</th><th>Description</th></tr>
+  <tr><td>Refresh</td><td>Reload the latest insights from the AI engine.</td></tr>
+  <tr><td>Detect Trends</td><td>Manually trigger a fresh trend analysis.</td></tr>
+  <tr><td>Acknowledge</td><td>Mark an insight as reviewed. Records your name and timestamp.</td></tr>
+  <tr><td>Dismiss</td><td>Remove a false positive or resolved insight from the view.</td></tr>
+</table>
+</section>
+
+<section id="ai-chatbot" data-section>
+<h1>AI Chatbot <span class="role-badge role-customer">Customer</span></h1>
+<p>The AI chatbot is a floating widget in the bottom-right corner of the screen, available to customers for self-service support.</p>
+
+<h2>Chat Commands</h2>
+<table>
+  <tr><th>Command</th><th>Description</th></tr>
+  <tr><td><code>raise ticket: [description]</code></td><td>Create a new support ticket directly from the chat.</td></tr>
+  <tr><td><code>status #123</code></td><td>Check the current status of a specific ticket.</td></tr>
+  <tr><td><code>my tickets</code></td><td>List all your open tickets.</td></tr>
+  <tr><td><code>help</code></td><td>Show available commands.</td></tr>
+</table>
+
+<h2>Knowledge Base Search</h2>
+<p>The chatbot searches the knowledge base for answers before creating a ticket. If a relevant article is found, it is shown to the customer. If not, the chatbot offers to raise a ticket.</p>
+</section>
+
+<section id="ai-kb-generation" data-section>
+<h1>AI Knowledge Base Generation <span class="role-badge role-admin">Admin</span></h1>
+<p>ServiFlow can automatically generate knowledge base articles from resolved tickets.</p>
+
+<h2>How It Works</h2>
+<ul>
+  <li>When a ticket is resolved, the AI analyses the issue description and resolution notes.</li>
+  <li>If the resolution contains useful information, a draft KB article is created automatically.</li>
+  <li>Auto-generated articles are marked with source type <code>auto_generated</code> and saved as <strong>Draft</strong> status.</li>
+  <li>An admin should review and publish the article before it becomes visible to customers.</li>
+</ul>
+
+<h2>Merge Suggestions</h2>
+<p>The AI identifies similar existing articles and suggests merging them to avoid duplication. You can <strong>Accept</strong> a merge (combining the articles) or <strong>Dismiss</strong> the suggestion.</p>
+
+<div class="tip-box"><strong>Tip</strong>Regularly review auto-generated articles. They save time, but a quick edit ensures accuracy and readability before publishing.</div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!--  CHAPTER 5: SLA MANAGEMENT                        -->
+<!-- ═══════════════════════════════════════════════════ -->
+<section id="understanding-slas" data-section>
+<h1>Understanding SLAs</h1>
+<p>A Service Level Agreement (SLA) defines how quickly your team should respond to and resolve tickets. ServiFlow tracks SLAs in real time with countdown timers, colour-coded warnings, and breach notifications.</p>
+
+<h2>Two Key Metrics</h2>
+<table>
+  <tr><th>Metric</th><th>Definition</th><th>Starts</th><th>Stops</th></tr>
+  <tr><td><strong>Response Time</strong></td><td>Time until the first expert response</td><td>Ticket creation</td><td>First status change from Open (sets <code>first_responded_at</code>)</td></tr>
+  <tr><td><strong>Resolution Time</strong></td><td>Time until the ticket is resolved</td><td>Ticket creation</td><td>Ticket status moves to Resolved</td></tr>
+</table>
+
+<h2>Business Hours</h2>
+<p>SLA timers only count time during your defined business hours. If your business hours are Mon&ndash;Fri 09:00&ndash;17:00, a ticket created at 16:00 on Friday with a 4-hour response SLA would be due at 12:00 on Monday &mdash; not 20:00 on Friday.</p>
+
+<div class="note-box"><strong>Note</strong>If you need SLA timers to run around the clock, create a 24&times;7 business hours profile.</div>
+</section>
+
+<section id="sla-definitions" data-section>
+<h1>SLA Definitions <span class="role-badge role-admin">Admin</span></h1>
+<p>Go to <strong>SLA Management &gt; Definitions</strong> to create and manage SLA definitions.</p>
+
+<h2>Creating a Definition</h2>
+<table>
+  <tr><th>Field</th><th>Description</th></tr>
+  <tr><td>Name</td><td>A descriptive label, e.g. "Critical &mdash; 1hr Response".</td></tr>
+  <tr><td>Category</td><td>Optional category label for grouping.</td></tr>
+  <tr><td>Response Time (hours)</td><td>Maximum hours allowed before first response.</td></tr>
+  <tr><td>Resolution Time (hours)</td><td>Maximum hours allowed before resolution.</td></tr>
+  <tr><td>Business Hours Profile</td><td>Which business hours profile to use for time calculations.</td></tr>
+  <tr><td>Active</td><td>Toggle the definition on or off.</td></tr>
+</table>
+
+<h3>Example Definitions</h3>
+<table>
+  <tr><th>Name</th><th>Response</th><th>Resolution</th><th>Hours Profile</th></tr>
+  <tr><td>Critical</td><td>1 hour</td><td>4 hours</td><td>24x7</td></tr>
+  <tr><td>High</td><td>2 hours</td><td>8 hours</td><td>Business Hours</td></tr>
+  <tr><td>Standard</td><td>4 hours</td><td>24 hours</td><td>Business Hours</td></tr>
+  <tr><td>Low</td><td>8 hours</td><td>48 hours</td><td>Business Hours</td></tr>
+</table>
+</section>
+
+<section id="business-hours" data-section>
+<h1>Business Hours Profiles <span class="role-badge role-admin">Admin</span></h1>
+<p>Business hours profiles define when your team is available. SLA timers only count time during these periods.</p>
+
+<h2>Profile Fields</h2>
+<table>
+  <tr><th>Field</th><th>Description</th></tr>
+  <tr><td>Name</td><td>e.g. "EMEA Business Hours", "24x7 Support"</td></tr>
+  <tr><td>Timezone</td><td>IANA timezone (e.g. <code>Europe/London</code>, <code>US/Pacific</code>, <code>Australia/Sydney</code>)</td></tr>
+  <tr><td>Working Days</td><td>Select which days of the week are working days (Mon=1 to Sun=7)</td></tr>
+  <tr><td>Start Time</td><td>When the working day starts (e.g. <code>09:00</code>)</td></tr>
+  <tr><td>End Time</td><td>When the working day ends (e.g. <code>17:00</code>)</td></tr>
+  <tr><td>24x7</td><td>Toggle for round-the-clock coverage. Overrides start/end times and working days.</td></tr>
+</table>
+
+<div class="tip-box"><strong>Tip</strong>Create multiple profiles for different coverage levels. For example, a "Business Hours" profile for standard issues and a "24x7" profile for critical SLAs.</div>
+</section>
+
+<section id="sla-assignment" data-section>
+<h1>How SLAs Apply to Tickets</h1>
+<p>When a ticket is created, ServiFlow automatically assigns an SLA definition using a <strong>priority cascade</strong>. The first match wins:</p>
+<ol class="steps">
+  <li><strong>User-level SLA</strong> &mdash; if the requester has a personal SLA override.</li>
+  <li><strong>Company-level SLA</strong> &mdash; if the requester's company has an SLA assigned.</li>
+  <li><strong>Category-SLA mapping</strong> &mdash; if the ticket's category has a mapped SLA definition.</li>
+  <li><strong>CMDB item SLA</strong> &mdash; if a linked configuration item has an SLA definition.</li>
+  <li><strong>Default SLA</strong> &mdash; the tenant's default SLA definition (if configured).</li>
+</ol>
+<p>Once applied, the SLA sets <code>response_due_at</code> and <code>resolve_due_at</code> timestamps, and the countdown timers begin.</p>
+</section>
+
+<section id="category-sla" data-section>
+<h1>Category-SLA Mappings <span class="role-badge role-admin">Admin</span></h1>
+<p>Map ticket categories to SLA definitions so that tickets are automatically assigned the correct SLA based on their category.</p>
+
+<h2>Setting Up Mappings</h2>
+<ol class="steps">
+  <li>Go to <strong>SLA Management</strong>.</li>
+  <li>Open the <strong>Category Mappings</strong> tab.</li>
+  <li>Select a category (e.g. "Infrastructure") and choose which SLA definition to apply.</li>
+  <li>Save. New tickets in that category will automatically receive this SLA.</li>
+</ol>
+
+<div class="note-box"><strong>Note</strong>User-level and company-level SLAs take priority over category mappings. See <a href="#sla-assignment">How SLAs Apply</a>.</div>
+</section>
+
+<section id="sla-notifications" data-section>
+<h1>Breach Notifications <span class="role-badge role-admin">Admin</span></h1>
+<p>ServiFlow sends email notifications at three thresholds for both response and resolution SLAs:</p>
+
+<table>
+  <tr><th>Threshold</th><th>Trigger</th><th>Who Is Notified</th></tr>
+  <tr><td><strong>Near Breach</strong></td><td>~85% of the allowed time has elapsed</td><td>Assigned expert + admins</td></tr>
+  <tr><td><strong>Breached</strong></td><td>100% &mdash; the deadline has passed</td><td>Assigned expert + admins</td></tr>
+  <tr><td><strong>Past Breach</strong></td><td>~120% &mdash; significantly overdue</td><td>Assigned expert + admins</td></tr>
+</table>
+
+<p>Each notification is sent only once per ticket per threshold (tracked via timestamp columns like <code>notified_response_near_at</code>). The SLA notifier runs on a schedule to check all active tickets.</p>
+
+<div class="warning-box"><strong>Warning</strong>If email notifications are disabled in System Control, no SLA breach emails will be sent. Make sure notifications are enabled in production.</div>
+</section>
+
+<section id="sla-pause" data-section>
+<h1>SLA Pause and Resume</h1>
+<p>When a ticket moves to <strong>Paused</strong> status (typically "Waiting on Customer"), the SLA timers pause. The customer's response time is not counted against your SLA targets.</p>
+
+<h2>How It Works</h2>
+<ul>
+  <li><strong>Pause:</strong> When the ticket status changes to Paused, both response and resolve timers stop.</li>
+  <li><strong>Resume:</strong> When the status changes back to In Progress (e.g. the customer replies), the timers resume. The remaining time is recalculated by adding the paused duration back to the deadlines.</li>
+</ul>
+
+<div class="tip-box"><strong>Tip</strong>Use the Paused status when waiting for information from the customer, a third party, or an external vendor. This keeps your SLA metrics accurate.</div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!--  CHAPTER 6: CMDB                                  -->
+<!-- ═══════════════════════════════════════════════════ -->
+<section id="cmdb-overview" data-section>
+<h1>CMDB Overview</h1>
+<p>The Configuration Management Database (CMDB) is your central inventory of IT assets &mdash; servers, network devices, software, databases, and more. Linking tickets to CMDB items helps you track which assets are affected and apply the correct SLAs.</p>
+
+<h2>Two Views</h2>
+<ul>
+  <li><strong>CMDB Hub</strong> <span class="role-badge role-admin">Admin</span> &mdash; full management interface for creating, editing, importing, and deleting assets.</li>
+  <li><strong>CMDB Viewer</strong> <span class="role-badge role-expert">Expert</span> <span class="role-badge role-customer">Customer</span> &mdash; read-only search and browse interface.</li>
+</ul>
+
+<h2>Asset Categories</h2>
+<p>Assets are organised by category. Common categories include:</p>
+<ul>
+  <li>Windows Server, Linux Server</li>
+  <li>Network Device (switches, routers, firewalls)</li>
+  <li>Hardware (desktops, laptops, printers)</li>
+  <li>Software (applications, licences)</li>
+  <li>Database (MySQL, PostgreSQL, SQL Server)</li>
+</ul>
+</section>
+
+<section id="managing-assets" data-section>
+<h1>Managing Assets <span class="role-badge role-admin">Admin</span></h1>
+
+<h2>Asset Fields</h2>
+<table>
+  <tr><th>Field</th><th>Description</th></tr>
+  <tr><td>Asset Name</td><td>Unique identifier for the asset (e.g. <code>PROD-WEB-01</code>)</td></tr>
+  <tr><td>Asset Category</td><td>The type of asset (e.g. Windows Server)</td></tr>
+  <tr><td>Brand</td><td>Manufacturer (e.g. Dell, HP, Cisco)</td></tr>
+  <tr><td>Model</td><td>Product model (e.g. PowerEdge R740)</td></tr>
+  <tr><td>Customer</td><td>Which customer owns or uses this asset</td></tr>
+  <tr><td>Employee Of</td><td>The employee responsible for the asset</td></tr>
+  <tr><td>Location</td><td>Physical or logical location</td></tr>
+  <tr><td>Status</td><td>Active, Inactive, Retired, Maintenance</td></tr>
+  <tr><td>SLA Definition</td><td>Optional SLA to apply when tickets are linked to this asset</td></tr>
+</table>
+
+<h2>Creating an Asset</h2>
+<ol class="steps">
+  <li>Go to <strong>CMDB</strong> and click <strong>Add Asset</strong>.</li>
+  <li>Select the asset category.</li>
+  <li>Fill in the required fields (asset name, brand, model).</li>
+  <li>Optionally assign a customer, location, and SLA definition.</li>
+  <li>Fill in any custom fields defined for this category.</li>
+  <li>Click <strong>Save</strong>.</li>
+</ol>
+</section>
+
+<section id="cmdb-types" data-section>
+<h1>Categories, Brands, and Models <span class="role-badge role-admin">Admin</span></h1>
+<p>The CMDB taxonomy is organised in three levels:</p>
+<ul>
+  <li><strong>Categories</strong> &mdash; the type of asset (e.g. Windows Server, Network Device)</li>
+  <li><strong>Brands</strong> &mdash; the manufacturer (e.g. Dell, Cisco, Microsoft)</li>
+  <li><strong>Models</strong> &mdash; the specific product (e.g. PowerEdge R740, Catalyst 9300)</li>
+</ul>
+<p>Manage these from the CMDB settings section. Adding brands and models in advance speeds up asset creation and ensures consistency.</p>
+</section>
+
+<section id="cmdb-custom-fields" data-section>
+<h1>Custom Fields <span class="role-badge role-admin">Admin</span></h1>
+<p>Each asset category can have custom fields tailored to that type of asset.</p>
+
+<h2>Field Types</h2>
+<table>
+  <tr><th>Type</th><th>Description</th></tr>
+  <tr><td>Text</td><td>Free-text input</td></tr>
+  <tr><td>Number</td><td>Numeric input</td></tr>
+  <tr><td>Date</td><td>Date picker</td></tr>
+  <tr><td>Dropdown</td><td>Select from a predefined list of options</td></tr>
+</table>
+<p>For each custom field, you can set a label, description, default value, and whether it is required.</p>
+</section>
+
+<section id="cmdb-relationships" data-section>
+<h1>Relationships and Dependencies <span class="role-badge role-admin">Admin</span></h1>
+<p>CMDB items can be linked in parent/child relationships to model your infrastructure topology.</p>
+
+<h2>Dependency Tree</h2>
+<p>The dependency tree shows a hierarchical indented view of how assets relate to each other. For example:</p>
+<pre><code>Data Centre (Parent)
+  ├── Server Rack A
+  │   ├── PROD-WEB-01 (Windows Server)
+  │   └── PROD-WEB-02 (Windows Server)
+  └── Server Rack B
+      └── PROD-DB-01 (Database)</code></pre>
+
+<h2>Impact Analysis</h2>
+<p>When a parent asset has an issue, the dependency tree helps you identify which child assets and services may be affected.</p>
+</section>
+
+<section id="cmdb-history" data-section>
+<h1>Change History</h1>
+<p>Every change to a CMDB item is automatically logged in the change history. This provides a full audit trail of who changed what and when.</p>
+
+<h2>Logged Events</h2>
+<table>
+  <tr><th>Event</th><th>Details Recorded</th></tr>
+  <tr><td>Created</td><td>Who created the asset, initial values</td></tr>
+  <tr><td>Updated</td><td>Which field changed, old value, new value, who made the change</td></tr>
+  <tr><td>Deleted</td><td>Who deleted the asset</td></tr>
+</table>
+<p>Each entry also records the user's IP address and timestamp.</p>
+</section>
+
+<section id="cmdb-csv" data-section>
+<h1>CSV Import and Export <span class="role-badge role-admin">Admin</span></h1>
+
+<h2>Importing Assets</h2>
+<ol class="steps">
+  <li>Download the <strong>CSV template</strong> from the CMDB import page.</li>
+  <li>Fill in one row per asset. The template columns are: Username, AssetName, AssetCategory, CategoryFieldName, FieldValue, BrandName, ModelName, CustomerName, EmployeeOf, AssetLocation, Comment, CreatedDateTime.</li>
+  <li>Upload the completed CSV. ServiFlow supports both comma and tab delimiters.</li>
+  <li>Use the <strong>Test Parse</strong> button to validate the file before importing.</li>
+  <li>Click <strong>Import</strong> to create the assets.</li>
+</ol>
+
+<div class="warning-box"><strong>Warning</strong>The import creates assets in bulk. Review the test parse output carefully before importing, as duplicate asset names may cause issues.</div>
+
+<h2>Exporting Assets</h2>
+<p>Click <strong>Export</strong> to download all CMDB items as a CSV file.</p>
+</section>
+
+<section id="cmdb-tickets" data-section>
+<h1>CMDB and Tickets</h1>
+<p>Linking tickets to CMDB items provides context about which assets are affected and can influence SLA assignment.</p>
+
+<h2>Linking Methods</h2>
+<ul>
+  <li><strong>Manual</strong> &mdash; on the ticket detail view, search for and link a CMDB item.</li>
+  <li><strong>AI Auto-Link</strong> &mdash; the AI Assist panel suggests matching CMDB items based on the ticket description. Accept a match to create the link.</li>
+</ul>
+
+<h2>SLA Effects</h2>
+<p>If a linked CMDB item has an SLA definition assigned, that SLA can be applied to the ticket (see <a href="#sla-assignment">How SLAs Apply</a> &mdash; step 4 in the cascade).</p>
+</section>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!--  CHAPTER 7: KNOWLEDGE BASE                        -->
+<!-- ═══════════════════════════════════════════════════ -->
+<section id="kb-overview" data-section>
+<h1>Knowledge Base Overview</h1>
+<p>The Knowledge Base (KB) is a library of articles that help customers find answers without raising a ticket, and help experts resolve issues faster.</p>
+
+<h2>Key Statistics</h2>
+<p>The KB dashboard shows total articles, published articles, draft articles, total views, and helpfulness ratings.</p>
+</section>
+
+<section id="kb-articles" data-section>
+<h1>Managing Articles <span class="role-badge role-admin">Admin</span> <span class="role-badge role-expert">Expert</span></h1>
+
+<h2>Article Fields</h2>
+<table>
+  <tr><th>Field</th><th>Description</th></tr>
+  <tr><td>Title</td><td>The article headline.</td></tr>
+  <tr><td>Content</td><td>Rich-text body of the article.</td></tr>
+  <tr><td>Summary</td><td>A brief description shown in search results.</td></tr>
+  <tr><td>Category</td><td>Organise articles by topic.</td></tr>
+  <tr><td>Tags</td><td>Keywords for search and filtering.</td></tr>
+  <tr><td>Status</td><td><strong>Draft</strong> (not visible to customers) or <strong>Published</strong> (visible).</td></tr>
+  <tr><td>Visibility</td><td><strong>Public</strong> (all users), <strong>Internal</strong> (staff only), or <strong>Customer</strong> (customers only).</td></tr>
+</table>
+
+<h2>Creating an Article</h2>
+<ol class="steps">
+  <li>Go to <strong>Knowledge Base</strong> and click <strong>New Article</strong>.</li>
+  <li>Enter the title, content, summary, and select a category.</li>
+  <li>Add relevant tags for discoverability.</li>
+  <li>Set the visibility level.</li>
+  <li>Save as Draft or click <strong>Publish</strong> to make it live immediately.</li>
+</ol>
+
+<h2>Article Metrics</h2>
+<p>Each article tracks view count, helpful count, and not-helpful count. Use these metrics to identify popular articles and those that need improvement.</p>
+</section>
+
+<section id="kb-customer" data-section>
+<h1>Customer-Facing KB <span class="role-badge role-customer">Customer</span></h1>
+<p>Customers can browse and search published articles from the Knowledge Base tab in their portal.</p>
+<ul>
+  <li>Only articles with status <strong>Published</strong> and visibility <strong>Public</strong> or <strong>Customer</strong> are shown.</li>
+  <li>Full-text search across titles and content.</li>
+  <li>At the bottom of each article, customers can rate it <strong>Helpful</strong> or <strong>Not Helpful</strong>.</li>
+</ul>
+<p>The AI chatbot also searches the KB automatically when customers ask questions.</p>
+</section>
+
+<section id="kb-ai" data-section>
+<h1>AI-Generated Articles <span class="role-badge role-admin">Admin</span></h1>
+<p>When tickets are resolved, ServiFlow's AI can automatically generate draft KB articles from the issue description and resolution notes. See <a href="#ai-kb-generation">AI KB Generation</a> for details.</p>
+<ul>
+  <li>Auto-generated articles are saved with source type <code>auto_generated</code> and status <strong>Draft</strong>.</li>
+  <li>Review, edit, and publish them from the Knowledge Base management page.</li>
+  <li>Merge suggestions help you consolidate similar articles.</li>
+</ul>
+</section>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!--  CHAPTER 8: EMAIL INTEGRATION                     -->
+<!-- ═══════════════════════════════════════════════════ -->
+<section id="email-to-ticket" data-section>
+<h1>Email to Ticket <span class="role-badge role-admin">Admin</span></h1>
+<p>ServiFlow can monitor an email inbox and automatically create tickets from incoming messages.</p>
+
+<h2>Setting Up Email Ingest</h2>
+<ol class="steps">
+  <li>Go to <strong>Settings &gt; Email Ingest</strong>.</li>
+  <li>Enter your IMAP server details (host, port, username, password).</li>
+  <li>Set the <strong>check interval</strong> (how often to poll for new emails, 1&ndash;60 minutes).</li>
+  <li>Enable <strong>Use SSL</strong> (recommended for security).</li>
+  <li>Toggle <strong>Process Emails</strong> to On.</li>
+  <li>Click <strong>Save</strong>.</li>
+</ol>
+
+<h2>What Happens When an Email Arrives</h2>
+<ol>
+  <li>ServiFlow fetches unread messages from the inbox.</li>
+  <li>The sender's email domain is matched to a customer record.</li>
+  <li>If the sender is a known customer, a ticket is created under their account.</li>
+  <li>If the sender is unknown, a new customer user is created automatically from the email details.</li>
+  <li>The email subject becomes the ticket title; the body becomes the description.</li>
+  <li>A confirmation email (auto-reply) is sent back to the sender with the ticket ID and a link to track it.</li>
+</ol>
+
+<h2>Monitoring Alerts</h2>
+<p>ServiFlow detects Nagios and Zabbix alert emails and parses them specially &mdash; extracting host, service, alert type (PROBLEM/RECOVERY), and state. These tickets are marked as system alerts and correlated by host:service key to group related alerts.</p>
+
+<div class="warning-box"><strong>Warning</strong>Use an <strong>app password</strong> (not your main password) when connecting Gmail. Gmail requires app-specific passwords for IMAP access.</div>
+</section>
+
+<section id="email-threading" data-section>
+<h1>Email Threading</h1>
+<p>When a customer replies to a ticket notification email, ServiFlow matches the reply to the existing ticket using four methods (tried in order):</p>
+
+<table>
+  <tr><th>#</th><th>Method</th><th>How It Works</th></tr>
+  <tr><td>1</td><td>Header Threading</td><td>Checks the <code>In-Reply-To</code> and <code>References</code> email headers for a matching message ID.</td></tr>
+  <tr><td>2</td><td>Subject Token</td><td>Looks for <code>[Ticket #NNNN]</code> in the subject line.</td></tr>
+  <tr><td>3</td><td>URL Parsing</td><td>Scans the email body for links to <code>/ticket/view/[token]</code>.</td></tr>
+  <tr><td>4</td><td>Subject + Domain Match</td><td>Falls back to matching the subject line combined with the sender's domain.</td></tr>
+</table>
+
+<p>The first match wins. If no match is found, a new ticket is created.</p>
+
+<div class="note-box"><strong>Note</strong>Some email clients strip the <code>[Ticket #NNNN]</code> token from the subject and don't preserve <code>In-Reply-To</code> headers. If threading is not working, check with the customer's email client.</div>
+</section>
+
+<section id="auto-reply" data-section>
+<h1>Auto-Reply <span class="role-badge role-admin">Admin</span></h1>
+<p>When a new ticket is created from an incoming email, ServiFlow sends an automatic confirmation email to the sender.</p>
+
+<h2>Auto-Reply Contents</h2>
+<ul>
+  <li>Ticket ID and reference number</li>
+  <li>Link to view the ticket in the customer portal</li>
+  <li>Customer's name</li>
+  <li>Confirmation that the request has been received</li>
+</ul>
+<p>Auto-reply can be toggled on or off per tenant in <strong>Settings &gt; Email Ingest</strong>.</p>
+</section>
+
+<section id="email-notifications" data-section>
+<h1>Email Notifications</h1>
+<p>ServiFlow sends email notifications for key ticket events. These can be enabled or disabled via <strong>Settings &gt; System Control</strong>.</p>
+
+<h2>Notification Triggers</h2>
+<table>
+  <tr><th>Event</th><th>Sent To</th></tr>
+  <tr><td>Ticket created</td><td>Requester (customer)</td></tr>
+  <tr><td>Ticket assigned</td><td>Assigned expert</td></tr>
+  <tr><td>Status changed</td><td>Requester + assigned expert</td></tr>
+  <tr><td>Customer reply received</td><td>Assigned expert</td></tr>
+  <tr><td>Expert reply posted</td><td>Requester</td></tr>
+  <tr><td>Ticket resolved</td><td>Requester (with acceptance link)</td></tr>
+  <tr><td>SLA near breach</td><td>Assigned expert + admins</td></tr>
+  <tr><td>SLA breached</td><td>Assigned expert + admins</td></tr>
+  <tr><td>SLA past breach</td><td>Assigned expert + admins</td></tr>
+</table>
+</section>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!--  CHAPTER 9: CUSTOMER MANAGEMENT                   -->
+<!-- ═══════════════════════════════════════════════════ -->
+<section id="managing-customers" data-section>
+<h1>Managing Customers <span class="role-badge role-admin">Admin</span></h1>
+<p>Go to <strong>Customers</strong> in the sidebar to manage your customer accounts.</p>
+
+<h2>Adding a Customer</h2>
+<ol class="steps">
+  <li>Click <strong>Add Customer</strong>.</li>
+  <li>Enter the username (3&ndash;50 characters, alphanumeric and underscores).</li>
+  <li>Enter their email address.</li>
+  <li>Enter their full name (optional).</li>
+  <li>Enter the company name and company domain (e.g. <code>acme.com</code>).</li>
+  <li>Select an SLA level: Basic, Premium, or Enterprise.</li>
+  <li>Click <strong>Save</strong>.</li>
+</ol>
+<p>A random secure password is generated and can be sent to the customer. The password is hashed immediately &mdash; it cannot be retrieved later, only reset.</p>
+
+<h2>Editing and Deactivating</h2>
+<ul>
+  <li><strong>Edit</strong> &mdash; update contact details, company domain, or SLA level.</li>
+  <li><strong>Deactivate</strong> &mdash; soft-deletes the customer. They can no longer log in but their data and ticket history are preserved.</li>
+  <li><strong>Reactivate</strong> &mdash; restores a deactivated customer.</li>
+</ul>
+
+<div class="warning-box"><strong>Warning</strong>You cannot deactivate a customer who has active (open or in-progress) tickets. Close or reassign those tickets first.</div>
+</section>
+
+<section id="companies" data-section>
+<h1>Companies <span class="role-badge role-admin">Admin</span></h1>
+<p>Companies group multiple customer users under one organisation and enable domain-based email routing.</p>
+
+<h2>Company Fields</h2>
+<table>
+  <tr><th>Field</th><th>Description</th></tr>
+  <tr><td>Company Name</td><td>The organisation name (e.g. "Acme Corp").</td></tr>
+  <tr><td>Company Domain</td><td>Email domain used for automatic routing (e.g. <code>acme.com</code>).</td></tr>
+  <tr><td>Contact Email</td><td>Primary contact email for the company.</td></tr>
+  <tr><td>Phone</td><td>Company phone number.</td></tr>
+  <tr><td>Address</td><td>Company address.</td></tr>
+  <tr><td>Notes</td><td>Internal notes (not visible to customers).</td></tr>
+</table>
+
+<h2>Domain Routing</h2>
+<p>When an email arrives from <code>john@acme.com</code>, ServiFlow extracts the domain <code>acme.com</code>, looks it up in the companies/customers table, and creates the ticket under that customer. If no user exists for that email, a new customer account is created automatically.</p>
+
+<h2>Company SLA</h2>
+<p>You can assign an SLA level to a company. All tickets from users in that company will inherit this SLA (unless overridden at the user level). See <a href="#sla-assignment">How SLAs Apply</a>.</p>
+</section>
+
+<section id="customer-portal" data-section>
+<h1>Customer Portal <span class="role-badge role-customer">Customer</span></h1>
+<p>The customer portal is the interface customers see when they log in.</p>
+
+<h2>What Customers Can Do</h2>
+<ul>
+  <li><strong>View their tickets</strong> &mdash; see all requests they have raised, with current status</li>
+  <li><strong>Raise new tickets</strong> &mdash; via the web form, email, or AI chatbot</li>
+  <li><strong>Add comments</strong> &mdash; post updates or additional information on their tickets</li>
+  <li><strong>Accept or decline resolutions</strong> &mdash; when an expert resolves a ticket, the customer can confirm or reopen it</li>
+  <li><strong>Browse the Knowledge Base</strong> &mdash; search published articles for self-service answers</li>
+  <li><strong>Provide feedback</strong> &mdash; rate completed tickets with 1&ndash;5 stars and optional comments</li>
+</ul>
+
+<h2>Company Admin</h2>
+<p>A customer promoted to <strong>Company Admin</strong> gains additional capabilities:</p>
+<ul>
+  <li>View all tickets raised by any user in their company</li>
+  <li>See company user statistics (total, active, disabled)</li>
+  <li>Invite new users to the company</li>
+  <li>Disable or promote other company users</li>
+</ul>
+</section>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!--  CHAPTER 10: EXPERT MANAGEMENT                    -->
+<!-- ═══════════════════════════════════════════════════ -->
+<section id="managing-experts" data-section>
+<h1>Managing Experts <span class="role-badge role-admin">Admin</span></h1>
+
+<h2>Inviting an Expert</h2>
+<ol class="steps">
+  <li>Go to <strong>Experts</strong> and click <strong>Invite Expert</strong>.</li>
+  <li>Enter the expert's email address.</li>
+  <li>Click <strong>Send Invitation</strong>.</li>
+  <li>The expert receives an email with a one-time invitation link.</li>
+  <li>They click the link, set their password, and their account becomes active.</li>
+</ol>
+<div class="note-box"><strong>Note</strong>Invitation links expire after a set period. If an expert's link has expired, you can resend the invitation from the expert list.</div>
+
+<h2>Expert Lifecycle</h2>
+<table>
+  <tr><th>State</th><th>Description</th></tr>
+  <tr><td>Pending</td><td>Invitation sent, not yet accepted.</td></tr>
+  <tr><td>Active</td><td>Expert has accepted and can log in.</td></tr>
+  <tr><td>Deactivated</td><td>Admin has deactivated the account. Expert cannot log in.</td></tr>
+</table>
+
+<h2>Expert Stats</h2>
+<p>The expert list shows each expert's open ticket count, last login time, and account creation date.</p>
+
+<h2>Deactivating an Expert</h2>
+<p>When you deactivate an expert, their account is soft-deleted. Open tickets assigned to them should be reassigned first. Deactivated experts appear in a separate "Deleted Experts" list and can be reactivated if needed.</p>
+</section>
+
+<section id="expert-permissions" data-section>
+<h1>Expert Permissions <span class="role-badge role-admin">Admin</span></h1>
+<p>Experts have access to the following features:</p>
+<ul>
+  <li>View and work on tickets assigned to them</li>
+  <li>Claim tickets from the expert pool</li>
+  <li>Search and browse the CMDB (read-only)</li>
+  <li>Access the Knowledge Base</li>
+  <li>Use AI Assist suggestions on tickets</li>
+  <li>View the AI Insights dashboard</li>
+</ul>
+
+<h2>What Experts Cannot Do</h2>
+<ul>
+  <li>Manage other users (customers or experts)</li>
+  <li>Change tenant settings or email configuration</li>
+  <li>Create or edit SLA definitions</li>
+  <li>Create or manage ticket processing rules</li>
+  <li>Modify CMDB items (admin only)</li>
+  <li>Access billing or subscription settings</li>
+</ul>
+</section>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!--  CHAPTER 11: TICKET PROCESSING RULES              -->
+<!-- ═══════════════════════════════════════════════════ -->
+<section id="rules-overview" data-section>
+<h1>Understanding Ticket Processing Rules <span class="role-badge role-admin">Admin</span></h1>
+<p>Ticket processing rules let you automate actions on tickets that match specific criteria. Rules run automatically when new tickets are created, and can also be triggered manually.</p>
+
+<h2>How Rules Work</h2>
+<ol>
+  <li>You define a <strong>search pattern</strong> &mdash; text to look for in the ticket title, body, or both.</li>
+  <li>You choose an <strong>action</strong> &mdash; what should happen when a match is found.</li>
+  <li>When a new ticket arrives, all enabled rules are checked. Matching rules fire their actions.</li>
+</ol>
+</section>
+
+<section id="creating-rules" data-section>
+<h1>Creating Rules <span class="role-badge role-admin">Admin</span></h1>
+
+<h2>Rule Fields</h2>
+<table>
+  <tr><th>Field</th><th>Description</th></tr>
+  <tr><td>Rule Name</td><td>A descriptive label (e.g. "Auto-assign Infrastructure Alerts").</td></tr>
+  <tr><td>Search In</td><td>Where to search: <code>title</code>, <code>body</code>, or <code>both</code>.</td></tr>
+  <tr><td>Search Text</td><td>The text pattern to match.</td></tr>
+  <tr><td>Case Sensitive</td><td>Whether the match should be case-sensitive.</td></tr>
+  <tr><td>Action Type</td><td>The action to perform on matching tickets.</td></tr>
+  <tr><td>Action Parameters</td><td>Additional settings for the chosen action (e.g. which expert to assign to).</td></tr>
+  <tr><td>Enabled</td><td>Toggle the rule on or off without deleting it.</td></tr>
+</table>
+
+<h2>Action Types</h2>
+<table>
+  <tr><th>Action</th><th>Description</th><th>Parameters</th></tr>
+  <tr><td><strong>Delete</strong></td><td>Delete matching tickets (e.g. spam)</td><td>None</td></tr>
+  <tr><td><strong>Assign to Expert</strong></td><td>Auto-assign to a specific expert</td><td>Expert ID</td></tr>
+  <tr><td><strong>Create for Customer</strong></td><td>Reassign to a different customer</td><td>Customer ID</td></tr>
+  <tr><td><strong>Set Priority</strong></td><td>Set ticket priority</td><td>Priority (Low / Medium / High / Critical)</td></tr>
+  <tr><td><strong>Set Status</strong></td><td>Set ticket status</td><td>Status (Open / In Progress / Paused / Resolved / Closed)</td></tr>
+  <tr><td><strong>Add Tag</strong></td><td>Add tags to the ticket</td><td>Tag values</td></tr>
+</table>
+</section>
+
+<section id="testing-rules" data-section>
+<h1>Testing and Running Rules <span class="role-badge role-admin">Admin</span></h1>
+
+<h2>Test Mode</h2>
+<p>Before enabling a rule, use the <strong>Test</strong> button to preview which tickets would match without actually executing the action. This shows a list of matching tickets so you can verify the search pattern is correct.</p>
+
+<h2>Manual Execution</h2>
+<p>Click <strong>Run</strong> on a rule to execute it once against all current tickets. This is useful for applying a new rule to existing tickets.</p>
+
+<h2>Batch Processing</h2>
+<p>For rules that match many tickets, ServiFlow processes them in batches to avoid overloading the server. You can configure:</p>
+<ul>
+  <li><strong>Batch size</strong> &mdash; how many tickets to process per batch</li>
+  <li><strong>Batch interval</strong> &mdash; delay between batches</li>
+</ul>
+
+<h2>Execution History</h2>
+<p>Each rule maintains a history of its executions, including timestamps, number of matches, and results (success or failure).</p>
+</section>
+
+<section id="rules-best-practices" data-section>
+<h1>Rules Best Practices</h1>
+
+<h2>Common Patterns</h2>
+<table>
+  <tr><th>Goal</th><th>Search Text</th><th>Search In</th><th>Action</th></tr>
+  <tr><td>Auto-assign server alerts</td><td><code>Infrastructure Monitoring</code></td><td>Title</td><td>Assign to Expert (Infrastructure Team)</td></tr>
+  <tr><td>Escalate urgent requests</td><td><code>URGENT</code></td><td>Title</td><td>Set Priority (Critical)</td></tr>
+  <tr><td>Tag password reset tickets</td><td><code>password reset</code></td><td>Both</td><td>Add Tag ("password-reset")</td></tr>
+  <tr><td>Auto-close spam</td><td><code>unsubscribe</code></td><td>Body</td><td>Delete</td></tr>
+</table>
+
+<div class="tip-box"><strong>Tip</strong>Start with rules disabled and use Test mode to verify matches. Enable only after confirming the pattern works correctly.</div>
+
+<div class="warning-box"><strong>Warning</strong>The <strong>Delete</strong> action permanently removes matching tickets. Use it with extreme caution and test thoroughly first.</div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!--  CHAPTER 12: ANALYTICS                            -->
+<!-- ═══════════════════════════════════════════════════ -->
+<section id="analytics" data-section>
+<h1>Analytics Dashboard <span class="role-badge role-admin">Admin</span> <span class="role-badge role-expert">Expert</span></h1>
+<p>The Analytics dashboard provides visual insights into your service desk performance.</p>
+
+<h2>Time Period Selector</h2>
+<p>Choose from <strong>Last 7 days</strong>, <strong>Last 30 days</strong>, or <strong>Last 90 days</strong> to adjust all charts and metrics.</p>
+
+<h2>KPI Cards</h2>
+<table>
+  <tr><th>Metric</th><th>Description</th></tr>
+  <tr><td>Total Tickets</td><td>All tickets created in the selected period.</td></tr>
+  <tr><td>Open Tickets</td><td>Currently open tickets.</td></tr>
+  <tr><td>In Progress</td><td>Tickets being actively worked on.</td></tr>
+  <tr><td>Resolved Today</td><td>Tickets resolved in the current day.</td></tr>
+  <tr><td>SLA at Risk</td><td>Tickets approaching or past their SLA deadline.</td></tr>
+  <tr><td>Avg Response Time</td><td>Average hours from creation to first response.</td></tr>
+</table>
+
+<h2>Charts and Visualisations</h2>
+<ul>
+  <li><strong>Priority Breakdown</strong> &mdash; distribution of tickets by priority level</li>
+  <li><strong>Category Breakdown</strong> &mdash; top 10 categories with ticket counts</li>
+  <li><strong>Status Breakdown</strong> &mdash; tickets grouped by current status</li>
+  <li><strong>Sentiment Distribution</strong> &mdash; positive / neutral / negative / mixed percentages</li>
+  <li><strong>Ticket Trend</strong> &mdash; line chart showing ticket volume over time</li>
+</ul>
+
+<h2>SLA Compliance</h2>
+<table>
+  <tr><th>Metric</th><th>Description</th></tr>
+  <tr><td>Total with SLA</td><td>Tickets that have an SLA definition applied.</td></tr>
+  <tr><td>Met SLA</td><td>Tickets resolved within the SLA deadline.</td></tr>
+  <tr><td>Missed SLA</td><td>Tickets resolved after the deadline.</td></tr>
+  <tr><td>Breached</td><td>Tickets currently past their deadline.</td></tr>
+  <tr><td>Compliance %</td><td>Percentage of tickets meeting SLA targets.</td></tr>
+</table>
+
+<h2>Top Metrics</h2>
+<ul>
+  <li><strong>Top Requesters</strong> &mdash; customers creating the most tickets</li>
+  <li><strong>Top Assignees</strong> &mdash; experts handling the most tickets</li>
+  <li><strong>Average Resolution Time</strong> &mdash; hours from creation to close</li>
+  <li><strong>CSAT Average</strong> &mdash; average customer satisfaction rating</li>
+</ul>
+
+<h2>CSV Export</h2>
+<p>Click <strong>Export</strong> to download the analytics data as a CSV file for further analysis in Excel or other tools.</p>
+
+<h2>Customer Analytics <span class="role-badge role-customer">Customer</span></h2>
+<p>Customers see a simplified analytics view showing only their own tickets: total created, currently open, and average response time.</p>
+</section>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!--  CHAPTER 13: INTEGRATIONS                         -->
+<!-- ═══════════════════════════════════════════════════ -->
+<section id="teams-integration" data-section>
+<h1>Microsoft Teams Integration <span class="role-badge role-admin">Admin</span></h1>
+<p>Connect ServiFlow to Microsoft Teams to receive ticket notifications and manage tickets directly from your Teams channels.</p>
+
+<h2>Features</h2>
+<ul>
+  <li>View ticket details in Teams</li>
+  <li>Manage tickets from Teams channels</li>
+  <li>Receive ticket update notifications in channels</li>
+</ul>
+
+<h2>Setup Steps</h2>
+<ol class="steps">
+  <li>Go to <strong>Settings &gt; Integrations &gt; Microsoft Teams</strong>.</li>
+  <li>Download the ServiFlow Teams manifest file.</li>
+  <li>In the Microsoft Teams Admin Center, go to <strong>App Management</strong> and enable sideloading of custom apps.</li>
+  <li>Upload (sideload) the ServiFlow manifest into your Teams organisation.</li>
+  <li>Back in ServiFlow, configure the workspace webhook URL.</li>
+  <li>Select which Teams channels should receive notifications.</li>
+  <li>Click <strong>Save</strong>.</li>
+</ol>
+
+<div class="warning-box"><strong>Warning</strong>Your Microsoft 365 tenant must allow custom Teams apps (sideloading). This is configured in the Teams Admin Center under App Management. Contact your M365 administrator if sideloading is disabled.</div>
+</section>
+
+<section id="slack-integration" data-section>
+<h1>Slack Integration <span class="role-badge role-admin">Admin</span></h1>
+<p>Connect ServiFlow to Slack to post ticket updates and receive notifications in your Slack workspace.</p>
+
+<h2>Features</h2>
+<ul>
+  <li>Post ticket updates to Slack channels</li>
+  <li>Receive @mention notifications in Slack</li>
+  <li>Thread ticket replies from Slack</li>
+</ul>
+
+<h2>Setup Steps</h2>
+<ol class="steps">
+  <li>Go to <strong>Settings &gt; Integrations &gt; Slack</strong>.</li>
+  <li>Click <strong>Connect Slack</strong>.</li>
+  <li>Authorise the ServiFlow app in the OAuth flow.</li>
+  <li>Select the Slack channels for notifications.</li>
+  <li>Click <strong>Save</strong>.</li>
+</ol>
+
+<h2>Notification Types</h2>
+<table>
+  <tr><th>Event</th><th>Notification</th></tr>
+  <tr><td>Ticket created</td><td>New ticket posted to the channel.</td></tr>
+  <tr><td>Status changed</td><td>Update posted as a thread reply.</td></tr>
+  <tr><td>SLA at risk / breached</td><td>Warning posted with ticket link.</td></tr>
+  <tr><td>Customer reply</td><td>Reply notification posted.</td></tr>
+  <tr><td>Assigned to you</td><td>Direct message or channel mention.</td></tr>
+</table>
+</section>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!--  CHAPTER 14: ADMIN SETTINGS                       -->
+<!-- ═══════════════════════════════════════════════════ -->
+<section id="tenant-settings" data-section>
+<h1>Tenant Settings <span class="role-badge role-admin">Admin</span></h1>
+<p>Go to <strong>Settings &gt; Tenant Settings</strong> to configure your company profile.</p>
+
+<h2>Company Profile</h2>
+<table>
+  <tr><th>Field</th><th>Description</th></tr>
+  <tr><td>Company Name</td><td>Your organisation name, displayed in emails and the portal.</td></tr>
+  <tr><td>Logo</td><td>Upload your company logo (displayed in the header and emails).</td></tr>
+  <tr><td>Support Email</td><td>The primary support email address shown to customers.</td></tr>
+  <tr><td>Phone Number</td><td>Support phone number.</td></tr>
+  <tr><td>Website</td><td>Your company website URL.</td></tr>
+  <tr><td>Support Hours</td><td>Description of your support availability.</td></tr>
+</table>
+</section>
+
+<section id="email-ingest-config" data-section>
+<h1>Email Ingest Configuration <span class="role-badge role-admin">Admin</span></h1>
+<p>Go to <strong>Settings &gt; Email Ingest</strong> to configure inbound email processing. See <a href="#email-to-ticket">Email to Ticket</a> for the full setup guide.</p>
+
+<h2>Configuration Fields</h2>
+<table>
+  <tr><th>Field</th><th>Description</th></tr>
+  <tr><td>Server Type</td><td>IMAP or POP3.</td></tr>
+  <tr><td>Server Host</td><td>Mail server hostname (e.g. <code>imap.gmail.com</code>).</td></tr>
+  <tr><td>Port</td><td>Server port (typically 993 for IMAP with SSL).</td></tr>
+  <tr><td>Username</td><td>Email account username.</td></tr>
+  <tr><td>Password</td><td>Email account password or app password (masked in UI).</td></tr>
+  <tr><td>Use SSL</td><td>Enable SSL/TLS encryption.</td></tr>
+  <tr><td>Check Interval</td><td>How often to poll for new emails (1&ndash;60 minutes).</td></tr>
+  <tr><td>Process Emails</td><td>Master toggle to enable/disable email processing.</td></tr>
+</table>
+</section>
+
+<section id="system-control" data-section>
+<h1>System Control <span class="role-badge role-admin">Admin</span></h1>
+<p>System control provides toggles to enable or disable major features.</p>
+
+<h2>Available Toggles</h2>
+<table>
+  <tr><th>Toggle</th><th>Description</th></tr>
+  <tr><td>Process Emails</td><td>Enable or disable inbound email ticket creation.</td></tr>
+  <tr><td>Send Notifications</td><td>Master kill switch for all outbound email notifications.</td></tr>
+  <tr><td>Feature Flags</td><td>Enable or disable experimental features.</td></tr>
+  <tr><td>Batch Controls</td><td>Configure batch size and interval limits for rule processing.</td></tr>
+</table>
+
+<div class="warning-box"><strong>Warning</strong>Disabling <strong>Send Notifications</strong> stops all outbound emails, including SLA breach alerts, ticket confirmation emails, and customer notifications. Use with caution.</div>
+</section>
+
+<section id="housekeeping" data-section>
+<h1>Housekeeping <span class="role-badge role-admin">Admin</span></h1>
+<p>Housekeeping manages data retention by automatically removing old, closed tickets and their activity logs based on configurable retention periods.</p>
+
+<h2>Data Retention Settings</h2>
+<table>
+  <tr><th>Plan</th><th>Default Retention</th></tr>
+  <tr><td>Starter</td><td>90 days</td></tr>
+  <tr><td>Professional</td><td>180 days</td></tr>
+  <tr><td>MSP</td><td>365 days</td></tr>
+</table>
+<p>You can override the default retention period for your tenant in the housekeeping settings.</p>
+
+<h2>Running Housekeeping</h2>
+<ul>
+  <li><strong>Automatic:</strong> Housekeeping runs on a schedule based on your configuration.</li>
+  <li><strong>Manual:</strong> Click <strong>Run Housekeeping Now</strong> to trigger immediately. The result shows how many activity records and tickets were deleted.</li>
+</ul>
+
+<h2>What Gets Deleted</h2>
+<ul>
+  <li>Closed tickets older than the retention period</li>
+  <li>Activity log entries associated with those tickets</li>
+</ul>
+
+<div class="note-box"><strong>Note</strong>Only <strong>closed</strong> tickets are pruned. Open, in-progress, paused, and resolved tickets are never deleted by housekeeping.</div>
+</section>
+
+<section id="audit-log" data-section>
+<h1>Audit Log <span class="role-badge role-admin">Admin</span></h1>
+<p>The audit log records all significant admin actions for accountability and compliance.</p>
+
+<h2>What Is Logged</h2>
+<p>Login, logout, create, update, delete, assign, reassign, resolve, close, and configuration changes are all recorded.</p>
+
+<h2>Log Entry Fields</h2>
+<table>
+  <tr><th>Column</th><th>Description</th></tr>
+  <tr><td>Username</td><td>Who performed the action.</td></tr>
+  <tr><td>Action</td><td>What action was taken (e.g. create, update, delete).</td></tr>
+  <tr><td>Entity Type</td><td>What was affected (e.g. ticket, customer, expert, SLA).</td></tr>
+  <tr><td>Entity ID</td><td>The ID of the affected record.</td></tr>
+  <tr><td>Details</td><td>Additional context (e.g. "Status changed from Open to In Progress").</td></tr>
+  <tr><td>IP Address</td><td>The user's IP address.</td></tr>
+  <tr><td>Timestamp</td><td>When the action occurred.</td></tr>
+</table>
+
+<h2>Filtering and Export</h2>
+<p>Filter the audit log by user, action type, or date range. Click <strong>Export</strong> to download the log as a CSV file.</p>
+</section>
+
+<section id="raw-variables" data-section>
+<h1>Raw Variables <span class="role-badge role-admin">Admin</span></h1>
+<p>The Raw Variables section shows advanced tenant configuration values. This is a read-only view of system environment variables, configuration settings, feature flag states, and database connection information.</p>
+
+<div class="warning-box"><strong>Warning</strong>This section is intended for advanced users and troubleshooting. Modifying raw variables directly can cause unexpected behaviour. Contact support before making changes.</div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!--  CHAPTER 15: BILLING AND SUBSCRIPTION             -->
+<!-- ═══════════════════════════════════════════════════ -->
+<section id="plans" data-section>
+<h1>Plans</h1>
+<p>ServiFlow offers three plans to suit organisations of different sizes.</p>
+
+<table>
+  <tr><th>Feature</th><th>Starter</th><th>Professional</th><th>MSP</th></tr>
+  <tr><td>Users</td><td>Up to 5</td><td>Up to 25</td><td>Unlimited</td></tr>
+  <tr><td>Tickets</td><td>Unlimited</td><td>Unlimited</td><td>Unlimited</td></tr>
+  <tr><td>Data Retention</td><td>90 days</td><td>180 days</td><td>365 days</td></tr>
+  <tr><td>AI Features</td><td>Limited</td><td>Full</td><td>Full</td></tr>
+  <tr><td>Integrations</td><td>&mdash;</td><td>Teams + Slack</td><td>Teams + Slack</td></tr>
+  <tr><td>White-label</td><td>&mdash;</td><td>&mdash;</td><td>Available</td></tr>
+  <tr><td>Priority Support</td><td>&mdash;</td><td>&mdash;</td><td>Included</td></tr>
+</table>
+</section>
+
+<section id="subscription" data-section>
+<h1>Managing Your Subscription <span class="role-badge role-admin">Admin</span></h1>
+
+<h2>Trial</h2>
+<p>New accounts start with a 30-day free trial. During the trial, you have access to all features. Your trial end date is shown in <strong>Settings &gt; Billing</strong>.</p>
+
+<h2>Upgrading</h2>
+<ol class="steps">
+  <li>Go to <strong>Settings &gt; Billing</strong>.</li>
+  <li>Click <strong>Upgrade</strong>.</li>
+  <li>Compare plans and select the one that fits your needs.</li>
+  <li>Enter payment details.</li>
+  <li>Confirm the upgrade. Your plan changes immediately.</li>
+</ol>
+
+<h2>Downgrading</h2>
+<p>You can downgrade to a lower plan at any time. If your current usage exceeds the lower plan's limits (e.g. more users than allowed), you will need to deactivate users before the downgrade takes effect.</p>
+
+<h2>Cancellation</h2>
+<p>Click <strong>Cancel Subscription</strong> in the billing settings. Your account remains active until the end of the current billing period.</p>
+
+<h2>Billing History</h2>
+<p>View past invoices and payment history in the billing section.</p>
+</section>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!--  CHAPTER 16: USAGE AND LIMITS                     -->
+<!-- ═══════════════════════════════════════════════════ -->
+<section id="usage" data-section>
+<h1>Usage and Limits <span class="role-badge role-admin">Admin</span></h1>
+<p>The Usage dashboard shows how much of your plan's allowance you are using.</p>
+
+<h2>Metrics Tracked</h2>
+<table>
+  <tr><th>Metric</th><th>Description</th><th>Starter Limit</th><th>Professional Limit</th><th>MSP Limit</th></tr>
+  <tr><td>Users</td><td>Total active user accounts</td><td>5</td><td>25</td><td>Unlimited</td></tr>
+  <tr><td>Tickets</td><td>Tickets created this month</td><td>Unlimited</td><td>Unlimited</td><td>Unlimited</td></tr>
+  <tr><td>Storage</td><td>File storage used</td><td>10 GB</td><td>100 GB</td><td>Unlimited</td></tr>
+</table>
+
+<h2>Progress Bars</h2>
+<p>Each metric is displayed with a colour-coded progress bar:</p>
+<ul>
+  <li><strong style="color:#16a34a">Green</strong> &mdash; under 50% of limit</li>
+  <li><strong style="color:#d97706">Yellow</strong> &mdash; 50&ndash;80% of limit</li>
+  <li><strong style="color:#dc2626">Red</strong> &mdash; over 80% of limit or exceeded</li>
+</ul>
+
+<h2>Enforcement</h2>
+<p>When you hit a plan limit:</p>
+<ul>
+  <li><strong>Users:</strong> You cannot invite new experts or create new customer accounts until you deactivate existing users or upgrade.</li>
+  <li><strong>Storage:</strong> File uploads are blocked until storage is freed or your plan is upgraded.</li>
+</ul>
+
+<h2>Approaching Limits</h2>
+<p>ServiFlow warns you when you reach 80% of a limit:</p>
+<ul>
+  <li>A toast notification appears in the UI</li>
+  <li>An upgrade prompt is shown on the dashboard</li>
+  <li>An email notification is sent to the admin</li>
+</ul>
+
+<div class="tip-box"><strong>Tip</strong>Monitor your usage regularly. Upgrade proactively before hitting limits to avoid disruptions.</div>
+</section>
+
+</div>
+
+<script>
+function filterSections(q) {
+  q = q.toLowerCase().trim();
+  document.querySelectorAll('.doc-main section[data-section]').forEach(function(sec) {
+    if (!q) { sec.style.display = ''; return; }
+    sec.style.display = sec.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+  // Also filter sidebar links
+  document.querySelectorAll('.doc-sidebar a[href^="#"]').forEach(function(link) {
+    if (!q) { link.style.display = ''; return; }
+    link.style.display = link.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+// Highlight active sidebar link on scroll
+var sidebarLinks = document.querySelectorAll('.doc-sidebar a[href^="#"]');
+window.addEventListener('scroll', function() {
+  var fromTop = window.scrollY + 80;
+  var found = false;
+  for (var i = sidebarLinks.length - 1; i >= 0; i--) {
+    var sec = document.querySelector(sidebarLinks[i].getAttribute('href'));
+    if (!found && sec && sec.offsetTop <= fromTop) {
+      sidebarLinks.forEach(function(l) { l.classList.remove('active'); });
+      sidebarLinks[i].classList.add('active');
+      found = true;
+    }
+  }
+});
+// Close mobile menu on link click
+sidebarLinks.forEach(function(link) {
+  link.addEventListener('click', function() {
+    document.querySelector('.doc-sidebar').classList.remove('open');
+  });
+});
+</script>
+</body>
+</html>
