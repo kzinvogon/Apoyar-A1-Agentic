@@ -26274,12 +26274,29 @@ if (document.querySelector('ion-app')) {
 
 /* ── Walkthrough Tour ── */
 const wtSteps = [
+  // Section 1: Welcome + Sidebar
   { sel:null, pos:'center', title:'Welcome to ServiFlow', body:'This is your Dashboard — a real-time overview of tickets, SLA health, and key metrics. Let\'s take a quick tour of the main areas.' },
   { sel:'.leftnav', pos:'right', title:'Sidebar Navigation', body:'Use the sidebar to move between sections. The menu adapts to your role — admins, experts, and customers each see relevant options.' },
+
+  // Section 2: Dashboard deep-dive
+  { sel:'#dash-admin > .card', pos:'bottom', title:'Quick Admin', body:'Shortcut buttons for the most common admin tasks — manage experts and customers, open the CMDB, view all tickets, adjust settings, or launch Power Search.' },
+  { sel:'#dash-admin .grid4', pos:'bottom', title:'Dashboard Stats', body:'Live KPIs at a glance: <b>Open Tickets</b>, <b>SLA at Risk</b>, <b>CMDB Items</b>, and <b>Resolved Today</b>. Click any card to jump straight to a filtered view.' },
+  { sel:'#ai-trends-panel', pos:'bottom', title:'AI Insights & Trends', body:'Claude AI analyses recent tickets for patterns, critical issues, and emerging trends. Use the <b>period selector</b> to change the time window and hit <b>Refresh</b> to get the latest analysis.' },
+  { sel:'#feedback-avg-rating', pos:'bottom', title:'Customer Satisfaction', body:'Track your support quality — average rating, total feedback count, star-rating distribution, and recent comments from resolved tickets.' },
+
+  // Section 3: Sidebar features
   { sel:'[data-target="tickets"]', pos:'right', title:'Tickets', body:'View, filter, and manage all support tickets here. Track status, SLA timers, and assignment at a glance.' },
   { sel:'[data-target="raise"]', pos:'right', title:'Raise a Request', body:'Create a new support request with priority, category, and attachments. Tickets are automatically routed based on your processing rules.' },
   { sel:'[data-target="knowledge-base"]', pos:'right', title:'Knowledge Base', body:'Browse and search help articles. Admins can create and organise content so customers and experts find answers fast.' },
   { sel:'[data-target="analytics"]', pos:'right', title:'Analytics', body:'Charts and tables that show ticket volumes, SLA compliance, resolution times, and trends over time.' },
+
+  // Section 4: Ticket processing workflow (centered)
+  { sel:null, pos:'center', title:'Ticket List', body:'The ticket list gives you a <b>filter bar</b> (status, priority, assignee, company), <b>search</b>, <b>sort</b>, and <b>bulk actions</b>. The list auto-refreshes so you always see the latest state. Click any ticket to open its detail view.' },
+  { sel:null, pos:'center', title:'Ticket Detail', body:'The detail view shows the full ticket — title, description, priority, <b>SLA timer</b>, and a complete <b>activity feed</b>. Action buttons let you progress the ticket through its lifecycle.' },
+  { sel:null, pos:'center', title:'AI Assist', body:'One-click <b>AI analysis</b> generates a summary, urgency &amp; complexity scores, a draft response, suggested next steps, and automatic <b>CMDB matches</b> — so you can resolve tickets faster.' },
+  { sel:null, pos:'center', title:'Ticket Lifecycle', body:'Tickets flow through <b>Open → In Progress → Resolved → Closed</b>. Self-assign, reassign, add internal notes, or reply directly to customers. SLA timers track both <b>response</b> and <b>resolution</b> targets.' },
+
+  // Section 5: Wrap-up
   { sel:null, pos:'center', title:'You\'re All Set!', body:'That covers the essentials. Click the <b>? Help</b> button in the top bar any time to replay this tour. For detailed documentation, visit <a href="/docs.html" target="_blank" style="color:var(--primary)">the Documentation page</a>.' }
 ];
 let wtIdx = 0;
