@@ -1639,8 +1639,6 @@ vNext-FULL-ActionsSLA:
           <div class="navlink" data-target="usage" onclick="nav(this)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> Usage</div>
           <div class="navlink" id="nav-customer-billing" data-target="customer-billing" onclick="nav(this)" style="display:none"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg> Billing</div>
           <div class="navlink" id="nav-customer-plans" data-target="customer-plans" onclick="nav(this)" style="display:none"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Plans</div>
-          <div class="navlink" data-target="analytics" onclick="nav(this)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> Reports</div>
-          <div style="height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent);margin:8px 12px"></div>
           <div class="nav-group" id="nav-cmdb-group-customer">
             <div class="navlink" onclick="toggleNavGroup('nav-cmdb-group-customer')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg> My Equipment <span class="chev">▸</span></div>
             <div class="nav-subitems">
@@ -1990,13 +1988,14 @@ vNext-FULL-ActionsSLA:
             </div>
 
             <div class="grid2" style="gap:16px">
-              <!-- Recently updated equipment -->
+              <!-- Trending in your company -->
               <div style="border-radius:14px;padding:20px;background:var(--card);border:1px solid var(--border);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)">
                 <div class="row space" style="margin-bottom:12px">
-                  <strong style="font-size:15px">Recent Equipment</strong>
-                  <button class="btn ghost" onclick="openCmdb('cmdb-section-assetviewer')" style="font-size:12px">View all →</button>
+                  <strong style="font-size:15px;display:flex;align-items:center;gap:6px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg> Trending in Your Company</strong>
                 </div>
-                <table><thead><tr><th>Category</th><th>Name</th><th>Model</th><th>Location</th><th>Status</th></tr></thead><tbody id="cu-ci-body"></tbody></table>
+                <div id="cu-trending-body" style="font-size:13px">
+                  <div style="text-align:center;padding:20px;color:var(--muted)">Loading trends...</div>
+                </div>
               </div>
 
               <!-- Quick actions with gradient buttons -->
@@ -9928,7 +9927,57 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       resultsEl.innerHTML = '<div style="padding:12px;color:#dc2626">Search failed. Please try again.</div>';
     }
   }
-  function renderCustomerDash(){ const currentRole = window.role || role; if(currentRole!=='customer') return; const items = CMDB_ITEMS.filter(i => !tenant || i.customer===tenant); const ciCount = items.reduce((a,i)=>a+(CIS_BY_ITEM[i.cmdb_id]?.length||0),0); const openTickets = tickets.filter(t => (!tenant || (t.customer===tenant)) && t.status!=='Resolved').length; document.getElementById('cu-open').textContent=openTickets; document.getElementById('cu-items').textContent=items.length + ciCount; const tbody=document.getElementById('cu-ci-body'); tbody.innerHTML=''; const all=[]; items.forEach(i => (CIS_BY_ITEM[i.cmdb_id]||[]).forEach(ci => all.push({item:i, ci}))); if (all.length === 0) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--muted)">No equipment records yet</td></tr>'; } else { all.slice(0,8).forEach(r => { const tr=document.createElement('tr'); const m=r.ci.Model||r.ci.model||''; const loc=r.ci.Location||r.ci.location||''; const life=r.ci.Lifecycle||r.ci.lifecycle||r.ci.life||''; tr.innerHTML = `<td>${r.item.name}</td><td>${r.ci.name}</td><td>${m}</td><td>${loc}</td><td>${life}</td>`; tbody.appendChild(tr); }); } }
+  function renderCustomerDash(){ const currentRole = window.role || role; if(currentRole!=='customer') return; const items = CMDB_ITEMS.filter(i => !tenant || i.customer===tenant); const ciCount = items.reduce((a,i)=>a+(CIS_BY_ITEM[i.cmdb_id]?.length||0),0); const openTickets = tickets.filter(t => (!tenant || (t.customer===tenant)) && t.status!=='Resolved').length; document.getElementById('cu-open').textContent=openTickets; document.getElementById('cu-items').textContent=items.length + ciCount; renderCustomerTrending(); }
+  function renderCustomerTrending() {
+    const el = document.getElementById('cu-trending-body');
+    if (!el) return;
+    // Get company ID from current user
+    const companyId = window.currentUser && window.currentUser.customerCompanyId;
+    // Filter: non-system tickets from same company (or all customer tickets if no company)
+    const companyTickets = tickets.filter(t => {
+      if (t.is_system_source) return false;
+      if (companyId && t.customer_company_id) return t.customer_company_id === companyId;
+      return true;
+    });
+    if (companyTickets.length === 0) {
+      el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted)">No request data yet</div>';
+      return;
+    }
+    // Extract keywords from titles — simple word frequency (skip short/common words)
+    const stopWords = new Set(['the','a','an','is','are','was','were','be','been','being','have','has','had','do','does','did','will','would','shall','should','may','might','must','can','could','for','and','nor','but','or','yet','so','in','on','at','to','from','by','with','of','not','no','it','its','this','that','i','we','my','our','me','us','you','your','they','them','their','he','she','him','her','up','out','about','get','set','new','re','vs','all','any','just','very']);
+    const freq = {};
+    companyTickets.forEach(t => {
+      const words = (t.title || '').toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w));
+      // Dedupe per ticket so one ticket doesn't over-count
+      const unique = [...new Set(words)];
+      unique.forEach(w => { freq[w] = (freq[w] || 0) + 1; });
+    });
+    // Group similar tickets by their top keyword matches — build topic clusters
+    const sorted = Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 8);
+    if (sorted.length === 0) {
+      el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted)">Not enough data for trends</div>';
+      return;
+    }
+    const maxCount = sorted[0][1];
+    const gradients = ['#667eea','#8b5cf6','#a855f7','#d946ef','#ec4899','#f43f5e','#f97316','#eab308'];
+    let html = '';
+    sorted.forEach(([word, count], i) => {
+      const pct = Math.max(Math.round((count / maxCount) * 100), 12);
+      const color = gradients[i % gradients.length];
+      html += `<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+            <span style="font-weight:500;text-transform:capitalize;font-size:13px">${word}</span>
+            <span style="color:var(--muted);font-size:12px">${count} request${count !== 1 ? 's' : ''}</span>
+          </div>
+          <div style="height:6px;border-radius:3px;background:var(--border);overflow:hidden">
+            <div style="height:100%;width:${pct}%;border-radius:3px;background:linear-gradient(90deg,${color},${color}90);transition:width .4s ease"></div>
+          </div>
+        </div>
+      </div>`;
+    });
+    el.innerHTML = html;
+  }
   function renderMasterDash(){
     const currentRole = window.role || role;
     if (currentRole !== 'super_admin') return;

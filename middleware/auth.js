@@ -156,7 +156,8 @@ async function authenticateTenantUser(tenantCode, username, password) {
           fullName: user.full_name,
           role: user.role,
           tenantCode: tenantCode,
-          isCompanyAdmin: user.is_company_admin === 1
+          isCompanyAdmin: user.is_company_admin === 1,
+          customerCompanyId: user.customer_company_id || null
         },
         token
       };
