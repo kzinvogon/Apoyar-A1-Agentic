@@ -567,6 +567,34 @@ async function healthCheck() {
 }
 
 /**
+ * Close a specific tenant pool (e.g. after housekeeping finishes with a tenant).
+ * Returns true if a pool was closed, false if none existed.
+ */
+async function closeTenantPool(tenantCode) {
+  const normalizedCode = tenantCode.toLowerCase();
+  const pool = tenantPools.get(normalizedCode);
+  if (!pool) return false;
+
+  try {
+    await pool.end();
+    log.info('Tenant pool closed', { tenant: normalizedCode });
+  } catch (err) {
+    log.error('Error closing tenant pool', { tenant: normalizedCode, error: err.message });
+  }
+  tenantPools.delete(normalizedCode);
+  tenantPoolPromises.delete(normalizedCode);
+  tenantReconnectPromises.delete(normalizedCode);
+  return true;
+}
+
+/**
+ * Get the set of currently open tenant pool codes.
+ */
+function getOpenTenantCodes() {
+  return new Set(tenantPools.keys());
+}
+
+/**
  * Graceful shutdown - close all pools
  */
 async function shutdown() {
@@ -641,6 +669,8 @@ module.exports = {
 
   // Lifecycle
   shutdown,
+  closeTenantPool,
+  getOpenTenantCodes,
   recreateMasterPool,
   recreateTenantPool,
 

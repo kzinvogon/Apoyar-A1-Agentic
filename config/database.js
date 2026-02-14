@@ -599,6 +599,8 @@ module.exports = {
 
   // Lifecycle
   closeAllConnections,
+  closeTenantPool: hardenedPool.closeTenantPool,
+  getOpenTenantCodes: hardenedPool.getOpenTenantCodes,
 
   // Observability
   getPoolStats,
