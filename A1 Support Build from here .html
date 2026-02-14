@@ -10030,17 +10030,11 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     // Show/hide monitoring events toggle for company admins
     const sysToggle = document.getElementById('cu-system-toggle');
     if (sysToggle) sysToggle.style.display = isCompanyAdmin ? 'flex' : 'none';
-    // Filter tickets for this customer
+    // Filter tickets: checked = monitoring only, unchecked = non-system only
     let myTickets = tickets.filter(t => {
-      const isSys = t.is_system_source || t.source_metadata;
-      if (showSystem) {
-        // System mode: only show system tickets for the company
-        return !!isSys;
-      }
-      // Normal mode: exclude system tickets, show only this user's tickets
-      if (isSys) return false;
-      if (userId && t.customer_id) return t.customer_id === userId;
-      return true;
+      const isSys = !!(t.is_system_source || t.source_metadata);
+      if (showSystem) return isSys;
+      return !isSys;
     });
     // Apply status filter
     const statusF = document.getElementById('cu-req-filter-status')?.value || '';
