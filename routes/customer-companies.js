@@ -91,7 +91,7 @@ router.get('/', requireRole(['admin', 'expert']), readOperationsLimiter, async (
           u.username as admin_username,
           (SELECT COUNT(*) FROM customers c
            JOIN users cu ON c.user_id = cu.id
-           WHERE c.customer_company_id = cc.id AND cu.is_active = TRUE) as team_member_count
+           WHERE c.customer_company_id = cc.id AND cu.is_active = TRUE AND cu.role = 'customer') as team_member_count
         FROM customer_companies cc
         LEFT JOIN users u ON cc.admin_user_id = u.id
         LEFT JOIN sla_definitions sd ON cc.sla_definition_id = sd.id
@@ -159,7 +159,7 @@ router.get('/:id', requireRole(['admin', 'expert']), readOperationsLimiter, asyn
           c.created_at
         FROM users u
         JOIN customers c ON u.id = c.user_id
-        WHERE c.customer_company_id = ? AND u.is_active = TRUE
+        WHERE c.customer_company_id = ? AND u.is_active = TRUE AND u.role = 'customer'
         ORDER BY c.is_company_admin DESC, u.full_name ASC
       `, [id]);
 
