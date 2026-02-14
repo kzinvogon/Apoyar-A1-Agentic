@@ -1393,7 +1393,17 @@ vNext-FULL-ActionsSLA:
         <button onclick="clearImpersonation()" style="background:none;border:none;cursor:pointer;color:#92400e;font-weight:bold;padding:0 2px;font-size:14px;line-height:1;" title="Exit impersonation">×</button>
       </div>
       <div class="topnav-actions">
-        <button id="wt-help-btn" class="topnav-btn ghost" onclick="startWalkthrough()" title="Take a tour">? Help</button>
+        <div style="position:relative;display:inline-block;">
+          <button id="wt-help-btn" class="topnav-btn ghost" onclick="toggleHelpMenu(event)" title="Help">? Help</button>
+          <div id="help-menu" style="display:none;position:absolute;right:0;top:100%;margin-top:4px;background:var(--card-bg,#fff);border:1px solid var(--border,#e2e8f0);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.15);min-width:180px;z-index:9999;overflow:hidden;">
+            <button onclick="helpMenuAction('tour')" style="display:flex;align-items:center;gap:8px;width:100%;padding:10px 14px;border:none;background:none;cursor:pointer;font-size:13px;color:var(--text,#1e293b);text-align:left;" onmouseenter="this.style.background='var(--hover-bg,#f1f5f9)'" onmouseleave="this.style.background='none'">
+              <span style="font-size:15px;">&#x1F44B;</span> Welcome Tour
+            </button>
+            <button onclick="helpMenuAction('manual')" style="display:flex;align-items:center;gap:8px;width:100%;padding:10px 14px;border:none;background:none;cursor:pointer;font-size:13px;color:var(--text,#1e293b);text-align:left;" onmouseenter="this.style.background='var(--hover-bg,#f1f5f9)'" onmouseleave="this.style.background='none'">
+              <span style="font-size:15px;">&#x1F4D6;</span> User Manual
+            </button>
+          </div>
+        </div>
         <button class="topnav-btn ghost" id="topnav-switch-btn" onclick="switchRole()">Switch</button>
         <button class="topnav-btn ghost" onclick="logout()">Sign out</button>
       </div>
@@ -26394,6 +26404,28 @@ function wtShowStep() {
 
 function wtNext() { if (wtIdx < wtSteps.length - 1) { wtIdx++; wtShowStep(); } else { endWalkthrough(); } }
 function wtBack() { if (wtIdx > 0) { wtIdx--; wtShowStep(); } }
+
+/* ── Help menu ── */
+function toggleHelpMenu(e) {
+  e.stopPropagation();
+  const m = document.getElementById('help-menu');
+  if (!m) return;
+  const show = m.style.display === 'none';
+  m.style.display = show ? 'block' : 'none';
+  if (show) {
+    // Close on outside click
+    setTimeout(() => document.addEventListener('click', closeHelpMenu, { once: true }), 0);
+  }
+}
+function closeHelpMenu() {
+  const m = document.getElementById('help-menu');
+  if (m) m.style.display = 'none';
+}
+function helpMenuAction(action) {
+  closeHelpMenu();
+  if (action === 'tour') startWalkthrough();
+  else if (action === 'manual') window.open('/docs.html', '_blank');
+}
 
 function startWalkthrough() {
   wtIdx = 0;
