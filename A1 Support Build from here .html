@@ -1981,7 +1981,7 @@ vNext-FULL-ActionsSLA:
                 <div class="row space" style="margin-bottom:8px">
                   <strong style="font-size:14px">My Requests</strong>
                   <div class="row" style="gap:8px;align-items:center">
-                    <label id="cu-system-toggle" style="display:none;font-size:11px;color:var(--muted);cursor:pointer;user-select:none;align-items:center;gap:4px"><input type="checkbox" id="cu-req-system" onchange="renderCustomerRequests()" style="margin:0;width:13px;height:13px;cursor:pointer"> System Events</label>
+                    <label id="cu-system-toggle" style="display:none;font-size:12px;color:var(--muted);cursor:pointer;user-select:none;align-items:center;gap:6px;padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--card)"><input type="checkbox" id="cu-req-system" onchange="renderCustomerRequests()" style="margin:0;width:14px;height:14px;cursor:pointer;accent-color:#667eea"> Show Monitoring Events</label>
                     <button class="btn ghost" onclick="navTo('tickets')" style="font-size:11px;padding:2px 8px">View all →</button>
                   </div>
                 </div>
@@ -10024,9 +10024,10 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const countEl = document.getElementById('cu-req-count');
     if (!tb) return;
     const userId = window.currentUser && window.currentUser.id;
-    const isCompanyAdmin = window.currentUser && window.currentUser.isCompanyAdmin;
+    // Company admin: real login OR impersonated customer who is company admin OR admin testing as customer
+    const isCompanyAdmin = (window.currentUser && window.currentUser.isCompanyAdmin) || (window.impersonatedUser && window.impersonatedUser.role === 'customer') || (window.loginRole && window.loginRole === 'admin' && (window.role || role) === 'customer');
     const showSystem = document.getElementById('cu-req-system')?.checked || false;
-    // Show/hide system events toggle for company admins
+    // Show/hide monitoring events toggle for company admins
     const sysToggle = document.getElementById('cu-system-toggle');
     if (sysToggle) sysToggle.style.display = isCompanyAdmin ? 'flex' : 'none';
     // Filter tickets for this customer
