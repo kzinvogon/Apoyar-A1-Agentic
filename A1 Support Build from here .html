@@ -1967,14 +1967,6 @@ vNext-FULL-ActionsSLA:
 
           <!-- Customer -->
           <div id="dash-customer" style="display:none">
-            <!-- Welcome banner with gradient -->
-            <div style="background:linear-gradient(135deg,#667eea 0%,#764ba2 50%,#f093fb 100%);border-radius:16px;padding:28px 32px;color:#fff;margin-bottom:20px;position:relative;overflow:hidden">
-              <div style="position:absolute;top:-40px;right:-40px;width:200px;height:200px;background:rgba(255,255,255,.08);border-radius:50%"></div>
-              <div style="position:absolute;bottom:-60px;right:60px;width:160px;height:160px;background:rgba(255,255,255,.06);border-radius:50%"></div>
-              <h3 style="margin:0 0 4px;font-size:22px;font-weight:700" id="cu-welcome-name">Welcome back!</h3>
-              <div style="opacity:.85;font-size:14px">Here's an overview of your support activity</div>
-            </div>
-
             <!-- Stat cards with liquid glass -->
             <div class="grid3 mb-16" style="gap:16px">
               <div onclick="navTo('tickets')" style="cursor:pointer;border-radius:14px;padding:20px;background:linear-gradient(135deg,rgba(99,102,241,.12),rgba(139,92,246,.08));backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(99,102,241,.2);transition:all .25s ease;position:relative;overflow:hidden" onmouseenter="this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 25px rgba(99,102,241,.2)'" onmouseleave="this.style.transform='';this.style.boxShadow=''">
@@ -3347,66 +3339,61 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           Exit Fullscreen
         </button>
         <div id="view-ticket-detail" style="display:none">
-          <!-- Row 1: Back | Ticket ID | Nav + Admin Toggle -->
-          <div class="row mb-8" style="justify-content:space-between;align-items:center">
-            <button class="btn ghost" onclick="switchView('tickets')" title="Back to list (Esc)">← Back to tickets</button>
-            <span style="font-size:18px;font-weight:600">Ticket <span id="td-id"></span></span>
-            <div class="row" style="gap:8px;align-items:center">
-              <div id="ticket-nav-buttons" class="row" style="gap:4px;display:none">
-                <button id="btn-prev-ticket" class="btn ghost" onclick="navigateToPrevTicket()" title="Previous ticket ([)" disabled>← Prev</button>
-                <button id="btn-next-ticket" class="btn ghost" onclick="navigateToNextTicket()" title="Next ticket (])">Next →</button>
+          <!-- Ticket Detail Header -->
+          <div style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);border-radius:16px;padding:20px 24px 16px;color:#fff;margin-bottom:16px;position:relative;overflow:hidden">
+            <div style="position:absolute;top:-30px;right:-30px;width:140px;height:140px;background:rgba(255,255,255,.06);border-radius:50%"></div>
+            <div style="position:absolute;bottom:-40px;right:80px;width:100px;height:100px;background:rgba(255,255,255,.04);border-radius:50%"></div>
+            <!-- Row 1: Back | Ticket ID | Nav + Admin Toggle -->
+            <div class="row mb-8" style="justify-content:space-between;align-items:center">
+              <button class="btn ghost" onclick="switchView('tickets')" title="Back to list (Esc)" style="color:#fff;border-color:rgba(255,255,255,.25)">← Back</button>
+              <span style="font-size:15px;font-weight:600;opacity:.9">Ticket <span id="td-id"></span></span>
+              <div class="row" style="gap:8px;align-items:center">
+                <div id="ticket-nav-buttons" class="row" style="gap:4px;display:none">
+                  <button id="btn-prev-ticket" class="btn ghost" onclick="navigateToPrevTicket()" title="Previous ticket ([)" disabled style="color:#fff;border-color:rgba(255,255,255,.25);padding:4px 10px;font-size:12px">← Prev</button>
+                  <button id="btn-next-ticket" class="btn ghost" onclick="navigateToNextTicket()" title="Next ticket (])" style="color:#fff;border-color:rgba(255,255,255,.25);padding:4px 10px;font-size:12px">Next →</button>
+                </div>
+                <button class="fullscreen-toggle-btn" onclick="toggleFullscreen()" title="Fullscreen mode (F)" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.12);cursor:pointer;font-size:12px;font-weight:600;color:#fff;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 3 21 3 21 9"/>
+                    <polyline points="9 21 3 21 3 15"/>
+                    <line x1="21" y1="3" x2="14" y2="10"/>
+                    <line x1="3" y1="21" x2="10" y2="14"/>
+                  </svg>
+                  Focus
+                </button>
+                <button id="btn-admin-view-toggle" class="btn ghost" onclick="toggleAdminView()" style="display:none;font-size:11px;padding:4px 10px;color:#fff;border-color:rgba(255,255,255,.25)" title="Toggle admin details">
+                  <span id="admin-view-icon">👁</span> Admin
+                </button>
               </div>
-              <!-- Fullscreen Toggle -->
-              <button class="fullscreen-toggle-btn" onclick="toggleFullscreen()" title="Fullscreen mode (F)" style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:6px;border:2px solid var(--primary);background:var(--card);cursor:pointer;font-size:13px;font-weight:600;color:var(--primary)">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="15 3 21 3 21 9"/>
-                  <polyline points="9 21 3 21 3 15"/>
-                  <line x1="21" y1="3" x2="14" y2="10"/>
-                  <line x1="3" y1="21" x2="10" y2="14"/>
-                </svg>
-                Focus Mode
-              </button>
-              <!-- Admin View Toggle (admin only) -->
-              <button id="btn-admin-view-toggle" class="btn ghost" onclick="toggleAdminView()" style="display:none;font-size:12px;padding:4px 10px" title="Toggle admin details">
-                <span id="admin-view-icon">👁</span> Admin View
-              </button>
+            </div>
+            <!-- Row 2: Title -->
+            <h2 id="td-title-display" style="margin:0 0 10px 0;font-size:22px;font-weight:700;color:#fff;line-height:1.3"></h2>
+            <!-- Row 3: Metadata badges -->
+            <div class="row wrap" style="gap:8px;align-items:center">
+              <span id="td-meta-customer" style="font-size:13px;color:rgba(255,255,255,.8)"></span>
+              <span id="td-meta-assignee" style="font-size:13px;color:rgba(255,255,255,.8)"></span>
+              <span id="td-meta-priority" class="badge" style="border:none"></span>
+              <span id="td-meta-status" class="badge" style="border:none"></span>
+              <span id="td-meta-sla"></span>
+              <span id="td-system-source-badge" class="admin-only-inline" style="display:none"></span>
             </div>
           </div>
-          <!-- Row 2: Title -->
-          <h2 id="td-title-display" style="margin:0 0 8px 0;font-size:20px;font-weight:600;color:var(--fg)"></h2>
-          <!-- Row 3: Metadata -->
-          <div class="row wrap mb-12" style="gap:10px;align-items:center">
-            <span id="td-meta-customer" style="font-size:13px;color:var(--muted)"></span>
-            <span id="td-meta-assignee" style="font-size:13px;color:var(--muted)"></span>
-            <span id="td-meta-priority" class="badge"></span>
-            <span id="td-meta-status" class="badge"></span>
-            <span id="td-meta-sla"></span>
-            <!-- System source badge (admin only) -->
-            <span id="td-system-source-badge" class="admin-only-inline" style="display:none"></span>
-          </div>
           <!-- Actions Row -->
-          <div class="row space mb-12">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px;padding:12px 16px;border-radius:12px;background:linear-gradient(135deg,rgba(99,102,241,.06),rgba(139,92,246,.04));border:1px solid rgba(99,102,241,.12);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)">
             <!-- Expert/Admin Actions -->
             <div id="expert-actions" class="row wrap" style="gap:8px;align-items:center">
-              <!-- Pool Actions (per docs/workflows/ticket-ownership-state-matrix.md) -->
               <button id="btn-pool-claim" class="btn primary" onclick="claimTicketFromDetail()" style="display:none">Claim</button>
               <button id="btn-pool-accept" class="btn success" onclick="acceptOwnership()" style="display:none">Accept & Own</button>
               <button id="btn-pool-release" class="btn" onclick="releaseClaim()" style="display:none">Release</button>
               <button id="btn-pool-takeover" class="btn primary" onclick="takeOverTicketFromDetail()" style="display:none">Take Over</button>
               <span id="pool-claimed-indicator" style="display:none;font-size:12px;color:var(--muted);padding:4px 8px;background:var(--card-hover);border-radius:4px"></span>
-              <!-- Separator for pool actions -->
               <span id="pool-action-separator" style="display:none;width:1px;height:24px;background:#e5e7eb;margin:0 4px"></span>
-              <!-- Owned ticket actions -->
               <button id="btn-self-assign" class="btn success" onclick="selfAssignTicket()" style="display:none">👋 Self Assign</button>
-              <!-- Primary -->
               <button id="btn-next" class="btn primary" onclick="advanceStatus()">Next status</button>
-              <!-- Secondary (Reassign is admin-only) -->
               <button id="btn-reassign" class="btn ghost admin-only-btn" onclick="openCompletion('reassign')">Reassign</button>
               <button id="btn-mark-system" class="btn ghost admin-only-btn" onclick="markAsSystemMonitor()" title="Mark this ticket as a system monitoring alert">📡 Mark as System</button>
               <button id="btn-ai-assist" class="btn ai-btn" onclick="loadAISuggestions()">AI Assist</button>
-              <!-- Separator -->
               <span style="width:1px;height:24px;background:#e5e7eb;margin:0 4px"></span>
-              <!-- Terminal -->
               <button id="btn-resolve" class="btn danger" onclick="openCompletion('resolve')">Resolve</button>
             </div>
             <!-- Customer Actions -->
@@ -3464,9 +3451,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             </div>
           </div>
           <div class="grid2">
-            <div class="card p-16">
-              <div class="mb-12"><div class="subtitle">Title</div><textarea id="td-title" class="input" rows="2" style="max-height:80px;overflow-y:auto;resize:vertical"></textarea></div>
-              <div class="mb-12"><div class="subtitle">Description</div><textarea id="td-desc" class="input" placeholder="(Demo text)" rows="6" style="max-height:300px;overflow-y:auto;resize:vertical"></textarea></div>
+            <div style="border-radius:14px;padding:20px;background:var(--card);border:1px solid var(--border);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)">
+              <div class="mb-12"><div class="subtitle" style="font-weight:600;color:#667eea;font-size:12px;text-transform:uppercase;letter-spacing:.5px">Title</div><textarea id="td-title" class="input" rows="2" style="max-height:80px;overflow-y:auto;resize:vertical;border-radius:10px"></textarea></div>
+              <div class="mb-12"><div class="subtitle" style="font-weight:600;color:#667eea;font-size:12px;text-transform:uppercase;letter-spacing:.5px">Description</div><textarea id="td-desc" class="input" placeholder="(Demo text)" rows="6" style="max-height:300px;overflow-y:auto;resize:vertical;border-radius:10px"></textarea></div>
               <div class="row mb-12">
                 <div style="flex:1"><div class="subtitle">Priority</div><select id="td-priority" class="input"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="critical">Critical</option></select></div>
                 <div style="flex:1"><div class="subtitle">Status</div><select id="td-status" class="input" disabled><option>Open</option><option>In Progress</option><option>Pending</option><option>Resolved</option></select></div>
@@ -3566,26 +3553,26 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
                 </div>
               </div>
             </div>
-            <div class="card p-16" style="background:#fafafa;border-color:#e5e7eb">
+            <div style="border-radius:14px;padding:20px;background:linear-gradient(180deg,rgba(99,102,241,.04) 0%,var(--card) 100%);border:1px solid var(--border);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)">
               <div class="row space" style="cursor:pointer" onclick="toggleActivityPanel()">
-                <div class="subtitle" style="color:#6b7280"><strong>Activity</strong></div>
+                <div style="font-size:12px;font-weight:700;color:#667eea;text-transform:uppercase;letter-spacing:.5px;margin:0">Activity Timeline</div>
                 <span id="activity-toggle-icon" style="color:#9ca3af;font-size:12px">▼ Hide</span>
               </div>
               <div id="td-activity-wrapper" style="display:block">
                 <div id="td-activity" class="mb-12 mt-12" style="max-height:400px;overflow-y:auto;word-break:break-word;overflow-wrap:break-word"></div>
               </div>
-              <div class="row mt-12">
-                <input id="td-note" class="input" placeholder="Add an internal note…"/>
-                <button class="btn" onclick="addNote()">Add</button>
+              <div class="row mt-12" style="gap:8px">
+                <input id="td-note" class="input" placeholder="Add a note…" style="border-radius:10px"/>
+                <button class="btn primary" onclick="addNote()" style="border-radius:10px;padding:8px 16px">Send</button>
               </div>
             </div>
           </div>
 
           <!-- Related CMDB Items Section (Admin Only) -->
-          <div class="card p-16 mt-16 admin-section-card" id="cmdb-relations-section">
+          <div class="admin-section-card" id="cmdb-relations-section" style="margin-top:16px;border-radius:14px;padding:20px;background:var(--card);border:1px solid var(--border);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)">
             <div class="row space mb-12">
               <div class="row" style="gap:8px">
-                <strong>Related CMDB Items</strong>
+                <strong style="color:#667eea">Related CMDB Items</strong>
                 <span id="cmdb-count-badge" class="badge" style="display:none">0</span>
               </div>
               <div class="row" style="gap:8px">
@@ -3686,7 +3673,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           </div>
 
           <!-- Knowledge Base Suggestions Section (Admin Only) -->
-          <div class="card p-16 mt-16 admin-section-card" id="kb-suggestions-section">
+          <div class="admin-section-card" id="kb-suggestions-section" style="margin-top:16px;border-radius:14px;padding:20px;background:var(--card);border:1px solid var(--border);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)">
             <div class="row space mb-12">
               <div class="row" style="gap:8px">
                 <strong>📚 Suggested KB Articles</strong>
@@ -9941,7 +9928,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       resultsEl.innerHTML = '<div style="padding:12px;color:#dc2626">Search failed. Please try again.</div>';
     }
   }
-  function renderCustomerDash(){ const currentRole = window.role || role; if(currentRole!=='customer') return; const items = CMDB_ITEMS.filter(i => !tenant || i.customer===tenant); const ciCount = items.reduce((a,i)=>a+(CIS_BY_ITEM[i.cmdb_id]?.length||0),0); const openTickets = tickets.filter(t => (!tenant || (t.customer===tenant)) && t.status!=='Resolved').length; document.getElementById('cu-open').textContent=openTickets; document.getElementById('cu-items').textContent=items.length; document.getElementById('cu-cis').textContent=ciCount; const welcomeEl = document.getElementById('cu-welcome-name'); if (welcomeEl) { const name = (window.currentUser && window.currentUser.full_name) || (window.currentUser && window.currentUser.username) || ''; welcomeEl.textContent = name ? ('Welcome back, ' + name.split(' ')[0] + '!') : 'Welcome back!'; } const tbody=document.getElementById('cu-ci-body'); tbody.innerHTML=''; const all=[]; items.forEach(i => (CIS_BY_ITEM[i.cmdb_id]||[]).forEach(ci => all.push({item:i, ci}))); if (all.length === 0) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--muted)">No equipment records yet</td></tr>'; } else { all.slice(0,8).forEach(r => { const tr=document.createElement('tr'); const m=r.ci.Model||r.ci.model||''; const loc=r.ci.Location||r.ci.location||''; const life=r.ci.Lifecycle||r.ci.lifecycle||r.ci.life||''; tr.innerHTML = `<td>${r.item.name}</td><td>${r.ci.name}</td><td>${m}</td><td>${loc}</td><td>${life}</td>`; tbody.appendChild(tr); }); } }
+  function renderCustomerDash(){ const currentRole = window.role || role; if(currentRole!=='customer') return; const items = CMDB_ITEMS.filter(i => !tenant || i.customer===tenant); const ciCount = items.reduce((a,i)=>a+(CIS_BY_ITEM[i.cmdb_id]?.length||0),0); const openTickets = tickets.filter(t => (!tenant || (t.customer===tenant)) && t.status!=='Resolved').length; document.getElementById('cu-open').textContent=openTickets; document.getElementById('cu-items').textContent=items.length; document.getElementById('cu-cis').textContent=ciCount; const tbody=document.getElementById('cu-ci-body'); tbody.innerHTML=''; const all=[]; items.forEach(i => (CIS_BY_ITEM[i.cmdb_id]||[]).forEach(ci => all.push({item:i, ci}))); if (all.length === 0) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--muted)">No equipment records yet</td></tr>'; } else { all.slice(0,8).forEach(r => { const tr=document.createElement('tr'); const m=r.ci.Model||r.ci.model||''; const loc=r.ci.Location||r.ci.location||''; const life=r.ci.Lifecycle||r.ci.lifecycle||r.ci.life||''; tr.innerHTML = `<td>${r.item.name}</td><td>${r.ci.name}</td><td>${m}</td><td>${loc}</td><td>${life}</td>`; tbody.appendChild(tr); }); } }
   function renderMasterDash(){
     const currentRole = window.role || role;
     if (currentRole !== 'super_admin') return;
@@ -16960,10 +16947,21 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             const ek = a.event_key || '';
             const at = a.activity_type || '';
             const isViewed = ek === 'ticket.viewed' || at === 'viewed';
+            // Color map per activity type
+            const actColors = {
+              'ticket.created':'#667eea','ticket.assigned':'#8b5cf6','ticket.resolved':'#10b981',
+              'ticket.closed':'#6b7280','ticket.classified':'#f59e0b','ticket.comment.added':'#3b82f6',
+              'ticket.email_reply':'#7c3aed','ticket.auto_reply':'#0ea5e9',
+              'ticket.status.changed':'#f59e0b','ticket.priority.changed':'#ef4444',
+              created:'#667eea',resolved:'#10b981',closed:'#6b7280',assigned:'#8b5cf6',
+              updated:'#f59e0b',comment:'#3b82f6',classified:'#f59e0b',
+              email_reply:'#7c3aed',auto_reply:'#0ea5e9',sla_notification:'#ef4444',
+              viewed:'#d1d5db',system_note:'#6b7280',marked_as_system:'#6b7280'
+            };
+            const accentColor = actColors[ek] || actColors[at] || '#667eea';
+
             const div=document.createElement('div');
-            div.className = 'card p-6 mb-4';
-            div.style.fontSize = '12px';
-            div.style.lineHeight = '1.4';
+            div.style.cssText = `padding:8px 12px;margin-bottom:6px;border-radius:10px;font-size:12px;line-height:1.5;border-left:3px solid ${accentColor};background:linear-gradient(90deg,${accentColor}08,transparent);transition:background .15s`;
 
             const icon = eventIcons[ek] || typeIcons[at] || '&#x25CF;';
             const userName = a.user_full_name || a.user_name || 'System';
@@ -16974,20 +16972,20 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             let badgeHTML = '';
             if (src !== 'web') {
               const b = sourceBadges[src] || sourceBadges.system;
-              badgeHTML = `<span style="display:inline-block;font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;margin-left:4px;background:${b.bg};color:${b.fg};vertical-align:middle;letter-spacing:0.5px">${b.label}</span>`;
+              badgeHTML = `<span style="display:inline-block;font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;margin-left:4px;background:${b.bg};color:${b.fg};vertical-align:middle;letter-spacing:0.5px">${b.label}</span>`;
             }
 
             if (isViewed) {
-              div.style.opacity = '0.75';
-              div.innerHTML = `<span style="font-weight:600">${icon} ${userName}</span> <span class="subtitle">viewed &middot; ${actDate}</span>`;
+              div.style.opacity = '0.6';
+              div.innerHTML = `<span style="font-weight:600">${icon} ${userName}</span> <span style="color:var(--muted);font-size:11px">viewed &middot; ${actDate}</span>`;
             } else {
-              div.innerHTML = `${icon} <strong>${userName}</strong>${badgeHTML}: ${a.description || ''}<br><span class="subtitle" style="font-size:11px">${actDate}</span>`;
+              div.innerHTML = `${icon} <strong>${userName}</strong>${badgeHTML}: ${a.description || ''}<br><span style="color:var(--muted);font-size:11px">${actDate}</span>`;
             }
             act.appendChild(div);
           });
         } else {
           const div=document.createElement('div');
-          div.className='card p-12 mb-8 subtitle';
+          div.style.cssText='padding:20px;text-align:center;color:var(--muted);font-size:13px';
           div.textContent = 'No activity recorded yet';
           act.appendChild(div);
         }
@@ -17050,7 +17048,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       const act=document.getElementById('td-activity');
       act.innerHTML='';
       const div=document.createElement('div');
-      div.className='card p-12 mb-8 subtitle';
+      div.style.cssText='padding:16px;text-align:center;color:var(--muted);font-size:13px';
       div.textContent = 'Error loading ticket activity';
       act.appendChild(div);
     }
