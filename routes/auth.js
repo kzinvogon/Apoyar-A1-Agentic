@@ -470,6 +470,24 @@ router.get('/profile', verifyToken, async (req, res) => {
           return res.status(404).json({ success: false, message: 'User not found' });
         }
 
+        // For customer users, include company name
+        if (rows[0].role === 'customer') {
+          try {
+            const [custRows] = await connection.query(
+              `SELECT c.company_name, cc.name as company_company_name
+               FROM customers c
+               LEFT JOIN customer_companies cc ON c.customer_company_id = cc.id
+               WHERE c.user_id = ?`,
+              [req.user.userId]
+            );
+            if (custRows.length > 0) {
+              rows[0].customer_name = custRows[0].company_company_name || custRows[0].company_name || '';
+            }
+          } catch (e) {
+            // customers table may not exist on older tenants
+          }
+        }
+
         res.json({ success: true, profile: rows[0] });
       } finally {
         connection.release();
