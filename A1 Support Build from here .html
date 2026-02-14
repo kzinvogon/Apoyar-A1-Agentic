@@ -1981,7 +1981,10 @@ vNext-FULL-ActionsSLA:
                 <div class="row space" style="margin-bottom:8px">
                   <strong style="font-size:14px">My Requests</strong>
                   <div class="row" style="gap:8px;align-items:center">
-                    <label id="cu-system-toggle" style="display:none;font-size:12px;color:var(--muted);cursor:pointer;user-select:none;align-items:center;gap:6px;padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--card)"><input type="checkbox" id="cu-req-system" onchange="renderCustomerRequests()" style="margin:0;width:14px;height:14px;cursor:pointer;accent-color:#667eea"> Show Monitoring Events</label>
+                    <div id="cu-system-toggle" style="display:none;gap:0;border-radius:6px;overflow:hidden;border:1px solid var(--border)">
+                      <button id="cu-req-mode-requests" onclick="setCuReqMode('requests')" style="padding:3px 10px;font-size:11px;font-weight:600;border:none;cursor:pointer;background:#667eea;color:#fff">My Requests</button>
+                      <button id="cu-req-mode-monitoring" onclick="setCuReqMode('monitoring')" style="padding:3px 10px;font-size:11px;font-weight:500;border:none;cursor:pointer;background:var(--card);color:var(--muted)">Monitoring</button>
+                    </div>
                     <button class="btn ghost" onclick="navTo('tickets')" style="font-size:11px;padding:2px 8px">View all →</button>
                   </div>
                 </div>
@@ -10026,15 +10029,14 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const userId = window.currentUser && window.currentUser.id;
     // Company admin: real login OR impersonated customer who is company admin OR admin testing as customer
     const isCompanyAdmin = (window.currentUser && window.currentUser.isCompanyAdmin) || (window.impersonatedUser && window.impersonatedUser.role === 'customer') || (window.loginRole && window.loginRole === 'admin' && (window.role || role) === 'customer');
-    const showSystem = document.getElementById('cu-req-system')?.checked || false;
-    // Show/hide monitoring events toggle for company admins
+    const mode = window._cuReqMode || 'requests';
+    // Show/hide monitoring toggle for company admins
     const sysToggle = document.getElementById('cu-system-toggle');
     if (sysToggle) sysToggle.style.display = isCompanyAdmin ? 'flex' : 'none';
-    // Filter tickets: checked = monitoring only, unchecked = non-system only
+    // Filter: requests mode = non-system only, monitoring mode = system only
     let myTickets = tickets.filter(t => {
       const isSys = !!(t.is_system_source || t.source_metadata);
-      if (showSystem) return isSys;
-      return !isSys;
+      return mode === 'monitoring' ? isSys : !isSys;
     });
     // Apply status filter
     const statusF = document.getElementById('cu-req-filter-status')?.value || '';
@@ -10076,6 +10078,15 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const s = document.getElementById('cu-req-filter-status'); if (s) s.value = '';
     const p = document.getElementById('cu-req-filter-priority'); if (p) p.value = '';
     const o = document.getElementById('cu-req-sort'); if (o) o.value = 'newest';
+    renderCustomerRequests();
+  }
+  window._cuReqMode = 'requests';
+  function setCuReqMode(mode) {
+    window._cuReqMode = mode;
+    const reqBtn = document.getElementById('cu-req-mode-requests');
+    const monBtn = document.getElementById('cu-req-mode-monitoring');
+    if (reqBtn) { reqBtn.style.background = mode === 'requests' ? '#667eea' : 'var(--card)'; reqBtn.style.color = mode === 'requests' ? '#fff' : 'var(--muted)'; reqBtn.style.fontWeight = mode === 'requests' ? '600' : '500'; }
+    if (monBtn) { monBtn.style.background = mode === 'monitoring' ? '#667eea' : 'var(--card)'; monBtn.style.color = mode === 'monitoring' ? '#fff' : 'var(--muted)'; monBtn.style.fontWeight = mode === 'monitoring' ? '600' : '500'; }
     renderCustomerRequests();
   }
   function renderMasterDash(){
