@@ -7157,8 +7157,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       e.preventDefault();
       toggleSidebar();
     }
-    // F key to toggle fullscreen (only when ticket detail is visible and not in input)
-    if (e.key === 'f' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    // F key to toggle fullscreen (only when ticket detail is visible, not in input, not customer)
+    if (e.key === 'f' && !e.ctrlKey && !e.metaKey && !e.altKey && (window.role || role) !== 'customer') {
       const ticketDetail = document.getElementById('view-ticket-detail');
       const activeEl = document.activeElement;
       const isInInput = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.isContentEditable);
@@ -7836,6 +7836,13 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     // Hide CMDB Delete All button for experts (admin only)
     const cmdbDeleteAllBtn = document.getElementById('cmdb-mgmt-delete-all-btn');
     if (cmdbDeleteAllBtn) cmdbDeleteAllBtn.style.display = isAdmin ? 'inline-flex' : 'none';
+
+    // Hide fullscreen/focus button for customers
+    const isCustomer = (currentRole === 'customer');
+    const fsToggle = document.querySelector('.fullscreen-toggle-btn');
+    if (fsToggle) fsToggle.style.display = isCustomer ? 'none' : '';
+    const fsExit = document.querySelector('.fullscreen-exit-btn');
+    if (fsExit) fsExit.style.display = isCustomer ? 'none' : '';
 
     // Update Ionic menu visibility based on role
     if (typeof updateIonicMenu === 'function') {
