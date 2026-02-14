@@ -16400,33 +16400,43 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     assigneeFilter.value = currentValue;
   }
 
-  // Populate company filter with unique companies from tickets
-  function populateCompanyFilter() {
+  // Populate company filter from customer_companies API (not just from loaded tickets)
+  async function populateCompanyFilter() {
     const companyFilter = document.getElementById('ticket-filter-company');
     if (!companyFilter) return;
 
     // Get current selection
     const currentValue = companyFilter.value;
 
-    // Get unique companies (by company_company_id to avoid duplicates)
-    const companiesMap = new Map();
-    tickets.forEach(t => {
-      if (t.customer_company_id && t.company_name && t.company_name !== '—') {
-        companiesMap.set(t.customer_company_id, t.company_name);
+    // Use allCustomerCompanies if already loaded, otherwise fetch
+    if (allCustomerCompanies.length === 0) {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_BASE}/api/customer-companies`, {
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+        });
+        const data = await response.json();
+        if (data.success && data.companies) {
+          allCustomerCompanies = data.companies;
+        }
+      } catch (e) {
+        console.error('Error loading companies for filter:', e);
       }
-    });
+    }
 
     // Sort by company name
-    const companies = Array.from(companiesMap.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+    const companies = allCustomerCompanies
+      .filter(c => c.company_name)
+      .sort((a, b) => a.company_name.localeCompare(b.company_name));
 
     // Keep first option (All Companies)
     companyFilter.innerHTML = '<option value="">All Companies</option>';
 
     // Add company options
-    companies.forEach(([id, name]) => {
+    companies.forEach(c => {
       const option = document.createElement('option');
-      option.value = id;
-      option.textContent = name;
+      option.value = c.id;
+      option.textContent = c.company_name;
       companyFilter.appendChild(option);
     });
 
