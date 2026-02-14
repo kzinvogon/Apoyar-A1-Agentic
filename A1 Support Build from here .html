@@ -1982,7 +1982,10 @@ vNext-FULL-ActionsSLA:
               <div style="border-radius:14px;padding:16px;background:var(--card);border:1px solid var(--border);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)">
                 <div class="row space" style="margin-bottom:8px">
                   <strong style="font-size:14px">My Requests</strong>
-                  <button class="btn ghost" onclick="navTo('tickets')" style="font-size:11px;padding:2px 8px">View all →</button>
+                  <div class="row" style="gap:8px;align-items:center">
+                    <label id="cu-system-toggle" style="display:none;font-size:11px;color:var(--muted);cursor:pointer;user-select:none;align-items:center;gap:4px"><input type="checkbox" id="cu-req-system" onchange="renderCustomerRequests()" style="margin:0;width:13px;height:13px;cursor:pointer"> System Events</label>
+                    <button class="btn ghost" onclick="navTo('tickets')" style="font-size:11px;padding:2px 8px">View all →</button>
+                  </div>
                 </div>
                 <!-- Filters -->
                 <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;align-items:center">
@@ -10023,8 +10026,20 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const countEl = document.getElementById('cu-req-count');
     if (!tb) return;
     const userId = window.currentUser && window.currentUser.id;
+    const isCompanyAdmin = window.currentUser && window.currentUser.isCompanyAdmin;
+    const showSystem = document.getElementById('cu-req-system')?.checked || false;
+    // Show/hide system events toggle for company admins
+    const sysToggle = document.getElementById('cu-system-toggle');
+    if (sysToggle) sysToggle.style.display = isCompanyAdmin ? 'flex' : 'none';
     // Filter tickets for this customer
     let myTickets = tickets.filter(t => {
+      const isSys = t.is_system_source || t.source_metadata;
+      if (showSystem) {
+        // System mode: only show system tickets for the company
+        return !!isSys;
+      }
+      // Normal mode: exclude system tickets, show only this user's tickets
+      if (isSys) return false;
       if (userId && t.customer_id) return t.customer_id === userId;
       return true;
     });
@@ -16475,9 +16490,15 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const customerFilter = document.getElementById('ticket-filter-customer')?.value || '';
     const includeSystem = document.getElementById('ticket-filter-system')?.checked !== false;
 
+    // Customers never see system tickets in the ticket list
+    const isCustomerRole = (window.role || role) === 'customer';
+
     const result = ticketList.filter(t => {
-      // System ticket filter
-      if (!includeSystem && (t.is_system_source || t.source_metadata)) {
+      // System ticket filter — always hide for customers
+      if (isCustomerRole && (t.is_system_source || t.source_metadata)) {
+        return false;
+      }
+      if (!isCustomerRole && !includeSystem && (t.is_system_source || t.source_metadata)) {
         return false;
       }
 
