@@ -1117,12 +1117,14 @@ Provide JSON suggestions for efficient ticket handling.`
       `- ${s.name} (ID: ${s.id}): Response ${s.response_target_minutes}min, Resolve ${s.resolve_target_minutes}min`
     ).join('\n') || 'No SLA definitions available';
 
-    // Use the rule_interpret task for system prompt
-    this.setTask('rule_interpret');
+    // Build system prompt for rule interpretation
+    const savedTask = this.task;
+    this.task = 'rule_interpret';
     const systemPrompt = this.buildSystemPromptForTask();
+    this.task = savedTask; // restore
 
     const response = await anthropic.messages.create({
-      model: pickModelFor('anthropic', 'rule_interpret'),
+      model: CONFIG.AI_MODEL_TRIAGE,
       max_tokens: 1024,
       system: systemPrompt,
       messages: [{
