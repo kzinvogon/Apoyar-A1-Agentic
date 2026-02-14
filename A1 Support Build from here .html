@@ -1860,7 +1860,7 @@ vNext-FULL-ActionsSLA:
                 <!-- Tab Switcher -->
                 <div class="row space mb-12">
                   <div class="row" style="gap:4px;background:var(--badge-bg);padding:4px;border-radius:8px">
-                    <button id="pool-tab-btn" class="btn" onclick="switchExpertView('pool')" style="padding:8px 16px;font-size:13px;border-radius:6px">🎯 Ticket Pool</button>
+                    <button id="pool-tab-btn" class="btn" onclick="switchExpertView('pool')" style="padding:8px 16px;font-size:13px;border-radius:6px">🎯 Requests</button>
                     <button id="my-tickets-tab-btn" class="btn primary" onclick="switchExpertView('my')" style="padding:8px 16px;font-size:13px;border-radius:6px">📋 My Tickets</button>
                   </div>
                   <div class="row" style="gap:8px">
@@ -1984,6 +1984,43 @@ vNext-FULL-ActionsSLA:
               <div onclick="openCmdb('cmdb-section-assetviewer')" style="cursor:pointer;border-radius:12px;padding:14px 18px;background:linear-gradient(135deg,rgba(16,185,129,.10),rgba(5,150,105,.06));backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(16,185,129,.18);transition:all .2s ease" onmouseenter="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(16,185,129,.15)'" onmouseleave="this.style.transform='';this.style.boxShadow=''">
                 <div style="font-size:12px;color:var(--muted);font-weight:500;margin-bottom:2px">My Equipment</div>
                 <div id="cu-items" style="font-size:28px;font-weight:800;background:linear-gradient(135deg,#10b981,#059669);-webkit-background-clip:text;-webkit-text-fill-color:transparent">0</div>
+              </div>
+            </div>
+
+            <!-- My Requests list -->
+            <div style="border-radius:14px;padding:20px;background:var(--card);border:1px solid var(--border);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);margin-bottom:16px">
+              <div class="row space" style="margin-bottom:12px">
+                <strong style="font-size:15px">My Requests</strong>
+                <button class="btn ghost" onclick="navTo('tickets')" style="font-size:12px">View all →</button>
+              </div>
+              <!-- Filters -->
+              <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;padding:8px;background:var(--badge-bg);border-radius:8px">
+                <select id="cu-req-filter-status" onchange="renderCustomerRequests()" style="padding:4px 8px;font-size:12px;border-radius:6px;border:1px solid var(--border)">
+                  <option value="">All Statuses</option>
+                  <option value="Open">Open</option>
+                  <option value="In Progress">In Progress</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Resolved">Resolved</option>
+                  <option value="Closed">Closed</option>
+                </select>
+                <select id="cu-req-filter-priority" onchange="renderCustomerRequests()" style="padding:4px 8px;font-size:12px;border-radius:6px;border:1px solid var(--border)">
+                  <option value="">All Priorities</option>
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="critical">Critical</option>
+                </select>
+                <select id="cu-req-sort" onchange="renderCustomerRequests()" style="padding:4px 8px;font-size:12px;border-radius:6px;border:1px solid var(--border)">
+                  <option value="newest">Newest First</option>
+                  <option value="oldest">Oldest First</option>
+                  <option value="priority">Priority</option>
+                  <option value="status">Status</option>
+                </select>
+                <button class="btn ghost" onclick="clearCustomerReqFilters()" style="font-size:11px;padding:2px 8px">Clear</button>
+                <span id="cu-req-count" style="margin-left:auto;font-size:12px;color:var(--muted)"></span>
+              </div>
+              <div style="max-height:360px;overflow-y:auto">
+                <table style="font-size:13px"><thead><tr><th style="width:60px">ID</th><th>Title</th><th style="width:100px">Priority</th><th style="width:110px">Status</th><th style="width:120px">Expert</th><th style="width:80px">SLA</th></tr></thead><tbody id="cu-req-body"></tbody></table>
               </div>
             </div>
 
@@ -9927,7 +9964,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       resultsEl.innerHTML = '<div style="padding:12px;color:#dc2626">Search failed. Please try again.</div>';
     }
   }
-  function renderCustomerDash(){ const currentRole = window.role || role; if(currentRole!=='customer') return; const items = CMDB_ITEMS.filter(i => !tenant || i.customer===tenant); const ciCount = items.reduce((a,i)=>a+(CIS_BY_ITEM[i.cmdb_id]?.length||0),0); const openTickets = tickets.filter(t => (!tenant || (t.customer===tenant)) && t.status!=='Resolved').length; document.getElementById('cu-open').textContent=openTickets; document.getElementById('cu-items').textContent=items.length + ciCount; renderCustomerTrending(); }
+  function renderCustomerDash(){ const currentRole = window.role || role; if(currentRole!=='customer') return; const items = CMDB_ITEMS.filter(i => !tenant || i.customer===tenant); const ciCount = items.reduce((a,i)=>a+(CIS_BY_ITEM[i.cmdb_id]?.length||0),0); const openTickets = tickets.filter(t => (!tenant || (t.customer===tenant)) && t.status!=='Resolved').length; document.getElementById('cu-open').textContent=openTickets; document.getElementById('cu-items').textContent=items.length + ciCount; renderCustomerTrending(); renderCustomerRequests(); }
   function renderCustomerTrending() {
     const el = document.getElementById('cu-trending-body');
     if (!el) return;
@@ -9977,6 +10014,58 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       </div>`;
     });
     el.innerHTML = html;
+  }
+  function renderCustomerRequests() {
+    const tb = document.getElementById('cu-req-body');
+    const countEl = document.getElementById('cu-req-count');
+    if (!tb) return;
+    const userId = window.currentUser && window.currentUser.id;
+    // Filter tickets for this customer
+    let myTickets = tickets.filter(t => {
+      if (userId && t.customer_id) return t.customer_id === userId;
+      return true;
+    });
+    // Apply status filter
+    const statusF = document.getElementById('cu-req-filter-status')?.value || '';
+    if (statusF) myTickets = myTickets.filter(t => t.status === statusF);
+    // Apply priority filter
+    const prioF = document.getElementById('cu-req-filter-priority')?.value || '';
+    if (prioF) myTickets = myTickets.filter(t => (t.priority || '').toLowerCase() === prioF);
+    // Sort
+    const sortBy = document.getElementById('cu-req-sort')?.value || 'newest';
+    if (sortBy === 'newest') myTickets.sort((a, b) => (b.id || 0) - (a.id || 0));
+    else if (sortBy === 'oldest') myTickets.sort((a, b) => (a.id || 0) - (b.id || 0));
+    else if (sortBy === 'priority') {
+      const pOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+      myTickets.sort((a, b) => (pOrder[(a.priority||'').toLowerCase()] ?? 4) - (pOrder[(b.priority||'').toLowerCase()] ?? 4));
+    } else if (sortBy === 'status') {
+      const sOrder = { Open: 0, 'In Progress': 1, Pending: 2, Resolved: 3, Closed: 4 };
+      myTickets.sort((a, b) => (sOrder[a.status] ?? 5) - (sOrder[b.status] ?? 5));
+    }
+    if (countEl) countEl.textContent = myTickets.length + ' request' + (myTickets.length !== 1 ? 's' : '');
+    tb.innerHTML = '';
+    if (myTickets.length === 0) {
+      tb.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--muted)">No requests found</td></tr>';
+      return;
+    }
+    const priorityColors = { critical: '#dc2626', high: '#f59e0b', medium: '#3b82f6', low: '#6b7280' };
+    const statusColors = { Open: '#3b82f6', 'In Progress': '#f59e0b', Pending: '#8b5cf6', Resolved: '#10b981', Closed: '#6b7280' };
+    myTickets.forEach(t => {
+      const tr = document.createElement('tr');
+      tr.style.cursor = 'pointer';
+      tr.onclick = function() { openTicket(t.id); };
+      const pColor = priorityColors[(t.priority || '').toLowerCase()] || '#6b7280';
+      const sColor = statusColors[t.status] || '#6b7280';
+      const sla = getSLAState(t);
+      tr.innerHTML = `<td>#${t.id}</td><td style="max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.title || ''}</td><td><span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;color:#fff;background:${pColor}">${(t.priority||'medium').charAt(0).toUpperCase()+(t.priority||'medium').slice(1)}</span></td><td><span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;color:#fff;background:${sColor}">${t.status||'Open'}</span></td><td style="font-size:12px;color:var(--muted)">${t.assignee||'—'}</td><td>${slaBadgeHTML(sla)}</td>`;
+      tb.appendChild(tr);
+    });
+  }
+  function clearCustomerReqFilters() {
+    const s = document.getElementById('cu-req-filter-status'); if (s) s.value = '';
+    const p = document.getElementById('cu-req-filter-priority'); if (p) p.value = '';
+    const o = document.getElementById('cu-req-sort'); if (o) o.value = 'newest';
+    renderCustomerRequests();
   }
   function renderMasterDash(){
     const currentRole = window.role || role;
