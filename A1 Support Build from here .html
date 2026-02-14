@@ -2027,7 +2027,7 @@ vNext-FULL-ActionsSLA:
               <!-- Trending in your company -->
               <div style="border-radius:14px;padding:20px;background:var(--card);border:1px solid var(--border);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)">
                 <div class="row space" style="margin-bottom:12px">
-                  <strong style="font-size:15px;display:flex;align-items:center;gap:6px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg> Trending in Your Company</strong>
+                  <strong style="font-size:15px;display:flex;align-items:center;gap:6px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg> Requests by Category</strong>
                 </div>
                 <div id="cu-trending-body" style="font-size:13px">
                   <div style="text-align:center;padding:20px;color:var(--muted)">Loading trends...</div>
@@ -9967,9 +9967,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   function renderCustomerTrending() {
     const el = document.getElementById('cu-trending-body');
     if (!el) return;
-    // Get company ID from current user
     const companyId = window.currentUser && window.currentUser.customerCompanyId;
-    // Filter: non-system tickets from same company (or all customer tickets if no company)
     const companyTickets = tickets.filter(t => {
       if (t.is_system_source) return false;
       if (companyId && t.customer_company_id) return t.customer_company_id === companyId;
@@ -9979,17 +9977,13 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted)">No request data yet</div>';
       return;
     }
-    // Extract keywords from titles — simple word frequency (skip short/common words)
-    const stopWords = new Set(['the','a','an','is','are','was','were','be','been','being','have','has','had','do','does','did','will','would','shall','should','may','might','must','can','could','for','and','nor','but','or','yet','so','in','on','at','to','from','by','with','of','not','no','it','its','this','that','i','we','my','our','me','us','you','your','they','them','their','he','she','him','her','up','out','about','get','set','new','re','vs','all','any','just','very']);
-    const freq = {};
+    // Group by category
+    const catFreq = {};
     companyTickets.forEach(t => {
-      const words = (t.title || '').toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w));
-      // Dedupe per ticket so one ticket doesn't over-count
-      const unique = [...new Set(words)];
-      unique.forEach(w => { freq[w] = (freq[w] || 0) + 1; });
+      const cat = t.category || 'Uncategorised';
+      catFreq[cat] = (catFreq[cat] || 0) + 1;
     });
-    // Group similar tickets by their top keyword matches — build topic clusters
-    const sorted = Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 8);
+    const sorted = Object.entries(catFreq).sort((a, b) => b[1] - a[1]).slice(0, 8);
     if (sorted.length === 0) {
       el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted)">Not enough data for trends</div>';
       return;
@@ -9997,13 +9991,13 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const maxCount = sorted[0][1];
     const gradients = ['#667eea','#8b5cf6','#a855f7','#d946ef','#ec4899','#f43f5e','#f97316','#eab308'];
     let html = '';
-    sorted.forEach(([word, count], i) => {
+    sorted.forEach(([cat, count], i) => {
       const pct = Math.max(Math.round((count / maxCount) * 100), 12);
       const color = gradients[i % gradients.length];
       html += `<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
         <div style="flex:1;min-width:0">
           <div style="display:flex;justify-content:space-between;margin-bottom:3px">
-            <span style="font-weight:500;text-transform:capitalize;font-size:13px">${word}</span>
+            <span style="font-weight:500;font-size:13px">${cat}</span>
             <span style="color:var(--muted);font-size:12px">${count} request${count !== 1 ? 's' : ''}</span>
           </div>
           <div style="height:6px;border-radius:3px;background:var(--border);overflow:hidden">
