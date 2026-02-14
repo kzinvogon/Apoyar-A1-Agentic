@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { TicketRulesService } = require('../services/ticket-rules-service');
+const { AIAnalysisService } = require('../services/ai-analysis-service');
+const { getTenantConnection } = require('../config/database');
 const { verifyToken, requireRole } = require('../middleware/auth');
 
 // Apply authentication to all routes
@@ -73,6 +75,69 @@ router.get('/:tenantId/:ruleId', requireRole(['admin', 'expert']), async (req, r
   }
 });
 
+// Interpret a natural language instruction into a structured rule
+router.post('/:tenantId/interpret', requireRole(['admin', 'expert']), async (req, res) => {
+  try {
+    const { tenantId } = req.params;
+    const { instruction_text } = req.body;
+
+    if (!instruction_text || !instruction_text.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing instruction',
+        message: 'instruction_text is required'
+      });
+    }
+
+    // Load context: experts, customers, SLA definitions
+    const connection = await getTenantConnection(tenantId);
+    try {
+      const [experts] = await connection.query(`
+        SELECT u.id, u.full_name, COALESCE(e.skills, '') as skills
+        FROM users u
+        LEFT JOIN experts e ON u.id = e.user_id
+        WHERE u.role IN ('expert', 'admin') AND u.is_active = TRUE
+      `);
+
+      const [customers] = await connection.query(`
+        SELECT c.id, c.user_id, u.full_name, c.company_name
+        FROM customers c
+        LEFT JOIN users u ON c.user_id = u.id
+      `);
+
+      const [slaDefinitions] = await connection.query(`
+        SELECT id, name, response_target_minutes, resolve_target_minutes
+        FROM sla_definitions WHERE is_active = 1
+      `);
+
+      const aiService = new AIAnalysisService(tenantId, {
+        aiProvider: 'anthropic',
+        apiKey: process.env.AI_API_KEY
+      });
+
+      const interpretation = await aiService.interpretRuleInstruction(instruction_text, {
+        experts,
+        customers,
+        slaDefinitions
+      });
+
+      res.json({
+        success: true,
+        interpretation
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error interpreting rule instruction:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to interpret instruction',
+      message: error.message
+    });
+  }
+});
+
 // Create new rule
 router.post('/:tenantId', requireRole(['admin', 'expert']), async (req, res) => {
   try {
@@ -82,12 +147,23 @@ router.post('/:tenantId', requireRole(['admin', 'expert']), async (req, res) => 
 
     const ruleData = req.body;
 
-    // Validate required fields
-    if (!ruleData.rule_name || !ruleData.search_text || !ruleData.action_type) {
+    // Validate: either instruction_text (AI) or search_text + action_type (manual)
+    if (!ruleData.rule_name) {
       return res.status(400).json({
         success: false,
         error: 'Missing required fields',
-        message: 'rule_name, search_text, and action_type are required'
+        message: 'rule_name is required'
+      });
+    }
+
+    const hasInstruction = ruleData.instruction_text && ruleData.instruction_text.trim();
+    const hasManualFields = ruleData.search_text && ruleData.action_type;
+
+    if (!hasInstruction && !hasManualFields) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields',
+        message: 'Either instruction_text or (search_text and action_type) are required'
       });
     }
 

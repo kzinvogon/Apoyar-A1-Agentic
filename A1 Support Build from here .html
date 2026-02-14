@@ -1585,7 +1585,7 @@ vNext-FULL-ActionsSLA:
           <div class="navlink" data-target="notifications" onclick="nav(this)">🔔 Notifications <span id="notif-badge-admin" style="display:none;background:#ef4444;color:white;padding:1px 6px;border-radius:10px;font-size:11px;margin-left:4px"></span></div>
           <div id="adminMenuOriginalPoint"></div>
           <div id="adminMenuGroup" style="display:none">
-            <div class="navlink" data-target="ticket-rules" onclick="nav(this)">⚙️ Ticket Rules</div>
+            <div class="navlink" data-target="ticket-rules" onclick="nav(this)">⚙️ Automated Actions</div>
             <div class="nav-group" id="nav-admin-settings-group">
               <div class="navlink" onclick="toggleNavGroup('nav-admin-settings-group')">🪄 Admin Settings <span class="chev">▸</span></div>
               <div class="nav-subitems">
@@ -3145,24 +3145,24 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
 <!-- END AI Insights Dashboard -->
 
-        <!-- Ticket Processing Rules -->
+        <!-- Automated Actions -->
         <div id="view-ticket-rules" style="display:none">
           <div class="row space mb-12">
             <div class="row">
               <button class="btn ghost" onclick="switchView('dash')">← Back</button>
-              <h3 class="title" style="margin:0 0 0 8px">⚙️ Ticket Processing Rules</h3>
+              <h3 class="title" style="margin:0 0 0 8px">⚙️ Automated Actions</h3>
             </div>
-            <button class="btn" onclick="showCreateRuleModal()">+ Create Rule</button>
+            <button class="btn" onclick="showCreateRuleModal()">+ New Action</button>
           </div>
 
           <!-- Statistics Card -->
           <div class="grid3 mb-16">
             <div class="card p-16">
-              <div class="subtitle">Total Rules</div>
+              <div class="subtitle">Total Actions</div>
               <div id="rules-total" style="font-size:32px;font-weight:800;color:#667eea">0</div>
             </div>
             <div class="card p-16">
-              <div class="subtitle">Enabled Rules</div>
+              <div class="subtitle">Active Actions</div>
               <div id="rules-enabled" style="font-size:32px;font-weight:800;color:#48bb78">0</div>
             </div>
             <div class="card p-16">
@@ -3173,27 +3173,57 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
           <!-- Rules List -->
           <div class="card p-16">
-            <h4 class="mb-12">Rules</h4>
+            <h4 class="mb-12">Actions</h4>
             <div id="rules-list">
-              <div class="subtitle">Loading rules...</div>
+              <div class="subtitle">Loading actions...</div>
             </div>
           </div>
         </div>
 
-        <!-- Create/Edit Rule Modal -->
+        <!-- Create/Edit Automated Action Modal -->
         <div id="rule-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;overflow-y:auto;align-items:flex-start;justify-content:center;padding:40px 16px">
           <div class="card" style="max-width:600px;width:100%;padding:24px">
             <div class="row space mb-16">
-              <h3 id="rule-modal-title">Create Rule</h3>
+              <h3 id="rule-modal-title">Create Automated Action</h3>
               <button class="btn ghost" onclick="closeRuleModal()">✕ Close</button>
             </div>
 
             <form id="rule-form" onsubmit="saveRule(event)">
               <input type="hidden" id="rule-id">
+              <input type="hidden" id="rule-ai-interpreted" value="0">
+              <input type="hidden" id="rule-ai-confidence" value="">
 
-              <!-- Rule Name -->
+              <!-- Instruction Section -->
+              <div id="instruction-section" class="mb-16" style="padding:16px;background:#eef2ff;border-radius:6px;border:1px solid #c7d2fe">
+                <h4 class="mb-8" style="color:#4338ca">Describe what this action should do</h4>
+                <div class="mb-8">
+                  <textarea id="rule-instruction" class="input" rows="3" placeholder="Examples:&#10;- Assign tickets about database issues to Selami&#10;- Set priority to critical when title contains 'server down'&#10;- Delete spam tickets containing 'crypto' in the body&#10;- Tag monitoring alerts with 'infrastructure'" style="width:100%;font-size:14px"></textarea>
+                </div>
+                <div class="row" style="gap:8px">
+                  <button type="button" class="btn" onclick="interpretInstruction()" id="interpret-btn" style="background:#4338ca">Interpret with AI</button>
+                  <button type="button" class="btn ghost" onclick="toggleAdvancedEdit()" id="toggle-advanced-btn" style="font-size:13px">Edit Manually</button>
+                </div>
+              </div>
+
+              <!-- AI Interpretation Result -->
+              <div id="interpretation-result" style="display:none" class="mb-16">
+                <div style="padding:16px;background:#f0fdf4;border-radius:6px;border:1px solid #bbf7d0">
+                  <div class="row space mb-8">
+                    <h4 style="color:#166534;margin:0">AI Interpretation</h4>
+                    <span id="interpretation-confidence" style="padding:3px 8px;border-radius:12px;font-size:12px;font-weight:600"></span>
+                  </div>
+                  <div id="interpretation-details" style="font-size:14px"></div>
+                  <div id="interpretation-warnings" style="display:none;margin-top:8px;padding:8px;background:#fef3c7;border-radius:4px;font-size:13px;color:#92400e"></div>
+                  <div class="row" style="gap:8px;margin-top:12px">
+                    <button type="button" class="btn ghost" onclick="toggleAdvancedEdit()" style="font-size:13px">Review / Edit Fields</button>
+                    <button type="button" class="btn ghost" onclick="reinterpret()" style="font-size:13px">Re-interpret</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Rule Name (auto-filled by AI or manual) -->
               <div class="mb-12">
-                <label style="display:block;margin-bottom:4px;font-weight:600">Rule Name *</label>
+                <label style="display:block;margin-bottom:4px;font-weight:600">Action Name *</label>
                 <input type="text" id="rule-name" class="input" placeholder="e.g., Auto-assign Infrastructure Alerts" required style="width:100%">
               </div>
 
@@ -3207,62 +3237,65 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               <div class="mb-16">
                 <label style="display:flex;align-items:center;cursor:pointer">
                   <input type="checkbox" id="rule-enabled" checked style="margin-right:8px">
-                  <span style="font-weight:600">Enable this rule</span>
+                  <span style="font-weight:600">Enable this action</span>
                 </label>
               </div>
 
-              <!-- Search Criteria Section -->
-              <div class="mb-16" style="padding:16px;background:#f7fafc;border-radius:6px">
-                <h4 class="mb-12">🔍 Search Criteria</h4>
+              <!-- Advanced/Manual Fields (hidden by default for AI flow) -->
+              <div id="advanced-fields" style="display:none">
+                <!-- Search Criteria Section -->
+                <div class="mb-16" style="padding:16px;background:#f7fafc;border-radius:6px">
+                  <h4 class="mb-12">Search Criteria</h4>
 
-                <div class="mb-12">
-                  <label style="display:block;margin-bottom:4px;font-weight:600">Search In *</label>
-                  <select id="rule-search-in" class="input" style="width:100%">
-                    <option value="both">Title and Body</option>
-                    <option value="title">Title Only</option>
-                    <option value="body">Body Only</option>
-                  </select>
+                  <div class="mb-12">
+                    <label style="display:block;margin-bottom:4px;font-weight:600">Search In</label>
+                    <select id="rule-search-in" class="input" style="width:100%">
+                      <option value="both">Title and Body</option>
+                      <option value="title">Title Only</option>
+                      <option value="body">Body Only</option>
+                    </select>
+                  </div>
+
+                  <div class="mb-12">
+                    <label style="display:block;margin-bottom:4px;font-weight:600">Search Text</label>
+                    <input type="text" id="rule-search-text" class="input" placeholder="e.g., Infrastructure Monitoring" style="width:100%">
+                  </div>
+
+                  <div class="mb-12">
+                    <label style="display:flex;align-items:center;cursor:pointer">
+                      <input type="checkbox" id="rule-case-sensitive" style="margin-right:8px">
+                      <span>Case sensitive matching</span>
+                    </label>
+                  </div>
                 </div>
 
-                <div class="mb-12">
-                  <label style="display:block;margin-bottom:4px;font-weight:600">Search Text *</label>
-                  <input type="text" id="rule-search-text" class="input" placeholder="e.g., Infrastructure Monitoring" required style="width:100%">
+                <!-- Action Section -->
+                <div class="mb-16" style="padding:16px;background:#f7fafc;border-radius:6px">
+                  <h4 class="mb-12">Action</h4>
+
+                  <div class="mb-12">
+                    <label style="display:block;margin-bottom:4px;font-weight:600">Action Type</label>
+                    <select id="rule-action-type" class="input" onchange="updateActionParams()" style="width:100%">
+                      <option value="">Select an action...</option>
+                      <option value="delete">Delete Ticket</option>
+                      <option value="assign_to_expert">Assign to Expert</option>
+                      <option value="create_for_customer">Create for Customer</option>
+                      <option value="set_priority">Set Priority</option>
+                      <option value="set_status">Set Status</option>
+                      <option value="add_tag">Add Tag</option>
+                      <option value="add_to_monitoring">Add to System Monitoring Sources</option>
+                    </select>
+                  </div>
+
+                  <!-- Dynamic Action Parameters -->
+                  <div id="action-params-container"></div>
                 </div>
-
-                <div class="mb-12">
-                  <label style="display:flex;align-items:center;cursor:pointer">
-                    <input type="checkbox" id="rule-case-sensitive" style="margin-right:8px">
-                    <span>Case sensitive matching</span>
-                  </label>
-                </div>
-              </div>
-
-              <!-- Action Section -->
-              <div class="mb-16" style="padding:16px;background:#f7fafc;border-radius:6px">
-                <h4 class="mb-12">⚡ Action</h4>
-
-                <div class="mb-12">
-                  <label style="display:block;margin-bottom:4px;font-weight:600">Action Type *</label>
-                  <select id="rule-action-type" class="input" onchange="updateActionParams()" style="width:100%" required>
-                    <option value="">Select an action...</option>
-                    <option value="delete">Delete Ticket</option>
-                    <option value="assign_to_expert">Assign to Expert</option>
-                    <option value="create_for_customer">Create for Customer</option>
-                    <option value="set_priority">Set Priority</option>
-                    <option value="set_status">Set Status</option>
-                    <option value="add_tag">Add Tag</option>
-                    <option value="add_to_monitoring">Add to System Monitoring Sources</option>
-                  </select>
-                </div>
-
-                <!-- Dynamic Action Parameters -->
-                <div id="action-params-container"></div>
               </div>
 
               <!-- Buttons -->
               <div class="row" style="gap:8px;justify-content:flex-end">
                 <button type="button" class="btn ghost" onclick="closeRuleModal()">Cancel</button>
-                <button type="submit" class="btn">Save Rule</button>
+                <button type="submit" class="btn" id="save-rule-btn">Save Action</button>
               </div>
             </form>
           </div>
@@ -24800,12 +24833,13 @@ async function rejectCMDBSuggestion(suggestionId) {
 }
 
 // ============================================
-// TICKET PROCESSING RULES FUNCTIONS
+// AUTOMATED ACTIONS FUNCTIONS
 // ============================================
 
 let currentRuleId = null;
 let ruleExperts = [];
 let ruleCustomers = [];
+let ruleAdvancedVisible = false;
 
 // Load all rules for the current tenant
 async function loadTicketRules() {
@@ -24838,7 +24872,7 @@ async function loadTicketRules() {
     if (rulesData.success && rulesData.rules.length > 0) {
       displayRules(rulesData.rules);
     } else {
-      document.getElementById('rules-list').innerHTML = '<div class="subtitle">No rules found. Create your first rule to get started.</div>';
+      document.getElementById('rules-list').innerHTML = '<div class="subtitle">No actions found. Create your first automated action to get started.</div>';
     }
 
     // Load experts and customers for dropdowns
@@ -24877,8 +24911,11 @@ function displayRules(rules) {
     const actionIcon = actionIcons[rule.action_type] || '⚙️';
     const actionLabel = actionLabels[rule.action_type] || rule.action_type;
     const enabledBadge = rule.enabled
-      ? '<span style="padding:4px 8px;background:#48bb78;color:white;border-radius:4px;font-size:11px;font-weight:600">ENABLED</span>'
+      ? '<span style="padding:4px 8px;background:#48bb78;color:white;border-radius:4px;font-size:11px;font-weight:600">ACTIVE</span>'
       : '<span style="padding:4px 8px;background:#a0aec0;color:white;border-radius:4px;font-size:11px;font-weight:600">DISABLED</span>';
+    const aiBadge = rule.ai_interpreted
+      ? '<span style="padding:3px 8px;background:#eef2ff;color:#4338ca;border-radius:4px;font-size:11px;font-weight:600;border:1px solid #c7d2fe">AI</span>'
+      : '';
 
     return `
       <div class="card p-12 mb-8" style="border-left:4px solid ${rule.enabled ? '#48bb78' : '#a0aec0'}">
@@ -24887,22 +24924,24 @@ function displayRules(rules) {
             <div class="row" style="gap:8px;align-items:center;margin-bottom:4px">
               <h4 style="margin:0">${escapeHtml(rule.rule_name)}</h4>
               ${enabledBadge}
+              ${aiBadge}
             </div>
+            ${rule.instruction_text ? `<div style="font-size:13px;color:#4338ca;margin-bottom:2px;font-style:italic">"${escapeHtml(rule.instruction_text)}"</div>` : ''}
             ${rule.description ? `<div class="subtitle">${escapeHtml(rule.description)}</div>` : ''}
           </div>
           <div class="row" style="gap:4px">
-            <button class="btn ghost" onclick="testRule(${rule.id})" title="Test this rule">🧪 Test</button>
-            <button class="btn primary" onclick="runRule(${rule.id})" title="Run rule on all matching tickets">▶️ Run</button>
+            <button class="btn ghost" onclick="testRule(${rule.id})" title="Test this action">🧪 Test</button>
+            <button class="btn primary" onclick="runRule(${rule.id})" title="Run on all matching tickets">▶️ Run</button>
             <button class="btn ghost" onclick="editRule(${rule.id})">✏️ Edit</button>
-            <button class="btn ghost" onclick="deleteRule(${rule.id})" title="Delete this rule">🗑️</button>
+            <button class="btn ghost" onclick="deleteRule(${rule.id})" title="Delete this action">🗑️</button>
           </div>
         </div>
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:13px">
           <div>
-            <div class="subtitle" style="margin-bottom:4px">🔍 Search Criteria</div>
+            <div class="subtitle" style="margin-bottom:4px">Condition</div>
             <div><strong>Search in:</strong> ${rule.search_in}</div>
-            <div><strong>Text:</strong> "${escapeHtml(rule.search_text)}"</div>
+            <div><strong>Text:</strong> "${escapeHtml(rule.search_text || '')}"</div>
             <div><strong>Case sensitive:</strong> ${rule.case_sensitive ? 'Yes' : 'No'}</div>
           </div>
           <div>
@@ -24976,12 +25015,20 @@ async function loadExpertsAndCustomers() {
 // Show create rule modal
 function showCreateRuleModal() {
   currentRuleId = null;
-  document.getElementById('rule-modal-title').textContent = 'Create Rule';
+  ruleAdvancedVisible = false;
+  document.getElementById('rule-modal-title').textContent = 'Create Automated Action';
   document.getElementById('rule-form').reset();
   document.getElementById('rule-id').value = '';
+  document.getElementById('rule-ai-interpreted').value = '0';
+  document.getElementById('rule-ai-confidence').value = '';
   document.getElementById('rule-enabled').checked = true;
-  document.getElementById('rule-action-type').value = 'delete';
-  updateActionParams();
+  document.getElementById('rule-instruction').value = '';
+  document.getElementById('rule-action-type').value = '';
+  document.getElementById('interpretation-result').style.display = 'none';
+  document.getElementById('instruction-section').style.display = '';
+  document.getElementById('advanced-fields').style.display = 'none';
+  document.getElementById('toggle-advanced-btn').textContent = 'Edit Manually';
+  document.getElementById('action-params-container').innerHTML = '';
   const modal = document.getElementById('rule-modal');
   modal.style.display = 'flex';
   modal.scrollTop = 0;
@@ -25088,22 +25135,34 @@ function updateActionParams() {
 async function saveRule(event) {
   event.preventDefault();
 
-  const tenantCode = window.tenant || window.tenant || 'apoyar';
+  const tenantCode = window.tenant || 'apoyar';
   const token = localStorage.getItem('token');
   const ruleId = document.getElementById('rule-id').value;
 
+  const instructionText = document.getElementById('rule-instruction').value.trim();
+  const searchText = document.getElementById('rule-search-text').value.trim();
+  const actionType = document.getElementById('rule-action-type').value;
+
+  // Validate: need either instruction or structured fields
+  if (!instructionText && (!searchText || !actionType)) {
+    alert('Please either describe the action using AI, or fill in the search text and action type manually.');
+    return;
+  }
+
   // Gather form data
   const enabledCheckbox = document.getElementById('rule-enabled');
-  console.log('Saving rule - enabled checkbox checked:', enabledCheckbox.checked);
   const ruleData = {
     rule_name: document.getElementById('rule-name').value,
     description: document.getElementById('rule-description').value || null,
+    instruction_text: instructionText || null,
     enabled: enabledCheckbox.checked,
     search_in: document.getElementById('rule-search-in').value,
-    search_text: document.getElementById('rule-search-text').value,
+    search_text: searchText || null,
     case_sensitive: document.getElementById('rule-case-sensitive').checked,
-    action_type: document.getElementById('rule-action-type').value,
-    action_params: getActionParams()
+    action_type: actionType,
+    action_params: getActionParams(),
+    ai_interpreted: document.getElementById('rule-ai-interpreted').value === '1',
+    ai_confidence: parseFloat(document.getElementById('rule-ai-confidence').value) || null
   };
 
   try {
@@ -25130,13 +25189,13 @@ async function saveRule(event) {
     if (data.success) {
       closeRuleModal();
       await loadTicketRules();
-      alert(ruleId ? '✅ Rule updated successfully!' : '✅ Rule created successfully!');
+      showToast(ruleId ? 'Action updated successfully!' : 'Action created successfully!', 'success');
     } else {
-      alert('❌ Failed to save rule: ' + (data.message || 'Unknown error'));
+      alert('Failed to save action: ' + (data.message || 'Unknown error'));
     }
   } catch (error) {
     console.error('Error saving rule:', error);
-    alert('❌ Error saving rule: ' + error.message);
+    alert('Error saving action: ' + error.message);
   }
 }
 
@@ -25175,6 +25234,168 @@ function getActionParams() {
   return params;
 }
 
+// Interpret instruction using AI
+async function interpretInstruction() {
+  const instruction = document.getElementById('rule-instruction').value.trim();
+  if (!instruction) {
+    alert('Please describe what this action should do.');
+    return;
+  }
+
+  const tenantCode = window.tenant || 'apoyar';
+  const token = localStorage.getItem('token');
+  const btn = document.getElementById('interpret-btn');
+  const origText = btn.textContent;
+
+  btn.disabled = true;
+  btn.textContent = 'Interpreting...';
+
+  try {
+    const url = window.location.protocol + '//' + window.location.host + `/api/ticket-rules/${tenantCode}/interpret`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ instruction_text: instruction })
+    });
+
+    const data = await response.json();
+
+    if (data.success && data.interpretation) {
+      displayInterpretation(data.interpretation);
+      populateStructuredFields(data.interpretation);
+    } else {
+      alert('Failed to interpret instruction: ' + (data.message || 'Unknown error'));
+    }
+  } catch (error) {
+    console.error('Error interpreting instruction:', error);
+    alert('Error interpreting instruction: ' + error.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = origText;
+  }
+}
+
+// Display the AI interpretation result
+function displayInterpretation(interp) {
+  const resultDiv = document.getElementById('interpretation-result');
+  const detailsDiv = document.getElementById('interpretation-details');
+  const warningsDiv = document.getElementById('interpretation-warnings');
+  const confidenceSpan = document.getElementById('interpretation-confidence');
+
+  // Confidence badge
+  const conf = Math.round((interp.confidence || 0) * 100);
+  let confColor, confBg;
+  if (conf >= 80) { confColor = '#166534'; confBg = '#dcfce7'; }
+  else if (conf >= 50) { confColor = '#92400e'; confBg = '#fef3c7'; }
+  else { confColor = '#991b1b'; confBg = '#fee2e2'; }
+  confidenceSpan.textContent = `${conf}% confidence`;
+  confidenceSpan.style.cssText = `padding:3px 8px;border-radius:12px;font-size:12px;font-weight:600;color:${confColor};background:${confBg}`;
+
+  // Build readable summary
+  const searchInLabel = {both: 'title or body', title: 'title', body: 'body'}[interp.search_in] || 'title or body';
+  const actionLabels = {
+    delete: 'Delete the ticket',
+    assign_to_expert: 'Assign to expert' + (interp.action_params?.expert_name ? ` (${interp.action_params.expert_name})` : interp.action_params?.expert_id ? ` (ID: ${interp.action_params.expert_id})` : ''),
+    create_for_customer: 'Create for customer',
+    set_priority: `Set priority to ${interp.action_params?.priority || '?'}`,
+    set_status: `Set status to ${interp.action_params?.status || '?'}`,
+    add_tag: `Add tag "${interp.action_params?.tag || '?'}"`,
+    add_to_monitoring: 'Add to system monitoring',
+    set_sla_definition: 'Apply SLA definition'
+  };
+
+  detailsDiv.innerHTML = `
+    <div style="margin-bottom:6px"><strong>Condition:</strong> When ${searchInLabel} contains "<em>${escapeHtml(interp.search_text || '')}</em>"${interp.case_sensitive ? ' (case sensitive)' : ''}</div>
+    <div style="margin-bottom:6px"><strong>Action:</strong> ${actionLabels[interp.action_type] || interp.action_type}</div>
+    ${interp.reasoning ? `<div style="margin-bottom:6px;color:#6b7280"><strong>Reasoning:</strong> ${escapeHtml(interp.reasoning)}</div>` : ''}
+  `;
+
+  // Warnings
+  if (interp.warnings && interp.warnings.length > 0) {
+    warningsDiv.style.display = '';
+    warningsDiv.innerHTML = interp.warnings.map(w => `<div>⚠️ ${escapeHtml(w)}</div>`).join('');
+  } else {
+    warningsDiv.style.display = 'none';
+  }
+
+  resultDiv.style.display = '';
+}
+
+// Populate hidden structured fields from AI interpretation
+function populateStructuredFields(interp) {
+  document.getElementById('rule-ai-interpreted').value = '1';
+  document.getElementById('rule-ai-confidence').value = interp.confidence || '';
+
+  // Auto-fill name and description if empty
+  if (!document.getElementById('rule-name').value && interp.rule_name) {
+    document.getElementById('rule-name').value = interp.rule_name;
+  }
+  if (!document.getElementById('rule-description').value && interp.description) {
+    document.getElementById('rule-description').value = interp.description;
+  }
+
+  // Fill structured fields
+  document.getElementById('rule-search-in').value = interp.search_in || 'both';
+  document.getElementById('rule-search-text').value = interp.search_text || '';
+  document.getElementById('rule-case-sensitive').checked = !!interp.case_sensitive;
+  document.getElementById('rule-action-type').value = interp.action_type || '';
+  updateActionParams();
+
+  // Populate action params after DOM update
+  setTimeout(() => {
+    if (interp.action_params) {
+      switch (interp.action_type) {
+        case 'assign_to_expert':
+          if (interp.action_params.expert_id) {
+            const el = document.getElementById('param-expert-id');
+            if (el) el.value = interp.action_params.expert_id;
+          }
+          break;
+        case 'create_for_customer':
+          if (interp.action_params.customer_id) {
+            const el = document.getElementById('param-customer-id');
+            if (el) el.value = interp.action_params.customer_id;
+          }
+          break;
+        case 'set_priority':
+          if (interp.action_params.priority) {
+            const el = document.getElementById('param-priority');
+            if (el) el.value = interp.action_params.priority;
+          }
+          break;
+        case 'set_status':
+          if (interp.action_params.status) {
+            const el = document.getElementById('param-status');
+            if (el) el.value = interp.action_params.status;
+          }
+          break;
+        case 'add_tag':
+          if (interp.action_params.tag) {
+            const el = document.getElementById('param-tag');
+            if (el) el.value = interp.action_params.tag;
+          }
+          break;
+      }
+    }
+  }, 100);
+}
+
+// Toggle advanced/manual edit fields
+function toggleAdvancedEdit() {
+  ruleAdvancedVisible = !ruleAdvancedVisible;
+  document.getElementById('advanced-fields').style.display = ruleAdvancedVisible ? '' : 'none';
+  document.getElementById('toggle-advanced-btn').textContent = ruleAdvancedVisible ? 'Hide Fields' : 'Edit Manually';
+}
+
+// Re-interpret instruction
+function reinterpret() {
+  document.getElementById('interpretation-result').style.display = 'none';
+  interpretInstruction();
+}
+
 // Edit rule
 async function editRule(ruleId) {
   const tenantCode = window.tenant || 'apoyar';
@@ -25193,49 +25414,66 @@ async function editRule(ruleId) {
       currentRuleId = ruleId;
 
       // Populate form
-      document.getElementById('rule-modal-title').textContent = 'Edit Rule';
+      document.getElementById('rule-modal-title').textContent = 'Edit Automated Action';
       document.getElementById('rule-id').value = rule.id;
       document.getElementById('rule-name').value = rule.rule_name;
       document.getElementById('rule-description').value = rule.description || '';
-      console.log('Loading rule - enabled value from API:', rule.enabled, typeof rule.enabled);
       document.getElementById('rule-enabled').checked = rule.enabled;
-      console.log('Checkbox checked state after setting:', document.getElementById('rule-enabled').checked);
-      document.getElementById('rule-search-in').value = rule.search_in;
-      document.getElementById('rule-search-text').value = rule.search_text;
+      document.getElementById('rule-search-in').value = rule.search_in || 'both';
+      document.getElementById('rule-search-text').value = rule.search_text || '';
       document.getElementById('rule-case-sensitive').checked = rule.case_sensitive;
       document.getElementById('rule-action-type').value = rule.action_type;
+      document.getElementById('rule-ai-interpreted').value = rule.ai_interpreted ? '1' : '0';
+      document.getElementById('rule-ai-confidence').value = rule.ai_confidence || '';
+
+      // Populate instruction text
+      document.getElementById('rule-instruction').value = rule.instruction_text || '';
+      document.getElementById('instruction-section').style.display = '';
+      document.getElementById('interpretation-result').style.display = 'none';
+
+      // For AI-interpreted rules or rules with data, show advanced fields
+      ruleAdvancedVisible = true;
+      document.getElementById('advanced-fields').style.display = '';
+      document.getElementById('toggle-advanced-btn').textContent = 'Hide Fields';
 
       // Update action params
       updateActionParams();
 
       // Populate action params
       setTimeout(() => {
-        switch (rule.action_type) {
-          case 'assign_to_expert':
-            if (rule.action_params.expert_id) {
-              document.getElementById('param-expert-id').value = rule.action_params.expert_id;
-            }
-            break;
-          case 'create_for_customer':
-            if (rule.action_params.customer_id) {
-              document.getElementById('param-customer-id').value = rule.action_params.customer_id;
-            }
-            break;
-          case 'set_priority':
-            if (rule.action_params.priority) {
-              document.getElementById('param-priority').value = rule.action_params.priority;
-            }
-            break;
-          case 'set_status':
-            if (rule.action_params.status) {
-              document.getElementById('param-status').value = rule.action_params.status;
-            }
-            break;
-          case 'add_tag':
-            if (rule.action_params.tag) {
-              document.getElementById('param-tag').value = rule.action_params.tag;
-            }
-            break;
+        if (rule.action_params) {
+          switch (rule.action_type) {
+            case 'assign_to_expert':
+              if (rule.action_params.expert_id) {
+                const el = document.getElementById('param-expert-id');
+                if (el) el.value = rule.action_params.expert_id;
+              }
+              break;
+            case 'create_for_customer':
+              if (rule.action_params.customer_id) {
+                const el = document.getElementById('param-customer-id');
+                if (el) el.value = rule.action_params.customer_id;
+              }
+              break;
+            case 'set_priority':
+              if (rule.action_params.priority) {
+                const el = document.getElementById('param-priority');
+                if (el) el.value = rule.action_params.priority;
+              }
+              break;
+            case 'set_status':
+              if (rule.action_params.status) {
+                const el = document.getElementById('param-status');
+                if (el) el.value = rule.action_params.status;
+              }
+              break;
+            case 'add_tag':
+              if (rule.action_params.tag) {
+                const el = document.getElementById('param-tag');
+                if (el) el.value = rule.action_params.tag;
+              }
+              break;
+          }
         }
       }, 100);
 
@@ -25244,17 +25482,17 @@ async function editRule(ruleId) {
       modal.style.display = 'flex';
       modal.scrollTop = 0;
     } else {
-      alert('Failed to load rule details');
+      alert('Failed to load action details');
     }
   } catch (error) {
     console.error('Error loading rule:', error);
-    alert('Error loading rule: ' + error.message);
+    alert('Error loading action: ' + error.message);
   }
 }
 
 // Delete rule
 async function deleteRule(ruleId) {
-  if (!confirm('Are you sure you want to delete this rule? This action cannot be undone.')) {
+  if (!confirm('Are you sure you want to delete this automated action? This cannot be undone.')) {
     return;
   }
 

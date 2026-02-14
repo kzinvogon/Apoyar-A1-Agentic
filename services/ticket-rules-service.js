@@ -126,29 +126,35 @@ class TicketRulesService {
       const {
         rule_name,
         description,
+        instruction_text,
         enabled = true,
         search_in = 'both',
         search_text,
         case_sensitive = false,
         action_type,
-        action_params = {}
+        action_params = {},
+        ai_interpreted = false,
+        ai_confidence
       } = ruleData;
 
       const [result] = await connection.query(
         `INSERT INTO ticket_processing_rules
-         (tenant_code, rule_name, description, enabled, search_in, search_text,
-          case_sensitive, action_type, action_params, created_by)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (tenant_code, rule_name, description, instruction_text, enabled, search_in, search_text,
+          case_sensitive, action_type, action_params, ai_interpreted, ai_confidence, created_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           this.tenantCode,
           rule_name,
           description || null,
+          instruction_text || null,
           enabled,
           search_in,
-          search_text,
+          search_text || null,
           case_sensitive,
           action_type,
           JSON.stringify(action_params),
+          ai_interpreted ? 1 : 0,
+          ai_confidence != null ? ai_confidence : null,
           userId
         ]
       );
@@ -170,8 +176,9 @@ class TicketRulesService {
       const values = [];
 
       const updatableFields = [
-        'rule_name', 'description', 'enabled', 'search_in',
-        'search_text', 'case_sensitive', 'action_type', 'action_params'
+        'rule_name', 'description', 'instruction_text', 'enabled', 'search_in',
+        'search_text', 'case_sensitive', 'action_type', 'action_params',
+        'ai_interpreted', 'ai_confidence'
       ];
 
       updatableFields.forEach(field => {
@@ -244,6 +251,11 @@ class TicketRulesService {
 
   // Find tickets that match a rule's search criteria
   async findMatchingTickets(rule) {
+    // Skip rules with no search text (shouldn't fire automatically)
+    if (!rule.search_text) {
+      return [];
+    }
+
     const connection = await getTenantConnection(this.tenantCode);
     try {
       let searchCondition;

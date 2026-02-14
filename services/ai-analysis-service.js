@@ -55,6 +55,7 @@ const TASK_TAXONOMY = {
   next_best_action: 'reasoning',
   draft_customer_reply: 'reasoning',
   kb_generate: 'reasoning',
+  rule_interpret: 'reasoning',
 
   // Premium tasks - highest quality
   premium_customer_reply: 'premium'
@@ -558,6 +559,43 @@ Required JSON output:
 {
   "subject": "Reply subject line",
   "body": "Premium quality reply (appropriate length for the situation)"
+}`,
+
+      rule_interpret: `${basePrompt}
+
+You are interpreting a natural language instruction into a structured automated action rule for an ITSM ticket system.
+
+The rule engine matches incoming tickets by searching for text in the ticket title, body, or both, then fires an action.
+
+Available action types:
+- "delete" — Delete the ticket (no params needed)
+- "assign_to_expert" — Assign to an expert. Params: { "expert_id": <number> }
+- "create_for_customer" — Create ticket for a customer. Params: { "customer_id": <number> }
+- "set_priority" — Set priority. Params: { "priority": "low"|"medium"|"high"|"critical" }
+- "set_status" — Set status. Params: { "status": "Open"|"In Progress"|"Resolved"|"Closed" }
+- "add_tag" — Add a tag. Params: { "tag": "<string>" }
+- "add_to_monitoring" — Mark as system monitoring ticket (no params needed)
+- "set_sla_definition" — Apply an SLA. Params: { "sla_definition_id": <number> }
+
+Search options:
+- "search_in": "both" (title and body), "title" (title only), "body" (body only)
+- "search_text": the keyword or phrase to match
+- "case_sensitive": true or false
+
+Interpret the user's instruction and produce the best structured rule. If the instruction references a person by name, match them from the provided context lists. If ambiguous, set lower confidence and add a warning.
+
+Required JSON output:
+{
+  "rule_name": "Short descriptive name for the rule",
+  "description": "What this rule does",
+  "search_in": "both|title|body",
+  "search_text": "keyword or phrase to match",
+  "case_sensitive": false,
+  "action_type": "one of the action types above",
+  "action_params": {},
+  "confidence": 0.0 to 1.0,
+  "reasoning": "How you interpreted the instruction",
+  "warnings": ["Any ambiguities or concerns"]
 }`
     };
 
@@ -848,6 +886,20 @@ Respond with valid JSON only, no markdown formatting.`
         SELECT * FROM ai_email_analysis WHERE ticket_id = ? ORDER BY analysis_timestamp DESC LIMIT 1
       `, [ticketId]);
 
+      // Load active automated actions for AI context
+      let automatedActions = [];
+      try {
+        const [rules] = await connection.query(`
+          SELECT rule_name, instruction_text, search_in, search_text, action_type, action_params
+          FROM ticket_processing_rules
+          WHERE tenant_code = ? AND enabled = 1
+        `, [this.tenantCode]);
+        automatedActions = rules;
+      } catch (e) {
+        // Non-critical: proceed without rules context
+        console.warn('Could not load automated actions for AI context:', e.message);
+      }
+
       // Build context for AI
       const emailData = {
         subject: ticket.title,
@@ -873,7 +925,7 @@ Respond with valid JSON only, no markdown formatting.`
       // Only use Claude if we have a valid API key (not placeholder)
       if (this.aiProvider === 'anthropic' && this.hasValidApiKey('anthropic')) {
         try {
-          analysis = await this.getClaudeSuggestions(emailData, experts);
+          analysis = await this.getClaudeSuggestions(emailData, experts, automatedActions);
         } catch (error) {
           console.warn('Claude API failed, falling back to pattern matching:', error.message);
           analysis = await this.getPatternSuggestions(emailData, experts);
@@ -902,7 +954,7 @@ Respond with valid JSON only, no markdown formatting.`
   /**
    * Get Claude-powered suggestions with one-click actions
    */
-  async getClaudeSuggestions(emailData, experts) {
+  async getClaudeSuggestions(emailData, experts, automatedActions = []) {
     const Anthropic = require('@anthropic-ai/sdk');
     const anthropic = new Anthropic({ apiKey: this.apiKey });
 
@@ -978,11 +1030,27 @@ Provide actionable suggestions in valid JSON format:
 Provide 3-5 actionable suggestions ordered by confidence/relevance.
 For assign actions, include assignee_id from the expert list.
 For respond actions, include a professional draft response.
-If SLA is near_breach or breached, include a warning and prioritize actions that help meet SLA.`;
+If SLA is near_breach or breached, include a warning and prioritize actions that help meet SLA.
+
+## Automated Actions
+Factor in the active automated actions listed below. Do NOT suggest actions that duplicate what these rules already handle automatically. If a rule already applies to this ticket, mention it in your analysis.`;
 
     // Add JSON enforcement if enabled
     if (CONFIG.AI_JSON_ONLY) {
       systemPrompt += '\n\nReturn JSON only. No markdown. No extra text.';
+    }
+
+    // Build automated actions context for user prompt
+    let automatedActionsContext = '';
+    if (automatedActions && automatedActions.length > 0) {
+      const actionDescriptions = automatedActions.map(r => {
+        const params = typeof r.action_params === 'string' ? JSON.parse(r.action_params) : (r.action_params || {});
+        if (r.instruction_text) {
+          return `- "${r.rule_name}": ${r.instruction_text}`;
+        }
+        return `- "${r.rule_name}": When ${r.search_in} contains "${r.search_text}" → ${r.action_type}${params.priority ? ' (' + params.priority + ')' : ''}${params.tag ? ' (' + params.tag + ')' : ''}`;
+      }).join('\n');
+      automatedActionsContext = `\n\nACTIVE AUTOMATED ACTIONS (fire automatically on matching tickets):\n${actionDescriptions}`;
     }
 
     const response = await anthropic.messages.create({
@@ -1007,10 +1075,75 @@ ${activitySummary}
 
 Available Experts:
 ${expertList}
+${automatedActionsContext}
 
 Provide JSON suggestions for efficient ticket handling.`
       }],
       system: systemPrompt
+    });
+
+    const responseText = response.content
+      .filter(block => block.type === 'text')
+      .map(block => block.text)
+      .join('\n');
+
+    return safeParseJson(responseText);
+  }
+
+  /**
+   * Interpret a natural language instruction into a structured automated action rule.
+   * @param {string} instructionText - Free-text instruction from the user
+   * @param {object} context - Available experts, customers, SLA definitions
+   * @returns {object} Structured rule interpretation
+   */
+  async interpretRuleInstruction(instructionText, context = {}) {
+    if (!this.hasValidApiKey('anthropic')) {
+      throw new Error('AI provider not configured. Please set up an Anthropic API key to use AI interpretation.');
+    }
+
+    const Anthropic = require('@anthropic-ai/sdk');
+    const anthropic = new Anthropic({ apiKey: this.apiKey });
+
+    // Build context strings for the AI
+    const expertList = (context.experts || []).map(e =>
+      `- ${e.full_name} (ID: ${e.id})${e.skills ? ': ' + e.skills : ''}`
+    ).join('\n') || 'No experts available';
+
+    const customerList = (context.customers || []).map(c =>
+      `- ${c.company_name || c.full_name} (Customer ID: ${c.id})`
+    ).join('\n') || 'No customers available';
+
+    const slaList = (context.slaDefinitions || []).map(s =>
+      `- ${s.name} (ID: ${s.id}): Response ${s.response_target_minutes}min, Resolve ${s.resolve_target_minutes}min`
+    ).join('\n') || 'No SLA definitions available';
+
+    // Use the rule_interpret task for system prompt
+    this.setTask('rule_interpret');
+    const systemPrompt = this.buildSystemPromptForTask();
+
+    const response = await anthropic.messages.create({
+      model: pickModelFor('anthropic', 'rule_interpret'),
+      max_tokens: 1024,
+      system: systemPrompt,
+      messages: [{
+        role: 'user',
+        content: `Interpret this instruction into a structured rule:
+
+INSTRUCTION: "${instructionText}"
+
+AVAILABLE CONTEXT:
+
+Experts:
+${expertList}
+
+Customers:
+${customerList}
+
+SLA Definitions:
+${slaList}
+
+Return the structured rule as JSON.`
+      }]
     });
 
     const responseText = response.content
