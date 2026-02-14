@@ -152,8 +152,8 @@ vNext-FULL-ActionsSLA:
   body.fullscreen-mode .two-col{grid-template-columns:1fr !important;gap:0 !important}
   body.fullscreen-mode .leftnav{display:none !important}
   body.fullscreen-mode #view-ticket-detail{position:fixed;inset:0;z-index:200;background:var(--bg);overflow-y:auto;padding:20px;margin:0}
-  .fullscreen-exit-btn{display:none;position:fixed;top:12px;right:12px;z-index:201;padding:8px 14px;border-radius:8px;border:1px solid var(--border);background:var(--card);cursor:pointer;font-size:13px;font-weight:500;color:var(--ink);transition:all .15s;box-shadow:var(--shadow-lg)}
-  .fullscreen-exit-btn:hover{background:var(--card-hover)}
+  .fullscreen-exit-btn{display:none;position:fixed;top:12px;right:12px;z-index:9999;padding:8px 14px;border-radius:8px;border:1px solid var(--border);background:var(--card);cursor:pointer;font-size:13px;font-weight:500;color:var(--ink);transition:all .15s;box-shadow:var(--shadow-lg)}
+  .fullscreen-exit-btn:hover{background:var(--card-hover);border-color:var(--primary);color:var(--primary)}
   body.fullscreen-mode .fullscreen-exit-btn{display:flex;align-items:center;gap:6px}
   .fullscreen-toggle-btn{padding:8px 14px;border-radius:6px;border:2px solid var(--primary);background:var(--card);cursor:pointer;font-size:13px;font-weight:600;color:var(--primary);transition:all .15s;display:inline-flex;align-items:center;gap:6px}
   .fullscreen-toggle-btn:hover{background:var(--primary);color:var(--bg)}
@@ -162,6 +162,8 @@ vNext-FULL-ActionsSLA:
   .navlink{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;margin-bottom:2px;cursor:pointer;font-size:14px;font-weight:400;color:var(--muted);transition:all .15s ease}
   .navlink:hover{background:var(--card-hover);color:var(--ink)}
   .navlink.active{background:var(--primary);color:var(--bg)}
+  .navlink:focus,.navlink:active:not(.active){background:transparent;color:var(--muted);outline:none;-webkit-tap-highlight-color:transparent}
+  .navlink:hover:active:not(.active){background:var(--card-hover);color:var(--ink)}
   /* Collapsible Nav Group */
   .nav-group{margin-bottom:2px}
   .nav-group .navlink{display:flex;justify-content:space-between;align-items:center}
@@ -172,6 +174,8 @@ vNext-FULL-ActionsSLA:
   .nav-subitem{display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:6px;margin-bottom:2px;cursor:pointer;font-size:13px;color:var(--muted);transition:all .15s ease}
   .nav-subitem:hover{background:var(--card-hover);color:var(--ink)}
   .nav-subitem.active{background:var(--primary);color:var(--bg)}
+  .nav-subitem:focus,.nav-subitem:active:not(.active){background:transparent;color:var(--muted);outline:none;-webkit-tap-highlight-color:transparent}
+  .nav-subitem:hover:active:not(.active){background:var(--card-hover);color:var(--ink)}
   /* Admin Mode Toggle */
   .admin-mode-toggle{display:flex;align-items:center;gap:8px;padding:8px 12px;margin-bottom:8px;border-radius:8px;background:var(--card);border:1px solid var(--border);font-size:12px;color:var(--muted)}
   .admin-mode-toggle .switch{position:relative;width:32px;height:18px;flex-shrink:0}
@@ -1966,9 +1970,9 @@ vNext-FULL-ActionsSLA:
             <h3 class="title">Customer Dashboard</h3>
             <div class="subtitle">Your estate & requests</div>
             <div class="grid3 mb-16">
-              <div class="card p-16"><div class="subtitle">Open requests</div><div id="cu-open" style="font-size:28px;font-weight:800">0</div></div>
-              <div class="card p-16"><div class="subtitle">CMDB items</div><div id="cu-items" style="font-size:28px;font-weight:800">0</div></div>
-              <div class="card p-16"><div class="subtitle">Configurable items</div><div id="cu-cis" style="font-size:28px;font-weight:800">0</div></div>
+              <div class="card p-16" onclick="navTo('tickets')" style="cursor:pointer;transition:box-shadow .15s" onmouseenter="this.style.boxShadow='0 2px 8px rgba(0,0,0,.1)'" onmouseleave="this.style.boxShadow=''"><div class="subtitle">Open requests</div><div id="cu-open" style="font-size:28px;font-weight:800">0</div></div>
+              <div class="card p-16" onclick="openCmdb('cmdb-section-items')" style="cursor:pointer;transition:box-shadow .15s" onmouseenter="this.style.boxShadow='0 2px 8px rgba(0,0,0,.1)'" onmouseleave="this.style.boxShadow=''"><div class="subtitle">CMDB items</div><div id="cu-items" style="font-size:28px;font-weight:800">0</div></div>
+              <div class="card p-16" onclick="openCmdb('cmdb-section-assetviewer')" style="cursor:pointer;transition:box-shadow .15s" onmouseenter="this.style.boxShadow='0 2px 8px rgba(0,0,0,.1)'" onmouseleave="this.style.boxShadow=''"><div class="subtitle">Configurable items</div><div id="cu-cis" style="font-size:28px;font-weight:800">0</div></div>
             </div>
             <div class="grid2">
               <div class="card p-16">
@@ -1994,6 +1998,16 @@ vNext-FULL-ActionsSLA:
             <button class="btn primary" onclick="saveProfile()">💾 Save Changes</button>
           </div>
           
+          <div id="profile-company-card" class="card p-16 mb-12" style="display:none">
+            <div style="display:flex;align-items:center;gap:12px">
+              <div style="width:48px;height:48px;border-radius:12px;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700" id="profile-company-icon">C</div>
+              <div>
+                <div style="font-size:18px;font-weight:700;color:var(--ink)" id="profile-company-name"></div>
+                <div class="subtitle">Your organisation</div>
+              </div>
+            </div>
+          </div>
+
           <div class="card p-16">
             <h4>Personal Information</h4>
             <div class="grid2" style="gap:16px;margin-top:16px">
@@ -3287,17 +3301,17 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         </div>
 
         <!-- Ticket Detail -->
+        <!-- Fullscreen Exit Button (outside ticket detail to avoid overflow clipping) -->
+        <button class="fullscreen-exit-btn" onclick="exitFullscreen()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="4 14 10 14 10 20"/>
+            <polyline points="20 10 14 10 14 4"/>
+            <line x1="14" y1="10" x2="21" y2="3"/>
+            <line x1="3" y1="21" x2="10" y2="14"/>
+          </svg>
+          Exit Fullscreen
+        </button>
         <div id="view-ticket-detail" style="display:none">
-          <!-- Fullscreen Exit Button (shows only in fullscreen mode) -->
-          <button class="fullscreen-exit-btn" onclick="exitFullscreen()">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="4 14 10 14 10 20"/>
-              <polyline points="20 10 14 10 14 4"/>
-              <line x1="14" y1="10" x2="21" y2="3"/>
-              <line x1="3" y1="21" x2="10" y2="14"/>
-            </svg>
-            Exit Fullscreen
-          </button>
           <!-- Row 1: Back | Ticket ID | Nav + Admin Toggle -->
           <div class="row mb-8" style="justify-content:space-between;align-items:center">
             <button class="btn ghost" onclick="switchView('tickets')" title="Back to list (Esc)">← Back to tickets</button>
@@ -3361,10 +3375,11 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               <button id="btn-resolve" class="btn danger" onclick="openCompletion('resolve')">Resolve</button>
             </div>
             <!-- Customer Actions -->
-            <div id="customer-actions" class="row wrap" style="display:none">
+            <div id="customer-actions" class="row wrap" style="display:none;gap:8px">
               <button id="btn-add-comment" class="btn primary" onclick="focusCommentBox()">💬 Add Comment</button>
               <button id="btn-accept-resolution" class="btn success" onclick="acceptResolution()" style="display:none">✓ Accept Resolution</button>
               <button id="btn-decline-resolution" class="btn warn" onclick="declineResolution()" style="display:none">✗ Decline Resolution</button>
+              <button id="btn-customer-close" class="btn danger" onclick="customerCloseRequest()" style="display:none">Close Request</button>
             </div>
           </div>
           <!-- AI Suggestions Panel -->
@@ -5577,12 +5592,23 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               </div>
               <div>
                 <label class="subtitle">Time Range</label>
-                <select id="notif-filter-range" class="input" style="min-width:120px" onchange="loadNotifications()">
+                <select id="notif-filter-range" class="input" style="min-width:120px" onchange="onNotifRangeChange()">
                   <option value="">All Time</option>
                   <option value="24h">Last 24 Hours</option>
                   <option value="7d">Last 7 Days</option>
                   <option value="30d">Last 30 Days</option>
+                  <option value="custom">Custom Range</option>
                 </select>
+              </div>
+              <div id="notif-custom-range" style="display:none;display:none;gap:8px;align-items:flex-end">
+                <div>
+                  <label class="subtitle">From</label>
+                  <input type="datetime-local" id="notif-range-from" class="input" style="min-width:160px" onchange="loadNotifications()">
+                </div>
+                <div>
+                  <label class="subtitle">To</label>
+                  <input type="datetime-local" id="notif-range-to" class="input" style="min-width:160px" onchange="loadNotifications()">
+                </div>
               </div>
               <button class="btn ghost" onclick="clearNotifFilters()">Clear</button>
             </div>
@@ -5603,7 +5629,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               <thead>
                 <tr style="border-bottom:1px solid var(--border)">
                   <th style="padding:8px;width:40px"><input type="checkbox" id="notif-select-all" onchange="toggleNotifSelectAll(this.checked)"></th>
-                  <th style="text-align:left;padding:8px">Time</th>
+                  <th style="text-align:left;padding:8px;cursor:pointer;user-select:none" onclick="toggleNotifSort()">Time <span id="notif-sort-icon">↓</span></th>
                   <th style="text-align:left;padding:8px">Severity</th>
                   <th style="text-align:left;padding:8px">Type</th>
                   <th style="text-align:left;padding:8px">Message</th>
@@ -6754,6 +6780,16 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       if (roleField) {
         roleField.value = urlRole;
         console.log('Pre-filled role from URL parameter:', urlRole);
+      }
+    }
+
+    // Pre-fill tenant code if provided
+    const urlTenant = urlParams.get('tenant');
+    if (urlTenant) {
+      const tenantField = document.getElementById('tenantCode');
+      if (tenantField) {
+        tenantField.value = decodeURIComponent(urlTenant);
+        console.log('Pre-filled tenant code from URL parameter');
       }
     }
 
@@ -10552,6 +10588,21 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   const notifPageSize = 50;
   let notifCache = []; // Cache notifications for in-memory updates
   let notifSelectedIds = new Set(); // Track selected notification IDs
+  let notifSortOrder = 'desc'; // 'desc' = newest first, 'asc' = oldest first
+
+  function toggleNotifSort() {
+    notifSortOrder = notifSortOrder === 'desc' ? 'asc' : 'desc';
+    const icon = document.getElementById('notif-sort-icon');
+    if (icon) icon.textContent = notifSortOrder === 'desc' ? '↓' : '↑';
+    loadNotifications();
+  }
+
+  function onNotifRangeChange() {
+    const range = document.getElementById('notif-filter-range').value;
+    const customDiv = document.getElementById('notif-custom-range');
+    if (customDiv) customDiv.style.display = range === 'custom' ? 'flex' : 'none';
+    if (range !== 'custom') loadNotifications();
+  }
 
   // Load unread notification count and update badges
   async function loadNotificationBadge() {
@@ -10612,8 +10663,11 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       if (type) params.append('type', type);
       if (delivered) params.append('delivered', delivered);
 
+      // Sort order
+      params.append('sort', notifSortOrder);
+
       // Calculate date range
-      if (range) {
+      if (range && range !== 'custom') {
         const now = new Date();
         let from;
         if (range === '24h') {
@@ -10624,6 +10678,11 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           from = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
         }
         if (from) params.append('from', from.toISOString());
+      } else if (range === 'custom') {
+        const fromVal = document.getElementById('notif-range-from').value;
+        const toVal = document.getElementById('notif-range-to').value;
+        if (fromVal) params.append('from', new Date(fromVal).toISOString());
+        if (toVal) params.append('to', new Date(toVal).toISOString());
       }
 
       const response = await fetch(`${API_BASE}/api/notifications/${tenantCode}?${params}`, {
@@ -10711,6 +10770,15 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     document.getElementById('notif-filter-type').value = '';
     document.getElementById('notif-filter-delivered').value = '';
     document.getElementById('notif-filter-range').value = '';
+    const customDiv = document.getElementById('notif-custom-range');
+    if (customDiv) customDiv.style.display = 'none';
+    const fromInput = document.getElementById('notif-range-from');
+    const toInput = document.getElementById('notif-range-to');
+    if (fromInput) fromInput.value = '';
+    if (toInput) toInput.value = '';
+    notifSortOrder = 'desc';
+    const icon = document.getElementById('notif-sort-icon');
+    if (icon) icon.textContent = '↓';
     loadNotifications();
   }
 
@@ -16060,6 +16128,11 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         // Render pagination controls using server total
         renderPaginationControls('ticket-pagination', serverPage, serverTotal, serverLimit, 'setTicketPage', 'setTicketPageSize', 'tickets');
 
+        // Hide checkboxes and bulk actions for customer role
+        const isCustomerRole = (window.role || role) === 'customer';
+        const selectAllTh = document.getElementById('select-all-tickets');
+        if (selectAllTh) selectAllTh.closest('th').style.display = isCustomerRole ? 'none' : '';
+
         // Render tickets (already filtered and paginated by server)
         if (tickets.length === 0) {
           tb.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px;">No tickets match your filters</td></tr>';
@@ -16070,7 +16143,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             const dateTime = formatDateTime(t.created);
             const isSelected = selectedTicketIds.has(t.id);
             const systemBadge = systemSourceBadgeHTML(t, true);
-            tr.innerHTML = `<td onclick="event.stopPropagation()"><input type="checkbox" class="ticket-checkbox" data-ticket-id="${t.id}" ${isSelected ? 'checked' : ''} onchange="onTicketCheckboxChange(${t.id}, this.checked)"></td><td onclick="openTicket(${t.id})">#${t.id}${systemBadge}</td><td onclick="openTicket(${t.id})">${t.title}</td><td onclick="openTicket(${t.id})">${dateTime}</td><td onclick="openTicket(${t.id})">${t.priority||'—'}</td><td onclick="openTicket(${t.id})">${t.status}</td><td onclick="openTicket(${t.id})">${t.assignee||'—'}</td><td onclick="openTicket(${t.id})">${t.customer}</td><td onclick="openTicket(${t.id})">${slaBadgeHTML(sla)}</td>`;
+            const checkboxTd = isCustomerRole ? '' : `<td onclick="event.stopPropagation()"><input type="checkbox" class="ticket-checkbox" data-ticket-id="${t.id}" ${isSelected ? 'checked' : ''} onchange="onTicketCheckboxChange(${t.id}, this.checked)"></td>`;
+            tr.innerHTML = `${checkboxTd}<td onclick="openTicket(${t.id})">#${t.id}${systemBadge}</td><td onclick="openTicket(${t.id})">${t.title}</td><td onclick="openTicket(${t.id})">${dateTime}</td><td onclick="openTicket(${t.id})">${t.priority||'—'}</td><td onclick="openTicket(${t.id})">${t.status}</td><td onclick="openTicket(${t.id})">${t.assignee||'—'}</td><td onclick="openTicket(${t.id})">${t.customer}</td><td onclick="openTicket(${t.id})">${slaBadgeHTML(sla)}</td>`;
             if (isSelected) tr.style.backgroundColor = '#e0f2fe';
             tb.appendChild(tr);
           });
@@ -16439,6 +16513,13 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const bar = document.getElementById('bulk-actions-bar');
     const countSpan = document.getElementById('bulk-selected-count');
     if (!bar) return;
+
+    // Hide bulk actions for customers
+    const currentRole = window.role || role;
+    if (currentRole === 'customer') {
+      bar.style.display = 'none';
+      return;
+    }
 
     if (selectedTicketIds.size > 0) {
       bar.style.display = 'flex';
@@ -17057,8 +17138,14 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     document.getElementById('customer-actions').style.display = isCustomer ? 'flex' : 'none';
 
     // Accept/Decline buttons - only show when ticket is Resolved
-    document.getElementById('btn-accept-resolution').style.display = isResolved ? 'inline-block' : 'none';
-    document.getElementById('btn-decline-resolution').style.display = isResolved ? 'inline-block' : 'none';
+    document.getElementById('btn-accept-resolution').style.display = (isCustomer && isResolved) ? 'inline-block' : 'none';
+    document.getElementById('btn-decline-resolution').style.display = (isCustomer && isResolved) ? 'inline-block' : 'none';
+    // Close Request button - show for customers when ticket is not already Closed/Resolved
+    const closeBtn = document.getElementById('btn-customer-close');
+    if (closeBtn) {
+      const isClosed = ticket.status === 'Closed' || ticket.status === 'Resolved';
+      closeBtn.style.display = (isCustomer && !isClosed) ? 'inline-block' : 'none';
+    }
 
     // Mark as System button - hide if already a system source (APO-48)
     const markSystemBtn = document.getElementById('btn-mark-system');
@@ -17712,6 +17799,33 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     } catch (error) {
       console.error('Error accepting resolution:', error);
       alert('Error accepting resolution: ' + error.message);
+    }
+  }
+
+  async function customerCloseRequest() {
+    const t = tickets.find(x => x.id === currentTicketId);
+    if (!t) return;
+    if (t.status === 'Closed' || t.status === 'Resolved') return alert('This ticket is already closed.');
+    if (!confirm('Are you sure you want to close this request?')) return;
+    try {
+      const token = localStorage.getItem('token');
+      const tenantCode = window.tenant || 'apoyar';
+      const response = await fetch(`${API_BASE}/api/tickets/${tenantCode}/${currentTicketId}`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'Closed', activity: 'Customer closed the request.' })
+      });
+      const data = await response.json();
+      if (data.success) {
+        t.status = 'Closed';
+        alert('Request has been closed.');
+        renderTicketDetail();
+      } else {
+        alert('Error: ' + (data.error || 'Could not close request'));
+      }
+    } catch (error) {
+      console.error('Error closing request:', error);
+      alert('Error closing request: ' + error.message);
     }
   }
 
@@ -21228,6 +21342,16 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       document.getElementById('profile-receive-email-updates').checked = profile.receive_email_updates == 1;
       document.getElementById('profile-created').value=profile.created_at?new Date(profile.created_at).toLocaleString():'';
       document.getElementById('profile-updated').value=profile.updated_at?new Date(profile.updated_at).toLocaleString():'';
+      // Show company name card for customer role
+      const companyCard = document.getElementById('profile-company-card');
+      const companyName = profile.customer_name || profile.company || '';
+      if (companyName && (window.role || role) === 'customer') {
+        document.getElementById('profile-company-name').textContent = companyName;
+        document.getElementById('profile-company-icon').textContent = companyName.charAt(0).toUpperCase();
+        companyCard.style.display = 'block';
+      } else {
+        companyCard.style.display = 'none';
+      }
     }catch(err){ alert('Error loading profile: '+err.message); }
   }
   async function saveProfile(){ 
@@ -23380,7 +23504,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   chatToggle.onclick = () => { chat.style.display = (chat.style.display==='flex' ? 'none' : 'flex'); chat.style.display==='flex' && chatInput.focus(); if (!chatBody.dataset.boot) bootChat(); };
   document.addEventListener('keydown', (e)=>{ if(e.key==='F7') chatToggle.click(); });
   document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') { if(document.getElementById('sla-definition-modal').style.display==='flex') closeSLADefinitionModal(); else if(document.getElementById('business-hours-modal').style.display==='flex') closeBusinessHoursModal(); } });
-  function bootChat() { chatBody.dataset.boot = '1'; addAI('Hi! I can help you raise a request. What do you need help with?'); }
+  function bootChat() { chatBody.dataset.boot = '1'; addAI('Hi! I\'m the ServiFlow assistant. I can help you raise a support request. Say "raise" to get started, or just describe your issue.'); }
   function addAI(text) { const d=document.createElement('div'); d.className='msg ai'; d.textContent=text; chatBody.appendChild(d); chatBody.scrollTop = chatBody.scrollHeight; }
   function addMe(text) { const d=document.createElement('div'); d.className='msg me'; d.textContent=text; chatBody.appendChild(d); chatBody.scrollTop = chatBody.scrollHeight; }
   function startChat(reason, payload) { chat.style.display='flex'; if (!chatBody.dataset.boot) bootChat(); if (reason) addAI('I noticed some details are missing. I can fill them in for you.'); if (payload) { if (!payload.title) { pending = 'title'; addAI('First, what is a short title for your request?'); return; } if (!payload.desc)  { pending = 'desc'; addAI('Thanks. Could you briefly describe the issue?'); return; } if (!payload.priority) { pending = 'priority'; addAI('Do you want to set a priority? (Low/Medium/High/Critical). You can also say \"skip\".'); return; } if (!payload.itemId) { pending = 'item'; addAI('Do you want to link a CMDB Item? You can reply with the item name or say \"skip\".'); return; } if (payload.itemId && !payload.ciId) { pending = 'ci'; addAI('Do you want to link a CI under that item? You can reply with the CI name or say \"skip\".'); return; } addAI('Looks like everything is provided already — you can submit!'); } }
@@ -23391,7 +23515,13 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     chatInput.value='';
     const t = text.toLowerCase();
     if (!pending) {
-      addAI('Got it. If you want, say "raise" to create a request or tell me what you need.');
+      if (t === 'raise' || t === 'new' || t === 'request' || t === 'help' || t.includes('raise') || t.includes('new request') || t.includes('new ticket')) {
+        navTo('raise');
+        pending = 'title';
+        addAI('Let\'s create a new request. What\'s a short title for your issue?');
+        return;
+      }
+      addAI('I can help you raise a support request. Just say "raise" to get started, or click "Raise Request" in the sidebar.');
       return;
     }
     if (pending==='title') {

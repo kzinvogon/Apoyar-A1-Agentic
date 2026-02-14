@@ -32,7 +32,8 @@ router.get('/:tenantCode', verifyToken, requireRole(['admin', 'expert']), async 
     delivered,
     from,
     to,
-    ticket_id
+    ticket_id,
+    sort
   } = req.query;
 
   // Validate and sanitize limit/offset
@@ -97,7 +98,7 @@ router.get('/:tenantCode', verifyToken, requireRole(['admin', 'expert']), async 
       `SELECT id, ticket_id, type, severity, message, payload_json, created_at, delivered_at
        FROM notifications
        ${whereClause}
-       ORDER BY created_at DESC
+       ORDER BY created_at ${sort === 'asc' ? 'ASC' : 'DESC'}
        LIMIT ? OFFSET ?`,
       [...params, parsedLimit, parsedOffset]
     );
