@@ -10033,10 +10033,10 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     // Show/hide monitoring toggle for company admins
     const sysToggle = document.getElementById('cu-system-toggle');
     if (sysToggle) sysToggle.style.display = isCompanyAdmin ? 'flex' : 'none';
-    // Filter: requests mode = non-system only, monitoring mode = system only
+    // Filter: requests = non-monitoring only, monitoring = is_system_source only
     let myTickets = tickets.filter(t => {
-      const isSys = !!(t.is_system_source || t.source_metadata);
-      return mode === 'monitoring' ? isSys : !isSys;
+      const isMonitoring = !!t.is_system_source;
+      return mode === 'monitoring' ? isMonitoring : !isMonitoring;
     });
     // Apply status filter
     const statusF = document.getElementById('cu-req-filter-status')?.value || '';
@@ -16499,7 +16499,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
     const result = ticketList.filter(t => {
       // System ticket filter — always hide for customers
-      if (isCustomerRole && (t.is_system_source || t.source_metadata)) {
+      if (isCustomerRole && t.is_system_source) {
         return false;
       }
       if (!isCustomerRole && !includeSystem && (t.is_system_source || t.source_metadata)) {
