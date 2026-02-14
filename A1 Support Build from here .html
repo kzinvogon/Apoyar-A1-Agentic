@@ -7844,6 +7844,10 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const fsExit = document.querySelector('.fullscreen-exit-btn');
     if (fsExit) fsExit.style.display = isCustomer ? 'none' : '';
 
+    // Hide impersonation pill for customers (admin can still use Switch to get back)
+    const impersonationPill = document.getElementById('topnav-impersonation');
+    if (impersonationPill) impersonationPill.style.display = isCustomer ? 'none' : '';
+
     // Update Ionic menu visibility based on role
     if (typeof updateIonicMenu === 'function') {
       updateIonicMenu(); // eslint-disable-line no-undef -- function defined later, guarded by typeof
