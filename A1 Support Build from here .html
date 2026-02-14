@@ -7810,13 +7810,13 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
     // Hide title bar for customers — dashboard goes straight to content
     const titleBar = document.getElementById('app-title')?.closest('.row.space');
-    if (titleBar) titleBar.style.display = isCustomer ? 'none' : '';
+    if (titleBar) titleBar.style.display = (currentRole === 'customer') ? 'none' : '';
 
     // Update top navigation user info
     const username = (window.currentUser && window.currentUser.username) ? window.currentUser.username : 'User';
     const roleDisplay = currentRole === 'super_admin' ? 'Master Admin' : (currentRole.charAt(0).toUpperCase() + currentRole.slice(1));
     document.getElementById('topnav-username').textContent = username;
-    document.getElementById('topnav-role').textContent = isCustomer ? '' : roleDisplay;
+    document.getElementById('topnav-role').textContent = (currentRole === 'customer') ? '' : roleDisplay;
     document.getElementById('topnav-avatar').textContent = username.charAt(0).toUpperCase();
 
     // Hide/show admin-only sections in Admin Settings
