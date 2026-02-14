@@ -10,7 +10,7 @@
  * Per-tenant overrides via tenant_settings key 'data_retention_days'.
  */
 
-const { masterQuery, tenantQuery } = require('../config/database');
+const { masterQuery, tenantQuery, closeTenantPool, getOpenTenantCodes } = require('../config/database');
 
 // Batch size for DELETE to avoid long table locks
 const BATCH_LIMIT = 5000;
@@ -287,6 +287,9 @@ async function runHousekeeping() {
 
   console.log('🧹 [Housekeeping] Starting data retention cleanup...');
 
+  // Snapshot which tenant pools are already open so we can close the ones we created
+  const poolsBefore = getOpenTenantCodes();
+
   // 1. Get all active tenants with their plan slug
   let tenants;
   try {
@@ -341,8 +344,18 @@ async function runHousekeeping() {
     console.error('🧹 [Housekeeping] Master DB: FAILED —', err.message);
   }
 
+  // 4. Close tenant pools that were opened just for housekeeping
+  let poolsClosed = 0;
+  for (const tenant of tenants) {
+    const code = tenant.tenant_code.toLowerCase();
+    if (!poolsBefore.has(code)) {
+      await closeTenantPool(code);
+      poolsClosed++;
+    }
+  }
+
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-  console.log(`🧹 [Housekeeping] Complete in ${elapsed}s — ${tenants.length} tenant(s) processed`);
+  console.log(`🧹 [Housekeeping] Complete in ${elapsed}s — ${tenants.length} tenant(s) processed, ${poolsClosed} temp pool(s) closed`);
 
   return results;
 }
