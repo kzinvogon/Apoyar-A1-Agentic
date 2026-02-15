@@ -3284,6 +3284,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
                       <option value="set_status">Set Status</option>
                       <option value="add_tag">Add Tag</option>
                       <option value="add_to_monitoring">Add to System Monitoring Sources</option>
+                      <option value="set_sla_definition">Apply SLA Definition</option>
+                      <option value="set_sla_deadlines">Set SLA Deadlines</option>
                     </select>
                   </div>
 
@@ -25146,6 +25148,12 @@ async function saveRule(event) {
   // Validate: need either instruction or structured fields
   if (!instructionText && (!searchText || !actionType)) {
     alert('Please either describe the action using AI, or fill in the search text and action type manually.');
+    return;
+  }
+
+  // Validate action_type is set (AI may have returned a value the select couldn't match)
+  if (!actionType) {
+    alert('Action type is missing. Please use "Review / Edit Fields" to set the action type before saving.');
     return;
   }
 
