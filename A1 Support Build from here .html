@@ -25349,7 +25349,17 @@ function populateStructuredFields(interp) {
   document.getElementById('rule-search-in').value = interp.search_in || 'both';
   document.getElementById('rule-search-text').value = interp.search_text || '';
   document.getElementById('rule-case-sensitive').checked = !!interp.case_sensitive;
-  document.getElementById('rule-action-type').value = interp.action_type || '';
+
+  // Set action type — add option dynamically if AI returned a value not in the select
+  const actionSelect = document.getElementById('rule-action-type');
+  const aiActionType = interp.action_type || '';
+  if (aiActionType && !Array.from(actionSelect.options).some(o => o.value === aiActionType)) {
+    const opt = document.createElement('option');
+    opt.value = aiActionType;
+    opt.textContent = aiActionType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    actionSelect.appendChild(opt);
+  }
+  actionSelect.value = aiActionType;
   updateActionParams();
 
   // Populate action params after DOM update
