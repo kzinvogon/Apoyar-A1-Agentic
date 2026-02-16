@@ -204,8 +204,6 @@ vNext-FULL-ActionsSLA:
   .btn.primary:hover{opacity:.9}
   .btn.ghost{background:transparent;border-color:transparent;color:var(--muted)}
   .btn.ghost:hover{background:var(--card-hover);color:var(--ink)}
-  .btn.btn-sm{padding:4px 10px;font-size:12px}
-  .btn.btn-sm.active{background:var(--primary);color:var(--bg);border-color:var(--primary)}
   .btn.accent{background:var(--primary);color:var(--bg);border-color:var(--primary)}
   .btn.warn{background:#fefce8;border-color:#fde047;color:#a16207} .btn.danger{background:#fef2f2;border-color:#fecaca;color:#dc2626}
   .btn.ai-btn{background:var(--primary);color:var(--bg);border:1px solid var(--primary);font-weight:500}
@@ -1715,36 +1713,6 @@ vNext-FULL-ActionsSLA:
               </div>
             </div>
 
-            <!-- Power Search Section -->
-            <div id="power-search-section" class="card p-16 mb-16">
-              <div class="row space mb-12">
-                <div class="row" style="gap:8px;align-items:center">
-                  <strong style="font-size:16px">Power Search</strong>
-                  <span id="power-search-count" style="font-size:12px;color:var(--muted);display:none">0 results</span>
-                </div>
-              </div>
-              <div class="row mb-12" style="gap:8px">
-                <input id="power-search-input" class="input" style="flex:1" placeholder="Search tickets, assets, customers, SLAs..." onkeyup="if(event.key==='Enter')runPowerSearch()">
-                <button class="btn primary" onclick="runPowerSearch()">Search</button>
-                <button class="btn ghost" onclick="clearPowerSearch()" style="display:none" id="power-search-clear-btn">Clear</button>
-              </div>
-              <div id="power-search-tabs" class="row mb-12" style="gap:4px;display:none">
-                <button class="btn btn-sm active" data-ps-type="all" onclick="setPowerSearchType('all')">All</button>
-                <button class="btn btn-sm" data-ps-type="tickets" onclick="setPowerSearchType('tickets')">Tickets</button>
-                <button class="btn btn-sm" data-ps-type="cmdb" onclick="setPowerSearchType('cmdb')">CMDB</button>
-                <button class="btn btn-sm" data-ps-type="customers" onclick="setPowerSearchType('customers')">Customers</button>
-                <button class="btn btn-sm" data-ps-type="sla" onclick="setPowerSearchType('sla')">SLAs</button>
-              </div>
-              <div id="power-search-grid" style="display:none;overflow-x:auto">
-                <table class="table" style="width:100%">
-                  <thead id="power-search-thead"></thead>
-                  <tbody id="power-search-tbody"></tbody>
-                </table>
-              </div>
-              <div id="power-search-pagination" style="margin-top:8px"></div>
-              <div id="power-search-empty" style="display:none;text-align:center;padding:24px;color:var(--muted)">No results found</div>
-            </div>
-
             <!-- AI Insights & Trends (Second) -->
             <div id="ai-trends-panel" class="card p-16 mb-16" style="background:linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);color:white;border:none;">
               <div class="row space">
@@ -1857,33 +1825,13 @@ vNext-FULL-ActionsSLA:
               </div>
             </div>
 
-            <!-- Power Search Grid (Expert) -->
-            <div id="ex-power-search-section" class="card p-16 mb-16">
-              <div class="row space mb-12">
-                <div class="row" style="gap:8px;align-items:center">
-                  <strong style="font-size:16px">Power Search</strong>
-                  <span id="ex-power-search-count" style="font-size:12px;color:var(--muted);display:none">0 results</span>
-                </div>
+            <!-- Power Search Bar -->
+            <div class="card p-12 mb-16" style="background:linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);">
+              <div class="row" style="gap:12px">
+                <input id="expert-power-search" class="input" style="flex:1;border:2px solid #0ea5e9" placeholder="🔍 Power Search - tickets, assets, knowledge base..." onkeyup="if(event.key==='Enter')expertPowerSearch()">
+                <button class="btn primary" onclick="expertPowerSearch()" style="background:#0ea5e9">Search</button>
               </div>
-              <div class="row mb-12" style="gap:8px">
-                <input id="ex-power-search-input" class="input" style="flex:1" placeholder="Search tickets, assets, customers..." onkeyup="if(event.key==='Enter')runPowerSearch('expert')">
-                <button class="btn primary" onclick="runPowerSearch('expert')">Search</button>
-                <button class="btn ghost" onclick="clearPowerSearch('expert')" style="display:none" id="ex-power-search-clear-btn">Clear</button>
-              </div>
-              <div id="ex-power-search-tabs" class="row mb-12" style="gap:4px;display:none">
-                <button class="btn btn-sm active" data-ps-type="all" onclick="setPowerSearchType('all','expert')">All</button>
-                <button class="btn btn-sm" data-ps-type="tickets" onclick="setPowerSearchType('tickets','expert')">Tickets</button>
-                <button class="btn btn-sm" data-ps-type="cmdb" onclick="setPowerSearchType('cmdb','expert')">CMDB</button>
-                <button class="btn btn-sm" data-ps-type="customers" onclick="setPowerSearchType('customers','expert')">Customers</button>
-              </div>
-              <div id="ex-power-search-grid" style="display:none;overflow-x:auto">
-                <table class="table" style="width:100%">
-                  <thead id="ex-power-search-thead"></thead>
-                  <tbody id="ex-power-search-tbody"></tbody>
-                </table>
-              </div>
-              <div id="ex-power-search-pagination" style="margin-top:8px"></div>
-              <div id="ex-power-search-empty" style="display:none;text-align:center;padding:24px;color:var(--muted)">No results found</div>
+              <div id="expert-search-results" style="display:none;margin-top:12px"></div>
             </div>
 
             <!-- Stats Row -->
@@ -9984,354 +9932,86 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   // Clear power search results (called when navigating away)
   function clearExpertPowerSearch() {
-    clearPowerSearch('expert');
+    const searchInput = document.getElementById('expert-power-search');
+    const resultsEl = document.getElementById('expert-search-results');
+    if (searchInput) searchInput.value = '';
+    if (resultsEl) {
+      resultsEl.style.display = 'none';
+      resultsEl.innerHTML = '';
+    }
   }
 
-  // Alias for CMDB detail navigation used by power search
-  function openCMDBDetail(id) { openItem(id); }
+  // Power search for expert dashboard (server-side search)
+  async function expertPowerSearch() {
+    const searchInput = document.getElementById('expert-power-search');
+    const resultsEl = document.getElementById('expert-search-results');
+    const query = searchInput ? searchInput.value.trim() : '';
 
-  // --- Power Search Grid (shared admin + expert) ---
-  let powerSearchResults = { tickets: [], cmdb: [], kb: [], customers: [], sla: [] };
-  let powerSearchType = 'all';
-  let powerSearchPage = 1;
-  let powerSearchPageSize = 25;
-  let powerSearchSortColumn = null;
-  let powerSearchSortDirection = 'asc';
+    if (!query || !resultsEl) return;
 
-  let exPowerSearchResults = { tickets: [], cmdb: [], kb: [], customers: [], sla: [] };
-  let exPowerSearchType = 'all';
-  let exPowerSearchPage = 1;
-  let exPowerSearchPageSize = 25;
-  let exPowerSearchSortColumn = null;
-  let exPowerSearchSortDirection = 'asc';
-
-  function _psPrefix(source) { return source === 'expert' ? 'ex-' : ''; }
-  function _psState(source) {
-    if (source === 'expert') return { results: exPowerSearchResults, type: exPowerSearchType, page: exPowerSearchPage, pageSize: exPowerSearchPageSize, sortCol: exPowerSearchSortColumn, sortDir: exPowerSearchSortDirection };
-    return { results: powerSearchResults, type: powerSearchType, page: powerSearchPage, pageSize: powerSearchPageSize, sortCol: powerSearchSortColumn, sortDir: powerSearchSortDirection };
-  }
-
-  async function runPowerSearch(source) {
-    const pfx = _psPrefix(source);
-    const input = document.getElementById(pfx + 'power-search-input');
-    const query = input ? input.value.trim() : '';
-    if (!query) return;
-
-    const grid = document.getElementById(pfx + 'power-search-grid');
-    const empty = document.getElementById(pfx + 'power-search-empty');
-    const tabs = document.getElementById(pfx + 'power-search-tabs');
-    const countEl = document.getElementById(pfx + 'power-search-count');
-    const clearBtn = document.getElementById(pfx + 'power-search-clear-btn');
-    const tbody = document.getElementById(pfx + 'power-search-tbody');
-
-    if (tbody) tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:24px;color:var(--muted)">Searching...</td></tr>';
-    if (grid) grid.style.display = 'block';
-    if (empty) empty.style.display = 'none';
+    resultsEl.style.display = 'block';
+    resultsEl.innerHTML = '<div style="padding:12px;color:var(--muted)">Searching...</div>';
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/tickets/${tenant}/power-search?q=${encodeURIComponent(query)}&limit=50`, {
+      const response = await fetch(`/api/tickets/${tenant}/power-search?q=${encodeURIComponent(query)}&limit=10`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
+
       if (!response.ok) throw new Error('Search failed');
+
       const data = await response.json();
+      const ticketResults = data.tickets || [];
+      const cmdbResults = data.cmdb || [];
+      const kbResults = data.kb || [];
 
-      const results = {
-        tickets: (data.tickets || []).map(t => ({ ...t, _type: 'ticket' })),
-        cmdb: (data.cmdb || []).map(c => ({ ...c, _type: 'cmdb' })),
-        kb: (data.kb || []).map(k => ({ ...k, _type: 'kb' })),
-        customers: (data.customers || []).map(c => ({ ...c, _type: 'customer' })),
-        sla: (data.sla || []).map(s => ({ ...s, _type: 'sla' }))
-      };
-
-      if (source === 'expert') {
-        exPowerSearchResults = results;
-        exPowerSearchPage = 1;
-        exPowerSearchType = 'all';
-        exPowerSearchSortColumn = null;
-        exPowerSearchSortDirection = 'asc';
-      } else {
-        powerSearchResults = results;
-        powerSearchPage = 1;
-        powerSearchType = 'all';
-        powerSearchSortColumn = null;
-        powerSearchSortDirection = 'asc';
+      if (ticketResults.length === 0 && cmdbResults.length === 0 && kbResults.length === 0) {
+        resultsEl.innerHTML = '<div style="padding:12px;color:var(--muted)">No results found for "' + escapeHtml(query) + '"</div>';
+        return;
       }
 
-      const totalCount = results.tickets.length + results.cmdb.length + results.kb.length + results.customers.length + results.sla.length;
-      if (countEl) { countEl.textContent = totalCount + ' results'; countEl.style.display = 'inline'; }
-      if (clearBtn) clearBtn.style.display = 'inline-block';
-      if (tabs) {
-        tabs.style.display = 'flex';
-        // Update tab counts
-        tabs.querySelectorAll('[data-ps-type]').forEach(btn => {
-          const t = btn.getAttribute('data-ps-type');
-          btn.classList.toggle('active', t === 'all');
+      let html = '<div style="display:flex;flex-direction:column;gap:8px">';
+
+      if (ticketResults.length > 0) {
+        html += '<div style="font-weight:600;font-size:12px;color:#2563eb">📋 Tickets</div>';
+        ticketResults.forEach(t => {
+          const statusBadge = t.status === 'Open' ? '🟢' : t.status === 'In Progress' ? '🟡' : '⚪';
+          html += `<div style="padding:6px 8px;background:white;border-radius:4px;cursor:pointer;border:1px solid #e5e7eb" onclick="openTicket(${t.id})">
+            <span style="color:#2563eb;font-weight:500">#${t.id}</span> ${escapeHtml(t.title || '')}
+            <span style="font-size:11px;color:#666;margin-left:8px">${statusBadge} ${t.status || ''}</span>
+          </div>`;
         });
       }
 
-      if (totalCount === 0) {
-        if (grid) grid.style.display = 'none';
-        if (empty) { empty.style.display = 'block'; empty.textContent = 'No results found for "' + query + '"'; }
-      } else {
-        if (empty) empty.style.display = 'none';
-        renderPowerSearchGrid(source);
+      if (cmdbResults.length > 0) {
+        html += '<div style="font-weight:600;font-size:12px;color:#059669;margin-top:8px">🖥️ Assets</div>';
+        cmdbResults.forEach(c => {
+          html += `<div style="padding:6px 8px;background:white;border-radius:4px;cursor:pointer;border:1px solid #e5e7eb" onclick="openCMDBDetail(${c.cmdb_id})">
+            <span style="color:#059669;font-weight:500">${escapeHtml(c.asset_name || '')}</span> · ${escapeHtml(c.customer_name || '')}
+          </div>`;
+        });
       }
+
+      if (kbResults.length > 0) {
+        html += '<div style="font-weight:600;font-size:12px;color:#8b5cf6;margin-top:8px">📚 Knowledge Base</div>';
+        kbResults.forEach(k => {
+          html += `<div style="padding:6px 8px;background:white;border-radius:4px;cursor:pointer;border:1px solid #e5e7eb" onclick="showPage('kb');setTimeout(()=>openKBArticle(${k.id}),100)">
+            <span style="color:#8b5cf6;font-weight:500">${escapeHtml(k.title || '')}</span>
+            <span style="font-size:11px;color:#666;margin-left:8px">${escapeHtml(k.category || '')}</span>
+          </div>`;
+        });
+      }
+
+      html += '<button class="btn ghost" style="margin-top:8px;font-size:12px" onclick="document.getElementById(\'expert-search-results\').style.display=\'none\'">Close results</button>';
+      html += '</div>';
+
+      resultsEl.innerHTML = html;
+
     } catch (error) {
       console.error('Power search error:', error);
-      if (tbody) tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:24px;color:#dc2626">Search failed. Please try again.</td></tr>';
+      resultsEl.innerHTML = '<div style="padding:12px;color:#dc2626">Search failed. Please try again.</div>';
     }
   }
-
-  function clearPowerSearch(source) {
-    const pfx = _psPrefix(source);
-    const input = document.getElementById(pfx + 'power-search-input');
-    const grid = document.getElementById(pfx + 'power-search-grid');
-    const empty = document.getElementById(pfx + 'power-search-empty');
-    const tabs = document.getElementById(pfx + 'power-search-tabs');
-    const countEl = document.getElementById(pfx + 'power-search-count');
-    const clearBtn = document.getElementById(pfx + 'power-search-clear-btn');
-    const pagination = document.getElementById(pfx + 'power-search-pagination');
-
-    if (input) input.value = '';
-    if (grid) grid.style.display = 'none';
-    if (empty) empty.style.display = 'none';
-    if (tabs) tabs.style.display = 'none';
-    if (countEl) countEl.style.display = 'none';
-    if (clearBtn) clearBtn.style.display = 'none';
-    if (pagination) pagination.innerHTML = '';
-
-    if (source === 'expert') {
-      exPowerSearchResults = { tickets: [], cmdb: [], kb: [], customers: [], sla: [] };
-      exPowerSearchType = 'all';
-      exPowerSearchPage = 1;
-    } else {
-      powerSearchResults = { tickets: [], cmdb: [], kb: [], customers: [], sla: [] };
-      powerSearchType = 'all';
-      powerSearchPage = 1;
-    }
-  }
-
-  function setPowerSearchType(type, source) {
-    const pfx = _psPrefix(source);
-    if (source === 'expert') { exPowerSearchType = type; exPowerSearchPage = 1; }
-    else { powerSearchType = type; powerSearchPage = 1; }
-
-    const tabs = document.getElementById(pfx + 'power-search-tabs');
-    if (tabs) tabs.querySelectorAll('[data-ps-type]').forEach(btn => {
-      btn.classList.toggle('active', btn.getAttribute('data-ps-type') === type);
-    });
-    renderPowerSearchGrid(source);
-  }
-
-  function getPowerSearchColumns(type) {
-    switch (type) {
-      case 'tickets': return [
-        { key: 'id', label: 'ID' },
-        { key: 'title', label: 'Title' },
-        { key: 'status', label: 'Status' },
-        { key: 'priority', label: 'Priority' },
-        { key: 'assignee_name', label: 'Assignee' }
-      ];
-      case 'cmdb': return [
-        { key: 'cmdb_id', label: 'ID' },
-        { key: 'asset_name', label: 'Name' },
-        { key: 'asset_category', label: 'Category' },
-        { key: 'customer_name', label: 'Customer' },
-        { key: 'status', label: 'Status' }
-      ];
-      case 'customers': return [
-        { key: 'full_name', label: 'Name' },
-        { key: 'email', label: 'Email' },
-        { key: 'company_name', label: 'Company' },
-        { key: 'sla_level', label: 'SLA' },
-        { key: 'open_ticket_count', label: 'Open Tickets' }
-      ];
-      case 'sla': return [
-        { key: 'name', label: 'Name' },
-        { key: 'description', label: 'Description' },
-        { key: 'response_target_minutes', label: 'Response' },
-        { key: 'resolve_target_minutes', label: 'Resolve' },
-        { key: 'business_hours_name', label: 'Hours' }
-      ];
-      default: return [
-        { key: '_type', label: 'Type' },
-        { key: '_name', label: 'Name' },
-        { key: '_detail', label: 'Details' },
-        { key: '_status', label: 'Status' }
-      ];
-    }
-  }
-
-  function _psFormatMinutes(mins) {
-    if (mins == null) return '-';
-    if (mins < 60) return mins + 'm';
-    const h = Math.floor(mins / 60);
-    const m = mins % 60;
-    return m > 0 ? h + 'h ' + m + 'm' : h + 'h';
-  }
-
-  function getPowerSearchCellHTML(item, key) {
-    const val = item[key];
-    switch (key) {
-      case '_type': {
-        const colors = { ticket: '#2563eb', cmdb: '#059669', kb: '#8b5cf6', customer: '#d97706', sla: '#6366f1' };
-        const labels = { ticket: 'Ticket', cmdb: 'CMDB', kb: 'KB', customer: 'Customer', sla: 'SLA' };
-        return `<span style="display:inline-block;padding:2px 8px;border-radius:9999px;font-size:11px;font-weight:600;color:white;background:${colors[item._type] || '#666'}">${labels[item._type] || item._type}</span>`;
-      }
-      case '_name':
-        if (item._type === 'ticket') return `<span style="color:#2563eb;font-weight:500">#${item.id}</span> ${escapeHtml(item.title || '')}`;
-        if (item._type === 'cmdb') return escapeHtml(item.asset_name || '');
-        if (item._type === 'kb') return escapeHtml(item.title || '');
-        if (item._type === 'customer') return escapeHtml(item.full_name || '');
-        if (item._type === 'sla') return escapeHtml(item.name || '');
-        return '-';
-      case '_detail':
-        if (item._type === 'ticket') return escapeHtml(item.assignee_name || 'Unassigned');
-        if (item._type === 'cmdb') return escapeHtml(item.customer_name || '') + (item.asset_category ? ' · ' + escapeHtml(item.asset_category) : '');
-        if (item._type === 'kb') return escapeHtml(item.category || '');
-        if (item._type === 'customer') return escapeHtml(item.company_name || '') + (item.email ? ' · ' + escapeHtml(item.email) : '');
-        if (item._type === 'sla') return _psFormatMinutes(item.response_target_minutes) + ' / ' + _psFormatMinutes(item.resolve_target_minutes);
-        return '-';
-      case '_status':
-        if (item._type === 'ticket') return getPowerSearchCellHTML(item, 'status');
-        if (item._type === 'cmdb') return escapeHtml(item.status || '');
-        if (item._type === 'kb') return escapeHtml(item.status || '');
-        if (item._type === 'customer') return escapeHtml(item.sla_level || '');
-        if (item._type === 'sla') return escapeHtml(item.business_hours_name || '');
-        return '-';
-      case 'status': {
-        const s = val || '';
-        const statusColors = { 'Open': '#22c55e', 'In Progress': '#f59e0b', 'Pending': '#a855f7', 'Resolved': '#6b7280', 'Closed': '#374151' };
-        const c = statusColors[s] || '#666';
-        return `<span style="display:inline-block;padding:2px 8px;border-radius:9999px;font-size:11px;font-weight:500;color:white;background:${c}">${escapeHtml(s)}</span>`;
-      }
-      case 'priority': {
-        const p = val || '';
-        const prioColors = { 'Critical': '#dc2626', 'High': '#f97316', 'Medium': '#eab308', 'Low': '#22c55e' };
-        const c = prioColors[p] || '#666';
-        return `<span style="color:${c};font-weight:500">${escapeHtml(p)}</span>`;
-      }
-      case 'sla_level': {
-        const l = val || '';
-        const slaColors = { 'basic': '#6b7280', 'premium': '#2563eb', 'enterprise': '#7c3aed' };
-        const c = slaColors[l] || '#666';
-        return `<span style="display:inline-block;padding:2px 8px;border-radius:9999px;font-size:11px;font-weight:500;color:white;background:${c}">${escapeHtml(l)}</span>`;
-      }
-      case 'response_target_minutes':
-      case 'resolve_target_minutes':
-        return _psFormatMinutes(val);
-      case 'open_ticket_count':
-        return val > 0 ? `<span style="font-weight:600;color:#2563eb">${val}</span>` : '0';
-      case 'id':
-      case 'cmdb_id':
-        return `<span style="color:#2563eb;font-weight:500">${val}</span>`;
-      default:
-        return escapeHtml(val != null ? String(val) : '-');
-    }
-  }
-
-  function getPowerSearchRowAction(item) {
-    switch (item._type) {
-      case 'ticket': return `openTicket(${item.id})`;
-      case 'cmdb': return `openCMDBDetail(${item.cmdb_id})`;
-      case 'kb': return `switchView('knowledge-base');setTimeout(()=>viewKBArticle(${item.id}),200)`;
-      case 'customer': return `viewCustomerTickets(${item.id}, '${escapeHtml(item.full_name || '')}')`;
-      case 'sla': return `switchView('wizard');setTimeout(()=>{const el=document.getElementById('wizard-nav-sla');if(el)el.click()},200)`;
-      default: return '';
-    }
-  }
-
-  function _psGetFilteredItems(source) {
-    const st = _psState(source);
-    const r = st.results;
-    let items = [];
-    if (st.type === 'all') {
-      items = [...r.tickets, ...r.cmdb, ...r.kb, ...r.customers, ...r.sla];
-    } else if (st.type === 'tickets') {
-      items = r.tickets;
-    } else if (st.type === 'cmdb') {
-      items = r.cmdb;
-    } else if (st.type === 'customers') {
-      items = r.customers;
-    } else if (st.type === 'sla') {
-      items = r.sla;
-    }
-
-    // Sort
-    if (st.sortCol) {
-      items.sort((a, b) => {
-        let va = a[st.sortCol], vb = b[st.sortCol];
-        if (va == null) va = '';
-        if (vb == null) vb = '';
-        if (typeof va === 'number' && typeof vb === 'number') return st.sortDir === 'asc' ? va - vb : vb - va;
-        return st.sortDir === 'asc' ? String(va).localeCompare(String(vb)) : String(vb).localeCompare(String(va));
-      });
-    }
-    return items;
-  }
-
-  function renderPowerSearchGrid(source) {
-    const pfx = _psPrefix(source);
-    const st = _psState(source);
-    const cols = getPowerSearchColumns(st.type);
-    const items = _psGetFilteredItems(source);
-
-    const thead = document.getElementById(pfx + 'power-search-thead');
-    const tbody = document.getElementById(pfx + 'power-search-tbody');
-    const grid = document.getElementById(pfx + 'power-search-grid');
-    const empty = document.getElementById(pfx + 'power-search-empty');
-
-    if (!thead || !tbody) return;
-
-    if (items.length === 0) {
-      if (grid) grid.style.display = 'none';
-      if (empty) { empty.style.display = 'block'; empty.textContent = 'No results in this category'; }
-      return;
-    }
-    if (grid) grid.style.display = 'block';
-    if (empty) empty.style.display = 'none';
-
-    // Render thead
-    const srcArg = source === 'expert' ? "'expert'" : '';
-    thead.innerHTML = '<tr>' + cols.map(c => {
-      const arrow = st.sortCol === c.key ? (st.sortDir === 'asc' ? ' ▲' : ' ▼') : '';
-      return `<th style="cursor:pointer;user-select:none;white-space:nowrap" onclick="sortPowerSearch('${c.key}',${srcArg})">${escapeHtml(c.label)}${arrow}</th>`;
-    }).join('') + '</tr>';
-
-    // Paginate
-    const start = (st.page - 1) * st.pageSize;
-    const pageItems = items.slice(start, start + st.pageSize);
-
-    // Render tbody
-    tbody.innerHTML = pageItems.map(item => {
-      const action = getPowerSearchRowAction(item);
-      return `<tr style="cursor:pointer" onclick="${action}">` + cols.map(c => `<td>${getPowerSearchCellHTML(item, c.key)}</td>`).join('') + '</tr>';
-    }).join('');
-
-    // Render pagination
-    const pagFnPage = source === 'expert' ? 'setExPowerSearchPage' : 'setPowerSearchPage';
-    const pagFnSize = source === 'expert' ? 'setExPowerSearchPageSize' : 'setPowerSearchPageSize';
-    renderPaginationControls(pfx + 'power-search-pagination', st.page, items.length, st.pageSize, pagFnPage, pagFnSize);
-  }
-
-  function sortPowerSearch(col, source) {
-    if (source === 'expert') {
-      if (exPowerSearchSortColumn === col) exPowerSearchSortDirection = exPowerSearchSortDirection === 'asc' ? 'desc' : 'asc';
-      else { exPowerSearchSortColumn = col; exPowerSearchSortDirection = 'asc'; }
-      exPowerSearchPage = 1;
-    } else {
-      if (powerSearchSortColumn === col) powerSearchSortDirection = powerSearchSortDirection === 'asc' ? 'desc' : 'asc';
-      else { powerSearchSortColumn = col; powerSearchSortDirection = 'asc'; }
-      powerSearchPage = 1;
-    }
-    renderPowerSearchGrid(source);
-  }
-
-  function setPowerSearchPage(page) { powerSearchPage = page; renderPowerSearchGrid(); }
-  function setPowerSearchPageSize(size) { powerSearchPageSize = size; powerSearchPage = 1; renderPowerSearchGrid(); }
-  function setExPowerSearchPage(page) { exPowerSearchPage = page; renderPowerSearchGrid('expert'); }
-  function setExPowerSearchPageSize(size) { exPowerSearchPageSize = size; exPowerSearchPage = 1; renderPowerSearchGrid('expert'); }
   function renderCustomerDash(){ const currentRole = window.role || role; if(currentRole!=='customer') return; const items = CMDB_ITEMS.filter(i => !tenant || i.customer===tenant); const ciCount = items.reduce((a,i)=>a+(CIS_BY_ITEM[i.cmdb_id]?.length||0),0); const openTickets = tickets.filter(t => (!tenant || (t.customer===tenant)) && t.status!=='Resolved').length; document.getElementById('cu-open').textContent=openTickets; document.getElementById('cu-items').textContent=items.length + ciCount; renderCustomerTrending(); renderCustomerRequests(); }
   function renderCustomerTrending() {
     const el = document.getElementById('cu-trending-body');
