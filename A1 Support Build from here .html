@@ -23485,14 +23485,14 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     }, 200);
   }
 
-  function performGlobalSearch(query) {
+  async function performGlobalSearch(query) {
     const q = query.toLowerCase();
     const results = [];
     const maxPerCategory = 10;
 
     // Search Tickets
     if (globalSearchCategory === 'all' || globalSearchCategory === 'tickets') {
-      const ticketResults = (tickets || [])
+      let ticketResults = (tickets || [])
         .filter(t => {
           const searchable = [
             String(t.id || ''),
@@ -23512,6 +23512,27 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           badge: t.status || 'Open',
           data: t
         }));
+
+      // Fallback: if no local ticket results, search server-side
+      if (ticketResults.length === 0 && q.length >= 1) {
+        try {
+          const token = localStorage.getItem('token');
+          const resp = await fetch(`/api/tickets/${tenant}/power-search?q=${encodeURIComponent(query)}&limit=${maxPerCategory}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (resp.ok) {
+            const data = await resp.json();
+            ticketResults = (data.tickets || []).map(t => ({
+              type: 'ticket',
+              id: t.id,
+              title: `#${t.id} - ${t.title || 'Untitled'}`,
+              meta: t.assignee_name || 'Unassigned',
+              badge: t.status || 'Open',
+              data: t
+            }));
+          }
+        } catch (e) { /* ignore server search failure */ }
+      }
       results.push(...ticketResults);
     }
 
