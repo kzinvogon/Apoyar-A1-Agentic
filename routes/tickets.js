@@ -1019,20 +1019,22 @@ router.get('/:tenantId/my-tickets', readOperationsLimiter, requireRole(['expert'
 router.get('/:tenantId/power-search', verifyToken, readOperationsLimiter, async (req, res) => {
   try {
     const { tenantId } = req.params;
-    const { q, limit = 10 } = req.query;
+    const { q, limit = 25 } = req.query;
 
     if (!q || !q.trim()) {
-      return res.json({ success: true, tickets: [], cmdb: [], kb: [] });
+      return res.json({ success: true, tickets: [], cmdb: [], kb: [], customers: [], sla: [] });
     }
 
     const query = q.trim();
-    const searchLimit = Math.min(parseInt(limit) || 10, 20);
+    const searchLimit = Math.min(parseInt(limit) || 25, 50);
 
     const connection = await getTenantConnection(tenantId);
     try {
       let tickets = [];
       let cmdb = [];
       let kb = [];
+      let customers = [];
+      let sla = [];
 
       // Check if searching by ticket ID (e.g., "#123" or "123")
       const idMatch = query.match(/^#?(\d+)$/);
@@ -1090,12 +1092,52 @@ router.get('/:tenantId/power-search', verifyToken, readOperationsLimiter, async 
         kb = [];
       }
 
+      // Search Customers (users + customer_companies)
+      try {
+        const custSearchTerm = `%${query}%`;
+        const [custRows] = await connection.query(`
+          SELECT u.id, u.full_name, u.email, c.company_name, c.sla_level,
+                 (SELECT COUNT(*) FROM tickets t WHERE t.requester_id = u.id AND t.status NOT IN ('Resolved','Closed')) as open_ticket_count
+          FROM users u
+          INNER JOIN customers c ON c.user_id = u.id
+          LEFT JOIN customer_companies cc ON c.customer_company_id = cc.id
+          WHERE u.role = 'customer'
+            AND (u.full_name LIKE ? OR u.email LIKE ? OR c.company_name LIKE ? OR cc.company_name LIKE ?)
+          ORDER BY u.full_name ASC
+          LIMIT ?
+        `, [custSearchTerm, custSearchTerm, custSearchTerm, custSearchTerm, searchLimit]);
+        customers = custRows;
+      } catch (custErr) {
+        customers = [];
+      }
+
+      // Search SLA Definitions (admin only)
+      if (req.user && req.user.role === 'admin') {
+        try {
+          const slaSearchTerm = `%${query}%`;
+          const [slaRows] = await connection.query(`
+            SELECT s.id, s.name, s.description, s.response_target_minutes, s.resolve_target_minutes,
+                   b.name as business_hours_name
+            FROM sla_definitions s
+            LEFT JOIN business_hours_profiles b ON s.business_hours_profile_id = b.id
+            WHERE s.name LIKE ? OR s.description LIKE ?
+            ORDER BY s.name ASC
+            LIMIT ?
+          `, [slaSearchTerm, slaSearchTerm, searchLimit]);
+          sla = slaRows;
+        } catch (slaErr) {
+          sla = [];
+        }
+      }
+
       res.json({
         success: true,
         query,
         tickets,
         cmdb,
-        kb
+        kb,
+        customers,
+        sla
       });
 
     } finally {
