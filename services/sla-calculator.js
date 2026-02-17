@@ -293,16 +293,17 @@ function buildProfile(sla) {
  * @param {Date} createdAt - Ticket creation time
  * @returns {Object} { response_due_at, resolve_due_at }
  */
-function computeInitialDeadlines(sla, createdAt) {
+function computeInitialDeadlines(sla, createdAt, skipPenaltyMinutes = 0) {
   const created = new Date(createdAt);
   const profile = buildProfile(sla);
 
-  // Response deadline: start from next business hours + response_target_minutes
-  const response_due_at = addBusinessMinutes(created, sla.response_target_minutes, profile);
+  // Response deadline: start from next business hours + response_target_minutes + skip penalty
+  const responseMinutes = sla.response_target_minutes + (skipPenaltyMinutes || 0);
+  const response_due_at = addBusinessMinutes(created, responseMinutes, profile);
 
-  // Initial resolve deadline: response_due_at + resolve_after_response_minutes
+  // Initial resolve deadline: response_due_at + resolve_after_response_minutes + skip penalty
   // (will be recalculated when first_responded_at is set)
-  const resolveMinutes = sla.resolve_after_response_minutes || sla.resolve_target_minutes;
+  const resolveMinutes = (sla.resolve_after_response_minutes || sla.resolve_target_minutes) + (skipPenaltyMinutes || 0);
   const resolve_due_at = addBusinessMinutes(response_due_at, resolveMinutes, profile);
 
   return {

@@ -8,10 +8,12 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const path = require('path');
+const http = require('http');
 const { execSync } = require('child_process');
 require('dotenv').config();
 
 const app = express();
+const server = http.createServer(app);
 const PORT = process.env.PORT || 3000;
 
 // Trust proxy for Railway (needed for rate limiting behind reverse proxy)
@@ -62,12 +64,16 @@ const plansPublicRoutes = require('./routes/plans-public');
 const marketingRoutes = require('./routes/marketing');
 const signupRoutes = require('./routes/signup');
 const billingRoutes = require('./routes/billing');
+const chatRoutes = require('./routes/chat');
 
 // Import email processor service
 const { startEmailProcessing } = require('./services/email-processor');
 
 // Import housekeeping service
 const housekeeping = require('./services/housekeeping');
+
+// Import chat socket service
+const { initializeChatSocket } = require('./services/chat-socket');
 
 // Import rate limiter
 const { apiLimiter } = require('./middleware/rateLimiter');
@@ -95,6 +101,9 @@ app.use('/api', apiLimiter);
 
 // Marketing site routes (must be BEFORE static middleware to take precedence)
 app.use('/marketing', marketingRoutes);
+
+// Serve uploaded files (chat attachments, etc.)
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Serve static files from the current directory with no-cache for HTML
 app.use(express.static(__dirname, {
@@ -140,6 +149,7 @@ app.use('/api/features', featureFlagsRoutes);
 app.use('/api/plans', plansPublicRoutes);
 app.use('/api/signup', signupRoutes);
 app.use('/api/billing', billingRoutes);
+app.use('/api/chat', chatRoutes);
 
 // Public routes (no authentication required) - Must be before authenticated routes
 app.use('/ticket', publicTicketRoutes);
@@ -409,6 +419,7 @@ async function runAllMigrations(tenantCode) {
     { name: 'Last login column', fn: async () => { const { migrate } = require('./migrations/add-last-login-column'); await migrate(tenantCode); }},
     { name: 'Tenant features', fn: async () => { const { migrate } = require('./migrations/add-tenant-features'); await migrate(tenantCode, 'professional'); }},
     { name: 'CMDB V2', fn: async () => { const { runMigration } = require('./migrations/add-cmdb-v2-tables'); await runMigration(tenantCode); }},
+    { name: 'Chat system', fn: async () => { const { runMigration } = require('./migrations/add-chat-system'); await runMigration(tenantCode); }},
   ];
 
   let successCount = 0;
@@ -445,8 +456,11 @@ async function startServer() {
     console.log('ℹ️  Email processing disabled (DISABLE_EMAIL_PROCESSING=true)');
   }
 
+  // Initialize Socket.io for live chat
+  initializeChatSocket(server);
+
   // Start the HTTP server FIRST so health checks work
-  app.listen(PORT, '0.0.0.0', async () => {
+  server.listen(PORT, '0.0.0.0', async () => {
     console.log(`🚀 ServiFlow Support Platform is running!`);
     console.log(`📱 Open your browser and go to: http://localhost:${PORT}`);
     console.log(`🔧 Health check: http://localhost:${PORT}/health`);

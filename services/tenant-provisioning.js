@@ -498,6 +498,10 @@ async function createTenantTables(connection) {
       classification_reason TEXT NULL,
       classified_by VARCHAR(16) NULL,
       classified_at TIMESTAMP NULL,
+      sla_skip_penalty_minutes INT NOT NULL DEFAULT 0,
+      related_ticket_id INT NULL,
+      is_major_incident BOOLEAN DEFAULT FALSE,
+      chat_session_id INT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       FOREIGN KEY (requester_id) REFERENCES users(id),
@@ -507,7 +511,10 @@ async function createTenantTables(connection) {
       INDEX idx_tickets_pool_status (pool_status),
       INDEX idx_tickets_owned_by (owned_by_expert_id),
       INDEX idx_tickets_claimed_by (claimed_by_expert_id),
-      INDEX idx_tickets_work_type (work_type)
+      INDEX idx_tickets_work_type (work_type),
+      INDEX idx_tickets_source (source),
+      INDEX idx_tickets_related (related_ticket_id),
+      INDEX idx_tickets_major_incident (is_major_incident)
     )
   `);
 
@@ -763,6 +770,75 @@ async function createTenantTables(connection) {
       ('Basic SLA', 'Standard support SLA', 1, 240, 2880),
       ('Premium SLA', 'Priority support with faster response', 1, 60, 480),
       ('Critical SLA', '24x7 critical system support', 2, 15, 120)
+  `);
+
+  // Chat Sessions table
+  await connection.execute(`
+    CREATE TABLE IF NOT EXISTS chat_sessions (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      customer_user_id INT NOT NULL,
+      expert_user_id INT NULL,
+      status ENUM('waiting', 'active', 'transferred', 'closed') DEFAULT 'waiting',
+      queue_position INT NULL,
+      started_at TIMESTAMP NULL,
+      ended_at TIMESTAMP NULL,
+      transferred_from_expert_id INT NULL,
+      transfer_reason TEXT NULL,
+      satisfaction_rating TINYINT NULL,
+      ticket_id INT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      FOREIGN KEY (customer_user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (expert_user_id) REFERENCES users(id) ON DELETE SET NULL,
+      FOREIGN KEY (transferred_from_expert_id) REFERENCES users(id) ON DELETE SET NULL,
+      FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE SET NULL,
+      INDEX idx_chat_sessions_status (status),
+      INDEX idx_chat_sessions_customer (customer_user_id),
+      INDEX idx_chat_sessions_expert (expert_user_id)
+    )
+  `);
+
+  // Chat Messages table
+  await connection.execute(`
+    CREATE TABLE IF NOT EXISTS chat_messages (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      session_id INT NOT NULL,
+      sender_user_id INT NULL,
+      sender_role ENUM('customer', 'expert', 'system', 'ai') NOT NULL DEFAULT 'customer',
+      message_type ENUM('text', 'file', 'canned_action', 'system') NOT NULL DEFAULT 'text',
+      content TEXT,
+      file_url VARCHAR(500) NULL,
+      file_name VARCHAR(255) NULL,
+      file_size INT NULL,
+      read_at TIMESTAMP NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (session_id) REFERENCES chat_sessions(id) ON DELETE CASCADE,
+      FOREIGN KEY (sender_user_id) REFERENCES users(id) ON DELETE SET NULL,
+      INDEX idx_chat_messages_session (session_id, created_at)
+    )
+  `);
+
+  // Chat Canned Responses table
+  await connection.execute(`
+    CREATE TABLE IF NOT EXISTS chat_canned_responses (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      label VARCHAR(100) NOT NULL,
+      message TEXT NOT NULL,
+      action_type ENUM('text', 'create_ticket', 'request_screenshot') DEFAULT 'text',
+      sort_order INT DEFAULT 0,
+      is_active BOOLEAN DEFAULT TRUE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Seed default canned responses
+  await connection.execute(`
+    INSERT IGNORE INTO chat_canned_responses (label, message, action_type, sort_order) VALUES
+    ('Log a Ticket', 'Would you like me to log a support ticket for this issue?', 'create_ticket', 1),
+    ('Send Screenshot', 'Could you please share a screenshot of the issue?', 'request_screenshot', 2),
+    ('Checking', 'Let me check that for you, one moment please...', 'text', 3),
+    ('Anything Else', 'Is there anything else I can help you with?', 'text', 4)
   `);
 }
 

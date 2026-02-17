@@ -15,6 +15,7 @@
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css"/>
 <!-- jQuery (for DataTables only) -->
 <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+<script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
 <!-- DataTables JS -->
 <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
 <script>
@@ -240,12 +241,50 @@ vNext-FULL-ActionsSLA:
   .sla.danger{color:var(--danger);border-color:#fecaca;background:#fef2f2}
   .progress{height:6px;border-radius:999px;background:var(--border);overflow:hidden}
   .progress>span{display:block;height:100%;background:var(--primary)}
-  #chat-toggle{position:fixed;right:20px;bottom:20px;border-radius:999px;padding:12px 16px;box-shadow:var(--shadow-lg);background:var(--primary);color:var(--bg);border:none;cursor:pointer;font-weight:500;font-size:13px;transition:all .2s}
+  #chat-toggle{position:fixed;right:20px;bottom:20px;border-radius:999px;padding:12px 16px;box-shadow:var(--shadow-lg);background:var(--primary);color:var(--bg);border:none;cursor:pointer;font-weight:500;font-size:13px;transition:all .2s;z-index:91}
   #chat-toggle:hover{opacity:.9}
-  #chat{position:fixed;right:20px;bottom:72px;width:360px;max-height:70vh;display:none;flex-direction:column;gap:8px;z-index:90}
-  #chat .panel{background:var(--card);border-radius:12px;box-shadow:var(--shadow-lg);overflow:hidden;display:flex;flex-direction:column;max-height:70vh;border:1px solid var(--border)}
-  #chat .header{padding:14px 16px;background:var(--primary);color:var(--bg);font-weight:500;font-size:14px}
-  #chat .body{padding:14px;overflow-y:auto;background:var(--bg)} #chat .msg{padding:10px 12px;border-radius:10px;margin-bottom:8px;max-width:85%;font-size:13px;line-height:1.5} #chat .ai{background:var(--card);border:1px solid var(--border)} #chat .me{background:var(--primary);color:var(--bg);align-self:flex-end}
+  #chat-toggle .chat-badge{position:absolute;top:-4px;right:-4px;background:#dc2626;color:#fff;border-radius:50%;width:20px;height:20px;font-size:11px;display:flex;align-items:center;justify-content:center;font-weight:700}
+  #chat{position:fixed;right:20px;bottom:72px;width:380px;height:520px;display:none;flex-direction:column;z-index:90;border-radius:12px;overflow:hidden;box-shadow:var(--shadow-lg);border:1px solid var(--border)}
+  #chat .chat-header{padding:12px 16px;background:var(--primary);color:var(--bg);font-weight:500;font-size:14px;display:flex;align-items:center;justify-content:space-between}
+  #chat .chat-header .chat-status{font-size:11px;opacity:.8;font-weight:400}
+  #chat .chat-messages{flex:1;padding:12px;overflow-y:auto;background:var(--bg);display:flex;flex-direction:column;gap:6px}
+  #chat .chat-msg{padding:8px 12px;border-radius:10px;max-width:80%;font-size:13px;line-height:1.5;word-break:break-word}
+  #chat .chat-msg.system{background:var(--table-header);color:var(--muted);text-align:center;font-size:11px;max-width:100%;align-self:center;padding:4px 10px;border-radius:20px}
+  #chat .chat-msg.incoming{background:var(--card);border:1px solid var(--border);align-self:flex-start}
+  #chat .chat-msg.outgoing{background:var(--primary);color:var(--bg);align-self:flex-end}
+  #chat .chat-msg .msg-sender{font-size:10px;font-weight:600;margin-bottom:2px;opacity:.7}
+  #chat .chat-msg .msg-time{font-size:10px;opacity:.6;margin-top:2px}
+  #chat .chat-msg .msg-file{display:flex;align-items:center;gap:6px;padding:6px 8px;background:rgba(0,0,0,.05);border-radius:6px;margin-top:4px;font-size:12px;cursor:pointer;text-decoration:none;color:inherit}
+  #chat .chat-footer{padding:8px 12px;border-top:1px solid var(--border);background:var(--card);display:flex;gap:8px;align-items:center}
+  #chat .chat-footer input{flex:1;border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;outline:none;background:var(--bg)}
+  #chat .chat-footer input:focus{border-color:var(--primary)}
+  #chat .chat-typing{padding:2px 12px;font-size:11px;color:var(--muted);min-height:16px}
+  #chat .chat-queue{padding:20px;text-align:center;background:var(--bg);flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px}
+  #chat .chat-queue .queue-pos{font-size:48px;font-weight:800;color:var(--primary)}
+  #chat .chat-qualify{padding:16px;background:var(--bg);flex:1;overflow-y:auto}
+  #chat .chat-qualify .q-item{margin-bottom:12px}
+  #chat .chat-qualify .q-label{font-size:12px;font-weight:600;margin-bottom:4px}
+  #chat .chat-rating{padding:20px;text-align:center;background:var(--bg);flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px}
+  #chat .chat-rating .stars{display:flex;gap:8px;font-size:28px;cursor:pointer}
+  #chat .chat-rating .stars span:hover{transform:scale(1.2)}
+  .expert-chat-panel{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+  .expert-chat-panel .ech-header{padding:10px 14px;background:var(--table-header);font-weight:600;font-size:13px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
+  .expert-chat-panel .ech-list{max-height:300px;overflow-y:auto}
+  .expert-chat-panel .ech-item{padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s;display:flex;align-items:center;justify-content:space-between}
+  .expert-chat-panel .ech-item:hover{background:var(--table-header)}
+  .expert-chat-panel .ech-item.active{background:#eff6ff;border-left:3px solid var(--primary)}
+  .expert-chat-panel .ech-item .ech-name{font-weight:500;font-size:13px}
+  .expert-chat-panel .ech-item .ech-preview{font-size:11px;color:var(--muted);margin-top:2px}
+  .expert-chat-panel .ech-item .ech-badge{background:#dc2626;color:#fff;border-radius:50%;width:18px;height:18px;font-size:10px;display:flex;align-items:center;justify-content:center;font-weight:700}
+  .expert-chat-panel .ech-empty{padding:20px;text-align:center;color:var(--muted);font-size:12px}
+  .expert-chat-window{border:1px solid var(--border);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;height:400px;background:var(--bg)}
+  .expert-chat-window .ecw-header{padding:10px 14px;background:var(--primary);color:var(--bg);font-weight:500;font-size:13px;display:flex;justify-content:space-between;align-items:center}
+  .expert-chat-window .ecw-messages{flex:1;padding:10px;overflow-y:auto;display:flex;flex-direction:column;gap:4px}
+  .expert-chat-window .ecw-footer{padding:8px;border-top:1px solid var(--border);display:flex;gap:6px;background:var(--card)}
+  .expert-chat-window .ecw-footer input{flex:1;border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:13px;outline:none}
+  .canned-resp-btn{padding:4px 10px;border-radius:20px;background:var(--table-header);border:1px solid var(--border);font-size:11px;cursor:pointer;white-space:nowrap;transition:all .15s}
+  .canned-resp-btn:hover{background:var(--primary);color:var(--bg);border-color:var(--primary)}
+  @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
   #err{display:none;position:fixed;left:0;right:0;bottom:0;background:#fef2f2;color:#dc2626;padding:10px 16px;font-size:13px;border-top:1px solid #fecaca;z-index:200}
 
   /* Modal */
@@ -1281,6 +1320,9 @@ vNext-FULL-ActionsSLA:
         <ion-item button onclick="openAdminSettings('admin-section-cmdb-fields'); closeIonicMenu();">
           <ion-label style="font-size:14px">CMDB Custom Fields</ion-label>
         </ion-item>
+        <ion-item button onclick="openAdminSettings('admin-section-chat'); closeIonicMenu();">
+          <ion-label>💬 Chat Settings</ion-label>
+        </ion-item>
         <ion-item button onclick="openAdminSettings('admin-section-billing'); closeIonicMenu();">
           <ion-label style="font-size:14px">Billing & Subscription</ion-label>
         </ion-item>
@@ -1598,6 +1640,7 @@ vNext-FULL-ActionsSLA:
                 <div class="nav-subitem" data-section="admin-section-cmdb-fields" onclick="openAdminSettings('admin-section-cmdb-fields')">🗃️ CMDB Custom Fields</div>
                 <div class="nav-subitem" data-section="admin-section-billing" onclick="openAdminSettings('admin-section-billing')">💳 Billing & Subscription</div>
                 <div class="nav-subitem" data-section="admin-section-housekeeping" onclick="openAdminSettings('admin-section-housekeeping')">🧹 Housekeeping</div>
+                <div class="nav-subitem" data-section="admin-section-chat" onclick="openAdminSettings('admin-section-chat')">💬 Chat Settings</div>
               </div>
             </div>
             <div class="navlink" data-target="system-control" onclick="nav(this)">🔧 System Control</div>
@@ -1963,6 +2006,47 @@ vNext-FULL-ActionsSLA:
                   </div>
                   <div id="ex-assets-list" style="max-height:150px;overflow-y:auto;font-size:13px">
                     <div style="color:var(--muted);text-align:center;padding:20px">Loading assets...</div>
+                  </div>
+                </div>
+
+                <!-- Live Chat Panel -->
+                <div class="expert-chat-panel">
+                  <div class="ech-header">
+                    <span>💬 Live Chat <span id="ech-waiting-count" style="background:#dc2626;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;font-weight:700;display:none">0</span></span>
+                    <div style="display:flex;gap:4px">
+                      <button class="btn ghost" onclick="refreshExpertChatList()" style="font-size:11px;padding:2px 6px">↻</button>
+                    </div>
+                  </div>
+                  <div id="ech-tabs" style="display:flex;border-bottom:1px solid var(--border)">
+                    <button class="btn ghost" id="ech-tab-waiting" onclick="switchExpertChatTab('waiting')" style="flex:1;border-radius:0;font-size:12px;padding:6px;border-bottom:2px solid var(--primary)">Waiting</button>
+                    <button class="btn ghost" id="ech-tab-active" onclick="switchExpertChatTab('active')" style="flex:1;border-radius:0;font-size:12px;padding:6px">My Active</button>
+                    <button class="btn ghost" id="ech-tab-history" onclick="switchExpertChatTab('history')" style="flex:1;border-radius:0;font-size:12px;padding:6px">History</button>
+                  </div>
+                  <div id="ech-list" class="ech-list">
+                    <div class="ech-empty">No chat sessions</div>
+                  </div>
+                </div>
+
+                <!-- Expert Chat Window (hidden until a chat is selected) -->
+                <div id="ech-window" class="expert-chat-window" style="display:none">
+                  <div class="ecw-header">
+                    <div>
+                      <span id="ech-window-name">Chat</span>
+                      <span id="ech-window-status" style="font-size:11px;opacity:.7;margin-left:6px"></span>
+                    </div>
+                    <div style="display:flex;gap:4px">
+                      <button class="btn ghost" onclick="expertChatCreateTicket()" style="padding:2px 8px;font-size:11px;color:#fff;border-color:rgba(255,255,255,.3)">🎫 Ticket</button>
+                      <button class="btn ghost" onclick="expertChatTransfer()" style="padding:2px 8px;font-size:11px;color:#fff;border-color:rgba(255,255,255,.3)">↗ Transfer</button>
+                      <button class="btn ghost" onclick="expertChatClose()" style="padding:2px 8px;font-size:11px;color:#fff;border-color:rgba(255,255,255,.3)">✕ End</button>
+                    </div>
+                  </div>
+                  <div id="ech-messages" class="ecw-messages"></div>
+                  <div id="ech-canned" style="padding:4px 8px;display:flex;gap:4px;overflow-x:auto;border-top:1px solid var(--border);background:var(--table-header)"></div>
+                  <div id="ech-typing" style="padding:2px 8px;font-size:11px;color:var(--muted);min-height:14px"></div>
+                  <div class="ecw-footer">
+                    <label style="cursor:pointer;font-size:16px;padding:2px" title="Attach file">📎<input type="file" id="ech-file-input" style="display:none" onchange="expertChatUploadFile(this)"></label>
+                    <input id="ech-msg-input" placeholder="Type a message..." onkeydown="if(event.key==='Enter')expertChatSend()">
+                    <button class="btn primary" style="padding:4px 10px;font-size:12px" onclick="expertChatSend()">Send</button>
                   </div>
                 </div>
 
@@ -3636,6 +3720,15 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             </div>
           </div>
 
+          <!-- Chat Transcript Section (shown when ticket has chat_session_id) -->
+          <div id="td-chat-transcript-section" style="display:none;margin-top:16px;border-radius:14px;padding:20px;background:var(--card);border:1px solid var(--border)">
+            <div class="row space mb-12" style="cursor:pointer" onclick="toggleChatTranscript()">
+              <div style="font-size:12px;font-weight:700;color:#0ea5e9;text-transform:uppercase;letter-spacing:.5px">💬 Chat Transcript</div>
+              <span id="chat-transcript-toggle" style="color:#9ca3af;font-size:12px">▼ Show</span>
+            </div>
+            <div id="td-chat-transcript" style="display:none;max-height:300px;overflow-y:auto;font-size:13px"></div>
+          </div>
+
           <!-- Related CMDB Items Section (Admin Only) -->
           <div class="admin-section-card" id="cmdb-relations-section" style="margin-top:16px;border-radius:14px;padding:20px;background:var(--card);border:1px solid var(--border);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)">
             <div class="row space mb-12">
@@ -5268,6 +5361,46 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             <div id="hk-message" class="subtitle" style="color:#16a34a;display:none;margin-top:12px"></div>
             <div id="hk-error" class="subtitle" style="color:#b91c1c;display:none;margin-top:12px"></div>
           </div>
+
+          <!-- Chat Settings Section -->
+          <div id="admin-section-chat" class="wizard-section card p-16 mb-12" style="display:none">
+            <div class="row space mb-12">
+              <h4 class="subtitle" style="margin:0;font-weight:600">💬 Live Chat - Canned Responses</h4>
+              <button class="btn primary" onclick="addCannedResponse()">+ Add Response</button>
+            </div>
+            <div id="canned-responses-list" style="font-size:13px">
+              <div style="text-align:center;color:var(--muted);padding:20px">Loading...</div>
+            </div>
+            <div id="canned-response-form" style="display:none;margin-top:16px;padding:16px;border:1px solid var(--border);border-radius:8px;background:var(--table-header)">
+              <h5 class="subtitle" style="font-weight:600;margin:0 0 12px 0" id="cr-form-title">Add Canned Response</h5>
+              <div class="mb-8">
+                <label class="subtitle">Label</label>
+                <input id="cr-label" class="input" placeholder="e.g., Log a Ticket" style="font-size:13px">
+              </div>
+              <div class="mb-8">
+                <label class="subtitle">Message</label>
+                <textarea id="cr-message" class="input" placeholder="The message text..." rows="2" style="font-size:13px"></textarea>
+              </div>
+              <div class="mb-8" style="display:flex;gap:12px">
+                <div style="flex:1">
+                  <label class="subtitle">Action Type</label>
+                  <select id="cr-action-type" class="input" style="font-size:13px">
+                    <option value="text">Text only</option>
+                    <option value="create_ticket">Create Ticket</option>
+                    <option value="request_screenshot">Request Screenshot</option>
+                  </select>
+                </div>
+                <div style="flex:1">
+                  <label class="subtitle">Sort Order</label>
+                  <input id="cr-sort-order" class="input" type="number" value="0" style="font-size:13px">
+                </div>
+              </div>
+              <div style="display:flex;gap:8px">
+                <button class="btn primary" onclick="saveCannedResponse()">Save</button>
+                <button class="btn ghost" onclick="cancelCannedResponse()">Cancel</button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Raw Variables Editor -->
@@ -6009,16 +6142,67 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   </div>
 </div>
 
-<!-- Chatbot -->
-<button id="chat-toggle" class="btn accent">💬 Chat</button>
+<!-- Live Chat -->
+<button id="chat-toggle" class="btn accent" style="position:relative">💬 Chat<span id="chat-unread-badge" class="chat-badge" style="display:none">0</span></button>
 <div id="chat">
-  <div class="panel">
-    <div class="header">ServiFlow Assistant</div>
-    <div id="chat-body" class="body"></div>
-    <div class="footer" style="padding:12px">
-      <input id="chat-input" class="input" placeholder="Type a message…" onkeydown="if(event.key==='Enter') sendChat()"/>
-      <button class="btn primary" onclick="sendChat()">Send</button>
+  <div class="chat-header">
+    <div>
+      <div id="chat-header-title">Live Chat</div>
+      <div id="chat-header-status" class="chat-status"></div>
     </div>
+    <div style="display:flex;gap:6px;align-items:center">
+      <button id="chat-end-btn" class="btn ghost" style="padding:4px 8px;font-size:11px;color:#fff;border-color:rgba(255,255,255,.3);display:none" onclick="liveChatEnd()">End</button>
+      <button class="btn ghost" style="padding:4px 8px;font-size:16px;color:#fff;border:none" onclick="liveChatToggle()">✕</button>
+    </div>
+  </div>
+  <!-- Start screen -->
+  <div id="chat-start" class="chat-queue" style="display:flex">
+    <div style="font-size:36px">💬</div>
+    <div style="font-weight:600;font-size:16px">Need help?</div>
+    <div style="color:var(--muted);font-size:13px;margin-bottom:12px">Start a live chat with our support team</div>
+    <textarea id="chat-start-desc" class="input" placeholder="Briefly describe your issue..." style="width:100%;max-width:280px;height:60px;resize:none;font-size:13px"></textarea>
+    <button class="btn primary" onclick="liveChatStart()" style="margin-top:8px">Start Chat</button>
+    <div id="chat-experts-online" style="font-size:11px;color:var(--muted);margin-top:8px"></div>
+  </div>
+  <!-- Qualification screen -->
+  <div id="chat-qualify-screen" class="chat-qualify" style="display:none">
+    <div style="font-weight:600;margin-bottom:8px">Quick questions to help us serve you faster:</div>
+    <div id="chat-qualify-questions"></div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn primary" onclick="liveChatSubmitQualification()" style="flex:1">Submit</button>
+      <button class="btn ghost" onclick="liveChatSkipQualification()" style="font-size:12px">Skip All</button>
+    </div>
+    <div id="chat-qualify-penalty" style="font-size:11px;color:var(--muted);margin-top:8px"></div>
+  </div>
+  <!-- Queue waiting screen -->
+  <div id="chat-queue-screen" class="chat-queue" style="display:none">
+    <div style="font-size:11px;color:var(--muted)">You are in queue</div>
+    <div class="queue-pos" id="chat-queue-pos">1</div>
+    <div style="color:var(--muted);font-size:13px">Waiting for an expert...</div>
+    <div class="spinner" style="margin-top:12px;width:24px;height:24px;border:3px solid var(--border);border-top:3px solid var(--primary);border-radius:50%;animation:spin 1s linear infinite"></div>
+  </div>
+  <!-- Active chat screen -->
+  <div id="chat-active-screen" style="display:none;flex:1;flex-direction:column;overflow:hidden">
+    <div id="chat-messages" class="chat-messages"></div>
+    <div id="chat-typing" class="chat-typing"></div>
+    <div class="chat-footer">
+      <label style="cursor:pointer;font-size:18px;padding:4px" title="Attach file">📎<input type="file" id="chat-file-input" style="display:none" onchange="liveChatUploadFile(this)"></label>
+      <input id="chat-msg-input" placeholder="Type a message..." onkeydown="if(event.key==='Enter')liveChatSend()">
+      <button class="btn primary" style="padding:6px 12px;font-size:13px" onclick="liveChatSend()">Send</button>
+    </div>
+  </div>
+  <!-- Rating screen -->
+  <div id="chat-rating-screen" class="chat-rating" style="display:none">
+    <div style="font-size:36px">⭐</div>
+    <div style="font-weight:600">How was your experience?</div>
+    <div class="stars" id="chat-stars">
+      <span onclick="liveChatRate(1)">☆</span>
+      <span onclick="liveChatRate(2)">☆</span>
+      <span onclick="liveChatRate(3)">☆</span>
+      <span onclick="liveChatRate(4)">☆</span>
+      <span onclick="liveChatRate(5)">☆</span>
+    </div>
+    <button class="btn ghost" onclick="liveChatClose()" style="margin-top:8px;font-size:12px">Skip</button>
   </div>
 </div>
 
@@ -7926,6 +8110,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       // Load tenant settings for conditional nav display
       loadTenantSettingsForNav();
     }
+
+    // Initialize live chat socket for all roles
+    if (typeof initChatOnLogin === 'function') initChatOnLogin();
   }
 
   // ---- SLA Utilities (centralized, null-safe) ----
@@ -11537,6 +11724,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     if (sectionId === 'admin-section-cmdb-fields') loadCustomFieldDefinitions();
     if (sectionId === 'admin-section-sla') loadSLAData();
     if (sectionId === 'admin-section-housekeeping') loadHousekeepingInfo();
+    if (sectionId === 'admin-section-chat') loadCannedResponsesAdmin();
   }
 
   function initWizardSection() {
@@ -13647,6 +13835,107 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   }
 
   // Housekeeping Functions
+  // ---- Chat Canned Responses Admin ----
+  let editingCannedId = null;
+
+  async function loadCannedResponsesAdmin() {
+    const list = document.getElementById('canned-responses-list');
+    if (!list) return;
+    try {
+      const resp = await fetch(`/api/chat/${tenant}/canned-responses`, {
+        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+      });
+      const data = await resp.json();
+      if (!data.success || !data.responses?.length) {
+        list.innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px">No canned responses configured</div>';
+        return;
+      }
+      list.innerHTML = '<table style="width:100%;font-size:13px"><thead><tr><th>Label</th><th>Message</th><th>Action</th><th>Order</th><th></th></tr></thead><tbody>' +
+        data.responses.map(cr => `<tr>
+          <td style="font-weight:600">${cr.label}</td>
+          <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${cr.message}</td>
+          <td><span class="badge">${cr.action_type}</span></td>
+          <td>${cr.sort_order}</td>
+          <td style="white-space:nowrap">
+            <button class="btn ghost" onclick="editCannedResponse(${cr.id},'${(cr.label||'').replace(/'/g,"\\'")}','${(cr.message||'').replace(/'/g,"\\'")}','${cr.action_type}',${cr.sort_order})" style="padding:2px 8px;font-size:11px">Edit</button>
+            <button class="btn ghost" onclick="deleteCannedResponse(${cr.id})" style="padding:2px 8px;font-size:11px;color:#dc2626">Delete</button>
+          </td>
+        </tr>`).join('') + '</tbody></table>';
+    } catch (e) {
+      list.innerHTML = '<div style="color:#dc2626;padding:12px">Failed to load canned responses</div>';
+    }
+  }
+
+  function addCannedResponse() {
+    editingCannedId = null;
+    document.getElementById('cr-form-title').textContent = 'Add Canned Response';
+    document.getElementById('cr-label').value = '';
+    document.getElementById('cr-message').value = '';
+    document.getElementById('cr-action-type').value = 'text';
+    document.getElementById('cr-sort-order').value = '0';
+    document.getElementById('canned-response-form').style.display = 'block';
+  }
+
+  function editCannedResponse(id, label, message, actionType, sortOrder) {
+    editingCannedId = id;
+    document.getElementById('cr-form-title').textContent = 'Edit Canned Response';
+    document.getElementById('cr-label').value = label;
+    document.getElementById('cr-message').value = message;
+    document.getElementById('cr-action-type').value = actionType;
+    document.getElementById('cr-sort-order').value = sortOrder;
+    document.getElementById('canned-response-form').style.display = 'block';
+  }
+
+  function cancelCannedResponse() {
+    document.getElementById('canned-response-form').style.display = 'none';
+    editingCannedId = null;
+  }
+
+  async function saveCannedResponse() {
+    const label = document.getElementById('cr-label').value.trim();
+    const message = document.getElementById('cr-message').value.trim();
+    const action_type = document.getElementById('cr-action-type').value;
+    const sort_order = parseInt(document.getElementById('cr-sort-order').value) || 0;
+    if (!label || !message) { showToast('Label and message required', 'warn'); return; }
+
+    try {
+      const url = editingCannedId
+        ? `/api/chat/${tenant}/canned-responses/${editingCannedId}`
+        : `/api/chat/${tenant}/canned-responses`;
+      const method = editingCannedId ? 'PUT' : 'POST';
+      const resp = await fetch(url, {
+        method,
+        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token'), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ label, message, action_type, sort_order })
+      });
+      const data = await resp.json();
+      if (data.success) {
+        showToast(editingCannedId ? 'Updated' : 'Created', 'success');
+        cancelCannedResponse();
+        loadCannedResponsesAdmin();
+      } else {
+        showToast(data.error || 'Failed', 'error');
+      }
+    } catch (e) {
+      showToast('Error saving', 'error');
+    }
+  }
+
+  async function deleteCannedResponse(id) {
+    if (!confirm('Delete this canned response?')) return;
+    try {
+      const resp = await fetch(`/api/chat/${tenant}/canned-responses/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+      });
+      const data = await resp.json();
+      if (data.success) {
+        showToast('Deleted', 'success');
+        loadCannedResponsesAdmin();
+      }
+    } catch (e) { showToast('Error deleting', 'error'); }
+  }
+
   async function loadHousekeepingInfo() {
     try {
       const res = await fetch(`${API_BASE}/api/admin/housekeeping/info`, {
@@ -17177,6 +17466,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           teams:{label:'TEAMS',bg:'#6264a7',fg:'#fff'},
           slack:{label:'SLACK',bg:'#4a154b',fg:'#fff'},
           chatbot:{label:'CHATBOT',bg:'#0ea5e9',fg:'#fff'},
+          chat:{label:'CHAT',bg:'#0ea5e9',fg:'#fff'},
           system:{label:'SYSTEM',bg:'#6b7280',fg:'#fff'},
           web:{label:'WEB',bg:'#e5e7eb',fg:'#374151'}
         };
@@ -17239,6 +17529,24 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
         // Display classification data
         displayClassification(ticket);
+
+        // Load chat transcript if ticket has chat_session_id
+        const chatTranscriptSection = document.getElementById('td-chat-transcript-section');
+        if (chatTranscriptSection) {
+          if (ticket.chat_session_id) {
+            chatTranscriptSection.style.display = 'block';
+            loadChatTranscript(ticket.chat_session_id);
+          } else {
+            chatTranscriptSection.style.display = 'none';
+          }
+        }
+
+        // Show source badge for chat-origin tickets
+        const srcBadge = document.getElementById('td-system-source-badge');
+        if (srcBadge && ticket.source === 'chat') {
+          srcBadge.innerHTML = '<span style="display:inline-block;font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;background:#0ea5e9;color:#fff;letter-spacing:0.5px">CHAT</span>';
+          srcBadge.style.display = '';
+        }
       }
     } catch (error) {
       console.error('Error loading ticket details:', error);
@@ -23790,102 +24098,629 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     };
   }
 
-  // ---- Chatbot ----
+  // ---- Live Chat System ----
+  let chatSocket = null;
+  let chatSessionId = null;
+  let chatState = 'idle'; // idle, qualifying, queued, active, rating, closed
+  let chatTypingTimer = null;
+  let chatUnreadCount = 0;
+
   const chatToggle = document.getElementById('chat-toggle');
-  const chat = document.getElementById('chat');
-  const chatBody = document.getElementById('chat-body');
-  const chatInput = document.getElementById('chat-input');
-  chatToggle.onclick = () => { chat.style.display = (chat.style.display==='flex' ? 'none' : 'flex'); chat.style.display==='flex' && chatInput.focus(); if (!chatBody.dataset.boot) bootChat(); };
-  document.addEventListener('keydown', (e)=>{ if(e.key==='F7') chatToggle.click(); });
-  document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') { if(document.getElementById('sla-definition-modal').style.display==='flex') closeSLADefinitionModal(); else if(document.getElementById('business-hours-modal').style.display==='flex') closeBusinessHoursModal(); } });
-  function bootChat() { chatBody.dataset.boot = '1'; addAI('Hi! I\'m the ServiFlow assistant. I can help you raise a support request. Say "raise" to get started, or just describe your issue.'); }
-  function addAI(text) { const d=document.createElement('div'); d.className='msg ai'; d.textContent=text; chatBody.appendChild(d); chatBody.scrollTop = chatBody.scrollHeight; }
-  function addMe(text) { const d=document.createElement('div'); d.className='msg me'; d.textContent=text; chatBody.appendChild(d); chatBody.scrollTop = chatBody.scrollHeight; }
-  function startChat(reason, payload) { chat.style.display='flex'; if (!chatBody.dataset.boot) bootChat(); if (reason) addAI('I noticed some details are missing. I can fill them in for you.'); if (payload) { if (!payload.title) { pending = 'title'; addAI('First, what is a short title for your request?'); return; } if (!payload.desc)  { pending = 'desc'; addAI('Thanks. Could you briefly describe the issue?'); return; } if (!payload.priority) { pending = 'priority'; addAI('Do you want to set a priority? (Low/Medium/High/Critical). You can also say \"skip\".'); return; } if (!payload.itemId) { pending = 'item'; addAI('Do you want to link a CMDB Item? You can reply with the item name or say \"skip\".'); return; } if (payload.itemId && !payload.ciId) { pending = 'ci'; addAI('Do you want to link a CI under that item? You can reply with the CI name or say \"skip\".'); return; } addAI('Looks like everything is provided already — you can submit!'); } }
-  function sendChat() {
-    const text = chatInput.value.trim();
-    if (!text) return;
-    addMe(text);
-    chatInput.value='';
-    const t = text.toLowerCase();
-    if (!pending) {
-      if (t === 'raise' || t === 'new' || t === 'request' || t === 'help' || t.includes('raise') || t.includes('new request') || t.includes('new ticket')) {
-        navTo('raise');
-        pending = 'title';
-        addAI('Let\'s create a new request. What\'s a short title for your issue?');
+  const chatEl = document.getElementById('chat');
+
+  function liveChatToggle() {
+    if (chatEl.style.display === 'flex') {
+      chatEl.style.display = 'none';
+    } else {
+      chatEl.style.display = 'flex';
+      chatUnreadCount = 0;
+      const badge = document.getElementById('chat-unread-badge');
+      if (badge) badge.style.display = 'none';
+      if (chatState === 'active') {
+        const inp = document.getElementById('chat-msg-input');
+        if (inp) inp.focus();
+      }
+    }
+  }
+  chatToggle.onclick = liveChatToggle;
+  document.addEventListener('keydown', (e) => { if (e.key === 'F7') chatToggle.click(); });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      if (document.getElementById('sla-definition-modal').style.display === 'flex') closeSLADefinitionModal();
+      else if (document.getElementById('business-hours-modal').style.display === 'flex') closeBusinessHoursModal();
+    }
+  });
+
+  function initChatSocket() {
+    if (chatSocket && chatSocket.connected) return;
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    chatSocket = io({ auth: { token }, transports: ['websocket', 'polling'] });
+
+    chatSocket.on('connect', () => console.log('[Chat] Socket connected'));
+    chatSocket.on('connect_error', (err) => console.warn('[Chat] Socket error:', err.message));
+
+    chatSocket.on('chat:message', (msg) => {
+      if (msg.sessionId === chatSessionId) {
+        appendChatMessage(msg);
+        if (chatEl.style.display !== 'flex') {
+          chatUnreadCount++;
+          const badge = document.getElementById('chat-unread-badge');
+          if (badge) { badge.textContent = chatUnreadCount; badge.style.display = 'flex'; }
+        }
+      }
+      // Also update expert chat if open
+      if (typeof echActiveSessionId !== 'undefined' && msg.sessionId === echActiveSessionId) {
+        appendExpertChatMessage(msg);
+      }
+    });
+
+    chatSocket.on('chat:expert_joined', (data) => {
+      if (data.sessionId === chatSessionId) {
+        liveChatShowScreen('active');
+        document.getElementById('chat-header-status').textContent = data.expertName + ' joined';
+        document.getElementById('chat-end-btn').style.display = '';
+      }
+    });
+
+    chatSocket.on('chat:queue_update', (data) => {
+      if (data.sessionId === chatSessionId) {
+        const el = document.getElementById('chat-queue-pos');
+        if (el) el.textContent = data.queuePosition;
+      }
+    });
+
+    chatSocket.on('chat:typing', (data) => {
+      if (data.sessionId === chatSessionId && data.userId !== (window.currentUser&&window.currentUser.id)) {
+        const el = document.getElementById('chat-typing');
+        if (el) el.textContent = data.username + ' is typing...';
+        clearTimeout(chatTypingTimer);
+        chatTypingTimer = setTimeout(() => { if (el) el.textContent = ''; }, 3000);
+      }
+      if (typeof echActiveSessionId !== 'undefined' && data.sessionId === echActiveSessionId) {
+        const el = document.getElementById('ech-typing');
+        if (el) el.textContent = data.username + ' is typing...';
+        clearTimeout(chatTypingTimer);
+        chatTypingTimer = setTimeout(() => { if (el) el.textContent = ''; }, 3000);
+      }
+    });
+
+    chatSocket.on('chat:read', (data) => {
+      // Could update read receipts UI if desired
+    });
+
+    chatSocket.on('chat:closed', (data) => {
+      if (data.sessionId === chatSessionId) {
+        chatState = 'rating';
+        liveChatShowScreen('rating');
+        document.getElementById('chat-header-status').textContent = 'Ended';
+        document.getElementById('chat-end-btn').style.display = 'none';
+      }
+      if (typeof echActiveSessionId !== 'undefined' && data.sessionId === echActiveSessionId) {
+        refreshExpertChatList();
+      }
+    });
+
+    chatSocket.on('chat:transferred', (data) => {
+      if (data.sessionId === chatSessionId) {
+        document.getElementById('chat-header-status').textContent = 'Transferred to ' + data.toExpertName;
+      }
+    });
+
+    // Expert events
+    chatSocket.on('chat:new_request', () => { refreshExpertChatList(); });
+    chatSocket.on('chat:request_claimed', () => { refreshExpertChatList(); });
+    chatSocket.on('chat:auto_assigned', (data) => {
+      chatSocket.emit('chat:join', { sessionId: data.sessionId });
+      refreshExpertChatList();
+    });
+    chatSocket.on('chat:transfer_incoming', (data) => {
+      chatSocket.emit('chat:join', { sessionId: data.sessionId });
+      refreshExpertChatList();
+    });
+    chatSocket.on('chat:direct_message', () => { /* could show notification */ });
+    chatSocket.on('presence_update', (data) => {
+      const el = document.getElementById('chat-experts-online');
+      if (el) el.textContent = (data.onlineExperts?.length || 0) + ' expert(s) online';
+      const echCount = document.getElementById('ech-waiting-count');
+      if (echCount) updateExpertWaitingCount();
+    });
+  }
+
+  function liveChatShowScreen(screen) {
+    ['chat-start', 'chat-qualify-screen', 'chat-queue-screen', 'chat-active-screen', 'chat-rating-screen'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
+    const map = { idle: 'chat-start', qualifying: 'chat-qualify-screen', queued: 'chat-queue-screen', active: 'chat-active-screen', rating: 'chat-rating-screen' };
+    const el = document.getElementById(map[screen] || map.idle);
+    if (el) el.style.display = 'flex';
+    chatState = screen;
+  }
+
+  async function liveChatStart() {
+    const desc = (document.getElementById('chat-start-desc')?.value || '').trim();
+    if (!desc) { document.getElementById('chat-start-desc').focus(); return; }
+
+    initChatSocket();
+
+    // Show qualification questions
+    try {
+      const resp = await fetch(`/api/chat/${tenant}/qualification/questions`, {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token'), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ problemDescription: desc })
+      });
+      const data = await resp.json();
+      if (data.success && data.questions?.length > 0) {
+        renderQualificationQuestions(data.questions);
+        liveChatShowScreen('qualifying');
         return;
       }
-      addAI('I can help you raise a support request. Just say "raise" to get started, or click "Raise Request" in the sidebar.');
-      return;
-    }
-    if (pending==='title') {
-      document.getElementById('rq-title').value = text;
-      pending = 'desc';
-      addAI('Thanks. Please describe the issue.');
-      return;
-    }
-    if (pending==='desc') {
-      document.getElementById('rq-desc').value = text;
-      pending='priority';
-      addAI('Set a priority? (Low/Medium/High/Critical). You can say "skip".');
-      return;
-    }
-    if (pending==='priority') {
-      if (t==='skip' || !/(low|medium|high|critical)/.test(t)) {
-        document.getElementById('rq-priority').value='';
-        addAI('Skipping priority. Link a CMDB Item? Reply with item name or "skip".');
-        pending='item';
-        return;
-      }
-      const priorityMap = {low:'Low', medium:'Medium', high:'High', critical:'Critical'};
-      const p = /critical/.test(t)?'critical':(/high/.test(t)?'high':(/low/.test(t)?'low':'medium'));
-      document.getElementById('rq-priority').value=p;
-      addAI('Priority set to '+priorityMap[p]+'. Link a CMDB Item? Reply with item name or "skip".');
-      pending='item';
-      return;
-    }
-    if (pending==='item') {
-      if (t==='skip') {
-        document.getElementById('rq-item').value='';
-        addAI('Skipping item. Link a CI? You can say "skip".');
-        pending='ci';
-        return;
-      }
-      const pool = CMDB_ITEMS.filter(i => role!=='customer' || !tenant || i.customer===tenant);
-      const hit = pool.find(i => (i.name||'').toLowerCase().includes(t));
-      if (hit) {
-        document.getElementById('rq-item').value = hit.cmdb_id;
-        const cies = CIS_BY_ITEM[hit.cmdb_id]||[];
-        const sCI=document.getElementById('rq-ci');
-        sCI.innerHTML='<option value="">—</option>'+cies.map(ci=>'<option value="'+ci.ci_id+'">'+ci.name+'</option>').join('');
-        addAI('Linked to item: '+hit.name+'. Do you want to link a CI? Reply with CI name or "skip".');
-        pending='ci';
-        return;
+    } catch (e) { console.warn('[Chat] Qualification error:', e); }
+
+    // Fallback: skip qualification
+    liveChatStartSession(desc);
+  }
+
+  function renderQualificationQuestions(questions) {
+    const container = document.getElementById('chat-qualify-questions');
+    if (!container) return;
+    container.innerHTML = '';
+    questions.forEach(q => {
+      const div = document.createElement('div');
+      div.className = 'q-item';
+      let inputHtml = '';
+      if (q.type === 'select') {
+        inputHtml = `<select id="qq-${q.id}" class="input" style="font-size:13px;padding:6px"><option value="">-- Select --</option>${q.options.map(o => `<option value="${o}">${o}</option>`).join('')}</select>`;
+      } else if (q.type === 'asset_search') {
+        inputHtml = `<input id="qq-${q.id}" class="input" style="font-size:13px;padding:6px" placeholder="${q.hint || 'Search...'}" oninput="searchQualAssets(this.value)"><div id="qq-asset-results" style="font-size:12px;margin-top:4px"></div>`;
       } else {
-        addAI('Hmm, I did not find that item. Try a different name or say "skip".');
-        return;
+        inputHtml = `<input id="qq-${q.id}" class="input" style="font-size:13px;padding:6px" placeholder="Type here...">`;
       }
-    }
-    if (pending==='ci') {
-      if (t==='skip') {
-        document.getElementById('rq-ci').value='';
-        pending=null;
-        addAI('All set. Press "Submit request" to create the ticket.');
-        return;
-      }
-      const itemId = document.getElementById('rq-item').value;
-      const cies = CIS_BY_ITEM[itemId]||[];
-      const hit = cies.find(ci => (ci.name||'').toLowerCase().includes(t));
-      if (hit) {
-        document.getElementById('rq-ci').value = hit.ci_id;
-        pending=null;
-        addAI('Linked CI: '+hit.name+'. You can now press "Submit request".');
-        return;
+      div.innerHTML = `<div class="q-label">${q.question}</div>${inputHtml}`;
+      container.appendChild(div);
+    });
+  }
+
+  let qualAssetSelected = null;
+  async function searchQualAssets(q) {
+    if (q.length < 2) { document.getElementById('qq-asset-results').innerHTML = ''; return; }
+    try {
+      const resp = await fetch(`/api/chat/${tenant}/qualification/search-assets?q=${encodeURIComponent(q)}`, {
+        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+      });
+      const data = await resp.json();
+      const container = document.getElementById('qq-asset-results');
+      if (data.items?.length > 0) {
+        container.innerHTML = data.items.map(it => `<div style="padding:4px 6px;cursor:pointer;border-radius:4px;hover:var(--table-header)" onclick="selectQualAsset(${it.id},'${(it.asset_name||'').replace(/'/g,'\\\'')}')">${it.asset_name} (${it.asset_category||''})</div>`).join('');
       } else {
-        addAI('Couldn\'t find that CI. Try again or say "skip".');
+        container.innerHTML = '<div style="color:var(--muted);padding:4px">No assets found</div>';
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  function selectQualAsset(id, name) {
+    qualAssetSelected = { id, name };
+    const inp = document.getElementById('qq-asset');
+    if (inp) inp.value = name;
+    document.getElementById('qq-asset-results').innerHTML = `<div style="color:green">Selected: ${name}</div>`;
+  }
+
+  async function liveChatSubmitQualification() {
+    const desc = (document.getElementById('chat-start-desc')?.value || '').trim();
+    const answers = {};
+    ['category', 'priority', 'details'].forEach(id => {
+      const el = document.getElementById('qq-' + id);
+      if (el) answers[id] = el.value || 'skip';
+    });
+    answers.asset = qualAssetSelected || 'skip';
+
+    try {
+      const resp = await fetch(`/api/chat/${tenant}/qualification/process`, {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token'), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ answers, problemDescription: desc })
+      });
+      const data = await resp.json();
+      window._chatQualData = data;
+    } catch (e) { console.warn('[Chat] Qualification process error:', e); }
+
+    liveChatStartSession(desc);
+  }
+
+  function liveChatSkipQualification() {
+    const desc = (document.getElementById('chat-start-desc')?.value || '').trim();
+    window._chatQualData = { skippedCount: 4, penaltyMinutes: 240 };
+    liveChatStartSession(desc);
+  }
+
+  function liveChatStartSession(desc) {
+    if (!chatSocket || !chatSocket.connected) initChatSocket();
+    chatSocket.emit('chat:start', { problemDescription: desc }, (resp) => {
+      if (resp.success) {
+        chatSessionId = resp.sessionId;
+        document.getElementById('chat-queue-pos').textContent = resp.queuePosition;
+        liveChatShowScreen('queued');
+        document.getElementById('chat-header-status').textContent = 'In queue #' + resp.queuePosition;
+      }
+    });
+  }
+
+  function liveChatSend() {
+    const inp = document.getElementById('chat-msg-input');
+    const text = (inp?.value || '').trim();
+    if (!text || !chatSessionId) return;
+    inp.value = '';
+    chatSocket.emit('chat:message', { sessionId: chatSessionId, content: text }, (resp) => {
+      if (!resp.success) console.warn('[Chat] Send failed');
+    });
+    // Typing stop
+    chatSocket.emit('chat:typing', { sessionId: chatSessionId });
+  }
+
+  function appendChatMessage(msg) {
+    const container = document.getElementById('chat-messages');
+    if (!container) return;
+    const div = document.createElement('div');
+    if (msg.senderRole === 'system') {
+      div.className = 'chat-msg system';
+      div.textContent = msg.content;
+    } else {
+      const isMe = msg.senderUserId == (window.currentUser&&window.currentUser.id);
+      div.className = 'chat-msg ' + (isMe ? 'outgoing' : 'incoming');
+      let html = '';
+      if (!isMe) html += `<div class="msg-sender">${msg.senderName || msg.senderRole}</div>`;
+      if (msg.messageType === 'file' && msg.fileUrl) {
+        html += `<a class="msg-file" href="${msg.fileUrl}" target="_blank">📄 ${msg.fileName || 'File'}</a>`;
+      } else {
+        html += `<div>${(msg.content || '').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`;
+      }
+      html += `<div class="msg-time">${new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>`;
+      div.innerHTML = html;
+    }
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+  }
+
+  // Typing indicator for customer chat
+  (function() {
+    let lastTyping = 0;
+    const inp = document.getElementById('chat-msg-input');
+    if (inp) inp.addEventListener('input', () => {
+      if (chatSocket && chatSessionId && Date.now() - lastTyping > 2000) {
+        chatSocket.emit('chat:typing', { sessionId: chatSessionId });
+        lastTyping = Date.now();
+      }
+    });
+  })();
+
+  async function liveChatUploadFile(input) {
+    if (!input.files?.length || !chatSessionId) return;
+    const formData = new FormData();
+    formData.append('file', input.files[0]);
+    try {
+      const resp = await fetch(`/api/chat/${tenant}/sessions/${chatSessionId}/upload`, {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') },
+        body: formData
+      });
+      const data = await resp.json();
+      if (data.success) {
+        chatSocket.emit('chat:message', {
+          sessionId: chatSessionId, content: data.message.fileName, messageType: 'file',
+          fileUrl: data.message.fileUrl, fileName: data.message.fileName, fileSize: data.message.fileSize
+        });
+      }
+    } catch (e) { console.warn('[Chat] Upload error:', e); }
+    input.value = '';
+  }
+
+  function liveChatEnd() {
+    if (!chatSocket || !chatSessionId) return;
+    chatSocket.emit('chat:close', { sessionId: chatSessionId });
+  }
+
+  function liveChatRate(stars) {
+    if (!chatSocket || !chatSessionId) return;
+    const starEls = document.getElementById('chat-stars')?.children;
+    if (starEls) for (let i = 0; i < 5; i++) starEls[i].textContent = i < stars ? '★' : '☆';
+    chatSocket.emit('chat:rate', { sessionId: chatSessionId, rating: stars }, () => {
+      setTimeout(liveChatClose, 1000);
+    });
+  }
+
+  function liveChatClose() {
+    chatSessionId = null;
+    chatState = 'idle';
+    liveChatShowScreen('idle');
+    document.getElementById('chat-header-status').textContent = '';
+    document.getElementById('chat-end-btn').style.display = 'none';
+    document.getElementById('chat-messages').innerHTML = '';
+    document.getElementById('chat-start-desc').value = '';
+    chatEl.style.display = 'none';
+    qualAssetSelected = null;
+    window._chatQualData = null;
+  }
+
+  // ---- Expert Chat Functions ----
+  let echActiveSessionId = null;
+  let echTab = 'waiting';
+  let echCannedResponses = [];
+
+  function switchExpertChatTab(tab) {
+    echTab = tab;
+    ['waiting', 'active', 'history'].forEach(t => {
+      const btn = document.getElementById('ech-tab-' + t);
+      if (btn) btn.style.borderBottom = t === tab ? '2px solid var(--primary)' : 'none';
+    });
+    refreshExpertChatList();
+  }
+
+  async function refreshExpertChatList() {
+    const list = document.getElementById('ech-list');
+    if (!list) return;
+    try {
+      let status = echTab === 'waiting' ? 'waiting' : (echTab === 'active' ? 'active' : 'closed');
+      const resp = await fetch(`/api/chat/${tenant}/sessions?status=${status}&limit=20`, {
+        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+      });
+      const data = await resp.json();
+      if (!data.success || !data.sessions?.length) {
+        list.innerHTML = '<div class="ech-empty">No ' + echTab + ' chats</div>';
         return;
       }
+      list.innerHTML = data.sessions.map(s => {
+        const name = s.customer_name || 'Customer #' + s.customer_user_id;
+        const preview = (s.last_message || '').substring(0, 40);
+        const isActive = s.id === echActiveSessionId;
+        return `<div class="ech-item${isActive ? ' active' : ''}" onclick="expertChatOpen(${s.id})">
+          <div><div class="ech-name">${name}</div><div class="ech-preview">${preview || 'No messages'}</div></div>
+          ${echTab === 'waiting' ? '<button class="btn primary" onclick="event.stopPropagation();expertChatClaim(' + s.id + ')" style="padding:4px 10px;font-size:11px">Claim</button>' : ''}
+          ${s.unread_count > 0 ? '<span class="ech-badge">' + s.unread_count + '</span>' : ''}
+        </div>`;
+      }).join('');
+
+      updateExpertWaitingCount();
+    } catch (e) { console.warn('[Chat] Expert list error:', e); }
+  }
+
+  async function updateExpertWaitingCount() {
+    try {
+      const resp = await fetch(`/api/chat/${tenant}/queue`, {
+        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+      });
+      const data = await resp.json();
+      const badge = document.getElementById('ech-waiting-count');
+      if (badge && data.success) {
+        const cnt = data.queue?.length || 0;
+        badge.textContent = cnt;
+        badge.style.display = cnt > 0 ? '' : 'none';
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  function expertChatClaim(sessionId) {
+    if (!chatSocket) initChatSocket();
+    chatSocket.emit('chat:claim', { sessionId }, (resp) => {
+      if (resp.success) {
+        chatSocket.emit('chat:join', { sessionId });
+        echActiveSessionId = sessionId;
+        switchExpertChatTab('active');
+        expertChatOpen(sessionId);
+      }
+    });
+  }
+
+  async function expertChatOpen(sessionId) {
+    echActiveSessionId = sessionId;
+    document.getElementById('ech-window').style.display = 'flex';
+
+    // Join socket room
+    if (chatSocket) chatSocket.emit('chat:join', { sessionId });
+
+    // Load session detail
+    try {
+      const resp = await fetch(`/api/chat/${tenant}/sessions/${sessionId}`, {
+        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+      });
+      const data = await resp.json();
+      if (data.success) {
+        document.getElementById('ech-window-name').textContent = data.session.customer_name || 'Customer';
+        document.getElementById('ech-window-status').textContent = data.session.status;
+        const container = document.getElementById('ech-messages');
+        container.innerHTML = '';
+        (data.messages || []).forEach(m => appendExpertChatMessage(m));
+
+        // Mark as read
+        if (chatSocket) chatSocket.emit('chat:read', { sessionId });
+      }
+    } catch (e) { console.warn('[Chat] Open session error:', e); }
+
+    // Load canned responses
+    loadCannedResponses();
+    refreshExpertChatList();
+  }
+
+  function appendExpertChatMessage(msg) {
+    const container = document.getElementById('ech-messages');
+    if (!container) return;
+    const div = document.createElement('div');
+    if (msg.sender_role === 'system' || msg.senderRole === 'system') {
+      div.className = 'chat-msg system';
+      div.textContent = msg.content;
+    } else {
+      const role = msg.sender_role || msg.senderRole;
+      const isCustomer = role === 'customer';
+      div.className = 'chat-msg ' + (isCustomer ? 'incoming' : 'outgoing');
+      let html = `<div class="msg-sender">${msg.sender_name || msg.senderName || role}</div>`;
+      if ((msg.message_type || msg.messageType) === 'file' && (msg.file_url || msg.fileUrl)) {
+        html += `<a class="msg-file" href="${msg.file_url || msg.fileUrl}" target="_blank">📄 ${msg.file_name || msg.fileName || 'File'}</a>`;
+      } else {
+        html += `<div>${((msg.content || '').replace(/</g, '&lt;').replace(/>/g, '&gt;'))}</div>`;
+      }
+      const time = msg.created_at || msg.createdAt;
+      if (time) html += `<div class="msg-time">${new Date(time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>`;
+      div.innerHTML = html;
     }
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+  }
+
+  async function loadCannedResponses() {
+    try {
+      const resp = await fetch(`/api/chat/${tenant}/canned-responses`, {
+        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+      });
+      const data = await resp.json();
+      echCannedResponses = data.responses || [];
+      const container = document.getElementById('ech-canned');
+      if (container) {
+        container.innerHTML = echCannedResponses.map(cr =>
+          `<button class="canned-resp-btn" onclick="expertChatUseCanned(${cr.id})">${cr.label}</button>`
+        ).join('');
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  function expertChatUseCanned(id) {
+    const cr = echCannedResponses.find(c => c.id === id);
+    if (!cr || !echActiveSessionId) return;
+    chatSocket.emit('chat:message', { sessionId: echActiveSessionId, content: cr.message });
+  }
+
+  function expertChatSend() {
+    const inp = document.getElementById('ech-msg-input');
+    const text = (inp?.value || '').trim();
+    if (!text || !echActiveSessionId) return;
+    inp.value = '';
+    chatSocket.emit('chat:message', { sessionId: echActiveSessionId, content: text });
+  }
+
+  async function expertChatUploadFile(input) {
+    if (!input.files?.length || !echActiveSessionId) return;
+    const formData = new FormData();
+    formData.append('file', input.files[0]);
+    try {
+      const resp = await fetch(`/api/chat/${tenant}/sessions/${echActiveSessionId}/upload`, {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') },
+        body: formData
+      });
+      const data = await resp.json();
+      if (data.success) {
+        chatSocket.emit('chat:message', {
+          sessionId: echActiveSessionId, content: data.message.fileName, messageType: 'file',
+          fileUrl: data.message.fileUrl, fileName: data.message.fileName, fileSize: data.message.fileSize
+        });
+      }
+    } catch (e) { console.warn('[Chat] Upload error:', e); }
+    input.value = '';
+  }
+
+  function expertChatClose() {
+    if (!chatSocket || !echActiveSessionId) return;
+    chatSocket.emit('chat:close', { sessionId: echActiveSessionId }, () => {
+      document.getElementById('ech-window').style.display = 'none';
+      echActiveSessionId = null;
+      refreshExpertChatList();
+    });
+  }
+
+  async function expertChatCreateTicket() {
+    if (!echActiveSessionId) return;
+    const title = prompt('Ticket title:');
+    if (!title) return;
+    try {
+      const resp = await fetch(`/api/chat/${tenant}/sessions/${echActiveSessionId}/create-ticket`, {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token'), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, description: 'Created from live chat session #' + echActiveSessionId, priority: 'medium' })
+      });
+      const data = await resp.json();
+      if (data.success) {
+        showToast('Ticket #' + data.ticketId + ' created', 'success');
+      }
+    } catch (e) { console.warn('[Chat] Create ticket error:', e); }
+  }
+
+  async function expertChatTransfer() {
+    if (!echActiveSessionId) return;
+    // Get online experts
+    try {
+      const resp = await fetch(`/api/chat/${tenant}/online-experts`, {
+        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+      });
+      const data = await resp.json();
+      const experts = (data.experts || []).filter(e => e.userId != (window.currentUser&&window.currentUser.id));
+      if (experts.length === 0) { showToast('No other experts online', 'warn'); return; }
+      const name = prompt('Transfer to expert:\n' + experts.map((e, i) => (i + 1) + '. ' + e.username).join('\n') + '\n\nEnter number:');
+      const idx = parseInt(name) - 1;
+      if (isNaN(idx) || idx < 0 || idx >= experts.length) return;
+      const reason = prompt('Reason for transfer (optional):') || '';
+      chatSocket.emit('chat:transfer', { sessionId: echActiveSessionId, targetExpertId: experts[idx].userId, reason }, (resp) => {
+        if (resp.success) {
+          document.getElementById('ech-window').style.display = 'none';
+          echActiveSessionId = null;
+          refreshExpertChatList();
+          showToast('Chat transferred', 'success');
+        }
+      });
+    } catch (e) { /* ignore */ }
+  }
+
+  // Initialize chat socket on login
+  function toggleChatTranscript() {
+    const el = document.getElementById('td-chat-transcript');
+    const icon = document.getElementById('chat-transcript-toggle');
+    if (el) {
+      const show = el.style.display === 'none';
+      el.style.display = show ? 'block' : 'none';
+      if (icon) icon.textContent = show ? '▲ Hide' : '▼ Show';
+    }
+  }
+
+  async function loadChatTranscript(sessionId) {
+    const container = document.getElementById('td-chat-transcript');
+    if (!container) return;
+    container.innerHTML = '<div style="color:var(--muted);text-align:center;padding:12px">Loading transcript...</div>';
+    try {
+      const resp = await fetch(`/api/chat/${tenant}/sessions/${sessionId}/transcript`, {
+        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+      });
+      const data = await resp.json();
+      if (data.success && data.messages?.length > 0) {
+        container.innerHTML = data.messages.map(m => {
+          const time = new Date(m.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+          const sender = m.sender_name || m.sender_role;
+          const role = m.sender_role;
+          const colors = { customer: '#3b82f6', expert: '#8b5cf6', system: '#6b7280', ai: '#f59e0b' };
+          const color = colors[role] || '#6b7280';
+          if (role === 'system') {
+            return `<div style="padding:4px 8px;font-size:11px;color:var(--muted);text-align:center">${m.content}</div>`;
+          }
+          const content = m.message_type === 'file' ? `📄 <a href="${m.file_url}" target="_blank">${m.file_name}</a>` : (m.content || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+          return `<div style="padding:6px 10px;margin-bottom:4px;border-left:3px solid ${color};border-radius:6px;background:${color}08">
+            <strong style="font-size:11px;color:${color}">${sender}</strong> <span style="font-size:10px;color:var(--muted)">${time}</span>
+            <div style="margin-top:2px">${content}</div>
+          </div>`;
+        }).join('');
+      } else {
+        container.innerHTML = '<div style="color:var(--muted);text-align:center;padding:12px">No messages in this session</div>';
+      }
+    } catch (e) {
+      container.innerHTML = '<div style="color:var(--muted);text-align:center;padding:12px">Failed to load transcript</div>';
+    }
+  }
+
+  function initChatOnLogin() {
+    setTimeout(() => {
+      initChatSocket();
+      const r = window.role || role;
+      if (r === 'expert' || r === 'admin') {
+        refreshExpertChatList();
+      }
+    }, 1000);
   }
 
 
