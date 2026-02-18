@@ -9,170 +9,12 @@ const {
   readOperationsLimiter
 } = require('../middleware/rateLimiter');
 const {
-  exchangeCodeForTokens,
   getValidAccessToken,
-  buildXOAuth2Token,
-  MS_CLIENT_ID
+  buildXOAuth2Token
 } = require('../services/oauth2-helper');
 
 // ============================================================================
-// OAuth2 routes (before verifyToken - browser redirects, not XHR)
-// ============================================================================
-
-// GET /:tenantId/oauth2/authorize - Redirect user to Microsoft login
-// Must be before verifyToken since browser navigates here directly
-router.get('/:tenantId/oauth2/authorize', async (req, res) => {
-  try {
-    const { tenantId } = req.params;
-    const { email, token } = req.query;
-    const tenantCode = tenantId.toLowerCase().replace(/[^a-z0-9]/g, '_');
-
-    // Verify JWT from query param (can't use Authorization header in browser redirect)
-    if (!token) {
-      return res.status(401).send('Authentication required');
-    }
-    const jwt = require('jsonwebtoken');
-    try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      if (decoded.role !== 'admin') {
-        return res.status(403).send('Admin access required');
-      }
-    } catch (e) {
-      return res.status(401).send('Invalid or expired token');
-    }
-
-    // Optionally store the email they want to connect
-    if (email) {
-      const connection = await getTenantConnection(tenantCode);
-      try {
-        await connection.query(
-          'UPDATE email_ingest_settings SET oauth2_email = ? ORDER BY id ASC LIMIT 1',
-          [email]
-        );
-      } finally {
-        connection.release();
-      }
-    }
-
-    const redirectUri = `${req.protocol}://${req.get('host')}/api/email-ingest/oauth2/callback`;
-    const nonce = Date.now().toString(36);
-    const state = `${tenantCode}:${nonce}`;
-
-    const authUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?` +
-      `client_id=${MS_CLIENT_ID}` +
-      `&response_type=code` +
-      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-      `&scope=${encodeURIComponent('https://outlook.office365.com/IMAP.AccessAsUser.All offline_access')}` +
-      `&state=${encodeURIComponent(state)}` +
-      `&prompt=consent` +
-      (email ? `&login_hint=${encodeURIComponent(email)}` : '');
-
-    res.redirect(authUrl);
-  } catch (error) {
-    console.error('[OAuth2] Authorize error:', error);
-    res.status(500).send('OAuth2 authorization failed: ' + error.message);
-  }
-});
-
-// GET /api/email-ingest/oauth2/callback - Microsoft redirects here after consent
-router.get('/oauth2/callback', async (req, res) => {
-  try {
-    const { code, state, error, error_description } = req.query;
-
-    if (error) {
-      console.error(`[OAuth2] Callback error: ${error} - ${error_description}`);
-      return res.send(buildCallbackHTML(false, error_description || error));
-    }
-
-    // Admin consent flow returns admin_consent=True but no code — that's success
-    if (req.query.admin_consent === 'True') {
-      return res.send(buildCallbackHTML(true, null, '', true));
-    }
-
-    if (!code || !state) {
-      return res.send(buildCallbackHTML(false, 'Missing authorization code or state'));
-    }
-
-    // state = tenantCode:nonce
-    const parts = state.split(':');
-    if (parts.length < 2) {
-      return res.send(buildCallbackHTML(false, 'Invalid state parameter'));
-    }
-    const tenantCode = parts[0];
-
-    const redirectUri = `${req.protocol}://${req.get('host')}/api/email-ingest/oauth2/callback`;
-
-    // Exchange code for tokens
-    const tokens = await exchangeCodeForTokens(code, redirectUri);
-
-    // Decode the access token to get the user's email (JWT payload)
-    let email = '';
-    try {
-      const payload = JSON.parse(Buffer.from(tokens.access_token.split('.')[1], 'base64').toString());
-      email = payload.upn || payload.unique_name || payload.preferred_username || '';
-    } catch (e) {
-      console.warn('[OAuth2] Could not decode email from token, will use stored email');
-    }
-
-    const tokenExpiry = new Date(Date.now() + (tokens.expires_in || 3599) * 1000);
-
-    // Store tokens in tenant DB
-    const connection = await getTenantConnection(tenantCode);
-    try {
-      await connection.query(
-        `UPDATE email_ingest_settings SET
-          auth_method = 'oauth2',
-          oauth2_access_token = ?,
-          oauth2_refresh_token = ?,
-          oauth2_token_expiry = ?,
-          oauth2_email = COALESCE(NULLIF(?, ''), oauth2_email),
-          updated_at = NOW()
-        ORDER BY id ASC LIMIT 1`,
-        [tokens.access_token, tokens.refresh_token, tokenExpiry, email]
-      );
-      console.log(`[OAuth2] Tokens stored for tenant ${tenantCode}, email: ${email}`);
-    } finally {
-      connection.release();
-    }
-
-    return res.send(buildCallbackHTML(true, null, email));
-  } catch (error) {
-    console.error('[OAuth2] Callback error:', error);
-    return res.send(buildCallbackHTML(false, error.message));
-  }
-});
-
-/**
- * Build HTML page shown in the OAuth popup after callback
- */
-function buildCallbackHTML(success, errorMessage, email, adminConsent) {
-  const message = adminConsent
-    ? 'Admin consent granted. You can now close this window and click "Connect with Microsoft".'
-    : success
-    ? `Connected as ${email || 'Microsoft 365 account'}`
-    : `Connection failed: ${errorMessage}`;
-  const color = success ? '#16a34a' : '#b91c1c';
-
-  return `<!DOCTYPE html>
-<html><head><title>ServiFlow - Microsoft 365</title></head>
-<body style="font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#f8fafc">
-  <div style="text-align:center;max-width:400px;padding:32px">
-    <div style="font-size:48px;margin-bottom:16px">${success ? '&#9989;' : '&#10060;'}</div>
-    <h2 style="color:${color};margin:0 0 8px">${success ? 'Connected!' : 'Connection Failed'}</h2>
-    <p style="color:#64748b">${message}</p>
-    <p style="color:#94a3b8;font-size:14px">This window will close automatically...</p>
-  </div>
-  <script>
-    if (window.opener) {
-      window.opener.postMessage({ type: 'oauth2-callback', success: ${success}, email: '${email || ''}', error: '${(errorMessage || '').replace(/'/g, "\\'")}' }, '*');
-      setTimeout(() => window.close(), 2000);
-    }
-  </script>
-</body></html>`;
-}
-
-// ============================================================================
-// Authenticated routes
+// All routes require authentication
 // ============================================================================
 router.use(verifyToken);
 
@@ -265,7 +107,8 @@ router.put('/:tenantId/settings', requireRole(['admin']), writeOperationsLimiter
       username,
       password,
       check_interval_minutes,
-      auth_method
+      auth_method,
+      oauth2_email
     } = req.body;
 
     const tenantCode = tenantId.toLowerCase().replace(/[^a-z0-9]/g, '_');
@@ -284,9 +127,9 @@ router.put('/:tenantId/settings', requireRole(['admin']), writeOperationsLimiter
       if (existingSettings.length === 0) {
         // Insert new settings
         await connection.query(`
-          INSERT INTO email_ingest_settings (enabled, server_type, server_host, server_port, use_ssl, username, password, check_interval_minutes, auth_method)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, [enabled, server_type, server_host, server_port, use_ssl, username, actualPassword, check_interval_minutes, auth_method || 'basic']);
+          INSERT INTO email_ingest_settings (enabled, server_type, server_host, server_port, use_ssl, username, password, check_interval_minutes, auth_method, oauth2_email)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [enabled, server_type, server_host, server_port, use_ssl, username, actualPassword, check_interval_minutes, auth_method || 'basic', oauth2_email || null]);
       } else {
         // Update existing settings
         await connection.query(`
@@ -300,9 +143,10 @@ router.put('/:tenantId/settings', requireRole(['admin']), writeOperationsLimiter
             password = COALESCE(?, password),
             check_interval_minutes = COALESCE(?, check_interval_minutes),
             auth_method = COALESCE(?, auth_method),
+            oauth2_email = COALESCE(?, oauth2_email),
             updated_at = NOW()
           WHERE id = ?
-        `, [enabled, server_type, server_host, server_port, use_ssl, username, actualPassword, check_interval_minutes, auth_method || null, existingSettings[0].id]);
+        `, [enabled, server_type, server_host, server_port, use_ssl, username, actualPassword, check_interval_minutes, auth_method || null, oauth2_email || null, existingSettings[0].id]);
       }
 
       // Fetch updated settings to return current state
@@ -353,10 +197,10 @@ router.post('/:tenantId/process-now', requireRole(['admin']), writeOperationsLim
 });
 
 // ============================================================================
-// OAuth2 authenticated endpoints
+// Microsoft 365 endpoints
 // ============================================================================
 
-// GET /:tenantId/oauth2/status - Get OAuth2 connection status
+// GET /:tenantId/oauth2/status - Get M365 connection status
 router.get('/:tenantId/oauth2/status', readOperationsLimiter, async (req, res) => {
   try {
     const { tenantId } = req.params;
@@ -365,7 +209,7 @@ router.get('/:tenantId/oauth2/status', readOperationsLimiter, async (req, res) =
 
     try {
       const [rows] = await connection.query(
-        'SELECT auth_method, oauth2_email, oauth2_token_expiry, oauth2_refresh_token IS NOT NULL as has_refresh_token FROM email_ingest_settings ORDER BY id ASC LIMIT 1'
+        'SELECT auth_method, oauth2_email, oauth2_token_expiry FROM email_ingest_settings ORDER BY id ASC LIMIT 1'
       );
 
       if (rows.length === 0) {
@@ -373,7 +217,7 @@ router.get('/:tenantId/oauth2/status', readOperationsLimiter, async (req, res) =
       }
 
       const settings = rows[0];
-      const connected = settings.auth_method === 'oauth2' && settings.has_refresh_token;
+      const connected = settings.auth_method === 'oauth2' && !!settings.oauth2_email;
 
       res.json({
         success: true,
@@ -390,7 +234,7 @@ router.get('/:tenantId/oauth2/status', readOperationsLimiter, async (req, res) =
   }
 });
 
-// POST /:tenantId/oauth2/disconnect - Remove OAuth2 tokens
+// POST /:tenantId/oauth2/disconnect - Remove M365 configuration
 router.post('/:tenantId/oauth2/disconnect', requireRole(['admin']), writeOperationsLimiter, async (req, res) => {
   try {
     const { tenantId } = req.params;
@@ -435,10 +279,10 @@ router.post('/:tenantId/test-connection', requireRole(['admin']), writeOperation
 
       const config = settings[0];
 
-      // OAuth2 test connection
+      // OAuth2 test connection (client credentials flow)
       if (config.auth_method === 'oauth2') {
-        if (!config.oauth2_refresh_token) {
-          return res.json({ success: false, message: 'Microsoft 365 not connected. Click "Connect with Microsoft" first.' });
+        if (!config.oauth2_email) {
+          return res.json({ success: false, message: 'Microsoft 365 email address not configured. Enter the mailbox email and save settings first.' });
         }
 
         const { accessToken, email } = await getValidAccessToken(connection, tenantCode);
@@ -458,7 +302,7 @@ router.post('/:tenantId/test-connection', requireRole(['admin']), writeOperation
           details: {
             server: 'outlook.office365.com',
             port: 993,
-            type: 'OAuth2 / XOAUTH2',
+            type: 'OAuth2 / Client Credentials',
             email: email,
             totalMessages: result.totalMessages,
             unseenMessages: result.unseenMessages
@@ -501,7 +345,7 @@ router.post('/:tenantId/test-connection', requireRole(['admin']), writeOperation
       details: {
         error: error.message,
         hint: error.message.includes('LOGIN failed') || error.message.includes('AUTHENTICATE failed')
-          ? 'Authentication rejected by server. For Microsoft 365: use the "Connect with Microsoft" button for OAuth2 authentication. For Gmail: ensure IMAP is enabled and use an App Password if MFA is on.'
+          ? 'Authentication rejected by server. For Microsoft 365: ensure the Application Access Policy has been configured in Exchange Online (see setup instructions). For Gmail: ensure IMAP is enabled and use an App Password if MFA is on.'
           : error.message.includes('wrong version')
           ? 'SSL/TLS mismatch. Use port 993 with SSL enabled, or port 143 without SSL.'
           : undefined

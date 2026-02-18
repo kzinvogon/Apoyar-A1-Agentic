@@ -4768,19 +4768,12 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               </div>
             </div>
 
-            <!-- Microsoft 365 OAuth2 fields -->
+            <!-- Microsoft 365 fields (Client Credentials / App-Only) -->
             <div id="email-m365-fields" style="display:none">
               <div class="mb-12">
-                <label class="subtitle">Microsoft 365 Email Address</label>
+                <label class="subtitle">Mailbox Email Address</label>
                 <input id="email-m365-address" class="input" type="email" placeholder="e.g., support@yourcompany.com"/>
-              </div>
-
-              <div class="mb-12" style="display:flex;gap:8px;flex-wrap:wrap">
-                <button class="btn" onclick="connectMicrosoft365()" style="background:#0078d4;color:#fff;border:none;padding:10px 20px;display:flex;align-items:center;gap:8px">
-                  <svg width="20" height="20" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg>
-                  Connect with Microsoft
-                </button>
-                <button class="btn" onclick="connectMicrosoft365(true)" style="padding:10px 16px;font-size:13px" title="Use this if 'Approval required' appears. Sign in as your M365 Global Admin to grant org-wide consent.">Admin Setup</button>
+                <div class="subtitle" style="color:#6b7280;font-size:12px;margin-top:4px">The shared mailbox or user mailbox to monitor for incoming tickets.</div>
               </div>
 
               <div id="email-m365-status" class="mb-12" style="display:none">
@@ -4789,6 +4782,17 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
                   <span id="email-m365-status-text" class="subtitle" style="color:#15803d"></span>
                   <button class="btn" onclick="disconnectMicrosoft365()" style="margin-left:auto;font-size:12px;padding:4px 12px">Disconnect</button>
                 </div>
+              </div>
+
+              <div class="mb-12" style="background:#eff6ff;padding:14px;border-radius:6px;border-left:4px solid #3b82f6;font-size:13px">
+                <strong>One-time setup required by your M365 admin:</strong>
+                <ol style="margin:8px 0 0;padding-left:20px;line-height:1.7">
+                  <li>Create a mail-enabled security group in Exchange Admin and add the target mailbox</li>
+                  <li>Run in Exchange Online PowerShell:<br>
+                    <code style="background:#dbeafe;padding:2px 6px;border-radius:3px;font-size:12px">New-ApplicationAccessPolicy -AppId "05c4ccac-2615-405f-af73-2ede3d344080" -PolicyScopeGroupId "YourGroupName" -AccessRight RestrictAccess</code>
+                  </li>
+                  <li>Save settings above, then click <strong>Test Connection</strong> to verify</li>
+                </ol>
               </div>
             </div>
 
@@ -14104,7 +14108,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       const statusDot = document.getElementById('email-m365-status-dot');
       if (data.success && data.connected) {
         if (statusDiv) statusDiv.style.display = 'block';
-        if (statusText) statusText.textContent = 'Connected as ' + (data.email || 'Microsoft 365 account');
+        if (statusText) statusText.textContent = 'Configured: ' + (data.email || 'Microsoft 365 account');
         if (statusDot) statusDot.style.background = '#16a34a';
         const emailInput = document.getElementById('email-m365-address');
         if (emailInput && data.email) emailInput.value = data.email;
@@ -14114,36 +14118,6 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     } catch (e) {
       console.error('Error loading OAuth2 status:', e);
     }
-  }
-
-  function connectMicrosoft365(adminConsent) {
-    const email = document.getElementById('email-m365-address')?.value || '';
-    const tenantCode = window.currentUser?.tenantCode || 'apoyar';
-    const token = localStorage.getItem('token');
-
-    if (adminConsent) {
-      const adminUrl = 'https://login.microsoftonline.com/common/adminconsent?client_id=05c4ccac-2615-405f-af73-2ede3d344080&redirect_uri=' + encodeURIComponent(API_BASE + '/api/email-ingest/oauth2/callback');
-      window.open(adminUrl, 'ms365admin', 'width=600,height=700,scrollbars=yes');
-      showEmailIngestMessage('After granting admin consent, close the popup and click "Connect with Microsoft".');
-      return;
-    }
-
-    const url = `${API_BASE}/api/email-ingest/${tenantCode}/oauth2/authorize?email=${encodeURIComponent(email)}&token=${encodeURIComponent(token)}`;
-
-    const popup = window.open(url, 'ms365auth', 'width=600,height=700,scrollbars=yes');
-
-    // Listen for callback message from popup
-    window.addEventListener('message', function onMessage(event) {
-      if (event.data && event.data.type === 'oauth2-callback') {
-        window.removeEventListener('message', onMessage);
-        if (event.data.success) {
-          showEmailIngestMessage('Connected as ' + (event.data.email || 'Microsoft 365 account'));
-          loadOAuth2Status();
-        } else {
-          showEmailIngestError('Microsoft 365 connection failed: ' + (event.data.error || 'Unknown error'));
-        }
-      }
-    });
   }
 
   async function disconnectMicrosoft365() {
@@ -14261,8 +14235,14 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       payload.username = username;
       payload.password = password || undefined;
     } else {
-      // Microsoft 365 - just save enabled + interval, auth_method stays oauth2
+      // Microsoft 365 - save email address + auth_method
+      const m365Email = document.getElementById('email-m365-address')?.value || '';
+      if (enabled && !m365Email) {
+        showEmailIngestError('Please enter the Microsoft 365 mailbox email address');
+        return;
+      }
       payload.auth_method = 'oauth2';
+      payload.oauth2_email = m365Email;
     }
 
     try {
@@ -14294,6 +14274,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       if (data.success) {
         showEmailIngestMessage('Email ingest settings saved successfully!');
         setTimeout(() => hideEmailIngestMessages(), 3000);
+        if (currentEmailProvider === 'm365') loadOAuth2Status();
       } else {
         showEmailIngestError(data.message || 'Error saving email ingest settings');
       }

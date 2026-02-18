@@ -2,46 +2,32 @@ const https = require('https');
 
 const MS_CLIENT_ID = process.env.MS_OAUTH_CLIENT_ID || '05c4ccac-2615-405f-af73-2ede3d344080';
 const MS_CLIENT_SECRET = process.env.MS_OAUTH_CLIENT_SECRET || '';
-const MS_TOKEN_URL = 'https://login.microsoftonline.com/common/oauth2/v2.0/token';
 
 /**
- * Exchange an authorization code for tokens
+ * Get an access token using OAuth2 client credentials flow.
+ * Used for app-only access with IMAP.AccessAsApp permission.
+ * @param {string} tenantDomain - Azure AD tenant domain or ID (e.g., 'apoyar.eu')
  */
-async function exchangeCodeForTokens(code, redirectUri) {
+async function getClientCredentialsToken(tenantDomain) {
+  const tokenUrl = `https://login.microsoftonline.com/${tenantDomain}/oauth2/v2.0/token`;
+
   const params = new URLSearchParams({
     client_id: MS_CLIENT_ID,
     client_secret: MS_CLIENT_SECRET,
-    code,
-    redirect_uri: redirectUri,
-    grant_type: 'authorization_code',
-    scope: 'https://outlook.office365.com/IMAP.AccessAsUser.All offline_access'
+    grant_type: 'client_credentials',
+    scope: 'https://outlook.office365.com/.default'
   });
 
-  return postTokenRequest(params);
-}
-
-/**
- * Refresh an access token using a refresh token
- */
-async function refreshAccessToken(refreshToken) {
-  const params = new URLSearchParams({
-    client_id: MS_CLIENT_ID,
-    client_secret: MS_CLIENT_SECRET,
-    refresh_token: refreshToken,
-    grant_type: 'refresh_token',
-    scope: 'https://outlook.office365.com/IMAP.AccessAsUser.All offline_access'
-  });
-
-  return postTokenRequest(params);
+  return postTokenRequest(params, tokenUrl);
 }
 
 /**
  * POST to Microsoft token endpoint
  */
-function postTokenRequest(params) {
+function postTokenRequest(params, tokenUrl) {
   return new Promise((resolve, reject) => {
     const body = params.toString();
-    const url = new URL(MS_TOKEN_URL);
+    const url = new URL(tokenUrl);
 
     const options = {
       hostname: url.hostname,
@@ -77,43 +63,47 @@ function postTokenRequest(params) {
 }
 
 /**
- * Get a valid access token for a tenant, refreshing if expired.
- * Requires a DB connection to the tenant database.
+ * Get a valid access token for a tenant using client credentials.
+ * Caches the token in DB and fetches a new one when expired.
+ * @param {Object} connection - DB connection
+ * @param {string} tenantCode - Tenant code (for logging)
  */
 async function getValidAccessToken(connection, tenantCode) {
   const [rows] = await connection.query(
-    'SELECT oauth2_access_token, oauth2_refresh_token, oauth2_token_expiry, oauth2_email FROM email_ingest_settings ORDER BY id ASC LIMIT 1'
+    'SELECT oauth2_access_token, oauth2_token_expiry, oauth2_email FROM email_ingest_settings ORDER BY id ASC LIMIT 1'
   );
 
-  if (rows.length === 0 || !rows[0].oauth2_refresh_token) {
-    throw new Error('No OAuth2 tokens configured for this tenant');
+  if (rows.length === 0 || !rows[0].oauth2_email) {
+    throw new Error('No Microsoft 365 email configured for this tenant');
   }
 
   const settings = rows[0];
+  const email = settings.oauth2_email;
+  const tenantDomain = email.split('@')[1];
   const now = new Date();
   const expiry = settings.oauth2_token_expiry ? new Date(settings.oauth2_token_expiry) : null;
 
-  // Refresh if expired or expiring within 5 minutes
-  if (!expiry || now >= new Date(expiry.getTime() - 5 * 60 * 1000)) {
-    console.log(`[OAuth2] Token expired for ${tenantCode}, refreshing...`);
-    const tokens = await refreshAccessToken(settings.oauth2_refresh_token);
-
-    const newExpiry = new Date(Date.now() + (tokens.expires_in || 3599) * 1000);
-
-    await connection.query(
-      `UPDATE email_ingest_settings SET
-        oauth2_access_token = ?,
-        oauth2_token_expiry = ?,
-        oauth2_refresh_token = COALESCE(?, oauth2_refresh_token),
-        updated_at = NOW()
-      ORDER BY id ASC LIMIT 1`,
-      [tokens.access_token, newExpiry, tokens.refresh_token || null]
-    );
-
-    return { accessToken: tokens.access_token, email: settings.oauth2_email };
+  // Use cached token if still valid (with 5 min buffer)
+  if (settings.oauth2_access_token && expiry && now < new Date(expiry.getTime() - 5 * 60 * 1000)) {
+    return { accessToken: settings.oauth2_access_token, email };
   }
 
-  return { accessToken: settings.oauth2_access_token, email: settings.oauth2_email };
+  // Get new token via client credentials
+  console.log(`[OAuth2] Getting client credentials token for ${tenantCode} (tenant: ${tenantDomain})`);
+  const tokens = await getClientCredentialsToken(tenantDomain);
+  const newExpiry = new Date(Date.now() + (tokens.expires_in || 3599) * 1000);
+
+  // Cache in DB
+  await connection.query(
+    `UPDATE email_ingest_settings SET
+      oauth2_access_token = ?,
+      oauth2_token_expiry = ?,
+      updated_at = NOW()
+    ORDER BY id ASC LIMIT 1`,
+    [tokens.access_token, newExpiry]
+  );
+
+  return { accessToken: tokens.access_token, email };
 }
 
 /**
@@ -127,8 +117,7 @@ function buildXOAuth2Token(email, accessToken) {
 }
 
 module.exports = {
-  exchangeCodeForTokens,
-  refreshAccessToken,
+  getClientCredentialsToken,
   getValidAccessToken,
   buildXOAuth2Token,
   MS_CLIENT_ID
