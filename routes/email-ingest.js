@@ -84,6 +84,11 @@ router.get('/oauth2/callback', async (req, res) => {
       return res.send(buildCallbackHTML(false, error_description || error));
     }
 
+    // Admin consent flow returns admin_consent=True but no code — that's success
+    if (req.query.admin_consent === 'True') {
+      return res.send(buildCallbackHTML(true, null, '', true));
+    }
+
     if (!code || !state) {
       return res.send(buildCallbackHTML(false, 'Missing authorization code or state'));
     }
@@ -140,8 +145,10 @@ router.get('/oauth2/callback', async (req, res) => {
 /**
  * Build HTML page shown in the OAuth popup after callback
  */
-function buildCallbackHTML(success, errorMessage, email) {
-  const message = success
+function buildCallbackHTML(success, errorMessage, email, adminConsent) {
+  const message = adminConsent
+    ? 'Admin consent granted. You can now close this window and click "Connect with Microsoft".'
+    : success
     ? `Connected as ${email || 'Microsoft 365 account'}`
     : `Connection failed: ${errorMessage}`;
   const color = success ? '#16a34a' : '#b91c1c';
