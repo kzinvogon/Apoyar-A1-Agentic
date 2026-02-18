@@ -4775,11 +4775,12 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
                 <input id="email-m365-address" class="input" type="email" placeholder="e.g., support@yourcompany.com"/>
               </div>
 
-              <div class="mb-12">
+              <div class="mb-12" style="display:flex;gap:8px;flex-wrap:wrap">
                 <button class="btn" onclick="connectMicrosoft365()" style="background:#0078d4;color:#fff;border:none;padding:10px 20px;display:flex;align-items:center;gap:8px">
                   <svg width="20" height="20" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg>
                   Connect with Microsoft
                 </button>
+                <button class="btn" onclick="connectMicrosoft365(true)" style="padding:10px 16px;font-size:13px" title="Use this if 'Approval required' appears. Sign in as your M365 Global Admin to grant org-wide consent.">Admin Setup</button>
               </div>
 
               <div id="email-m365-status" class="mb-12" style="display:none">
@@ -14115,11 +14116,11 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     }
   }
 
-  function connectMicrosoft365() {
+  function connectMicrosoft365(adminConsent) {
     const email = document.getElementById('email-m365-address')?.value || '';
     const tenantCode = window.currentUser?.tenantCode || 'apoyar';
     const token = localStorage.getItem('token');
-    const url = `${API_BASE}/api/email-ingest/${tenantCode}/oauth2/authorize?email=${encodeURIComponent(email)}&token=${encodeURIComponent(token)}`;
+    const url = `${API_BASE}/api/email-ingest/${tenantCode}/oauth2/authorize?email=${encodeURIComponent(email)}&token=${encodeURIComponent(token)}${adminConsent ? '&admin_consent=true' : ''}`;
 
     const popup = window.open(url, 'ms365auth', 'width=600,height=700,scrollbars=yes');
 

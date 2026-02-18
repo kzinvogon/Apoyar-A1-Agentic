@@ -64,7 +64,7 @@ router.get('/:tenantId/oauth2/authorize', async (req, res) => {
       `&redirect_uri=${encodeURIComponent(redirectUri)}` +
       `&scope=${encodeURIComponent('https://outlook.office365.com/IMAP.AccessAsUser.All offline_access')}` +
       `&state=${encodeURIComponent(state)}` +
-      `&prompt=consent` +
+      `&prompt=${req.query.admin_consent === 'true' ? 'admin_consent' : 'consent'}` +
       (email ? `&login_hint=${encodeURIComponent(email)}` : '');
 
     res.redirect(authUrl);
