@@ -648,6 +648,11 @@ async function createTenantTables(connection) {
       password VARCHAR(255) NOT NULL DEFAULT '',
       check_interval_minutes INT NOT NULL DEFAULT 5,
       last_checked_at TIMESTAMP NULL,
+      auth_method ENUM('basic','oauth2') DEFAULT 'basic',
+      oauth2_refresh_token TEXT DEFAULT NULL,
+      oauth2_access_token TEXT DEFAULT NULL,
+      oauth2_token_expiry TIMESTAMP NULL,
+      oauth2_email VARCHAR(255) DEFAULT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     )

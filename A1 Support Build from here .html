@@ -4715,45 +4715,80 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             </div>
 
             <div class="subtitle mb-12" style="background:#eff6ff;padding:12px;border-radius:4px;border-left:4px solid #2563eb">
-              <strong>How it works:</strong> Emails from customer domains in your system will automatically create tickets. 
-              If the sender email exists, a ticket is created for that customer. If the sender is new but their domain matches 
-              an existing customer domain, a new customer account is created and a ticket is generated. Confirmation emails with 
+              <strong>How it works:</strong> Emails from customer domains in your system will automatically create tickets.
+              If the sender email exists, a ticket is created for that customer. If the sender is new but their domain matches
+              an existing customer domain, a new customer account is created and a ticket is generated. Confirmation emails with
               ticket links are sent automatically.
             </div>
 
+            <!-- Email Provider Selector -->
             <div class="mb-12">
-              <label class="subtitle">Server Type</label>
-              <select id="email-server-type" class="input">
-                <option value="imap">IMAP</option>
-                <option value="pop3">POP3</option>
-              </select>
+              <label class="subtitle">Email Provider</label>
+              <div style="display:flex;gap:0;margin-top:4px">
+                <button id="email-provider-imap" class="btn primary" onclick="selectEmailProvider('imap')" style="border-radius:6px 0 0 6px;flex:1">Standard IMAP</button>
+                <button id="email-provider-m365" class="btn" onclick="selectEmailProvider('m365')" style="border-radius:0 6px 6px 0;flex:1">Microsoft 365</button>
+              </div>
             </div>
 
-            <div class="mb-12">
-              <label class="subtitle">IMAP Server Host</label>
-              <input id="email-server-host" class="input" placeholder="e.g., imap.gmail.com or outlook.office365.com"/>
+            <!-- Standard IMAP fields -->
+            <div id="email-imap-fields">
+              <div class="mb-12">
+                <label class="subtitle">Server Type</label>
+                <select id="email-server-type" class="input">
+                  <option value="imap">IMAP</option>
+                  <option value="pop3">POP3</option>
+                </select>
+              </div>
+
+              <div class="mb-12">
+                <label class="subtitle">IMAP Server Host</label>
+                <input id="email-server-host" class="input" placeholder="e.g., imap.gmail.com"/>
+              </div>
+
+              <div class="mb-12">
+                <label class="subtitle">Server Port</label>
+                <input id="email-server-port" class="input" type="number" placeholder="e.g., 993"/>
+              </div>
+
+              <div class="mb-12">
+                <label class="subtitle">
+                  <input type="checkbox" id="email-use-ssl" style="margin-right:8px" checked/>
+                  Use SSL/TLS
+                </label>
+              </div>
+
+              <div class="mb-12">
+                <label class="subtitle">Email Username</label>
+                <input id="email-username" class="input" placeholder="e.g., support@company.com"/>
+              </div>
+
+              <div class="mb-12">
+                <label class="subtitle">Email Password</label>
+                <input id="email-password" class="input" type="password" placeholder="Enter password"/>
+              </div>
             </div>
 
-            <div class="mb-12">
-              <label class="subtitle">Server Port</label>
-              <input id="email-server-port" class="input" type="number" placeholder="e.g., 993"/>
-            </div>
+            <!-- Microsoft 365 OAuth2 fields -->
+            <div id="email-m365-fields" style="display:none">
+              <div class="mb-12">
+                <label class="subtitle">Microsoft 365 Email Address</label>
+                <input id="email-m365-address" class="input" type="email" placeholder="e.g., support@yourcompany.com"/>
+              </div>
 
-            <div class="mb-12">
-              <label class="subtitle">
-                <input type="checkbox" id="email-use-ssl" style="margin-right:8px" checked/>
-                Use SSL/TLS
-              </label>
-            </div>
+              <div class="mb-12">
+                <button class="btn" onclick="connectMicrosoft365()" style="background:#0078d4;color:#fff;border:none;padding:10px 20px;display:flex;align-items:center;gap:8px">
+                  <svg width="20" height="20" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg>
+                  Connect with Microsoft
+                </button>
+              </div>
 
-            <div class="mb-12">
-              <label class="subtitle">Email Username</label>
-              <input id="email-username" class="input" placeholder="e.g., support@company.com"/>
-            </div>
-
-            <div class="mb-12">
-              <label class="subtitle">Email Password</label>
-              <input id="email-password" class="input" type="password" placeholder="Enter password"/>
+              <div id="email-m365-status" class="mb-12" style="display:none">
+                <div style="display:flex;align-items:center;gap:8px;padding:12px;border-radius:6px;background:#f0fdf4;border:1px solid #bbf7d0">
+                  <span id="email-m365-status-dot" style="width:10px;height:10px;border-radius:50%;background:#16a34a;flex-shrink:0"></span>
+                  <span id="email-m365-status-text" class="subtitle" style="color:#15803d"></span>
+                  <button class="btn" onclick="disconnectMicrosoft365()" style="margin-left:auto;font-size:12px;padding:4px 12px">Disconnect</button>
+                </div>
+              </div>
             </div>
 
             <div class="mb-12">
@@ -14032,29 +14067,107 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   }
 
   // Email Ingest Functions
+  let currentEmailProvider = 'imap'; // 'imap' or 'm365'
+
+  function selectEmailProvider(provider) {
+    currentEmailProvider = provider;
+    const imapBtn = document.getElementById('email-provider-imap');
+    const m365Btn = document.getElementById('email-provider-m365');
+    const imapFields = document.getElementById('email-imap-fields');
+    const m365Fields = document.getElementById('email-m365-fields');
+
+    if (provider === 'imap') {
+      if (imapBtn) { imapBtn.className = 'btn primary'; }
+      if (m365Btn) { m365Btn.className = 'btn'; }
+      if (imapFields) { imapFields.style.display = 'block'; }
+      if (m365Fields) { m365Fields.style.display = 'none'; }
+    } else {
+      if (imapBtn) { imapBtn.className = 'btn'; }
+      if (m365Btn) { m365Btn.className = 'btn primary'; }
+      if (imapFields) { imapFields.style.display = 'none'; }
+      if (m365Fields) { m365Fields.style.display = 'block'; }
+      loadOAuth2Status();
+    }
+  }
+
+  async function loadOAuth2Status() {
+    try {
+      const tenantCode = window.currentUser?.tenantCode || 'apoyar';
+      const response = await fetch(`${API_BASE}/api/email-ingest/${tenantCode}/oauth2/status`, {
+        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+      });
+      if (!response.ok) return;
+      const data = await response.json();
+      const statusDiv = document.getElementById('email-m365-status');
+      const statusText = document.getElementById('email-m365-status-text');
+      const statusDot = document.getElementById('email-m365-status-dot');
+      if (data.success && data.connected) {
+        if (statusDiv) statusDiv.style.display = 'block';
+        if (statusText) statusText.textContent = 'Connected as ' + (data.email || 'Microsoft 365 account');
+        if (statusDot) statusDot.style.background = '#16a34a';
+        const emailInput = document.getElementById('email-m365-address');
+        if (emailInput && data.email) emailInput.value = data.email;
+      } else {
+        if (statusDiv) statusDiv.style.display = 'none';
+      }
+    } catch (e) {
+      console.error('Error loading OAuth2 status:', e);
+    }
+  }
+
+  function connectMicrosoft365() {
+    const email = document.getElementById('email-m365-address')?.value || '';
+    const tenantCode = window.currentUser?.tenantCode || 'apoyar';
+    const token = localStorage.getItem('token');
+    const url = `${API_BASE}/api/email-ingest/${tenantCode}/oauth2/authorize?email=${encodeURIComponent(email)}&token=${encodeURIComponent(token)}`;
+
+    const popup = window.open(url, 'ms365auth', 'width=600,height=700,scrollbars=yes');
+
+    // Listen for callback message from popup
+    window.addEventListener('message', function onMessage(event) {
+      if (event.data && event.data.type === 'oauth2-callback') {
+        window.removeEventListener('message', onMessage);
+        if (event.data.success) {
+          showEmailIngestMessage('Connected as ' + (event.data.email || 'Microsoft 365 account'));
+          loadOAuth2Status();
+        } else {
+          showEmailIngestError('Microsoft 365 connection failed: ' + (event.data.error || 'Unknown error'));
+        }
+      }
+    });
+  }
+
+  async function disconnectMicrosoft365() {
+    try {
+      const tenantCode = window.currentUser?.tenantCode || 'apoyar';
+      const response = await fetch(`${API_BASE}/api/email-ingest/${tenantCode}/oauth2/disconnect`, {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+      });
+      const data = await response.json();
+      if (data.success) {
+        const statusDiv = document.getElementById('email-m365-status');
+        if (statusDiv) statusDiv.style.display = 'none';
+        showEmailIngestMessage('Microsoft 365 disconnected');
+        setTimeout(() => hideEmailIngestMessages(), 3000);
+      } else {
+        showEmailIngestError(data.message || 'Error disconnecting');
+      }
+    } catch (e) {
+      showEmailIngestError('Error disconnecting: ' + e.message);
+    }
+  }
+
   async function loadEmailIngestSettings() {
     try {
       const tenantCode = window.currentUser?.tenantCode || 'apoyar';
-      const response = await fetch(window.location.protocol + '//' + window.location.host + `/api/email-ingest/${tenantCode}/settings`, {
+      const response = await fetch(`${API_BASE}/api/email-ingest/${tenantCode}/settings`, {
         headers: {
           'Authorization': 'Bearer ' + localStorage.getItem('token')
         }
       });
 
-      // Check for errors before parsing
-      if (response.status === 403) {
-        const userRole = window.currentUser?.role || 'unknown';
-        console.warn(`Permission denied loading email ingest settings. User role: ${userRole}`);
-        return; // Silently fail on load - user won't see the section anyway with role-based hiding
-      }
-
-      if (response.status === 401) {
-        console.warn('Authentication required to load email ingest settings');
-        return; // Silently fail on load
-      }
-
-      if (!response.ok) {
-        console.error(`HTTP ${response.status} error loading email ingest settings`);
+      if (response.status === 403 || response.status === 401 || !response.ok) {
         return; // Silently fail on load
       }
 
@@ -14062,94 +14175,115 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
       if (data.success && data.settings) {
         const settings = data.settings;
-        document.getElementById('email-ingest-enabled').checked = settings.enabled;
-        document.getElementById('email-server-type').value = settings.server_type;
-        document.getElementById('email-server-host').value = settings.server_host;
-        document.getElementById('email-server-port').value = settings.server_port;
-        document.getElementById('email-use-ssl').checked = settings.use_ssl;
-        document.getElementById('email-username').value = settings.username;
-        document.getElementById('email-password').value = settings.password;
-        document.getElementById('email-check-interval').value = settings.check_interval_minutes;
+        const enabledEl = document.getElementById('email-ingest-enabled');
+        if (enabledEl) enabledEl.checked = settings.enabled;
+        const serverTypeEl = document.getElementById('email-server-type');
+        if (serverTypeEl) serverTypeEl.value = settings.server_type;
+        const serverHostEl = document.getElementById('email-server-host');
+        if (serverHostEl) serverHostEl.value = settings.server_host;
+        const serverPortEl = document.getElementById('email-server-port');
+        if (serverPortEl) serverPortEl.value = settings.server_port;
+        const useSslEl = document.getElementById('email-use-ssl');
+        if (useSslEl) useSslEl.checked = settings.use_ssl;
+        const usernameEl = document.getElementById('email-username');
+        if (usernameEl) usernameEl.value = settings.username;
+        const passwordEl = document.getElementById('email-password');
+        if (passwordEl) passwordEl.value = settings.password;
+        const checkIntervalEl = document.getElementById('email-check-interval');
+        if (checkIntervalEl) checkIntervalEl.value = settings.check_interval_minutes;
 
         if (settings.last_checked_at) {
           const lastChecked = new Date(settings.last_checked_at);
-          document.getElementById('email-last-checked').textContent =
-            'Last checked: ' + lastChecked.toLocaleString();
+          const el = document.getElementById('email-last-checked');
+          if (el) el.textContent = 'Last checked: ' + lastChecked.toLocaleString();
+        }
+
+        // Select the correct provider tab based on auth_method
+        if (settings.auth_method === 'oauth2') {
+          selectEmailProvider('m365');
+          const emailInput = document.getElementById('email-m365-address');
+          if (emailInput && settings.oauth2_email) emailInput.value = settings.oauth2_email;
+        } else {
+          selectEmailProvider('imap');
         }
       }
     } catch (error) {
       console.error('Error loading email ingest settings:', error);
-      // Silently fail on load errors - non-admins shouldn't see error messages
     }
   }
 
   async function saveEmailIngestSettings() {
-    const enabled = document.getElementById('email-ingest-enabled').checked;
-    const serverType = document.getElementById('email-server-type').value;
-    const serverHost = document.getElementById('email-server-host').value;
-    const serverPort = parseInt(document.getElementById('email-server-port').value);
-    const useSsl = document.getElementById('email-use-ssl').checked;
-    const username = document.getElementById('email-username').value;
-    const password = document.getElementById('email-password').value;
-    const checkInterval = parseInt(document.getElementById('email-check-interval').value);
+    const enabled = document.getElementById('email-ingest-enabled')?.checked || false;
+    const checkInterval = parseInt(document.getElementById('email-check-interval')?.value) || 5;
 
-    // Basic validation
-    if (enabled) {
-      if (!serverHost || !serverPort || !username) {
-        showEmailIngestError('Please fill in all required fields (Server Host, Port, Username)');
-        return;
+    if (enabled && checkInterval < 1 || checkInterval > 60) {
+      showEmailIngestError('Check interval must be between 1 and 60 minutes');
+      return;
+    }
+
+    const payload = {
+      enabled,
+      check_interval_minutes: checkInterval
+    };
+
+    if (currentEmailProvider === 'imap') {
+      const serverHost = document.getElementById('email-server-host')?.value || '';
+      const serverPort = parseInt(document.getElementById('email-server-port')?.value) || 993;
+      const useSsl = document.getElementById('email-use-ssl')?.checked || false;
+      const username = document.getElementById('email-username')?.value || '';
+      const password = document.getElementById('email-password')?.value || '';
+
+      if (enabled) {
+        if (!serverHost || !serverPort || !username) {
+          showEmailIngestError('Please fill in all required fields (Server Host, Port, Username)');
+          return;
+        }
+        if (serverPort < 1 || serverPort > 65535) {
+          showEmailIngestError('Server port must be between 1 and 65535');
+          return;
+        }
       }
-      if (serverPort < 1 || serverPort > 65535) {
-        showEmailIngestError('Server port must be between 1 and 65535');
-        return;
-      }
-      if (checkInterval < 1 || checkInterval > 60) {
-        showEmailIngestError('Check interval must be between 1 and 60 minutes');
-        return;
-      }
+
+      payload.auth_method = 'basic';
+      payload.server_type = document.getElementById('email-server-type')?.value || 'imap';
+      payload.server_host = serverHost;
+      payload.server_port = serverPort;
+      payload.use_ssl = useSsl;
+      payload.username = username;
+      payload.password = password || undefined;
+    } else {
+      // Microsoft 365 - just save enabled + interval, auth_method stays oauth2
+      payload.auth_method = 'oauth2';
     }
 
     try {
       const tenantCode = window.currentUser?.tenantCode || 'apoyar';
-      const response = await fetch(window.location.protocol + '//' + window.location.host + `/api/email-ingest/${tenantCode}/settings`, {
+      const response = await fetch(`${API_BASE}/api/email-ingest/${tenantCode}/settings`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ' + localStorage.getItem('token')
         },
-        body: JSON.stringify({
-          enabled,
-          server_type: serverType,
-          server_host: serverHost,
-          server_port: serverPort,
-          use_ssl: useSsl,
-          username,
-          password: password || undefined,
-          check_interval_minutes: checkInterval
-        })
+        body: JSON.stringify(payload)
       });
 
       const data = await response.json();
 
-      // Check for permission errors
       if (response.status === 403) {
-        const userRole = window.currentUser?.role || 'unknown';
-        showEmailIngestError(`⚠️ Admin access required. Your current role: "${userRole}". Please log in as an admin user.`);
+        showEmailIngestError('Admin access required. Please log in as an admin user.');
         return;
       }
-
       if (response.status === 401) {
-        showEmailIngestError('⚠️ Authentication required. Please log in again.');
+        showEmailIngestError('Authentication required. Please log in again.');
         return;
       }
-
       if (!response.ok) {
         showEmailIngestError(`Error (HTTP ${response.status}): ${data.message || 'Error saving settings'}`);
         return;
       }
 
       if (data.success) {
-        showEmailIngestMessage('✅ Email ingest settings saved successfully!');
+        showEmailIngestMessage('Email ingest settings saved successfully!');
         setTimeout(() => hideEmailIngestMessages(), 3000);
       } else {
         showEmailIngestError(data.message || 'Error saving email ingest settings');
@@ -14163,7 +14297,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   async function testEmailConnection() {
     try {
       const tenantCode = window.currentUser?.tenantCode || 'apoyar';
-      const response = await fetch(window.location.protocol + '//' + window.location.host + `/api/email-ingest/${tenantCode}/test-connection`, {
+      const response = await fetch(`${API_BASE}/api/email-ingest/${tenantCode}/test-connection`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -14173,25 +14307,21 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
       const data = await response.json();
 
-      // Check for permission errors
       if (response.status === 403) {
-        const userRole = window.currentUser?.role || 'unknown';
-        showEmailIngestError(`⚠️ Admin access required. Your current role: "${userRole}". Please log in as an admin user.`);
+        showEmailIngestError('Admin access required. Please log in as an admin user.');
         return;
       }
-
       if (response.status === 401) {
-        showEmailIngestError('⚠️ Authentication required. Please log in again.');
+        showEmailIngestError('Authentication required. Please log in again.');
         return;
       }
-
       if (!response.ok) {
         showEmailIngestError(`Error (HTTP ${response.status}): ${data.message || 'Connection test failed'}`);
         return;
       }
 
       if (data.success) {
-        showEmailIngestMessage('✅ Connection test successful! ' + (data.message || ''));
+        showEmailIngestMessage('Connection test successful! ' + (data.details?.email ? 'Account: ' + data.details.email : '') + (data.details?.totalMessages != null ? ' Messages: ' + data.details.totalMessages : ''));
         setTimeout(() => hideEmailIngestMessages(), 5000);
       } else {
         showEmailIngestError(data.message || 'Connection test failed');
@@ -14205,22 +14335,22 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   function showEmailIngestMessage(message) {
     const messageEl = document.getElementById('email-ingest-message');
     const errorEl = document.getElementById('email-ingest-error');
-    errorEl.style.display = 'none';
-    messageEl.textContent = message;
-    messageEl.style.display = 'block';
+    if (errorEl) errorEl.style.display = 'none';
+    if (messageEl) { messageEl.textContent = message; messageEl.style.display = 'block'; }
   }
 
   function showEmailIngestError(message) {
     const messageEl = document.getElementById('email-ingest-message');
     const errorEl = document.getElementById('email-ingest-error');
-    messageEl.style.display = 'none';
-    errorEl.textContent = message;
-    errorEl.style.display = 'block';
+    if (messageEl) messageEl.style.display = 'none';
+    if (errorEl) { errorEl.textContent = message; errorEl.style.display = 'block'; }
   }
 
   function hideEmailIngestMessages() {
-    document.getElementById('email-ingest-message').style.display = 'none';
-    document.getElementById('email-ingest-error').style.display = 'none';
+    const m = document.getElementById('email-ingest-message');
+    const e = document.getElementById('email-ingest-error');
+    if (m) m.style.display = 'none';
+    if (e) e.style.display = 'none';
   }
 
   // ========== System Senders Management ==========

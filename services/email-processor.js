@@ -447,17 +447,35 @@ class EmailProcessor {
       }, IMAP_TIMEOUT_MS);
     });
 
+    // Build IMAP config based on auth method
+    let imapUser, imapHost, imapPort, imapTls, imapMailbox;
+    const imapConfig = {
+      tlsOptions: { rejectUnauthorized: false },
+      connTimeout: 30000,
+      authTimeout: 30000
+    };
+
+    if (config.auth_method === 'oauth2') {
+      const { getValidAccessToken, buildXOAuth2Token } = require('./oauth2-helper');
+      const { accessToken, email } = await getValidAccessToken(connection, self.tenantCode);
+      imapConfig.user = email;
+      imapConfig.xoauth2 = buildXOAuth2Token(email, accessToken);
+      imapConfig.host = 'outlook.office365.com';
+      imapConfig.port = 993;
+      imapConfig.tls = true;
+      imapMailbox = 'INBOX';
+      console.log(`[${self.tenantCode}] Using OAuth2/XOAUTH2 for ${email}`);
+    } else {
+      imapConfig.user = config.username;
+      imapConfig.password = config.password;
+      imapConfig.host = config.server_host;
+      imapConfig.port = config.server_port;
+      imapConfig.tls = config.use_ssl;
+      imapMailbox = '[Gmail]/All Mail';
+    }
+
     const imapPromise = new Promise((resolve, reject) => {
-      const imap = new Imap({
-        user: config.username,
-        password: config.password,
-        host: config.server_host,
-        port: config.server_port,
-        tls: config.use_ssl,
-        tlsOptions: { rejectUnauthorized: false },
-        connTimeout: 30000,
-        authTimeout: 30000
-      });
+      const imap = new Imap(imapConfig);
 
       const emailQueue = [];
       const processedEmails = [];
@@ -639,9 +657,9 @@ class EmailProcessor {
       imap.once('ready', async () => {
         console.log(`✅ IMAP connected for tenant: ${self.tenantCode}`);
 
-        imap.openBox('[Gmail]/All Mail', false, async (err, box) => {
+        imap.openBox(imapMailbox, false, async (err, box) => {
           if (err) {
-            console.error('Error opening [Gmail]/All Mail:', err);
+            console.error(`Error opening ${imapMailbox}:`, err);
             imap.end();
             return reject(err);
           }
