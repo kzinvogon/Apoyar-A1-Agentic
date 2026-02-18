@@ -202,21 +202,26 @@ router.post('/:tenantId/test-connection', requireRole(['admin']), writeOperation
 
       const testConnection = () => {
         return new Promise((resolve, reject) => {
+          const useTls = config.use_ssl === true || config.use_ssl === 1 || config.use_ssl === '1';
+          const port = config.server_port || 993;
+          console.log(`[Email Test] Connecting to ${config.server_host}:${port} TLS=${useTls} user=${config.username}`);
+
           const imap = new Imap({
             user: config.username,
             password: config.password,
             host: config.server_host,
-            port: config.server_port || 993,
-            tls: config.use_ssl !== false,
+            port: port,
+            tls: useTls,
             tlsOptions: { rejectUnauthorized: false },
-            connTimeout: 10000,
-            authTimeout: 10000
+            connTimeout: 15000,
+            authTimeout: 15000,
+            debug: (msg) => console.log(`[IMAP Debug] ${msg}`)
           });
 
           const timeout = setTimeout(() => {
             imap.destroy();
             reject(new Error('Connection timeout'));
-          }, 15000);
+          }, 20000);
 
           imap.once('ready', () => {
             clearTimeout(timeout);
@@ -267,7 +272,12 @@ router.post('/:tenantId/test-connection', requireRole(['admin']), writeOperation
       success: false,
       message: `Connection failed: ${error.message}`,
       details: {
-        error: error.message
+        error: error.message,
+        hint: error.message.includes('LOGIN failed')
+          ? 'Authentication rejected by server. For Microsoft 365: ensure IMAP is enabled in M365 admin, and use an App Password if MFA is on. Check the username matches the mailbox email exactly.'
+          : error.message.includes('wrong version')
+          ? 'SSL/TLS mismatch. Use port 993 with SSL enabled, or port 143 without SSL.'
+          : undefined
       }
     });
   }
