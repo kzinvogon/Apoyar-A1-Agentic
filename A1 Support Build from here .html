@@ -14120,7 +14120,15 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const email = document.getElementById('email-m365-address')?.value || '';
     const tenantCode = window.currentUser?.tenantCode || 'apoyar';
     const token = localStorage.getItem('token');
-    const url = `${API_BASE}/api/email-ingest/${tenantCode}/oauth2/authorize?email=${encodeURIComponent(email)}&token=${encodeURIComponent(token)}${adminConsent ? '&admin_consent=true' : ''}`;
+
+    if (adminConsent) {
+      const adminUrl = 'https://login.microsoftonline.com/common/adminconsent?client_id=05c4ccac-2615-405f-af73-2ede3d344080&redirect_uri=' + encodeURIComponent(API_BASE + '/api/email-ingest/oauth2/callback');
+      window.open(adminUrl, 'ms365admin', 'width=600,height=700,scrollbars=yes');
+      showEmailIngestMessage('After granting admin consent, close the popup and click "Connect with Microsoft".');
+      return;
+    }
+
+    const url = `${API_BASE}/api/email-ingest/${tenantCode}/oauth2/authorize?email=${encodeURIComponent(email)}&token=${encodeURIComponent(token)}`;
 
     const popup = window.open(url, 'ms365auth', 'width=600,height=700,scrollbars=yes');
 
