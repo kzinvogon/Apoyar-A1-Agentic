@@ -2118,6 +2118,9 @@ vNext-FULL-ActionsSLA:
                     <button onclick="openCmdb('cmdb-section-items')" style="display:flex;align-items:center;gap:12px;padding:14px 18px;border-radius:12px;border:1px solid rgba(16,185,129,.2);background:linear-gradient(135deg,rgba(16,185,129,.06),rgba(5,150,105,.04));color:var(--ink);cursor:pointer;font-size:14px;font-weight:500;transition:all .2s;text-align:left" onmouseenter="this.style.transform='translateX(4px)';this.style.borderColor='rgba(16,185,129,.4)'" onmouseleave="this.style.transform='';this.style.borderColor='rgba(16,185,129,.2)'">
                       My Equipment — View your assets
                     </button>
+                    <button onclick="liveChatToggle()" style="display:flex;align-items:center;gap:12px;padding:14px 18px;border-radius:12px;border:1px solid rgba(245,158,11,.2);background:linear-gradient(135deg,rgba(245,158,11,.06),rgba(217,119,6,.04));color:var(--ink);cursor:pointer;font-size:14px;font-weight:500;transition:all .2s;text-align:left" onmouseenter="this.style.transform='translateX(4px)';this.style.borderColor='rgba(245,158,11,.4)'" onmouseleave="this.style.transform='';this.style.borderColor='rgba(245,158,11,.2)'">
+                      Live Chat — Talk to our support team
+                    </button>
                   </div>
                 </div>
 
@@ -6143,7 +6146,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 </div>
 
 <!-- Live Chat -->
-<button id="chat-toggle" class="btn accent" style="position:relative">💬 Chat<span id="chat-unread-badge" class="chat-badge" style="display:none">0</span></button>
+<button id="chat-toggle" class="btn accent" style="position:relative;display:none">💬 Chat<span id="chat-unread-badge" class="chat-badge" style="display:none">0</span></button>
 <div id="chat">
   <div class="chat-header">
     <div>
@@ -7238,6 +7241,12 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     if (searchBtn) searchBtn.style.display = isLogin ? 'none' : '';
     const ionicMenuBtn = document.getElementById('ionic-menu-btn');
     if (ionicMenuBtn) ionicMenuBtn.style.display = isLogin ? 'none' : '';
+    // Show/hide chat toggle based on login state
+    const chatToggleBtn = document.getElementById('chat-toggle');
+    if (chatToggleBtn) chatToggleBtn.style.display = isLogin ? 'none' : '';
+    // Close chat panel when logging out
+    const chatPanel = document.getElementById('chat');
+    if (isLogin && chatPanel) chatPanel.style.display = 'none';
   }
 
   // Theme Controller
@@ -24137,8 +24146,16 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     if (!token) return;
     chatSocket = io({ auth: { token }, transports: ['websocket', 'polling'] });
 
-    chatSocket.on('connect', () => console.log('[Chat] Socket connected'));
-    chatSocket.on('connect_error', (err) => console.warn('[Chat] Socket error:', err.message));
+    chatSocket.on('connect', () => {
+      console.log('[Chat] Socket connected');
+      const status = document.getElementById('chat-header-status');
+      if (status && status.textContent.includes('Connecting')) status.textContent = '';
+    });
+    chatSocket.on('connect_error', (err) => {
+      console.warn('[Chat] Socket error:', err.message);
+      const status = document.getElementById('chat-header-status');
+      if (status) status.textContent = 'Connecting...';
+    });
 
     chatSocket.on('chat:message', (msg) => {
       if (msg.sessionId === chatSessionId) {
@@ -24242,11 +24259,12 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const desc = (document.getElementById('chat-start-desc')?.value || '').trim();
     if (!desc) { document.getElementById('chat-start-desc').focus(); return; }
 
+    const chatTenant = window.tenant || localStorage.getItem('tenantCode') || 'apoyar';
     initChatSocket();
 
     // Show qualification questions
     try {
-      const resp = await fetch(`/api/chat/${tenant}/qualification/questions`, {
+      const resp = await fetch(`/api/chat/${chatTenant}/qualification/questions`, {
         method: 'POST',
         headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token'), 'Content-Type': 'application/json' },
         body: JSON.stringify({ problemDescription: desc })
@@ -24287,7 +24305,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   async function searchQualAssets(q) {
     if (q.length < 2) { document.getElementById('qq-asset-results').innerHTML = ''; return; }
     try {
-      const resp = await fetch(`/api/chat/${tenant}/qualification/search-assets?q=${encodeURIComponent(q)}`, {
+      const resp = await fetch(`/api/chat/${window.tenant || 'apoyar'}/qualification/search-assets?q=${encodeURIComponent(q)}`, {
         headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
       });
       const data = await resp.json();
@@ -24317,7 +24335,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     answers.asset = qualAssetSelected || 'skip';
 
     try {
-      const resp = await fetch(`/api/chat/${tenant}/qualification/process`, {
+      const resp = await fetch(`/api/chat/${window.tenant || 'apoyar'}/qualification/process`, {
         method: 'POST',
         headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token'), 'Content-Type': 'application/json' },
         body: JSON.stringify({ answers, problemDescription: desc })
@@ -24336,15 +24354,42 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   }
 
   function liveChatStartSession(desc) {
-    if (!chatSocket || !chatSocket.connected) initChatSocket();
-    chatSocket.emit('chat:start', { problemDescription: desc }, (resp) => {
-      if (resp.success) {
-        chatSessionId = resp.sessionId;
-        document.getElementById('chat-queue-pos').textContent = resp.queuePosition;
-        liveChatShowScreen('queued');
-        document.getElementById('chat-header-status').textContent = 'In queue #' + resp.queuePosition;
+    if (!chatSocket || !chatSocket.connected) {
+      initChatSocket();
+      // Wait for connection before emitting
+      if (!chatSocket) {
+        document.getElementById('chat-header-status').textContent = 'Connection failed';
+        liveChatShowScreen('idle');
+        return;
       }
-    });
+    }
+    // If socket is connecting, wait up to 5s then emit
+    const doEmit = () => {
+      chatSocket.emit('chat:start', { problemDescription: desc }, (resp) => {
+        if (resp && resp.success) {
+          chatSessionId = resp.sessionId;
+          document.getElementById('chat-queue-pos').textContent = resp.queuePosition;
+          liveChatShowScreen('queued');
+          document.getElementById('chat-header-status').textContent = 'In queue #' + resp.queuePosition;
+        } else {
+          console.error('[Chat] Failed to start session:', resp && resp.error);
+          document.getElementById('chat-header-status').textContent = 'Could not start chat — please try again';
+          liveChatShowScreen('idle');
+        }
+      });
+    };
+    if (chatSocket.connected) {
+      doEmit();
+    } else {
+      // Socket still connecting — wait for it
+      const timeout = setTimeout(() => {
+        chatSocket.off('connect', onConnect);
+        document.getElementById('chat-header-status').textContent = 'Connection timed out — please try again';
+        liveChatShowScreen('idle');
+      }, 5000);
+      const onConnect = () => { clearTimeout(timeout); doEmit(); };
+      chatSocket.once('connect', onConnect);
+    }
   }
 
   function liveChatSend() {
@@ -24400,7 +24445,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const formData = new FormData();
     formData.append('file', input.files[0]);
     try {
-      const resp = await fetch(`/api/chat/${tenant}/sessions/${chatSessionId}/upload`, {
+      const resp = await fetch(`/api/chat/${window.tenant || 'apoyar'}/sessions/${chatSessionId}/upload`, {
         method: 'POST',
         headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') },
         body: formData
