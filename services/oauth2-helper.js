@@ -5,7 +5,7 @@ const MS_CLIENT_SECRET = process.env.MS_OAUTH_CLIENT_SECRET || '';
 
 /**
  * Get an access token using OAuth2 client credentials flow.
- * Used for app-only access with IMAP.AccessAsApp permission.
+ * Used for app-only access with Mail.ReadWrite permission (Graph API).
  * @param {string} tenantDomain - Azure AD tenant domain or ID (e.g., 'apoyar.eu')
  */
 async function getClientCredentialsToken(tenantDomain) {
@@ -15,7 +15,7 @@ async function getClientCredentialsToken(tenantDomain) {
     client_id: MS_CLIENT_ID,
     client_secret: MS_CLIENT_SECRET,
     grant_type: 'client_credentials',
-    scope: 'https://outlook.office365.com/.default'
+    scope: 'https://graph.microsoft.com/.default'
   });
 
   return postTokenRequest(params, tokenUrl);

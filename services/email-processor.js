@@ -17,6 +17,7 @@ const { simpleParser } = require('mailparser');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const os = require('os');
+const fetch = require('node-fetch');
 const { tryLock, unlock } = require('./imap-lock');
 
 // ============================================================================
@@ -267,8 +268,12 @@ class EmailProcessor {
           lastChecked: config.last_checked_at
         });
 
-        // Fetch emails using IMAP
-        await this.fetchEmailsViaIMAP(connection, config);
+        // Fetch emails — Graph API for M365, IMAP for basic auth
+        if (config.auth_method === 'oauth2') {
+          await this.fetchEmailsViaGraph(connection, config);
+        } else {
+          await this.fetchEmailsViaIMAP(connection, config);
+        }
 
         // Update last checked timestamp
         await connection.query(
@@ -349,6 +354,279 @@ class EmailProcessor {
         return;
       }
       throw error;
+    }
+  }
+
+  /**
+   * Fetch emails via Microsoft Graph API with delta sync.
+   *
+   * Uses the same queue-based sequential processing as IMAP:
+   * 1. Delta sync: fetch new messages via Graph delta API
+   * 2. Collect phase: fetch MIME for each new message, parse with simpleParser
+   * 3. Process phase: dedup, processEmail, recordProcessedMessage, mark as read
+   * 4. Persist deltaLink cursor for next cycle
+   */
+  async fetchEmailsViaGraph(connection, config) {
+    const self = this;
+    const EMAIL_PROCESS_DELAY_MS = parseInt(process.env.EMAIL_PROCESS_DELAY_MS) || 2000;
+    const mailboxId = config.id;
+    const mailboxAddr = config.oauth2_email || 'default';
+    const lockKey = `graph:${self.tenantCode}:${mailboxAddr}`;
+
+    // In-process lock
+    if (!tryLock(lockKey)) {
+      console.log(`🔒 [${self.tenantCode}] Skipping Graph cycle, mailbox locked: ${mailboxAddr}`);
+      return [];
+    }
+
+    // DB-level lock
+    const lockOwner = `${os.hostname()}:${process.pid}`;
+    const [lockResult] = await connection.query(
+      `UPDATE email_ingest_settings
+       SET imap_locked_by = ?,
+           imap_lock_expires = DATE_ADD(NOW(), INTERVAL 120 SECOND)
+       WHERE id = ?
+         AND (imap_lock_expires IS NULL OR imap_lock_expires < NOW())`,
+      [lockOwner, mailboxId]
+    );
+
+    if (lockResult.affectedRows !== 1) {
+      unlock(lockKey);
+      console.log(`🔒 [${self.tenantCode}] Skipping Graph cycle, DB lock held by another replica`);
+      return [];
+    }
+
+    try {
+
+    const { getValidAccessToken } = require('./oauth2-helper');
+    const { accessToken } = await getValidAccessToken(connection, self.tenantCode);
+    const userEmail = config.oauth2_email;
+
+    console.log(`📬 [${self.tenantCode}] Starting Graph delta sync for ${userEmail}`);
+
+    // ── Helper: Graph API request ──
+    const graphRequest = async (url, options = {}) => {
+      const res = await fetch(url, {
+        ...options,
+        headers: { Authorization: `Bearer ${accessToken}`, ...options.headers }
+      });
+      if (!res.ok) {
+        const body = await res.text();
+        throw new Error(`Graph API ${res.status}: ${body}`);
+      }
+      return options.raw ? res : res.json();
+    };
+
+    // ── Delta sync: collect message metadata ──
+    let deltaUrl;
+    if (config.graph_delta_link) {
+      deltaUrl = config.graph_delta_link;
+      console.log(`🔄 [${self.tenantCode}] Resuming from stored deltaLink`);
+    } else {
+      deltaUrl = `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(userEmail)}/mailFolders/Inbox/messages/delta?$select=id,receivedDateTime,internetMessageId,from,subject,hasAttachments&$top=50`;
+      console.log(`🆕 [${self.tenantCode}] Initial delta sync (no stored deltaLink)`);
+    }
+
+    const deltaItems = [];
+    let newDeltaLink = null;
+    let pageCount = 0;
+
+    while (deltaUrl) {
+      pageCount++;
+      const data = await graphRequest(deltaUrl);
+
+      for (const item of (data.value || [])) {
+        // Skip deletions and items without id
+        if (item['@removed'] || !item.id) continue;
+        deltaItems.push(item);
+      }
+
+      if (data['@odata.nextLink']) {
+        deltaUrl = data['@odata.nextLink'];
+      } else {
+        newDeltaLink = data['@odata.deltaLink'] || null;
+        deltaUrl = null;
+      }
+    }
+
+    console.log(`📊 [${self.tenantCode}] Delta sync: ${deltaItems.length} new message(s) across ${pageCount} page(s)`);
+
+    // ── Collect phase: fetch MIME and parse ──
+    const emailQueue = [];
+    for (const item of deltaItems) {
+      try {
+        const mimeRes = await graphRequest(
+          `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(userEmail)}/messages/${item.id}/$value`,
+          { raw: true }
+        );
+        const mimeBuffer = await mimeRes.buffer();
+        const parsed = await simpleParser(mimeBuffer);
+
+        const emailData = {
+          from: parsed.from?.text || parsed.from?.value?.[0]?.address || '',
+          subject: parsed.subject || '(No Subject)',
+          body: parsed.text || parsed.html || '(No content)',
+          html: parsed.html || '',
+          text: parsed.text || '',
+          messageId: parsed.messageId || item.internetMessageId || `graph-${item.id}`,
+          date: parsed.date || (item.receivedDateTime ? new Date(item.receivedDateTime) : new Date()),
+          uid: null,
+          inReplyTo: parsed.inReplyTo || null,
+          references: parsed.references || [],
+          graphMessageId: item.id
+        };
+
+        console.log(`📨 Received email graph_id=${item.id} from: ${emailData.from} | Subject: ${emailData.subject}`);
+        emailQueue.push(emailData);
+      } catch (mimeErr) {
+        console.error(`Error fetching MIME for graph_id=${item.id}:`, mimeErr.message);
+      }
+    }
+
+    console.log(`📧 Found ${emailQueue.length} email(s) to check for tenant: ${self.tenantCode}`);
+
+    // ── Process phase: sequential queue processing (identical to IMAP) ──
+    const processedEmails = [];
+    const delay = (ms) => new Promise(r => setTimeout(r, ms));
+
+    const markAsRead = async (graphMessageId) => {
+      if (!graphMessageId) return;
+      try {
+        await graphRequest(
+          `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(userEmail)}/messages/${graphMessageId}`,
+          {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ isRead: true })
+          }
+        );
+        console.log(`✓ Marked graph_id ${graphMessageId} as read`);
+      } catch (err) {
+        console.error(`Failed to mark graph_id ${graphMessageId} as read:`, err.message);
+      }
+    };
+
+    const stats = {
+      scanned: emailQueue.length,
+      processed: 0,
+      ticket_updated: 0,
+      skipped_duplicate: 0,
+      skipped_bounce: 0,
+      skipped_domain: 0,
+      skipped_system: 0,
+      errors: 0,
+      firstProcessedMessageId: null
+    };
+
+    if (emailQueue.length === 0) {
+      console.log(`📊 [${self.tenantCode}] Graph cycle summary: scanned=0`);
+    } else {
+      console.log(`📋 Processing queue of ${emailQueue.length} email(s) sequentially...`);
+
+      for (let i = 0; i < emailQueue.length; i++) {
+        const emailData = emailQueue[i];
+        const { messageId, graphMessageId } = emailData;
+
+        try {
+          const alreadyProcessed = await self.isMessageProcessed(connection, mailboxId, messageId);
+          if (alreadyProcessed) {
+            console.log(`⏭️ [${i + 1}/${emailQueue.length}] Skipping duplicate: ${messageId}`);
+            stats.skipped_duplicate++;
+            const dupRecordResult = await self.recordProcessedMessage(
+              connection, mailboxId, messageId, null, null, 'skipped_duplicate'
+            );
+            if (dupRecordResult.success) {
+              await markAsRead(graphMessageId);
+            }
+            continue;
+          }
+
+          console.log(`📧 [${i + 1}/${emailQueue.length}] Processing: ${emailData.subject}`);
+          const result = await self.processEmail(connection, emailData);
+          processedEmails.push(result);
+
+          let resultType = 'ticket_created';
+          if (!result.success) {
+            if (result.reason === 'bounce_notification_skipped') {
+              resultType = 'skipped_bounce';
+              stats.skipped_bounce++;
+            } else if (result.reason === 'domain_not_found') {
+              resultType = 'skipped_domain';
+              stats.skipped_domain++;
+            } else if (result.reason === 'skipped_system') {
+              resultType = 'skipped_system';
+              stats.skipped_system++;
+            } else {
+              resultType = 'error';
+              stats.errors++;
+            }
+          } else if (result.wasReply) {
+            resultType = 'ticket_updated';
+            stats.ticket_updated++;
+            if (!stats.firstProcessedMessageId) stats.firstProcessedMessageId = messageId;
+          } else {
+            stats.processed++;
+            if (!stats.firstProcessedMessageId) stats.firstProcessedMessageId = messageId;
+          }
+
+          const recordResult = await self.recordProcessedMessage(
+            connection, mailboxId, messageId, null, result.ticketId || null, resultType
+          );
+
+          if (recordResult.success) {
+            await markAsRead(graphMessageId);
+          } else if (recordResult.missingTable) {
+            console.error(`⚠️ Skipping markAsRead for graph_id ${graphMessageId} - table missing`);
+          }
+
+        } catch (processError) {
+          console.error(`Error processing email ${i + 1}:`, processError.message);
+          processedEmails.push({ success: false, error: processError.message });
+          stats.errors++;
+
+          await self.recordProcessedMessage(
+            connection, mailboxId, messageId, null, null, 'error'
+          );
+        }
+
+        if (i < emailQueue.length - 1) {
+          console.log(`⏳ Waiting ${EMAIL_PROCESS_DELAY_MS}ms before next email...`);
+          await delay(EMAIL_PROCESS_DELAY_MS);
+        }
+      }
+
+      console.log(`📊 [${self.tenantCode}] Graph cycle summary: scanned=${stats.scanned}, created=${stats.processed}, updated=${stats.ticket_updated}, skipped_dup=${stats.skipped_duplicate}, skipped_bounce=${stats.skipped_bounce}, skipped_domain=${stats.skipped_domain}, skipped_system=${stats.skipped_system}, errors=${stats.errors}`);
+      if (stats.firstProcessedMessageId) {
+        console.log(`📧 First processed message_id: ${stats.firstProcessedMessageId}`);
+      }
+    }
+
+    // ── Persist delta cursor ──
+    if (newDeltaLink) {
+      await connection.query(
+        'UPDATE email_ingest_settings SET graph_delta_link = ? WHERE id = ?',
+        [newDeltaLink, mailboxId]
+      );
+      console.log(`💾 [${self.tenantCode}] Stored new deltaLink`);
+    }
+
+    return processedEmails;
+
+    } finally {
+      // Always release both locks
+      unlock(lockKey);
+      try {
+        await connection.query(
+          `UPDATE email_ingest_settings
+           SET imap_locked_by = NULL,
+               imap_lock_expires = NULL
+           WHERE id = ?
+             AND imap_locked_by = ?`,
+          [mailboxId, lockOwner]
+        );
+      } catch (dbUnlockErr) {
+        console.error(`[${self.tenantCode}] Error releasing DB lock:`, dbUnlockErr.message);
+      }
     }
   }
 

@@ -13,6 +13,7 @@ const {
 } = require('../services/oauth2-helper');
 const { tryLock, unlock } = require('../services/imap-lock');
 const { ImapFlow } = require('imapflow');
+const fetch = require('node-fetch');
 
 // ============================================================================
 // All routes require authentication
@@ -91,6 +92,7 @@ function sanitizeSettings(settings) {
   const safe = { ...settings };
   delete safe.oauth2_access_token;
   delete safe.oauth2_refresh_token;
+  delete safe.graph_delta_link;
   // Keep oauth2_email, auth_method, oauth2_token_expiry for status display
   return safe;
 }
@@ -292,35 +294,39 @@ router.post('/:tenantId/test-connection', requireRole(['admin']), writeOperation
       }
 
       try {
-        // OAuth2 test connection (client credentials flow)
+        // OAuth2 test connection via Microsoft Graph API
         if (config.auth_method === 'oauth2') {
           if (!config.oauth2_email) {
             return res.json({ success: false, message: 'Microsoft 365 email address not configured. Enter the mailbox email and save settings first.' });
           }
 
           const { accessToken } = await getValidAccessToken(connection, tenantCode);
-          const imapUser = config.oauth2_email;
+          const userEmail = config.oauth2_email;
 
-          console.log(`[Email Test] IMAP resolved: host=outlook.office365.com, auth.user=${imapUser}, oauth2_email=${config.oauth2_email}`);
+          console.log(`[Email Test] Graph API test for ${userEmail}`);
 
-          const result = await testImapConnection({
-            user: imapUser,
-            accessToken: accessToken,
-            host: 'outlook.office365.com',
-            port: 993,
-            secure: true
-          });
+          const graphRes = await fetch(
+            `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(userEmail)}/mailFolders/Inbox?$select=totalItemCount,unreadItemCount`,
+            { headers: { Authorization: `Bearer ${accessToken}` } }
+          );
+
+          if (!graphRes.ok) {
+            const errBody = await graphRes.text();
+            throw new Error(`Graph API ${graphRes.status}: ${errBody}`);
+          }
+
+          const folder = await graphRes.json();
 
           return res.json({
             success: true,
             message: 'Microsoft 365 connection test successful',
             details: {
-              server: 'outlook.office365.com',
-              port: 993,
-              type: 'OAuth2 / Client Credentials',
-              email: imapUser,
-              totalMessages: result.totalMessages,
-              unseenMessages: result.unseenMessages
+              server: 'graph.microsoft.com',
+              port: 443,
+              type: 'Graph API / Client Credentials',
+              email: userEmail,
+              totalMessages: folder.totalItemCount || 0,
+              unseenMessages: folder.unreadItemCount || 0
             }
           });
         }
