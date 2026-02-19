@@ -286,6 +286,27 @@ router.post('/:tenantId/test-connection', requireRole(['admin']), writeOperation
         }
 
         const { accessToken, email } = await getValidAccessToken(connection, tenantCode);
+
+        // Decode and log JWT claims for diagnostics
+        try {
+          const jwtParts = accessToken.split('.');
+          if (jwtParts.length === 3) {
+            const payload = JSON.parse(Buffer.from(jwtParts[1], 'base64').toString());
+            console.log('[OAuth2 Token Diagnostics]', JSON.stringify({
+              aud: payload.aud,
+              appid: payload.appid,
+              tid: payload.tid,
+              roles: payload.roles,
+              scp: payload.scp,
+              iss: payload.iss,
+              exp: payload.exp,
+              iat: payload.iat
+            }, null, 2));
+          }
+        } catch (decodeErr) {
+          console.log('[OAuth2] Could not decode token for diagnostics:', decodeErr.message);
+        }
+
         const xoauth2Token = buildXOAuth2Token(email, accessToken);
 
         const result = await testImapConnection({
