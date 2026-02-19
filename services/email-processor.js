@@ -16,6 +16,8 @@ const Imap = require('imap');
 const { simpleParser } = require('mailparser');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
+const os = require('os');
+const { tryLock, unlock } = require('./imap-lock');
 
 // ============================================================================
 // EMAIL REPLY THREADING PATTERNS
@@ -438,7 +440,37 @@ class EmailProcessor {
     const mailboxId = config.id;
     let lastUidProcessed = config.last_uid_processed; // Keep as null if not set
 
+    // Determine mailbox for lock key
+    const mailbox = (config.auth_method === 'oauth2' ? config.oauth2_email : config.username) || 'default';
+    const lockKey = `imap:${self.tenantCode}:${mailbox}`;
+
+    // In-process lock — prevent concurrent IMAP to same mailbox
+    if (!tryLock(lockKey)) {
+      console.log(`🔒 [${self.tenantCode}] Skipping cycle, mailbox locked: ${mailbox}`);
+      return [];
+    }
+
+    // DB-level lock — multi-replica safety (atomic UPDATE, proceed only if 1 row affected)
+    const lockOwner = `${os.hostname()}:${process.pid}`;
+    const [lockResult] = await connection.query(
+      `UPDATE email_ingest_settings
+       SET imap_locked_by = ?,
+           imap_lock_expires = DATE_ADD(NOW(), INTERVAL 120 SECOND)
+       WHERE id = ?
+         AND (imap_lock_expires IS NULL OR imap_lock_expires < NOW())`,
+      [lockOwner, mailboxId]
+    );
+
+    if (lockResult.affectedRows !== 1) {
+      unlock(lockKey);
+      console.log(`🔒 [${self.tenantCode}] Skipping cycle, DB lock held by another replica`);
+      return [];
+    }
+
+    try {
+
     console.log(`📬 [${this.tenantCode}] Starting IMAP fetch, last_uid_processed: ${lastUidProcessed ?? 'NULL (will initialize)'}`);
+
 
     // Master timeout wrapper to prevent hanging forever
     const timeoutPromise = new Promise((_, timeoutReject) => {
@@ -447,12 +479,20 @@ class EmailProcessor {
       }, IMAP_TIMEOUT_MS);
     });
 
+    // Rolling debug buffer for Command Error diagnostics
+    const debugBuffer = [];
+
     // Build IMAP config based on auth method
     let imapUser, imapHost, imapPort, imapTls, imapMailbox;
     const imapConfig = {
       tlsOptions: { rejectUnauthorized: false },
       connTimeout: 30000,
-      authTimeout: 30000
+      authTimeout: 30000,
+      keepalive: false,
+      debug: (msg) => {
+        debugBuffer.push(msg);
+        if (debugBuffer.length > 10) debugBuffer.shift();
+      }
     };
 
     if (config.auth_method === 'oauth2') {
@@ -482,6 +522,7 @@ class EmailProcessor {
       let pendingParses = 0;
       let fetchEnded = false;
       let imapRef = imap; // Keep reference for marking seen later
+      let connectionClosed = false; // Track if connection was lost
 
       const delay = (ms) => new Promise(r => setTimeout(r, ms));
 
@@ -494,7 +535,7 @@ class EmailProcessor {
             resolveMarkSeen();
             return;
           }
-          if (!imapRef || imapRef.state !== 'authenticated') {
+          if (connectionClosed || !imapRef || imapRef.state !== 'authenticated') {
             console.log(`Cannot mark UID ${uid} as seen - IMAP not connected`);
             resolveMarkSeen();
             return;
@@ -793,11 +834,25 @@ class EmailProcessor {
       });
 
       imap.once('error', (err) => {
+        connectionClosed = true;
         console.error(`❌ IMAP connection error for tenant ${self.tenantCode}:`, err.message);
+        if (err.message && err.message.includes('Command Error')) {
+          console.error(`[IMAP Diagnostics] Last debug lines:\n${debugBuffer.join('\n')}`);
+        }
+        try { imap.destroy(); } catch (_) {}
         reject(err);
       });
 
+      imap.once('close', (hadError) => {
+        connectionClosed = true;
+        if (hadError) {
+          console.log(`[${self.tenantCode}] IMAP connection closed with error`);
+        }
+        try { imap.destroy(); } catch (_) {}
+      });
+
       imap.once('end', () => {
+        connectionClosed = true;
         console.log(`IMAP connection closed for tenant: ${self.tenantCode}`);
         imapRef = null;
         resolve(processedEmails);
@@ -807,6 +862,23 @@ class EmailProcessor {
     });
 
     return Promise.race([imapPromise, timeoutPromise]);
+
+    } finally {
+      // Always release both locks
+      unlock(lockKey);
+      try {
+        await connection.query(
+          `UPDATE email_ingest_settings
+           SET imap_locked_by = NULL,
+               imap_lock_expires = NULL
+           WHERE id = ?
+             AND imap_locked_by = ?`,
+          [mailboxId, lockOwner]
+        );
+      } catch (dbUnlockErr) {
+        console.error(`[${self.tenantCode}] Error releasing DB lock:`, dbUnlockErr.message);
+      }
+    }
   }
 
   /**

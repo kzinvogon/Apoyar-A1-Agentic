@@ -653,6 +653,8 @@ async function createTenantTables(connection) {
       oauth2_access_token TEXT DEFAULT NULL,
       oauth2_token_expiry TIMESTAMP NULL,
       oauth2_email VARCHAR(255) DEFAULT NULL,
+      imap_locked_by VARCHAR(64) DEFAULT NULL,
+      imap_lock_expires TIMESTAMP NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     )

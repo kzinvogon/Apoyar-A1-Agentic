@@ -12,6 +12,7 @@ const {
   getValidAccessToken,
   buildXOAuth2Token
 } = require('../services/oauth2-helper');
+const { tryLock, unlock } = require('../services/imap-lock');
 
 // ============================================================================
 // All routes require authentication
@@ -279,73 +280,88 @@ router.post('/:tenantId/test-connection', requireRole(['admin']), writeOperation
 
       const config = settings[0];
 
-      // OAuth2 test connection (client credentials flow)
-      if (config.auth_method === 'oauth2') {
-        if (!config.oauth2_email) {
-          return res.json({ success: false, message: 'Microsoft 365 email address not configured. Enter the mailbox email and save settings first.' });
-        }
+      // Determine mailbox email for lock key
+      const mailbox = (config.auth_method === 'oauth2' ? config.oauth2_email : config.username) || 'default';
+      const lockKey = `imap:${tenantCode}:${mailbox}`;
 
-        const { accessToken, email } = await getValidAccessToken(connection, tenantCode);
+      if (!tryLock(lockKey)) {
+        return res.status(409).json({
+          success: false,
+          message: 'Email ingest is currently processing. Please try again in a moment.'
+        });
+      }
 
-        // Decode and log JWT claims for diagnostics
-        try {
-          const jwtParts = accessToken.split('.');
-          if (jwtParts.length === 3) {
-            const payload = JSON.parse(Buffer.from(jwtParts[1], 'base64').toString());
-            console.log('[OAuth2 Token Diagnostics] aud=' + payload.aud + ' appid=' + payload.appid + ' tid=' + payload.tid + ' roles=' + JSON.stringify(payload.roles) + ' scp=' + (payload.scp || 'none') + ' exp=' + payload.exp);
+      try {
+        // OAuth2 test connection (client credentials flow)
+        if (config.auth_method === 'oauth2') {
+          if (!config.oauth2_email) {
+            return res.json({ success: false, message: 'Microsoft 365 email address not configured. Enter the mailbox email and save settings first.' });
           }
-        } catch (decodeErr) {
-          console.log('[OAuth2] Could not decode token for diagnostics:', decodeErr.message);
+
+          const { accessToken, email } = await getValidAccessToken(connection, tenantCode);
+
+          // Decode and log JWT claims for diagnostics
+          try {
+            const jwtParts = accessToken.split('.');
+            if (jwtParts.length === 3) {
+              const payload = JSON.parse(Buffer.from(jwtParts[1], 'base64').toString());
+              console.log('[OAuth2 Token Diagnostics] aud=' + payload.aud + ' appid=' + payload.appid + ' tid=' + payload.tid + ' roles=' + JSON.stringify(payload.roles) + ' scp=' + (payload.scp || 'none') + ' exp=' + payload.exp);
+            }
+          } catch (decodeErr) {
+            console.log('[OAuth2] Could not decode token for diagnostics:', decodeErr.message);
+          }
+
+          const xoauth2Token = buildXOAuth2Token(email, accessToken);
+
+          const result = await testImapConnection({
+            user: email,
+            xoauth2: xoauth2Token,
+            host: 'outlook.office365.com',
+            port: 993,
+            tls: true
+          });
+
+          return res.json({
+            success: true,
+            message: 'Microsoft 365 connection test successful',
+            details: {
+              server: 'outlook.office365.com',
+              port: 993,
+              type: 'OAuth2 / Client Credentials',
+              email: email,
+              totalMessages: result.totalMessages,
+              unseenMessages: result.unseenMessages
+            }
+          });
         }
 
-        const xoauth2Token = buildXOAuth2Token(email, accessToken);
+        // Basic auth test connection (existing behavior)
+        if (!config.server_host || !config.username || !config.password) {
+          return res.json({ success: false, message: 'Email settings incomplete - server, username, and password required' });
+        }
 
         const result = await testImapConnection({
-          user: email,
-          xoauth2: xoauth2Token,
-          host: 'outlook.office365.com',
-          port: 993,
-          tls: true
+          user: config.username,
+          password: config.password,
+          host: config.server_host,
+          port: config.server_port || 993,
+          tls: config.use_ssl === true || config.use_ssl === 1 || config.use_ssl === '1'
         });
 
-        return res.json({
+        res.json({
           success: true,
-          message: 'Microsoft 365 connection test successful',
+          message: 'Email connection test successful',
           details: {
-            server: 'outlook.office365.com',
-            port: 993,
-            type: 'OAuth2 / Client Credentials',
-            email: email,
+            server: config.server_host,
+            port: config.server_port,
+            type: config.server_type,
             totalMessages: result.totalMessages,
             unseenMessages: result.unseenMessages
           }
         });
+      } finally {
+        unlock(lockKey);
       }
-
-      // Basic auth test connection (existing behavior)
-      if (!config.server_host || !config.username || !config.password) {
-        return res.json({ success: false, message: 'Email settings incomplete - server, username, and password required' });
-      }
-
-      const result = await testImapConnection({
-        user: config.username,
-        password: config.password,
-        host: config.server_host,
-        port: config.server_port || 993,
-        tls: config.use_ssl === true || config.use_ssl === 1 || config.use_ssl === '1'
-      });
-
-      res.json({
-        success: true,
-        message: 'Email connection test successful',
-        details: {
-          server: config.server_host,
-          port: config.server_port,
-          type: config.server_type,
-          totalMessages: result.totalMessages,
-          unseenMessages: result.unseenMessages
-        }
-      });
     } finally {
       connection.release();
     }
@@ -382,6 +398,7 @@ function testImapConnection({ user, password, xoauth2, host, port, tls }) {
       tlsOptions: { rejectUnauthorized: false },
       connTimeout: 15000,
       authTimeout: 15000,
+      keepalive: false,
       debug: (msg) => console.log(`[IMAP Debug] ${msg}`)
     };
 
@@ -418,6 +435,13 @@ function testImapConnection({ user, password, xoauth2, host, port, tls }) {
     imap.once('error', (err) => {
       clearTimeout(timeout);
       reject(err);
+    });
+
+    imap.once('close', (hadError) => {
+      clearTimeout(timeout);
+      if (hadError) {
+        console.log('[IMAP Test] Connection closed with error');
+      }
     });
 
     imap.connect();
