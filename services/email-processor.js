@@ -468,7 +468,7 @@ class EmailProcessor {
           body: parsed.text || parsed.html || '(No content)',
           html: parsed.html || '',
           text: parsed.text || '',
-          messageId: parsed.messageId || item.internetMessageId || `graph-${item.id}`,
+          messageId: item.internetMessageId || parsed.messageId || `graph-${item.id}`,
           date: parsed.date || (item.receivedDateTime ? new Date(item.receivedDateTime) : new Date()),
           uid: null,
           inReplyTo: parsed.inReplyTo || null,
