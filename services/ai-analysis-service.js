@@ -1716,7 +1716,7 @@ Return the structured rule as JSON.`
   async getDashboardData(period = 7) {
     const connection = await getTenantConnection(this.tenantCode);
     try {
-      // Get active insights
+      // Get stored insights
       const [insights] = await connection.query(`
         SELECT * FROM ai_insights
         WHERE status = 'active'
@@ -1724,6 +1724,91 @@ Return the structured rule as JSON.`
         ORDER BY severity DESC, created_at DESC
         LIMIT 10
       `, [period]);
+
+      // Live SLA breach queries (always current, no refresh needed)
+      const [responseBreached] = await connection.query(`
+        SELECT COUNT(*) as count, GROUP_CONCAT(id) as ticket_ids
+        FROM tickets
+        WHERE status NOT IN ('resolved', 'closed')
+        AND sla_definition_id IS NOT NULL
+        AND first_responded_at IS NULL
+        AND response_due_at IS NOT NULL
+        AND response_due_at < NOW()
+      `);
+
+      const [resolveBreached] = await connection.query(`
+        SELECT COUNT(*) as count, GROUP_CONCAT(id) as ticket_ids
+        FROM tickets
+        WHERE status NOT IN ('resolved', 'closed')
+        AND sla_definition_id IS NOT NULL
+        AND first_responded_at IS NOT NULL
+        AND resolve_due_at IS NOT NULL
+        AND resolve_due_at < NOW()
+      `);
+
+      const [responseRisk] = await connection.query(`
+        SELECT COUNT(*) as count, GROUP_CONCAT(id) as ticket_ids
+        FROM tickets
+        WHERE status NOT IN ('resolved', 'closed')
+        AND sla_definition_id IS NOT NULL
+        AND first_responded_at IS NULL
+        AND response_due_at IS NOT NULL
+        AND response_due_at BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 2 HOUR)
+      `);
+
+      const [resolveRisk] = await connection.query(`
+        SELECT COUNT(*) as count, GROUP_CONCAT(id) as ticket_ids
+        FROM tickets
+        WHERE status NOT IN ('resolved', 'closed')
+        AND sla_definition_id IS NOT NULL
+        AND first_responded_at IS NOT NULL
+        AND resolve_due_at IS NOT NULL
+        AND resolve_due_at BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 2 HOUR)
+      `);
+
+      // Build live SLA insights
+      const liveInsights = [];
+      const parseIds = (str) => str ? str.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
+
+      if (responseBreached[0].count > 0) {
+        liveInsights.push({
+          id: 'live-response-breached', type: 'alert', severity: 'critical',
+          title: 'Response SLA Breached',
+          description: `${responseBreached[0].count} ticket(s) have missed their response SLA deadline and still need first response.`,
+          affected_tickets: parseIds(responseBreached[0].ticket_ids),
+          metrics: { count: responseBreached[0].count, phase: 'response', state: 'breached' }
+        });
+      }
+
+      if (resolveBreached[0].count > 0) {
+        liveInsights.push({
+          id: 'live-resolve-breached', type: 'alert', severity: 'critical',
+          title: 'Resolution SLA Breached',
+          description: `${resolveBreached[0].count} ticket(s) have missed their resolution SLA deadline and still need to be resolved.`,
+          affected_tickets: parseIds(resolveBreached[0].ticket_ids),
+          metrics: { count: resolveBreached[0].count, phase: 'resolve', state: 'breached' }
+        });
+      }
+
+      if (responseRisk[0].count > 0) {
+        liveInsights.push({
+          id: 'live-response-risk', type: 'alert', severity: 'warning',
+          title: 'Response SLA At Risk',
+          description: `${responseRisk[0].count} ticket(s) need first response within 2 hours to avoid SLA breach.`,
+          affected_tickets: parseIds(responseRisk[0].ticket_ids),
+          metrics: { count: responseRisk[0].count, phase: 'response', state: 'at_risk' }
+        });
+      }
+
+      if (resolveRisk[0].count > 0) {
+        liveInsights.push({
+          id: 'live-resolve-risk', type: 'alert', severity: 'warning',
+          title: 'Resolution SLA At Risk',
+          description: `${resolveRisk[0].count} ticket(s) need resolution within 2 hours to avoid SLA breach.`,
+          affected_tickets: parseIds(resolveRisk[0].ticket_ids),
+          metrics: { count: resolveRisk[0].count, phase: 'resolve', state: 'at_risk' }
+        });
+      }
 
       // Get sentiment distribution
       const [sentimentStats] = await connection.query(`
@@ -1784,38 +1869,43 @@ Return the structured rule as JSON.`
           total: ticketCount[0]?.total || 0,
           analyzed: performance[0]?.total_analyzed || 0
         },
-        insights: insights.map(i => {
-          let affectedTickets = [];
-          let metrics = {};
+        insights: [
+          // Live SLA insights first (always current)
+          ...liveInsights,
+          // Then stored insights (from detectTrends)
+          ...insights.map(i => {
+            let affectedTickets = [];
+            let metrics = {};
 
-          // Handle affected_tickets - might be string, JSON, or already parsed
-          try {
-            if (typeof i.affected_tickets === 'string') {
-              affectedTickets = JSON.parse(i.affected_tickets);
-            } else if (Array.isArray(i.affected_tickets)) {
-              affectedTickets = i.affected_tickets;
+            // Handle affected_tickets - might be string, JSON, or already parsed
+            try {
+              if (typeof i.affected_tickets === 'string') {
+                affectedTickets = JSON.parse(i.affected_tickets);
+              } else if (Array.isArray(i.affected_tickets)) {
+                affectedTickets = i.affected_tickets;
+              }
+            } catch (e) {
+              console.warn('Failed to parse affected_tickets:', e.message);
             }
-          } catch (e) {
-            console.warn('Failed to parse affected_tickets:', e.message);
-          }
 
-          // Handle metrics - might be string, JSON, or already parsed
-          try {
-            if (typeof i.metrics === 'string') {
-              metrics = JSON.parse(i.metrics);
-            } else if (typeof i.metrics === 'object') {
-              metrics = i.metrics;
+            // Handle metrics - might be string, JSON, or already parsed
+            try {
+              if (typeof i.metrics === 'string') {
+                metrics = JSON.parse(i.metrics);
+              } else if (typeof i.metrics === 'object') {
+                metrics = i.metrics;
+              }
+            } catch (e) {
+              console.warn('Failed to parse metrics:', e.message);
             }
-          } catch (e) {
-            console.warn('Failed to parse metrics:', e.message);
-          }
 
-          return {
-            ...i,
-            affected_tickets: affectedTickets,
-            metrics
-          };
-        }),
+            return {
+              ...i,
+              affected_tickets: affectedTickets,
+              metrics
+            };
+          })
+        ],
         sentiment: {
           distribution: sentimentStats.reduce((acc, row) => {
             acc[row.sentiment || 'unknown'] = row.count;
