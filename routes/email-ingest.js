@@ -292,16 +292,7 @@ router.post('/:tenantId/test-connection', requireRole(['admin']), writeOperation
           const jwtParts = accessToken.split('.');
           if (jwtParts.length === 3) {
             const payload = JSON.parse(Buffer.from(jwtParts[1], 'base64').toString());
-            console.log('[OAuth2 Token Diagnostics]', JSON.stringify({
-              aud: payload.aud,
-              appid: payload.appid,
-              tid: payload.tid,
-              roles: payload.roles,
-              scp: payload.scp,
-              iss: payload.iss,
-              exp: payload.exp,
-              iat: payload.iat
-            }, null, 2));
+            console.log('[OAuth2 Token Diagnostics] aud=' + payload.aud + ' appid=' + payload.appid + ' tid=' + payload.tid + ' roles=' + JSON.stringify(payload.roles) + ' scp=' + (payload.scp || 'none') + ' exp=' + payload.exp);
           }
         } catch (decodeErr) {
           console.log('[OAuth2] Could not decode token for diagnostics:', decodeErr.message);
