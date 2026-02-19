@@ -433,6 +433,11 @@ class EmailProcessor {
       logger: false
     });
 
+    // Prevent unhandled 'error' events from crashing the process
+    client.on('error', (err) => {
+      console.error(`[${self.tenantCode}] IMAP socket error: ${err.message}`);
+    });
+
     const processedEmails = [];
 
     // Master timeout — close connection if stuck

@@ -389,6 +389,11 @@ async function testImapConnection({ user, password, accessToken, host, port, sec
     logger: false
   });
 
+  // Prevent unhandled 'error' events from crashing the process
+  client.on('error', (err) => {
+    console.error(`[Email Test] IMAP socket error: ${err.message}`);
+  });
+
   try {
     await client.connect();
     const mailbox = await client.mailboxOpen('INBOX');
