@@ -410,12 +410,13 @@ class EmailProcessor {
 
     if (config.auth_method === 'oauth2') {
       const { getValidAccessToken } = require('./oauth2-helper');
-      const { accessToken, email } = await getValidAccessToken(connection, self.tenantCode);
-      imapAuth = { user: email, accessToken };
+      const { accessToken } = await getValidAccessToken(connection, self.tenantCode);
+      const imapUser = config.oauth2_email;
+      imapAuth = { user: imapUser, accessToken };
       imapHost = 'outlook.office365.com';
       imapPort = 993;
       imapMailboxPath = 'INBOX';
-      console.log(`[${self.tenantCode}] Using OAuth2 for ${email}`);
+      console.log(`[${self.tenantCode}] IMAP resolved: host=${imapHost}, auth.user=${imapUser}, oauth2_email=${config.oauth2_email}`);
     } else {
       imapAuth = { user: config.username, pass: config.password };
       imapHost = config.server_host;

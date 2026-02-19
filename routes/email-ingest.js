@@ -298,21 +298,13 @@ router.post('/:tenantId/test-connection', requireRole(['admin']), writeOperation
             return res.json({ success: false, message: 'Microsoft 365 email address not configured. Enter the mailbox email and save settings first.' });
           }
 
-          const { accessToken, email } = await getValidAccessToken(connection, tenantCode);
+          const { accessToken } = await getValidAccessToken(connection, tenantCode);
+          const imapUser = config.oauth2_email;
 
-          // Decode and log JWT claims for diagnostics
-          try {
-            const jwtParts = accessToken.split('.');
-            if (jwtParts.length === 3) {
-              const payload = JSON.parse(Buffer.from(jwtParts[1], 'base64').toString());
-              console.log('[OAuth2 Token Diagnostics] aud=' + payload.aud + ' appid=' + payload.appid + ' tid=' + payload.tid + ' roles=' + JSON.stringify(payload.roles) + ' scp=' + (payload.scp || 'none') + ' exp=' + payload.exp);
-            }
-          } catch (decodeErr) {
-            console.log('[OAuth2] Could not decode token for diagnostics:', decodeErr.message);
-          }
+          console.log(`[Email Test] IMAP resolved: host=outlook.office365.com, auth.user=${imapUser}, oauth2_email=${config.oauth2_email}`);
 
           const result = await testImapConnection({
-            user: email,
+            user: imapUser,
             accessToken: accessToken,
             host: 'outlook.office365.com',
             port: 993,
@@ -326,7 +318,7 @@ router.post('/:tenantId/test-connection', requireRole(['admin']), writeOperation
               server: 'outlook.office365.com',
               port: 993,
               type: 'OAuth2 / Client Credentials',
-              email: email,
+              email: imapUser,
               totalMessages: result.totalMessages,
               unseenMessages: result.unseenMessages
             }
