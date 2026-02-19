@@ -182,16 +182,30 @@ router.post('/:tenantId/process-now', requireRole(['admin']), writeOperationsLim
 
     console.log(`Manual email processing triggered for tenant: ${tenantCode}`);
 
-    // Process emails immediately (don't await to avoid timeout)
-    processor.processEmails().then(result => {
-      console.log(`Manual email processing completed for tenant: ${tenantCode}`);
-    }).catch(error => {
-      console.error(`Manual email processing failed for tenant: ${tenantCode}`, error);
-    });
+    // Capture log output during processing
+    const logLines = [];
+    const origLog = console.log;
+    const origError = console.error;
+    const capture = (...args) => {
+      const line = args.map(a => typeof a === 'string' ? a : JSON.stringify(a)).join(' ');
+      logLines.push(line);
+    };
+    console.log = (...args) => { capture(...args); origLog.apply(console, args); };
+    console.error = (...args) => { capture('ERROR: ' + args[0], ...args.slice(1)); origError.apply(console, args); };
+
+    try {
+      await processor.processEmails();
+    } finally {
+      console.log = origLog;
+      console.error = origError;
+    }
+
+    console.log(`Manual email processing completed for tenant: ${tenantCode}`);
 
     res.json({
       success: true,
-      message: 'Email processing triggered. Check server logs for details.'
+      message: 'Email processing completed',
+      log: logLines
     });
   } catch (error) {
     console.error('Error triggering email processing:', error);
