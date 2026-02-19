@@ -9,10 +9,10 @@ const {
   readOperationsLimiter
 } = require('../middleware/rateLimiter');
 const {
-  getValidAccessToken,
-  buildXOAuth2Token
+  getValidAccessToken
 } = require('../services/oauth2-helper');
 const { tryLock, unlock } = require('../services/imap-lock');
+const { ImapFlow } = require('imapflow');
 
 // ============================================================================
 // All routes require authentication
@@ -311,14 +311,12 @@ router.post('/:tenantId/test-connection', requireRole(['admin']), writeOperation
             console.log('[OAuth2] Could not decode token for diagnostics:', decodeErr.message);
           }
 
-          const xoauth2Token = buildXOAuth2Token(email, accessToken);
-
           const result = await testImapConnection({
             user: email,
-            xoauth2: xoauth2Token,
+            accessToken: accessToken,
             host: 'outlook.office365.com',
             port: 993,
-            tls: true
+            secure: true
           });
 
           return res.json({
@@ -345,7 +343,7 @@ router.post('/:tenantId/test-connection', requireRole(['admin']), writeOperation
           password: config.password,
           host: config.server_host,
           port: config.server_port || 993,
-          tls: config.use_ssl === true || config.use_ssl === 1 || config.use_ssl === '1'
+          secure: config.use_ssl === true || config.use_ssl === 1 || config.use_ssl === '1'
         });
 
         res.json({
@@ -383,69 +381,33 @@ router.post('/:tenantId/test-connection', requireRole(['admin']), writeOperation
 });
 
 /**
- * Test IMAP connection with either password or XOAUTH2 auth
+ * Test IMAP connection with either password or OAuth2 accessToken
  */
-function testImapConnection({ user, password, xoauth2, host, port, tls }) {
-  return new Promise((resolve, reject) => {
-    const Imap = require('imap');
-    console.log(`[Email Test] Connecting to ${host}:${port} TLS=${tls} user=${user} auth=${xoauth2 ? 'xoauth2' : 'password'}`);
+async function testImapConnection({ user, password, accessToken, host, port, secure }) {
+  console.log(`[Email Test] Connecting to ${host}:${port} secure=${secure} user=${user} auth=${accessToken ? 'oauth2' : 'password'}`);
 
-    const imapConfig = {
-      user,
-      host,
-      port,
-      tls,
-      tlsOptions: { rejectUnauthorized: false },
-      connTimeout: 15000,
-      authTimeout: 15000,
-      keepalive: false,
-      debug: (msg) => console.log(`[IMAP Debug] ${msg}`)
-    };
+  const auth = accessToken ? { user, accessToken } : { user, pass: password };
 
-    if (xoauth2) {
-      imapConfig.xoauth2 = xoauth2;
-    } else {
-      imapConfig.password = password;
-    }
-
-    const imap = new Imap(imapConfig);
-
-    const timeout = setTimeout(() => {
-      imap.destroy();
-      reject(new Error('Connection timeout'));
-    }, 20000);
-
-    imap.once('ready', () => {
-      clearTimeout(timeout);
-      imap.openBox('INBOX', true, (err, box) => {
-        if (err) {
-          imap.end();
-          reject(err);
-        } else {
-          const result = {
-            totalMessages: box.messages.total,
-            unseenMessages: box.messages.unseen
-          };
-          imap.end();
-          resolve(result);
-        }
-      });
-    });
-
-    imap.once('error', (err) => {
-      clearTimeout(timeout);
-      reject(err);
-    });
-
-    imap.once('close', (hadError) => {
-      clearTimeout(timeout);
-      if (hadError) {
-        console.log('[IMAP Test] Connection closed with error');
-      }
-    });
-
-    imap.connect();
+  const client = new ImapFlow({
+    host,
+    port,
+    secure,
+    auth,
+    tls: { rejectUnauthorized: false },
+    logger: false
   });
+
+  try {
+    await client.connect();
+    const mailbox = await client.mailboxOpen('INBOX');
+    const status = await client.status('INBOX', { unseen: true });
+    return {
+      totalMessages: mailbox.exists || 0,
+      unseenMessages: status.unseen || 0
+    };
+  } finally {
+    try { await client.logout(); } catch (_) {}
+  }
 }
 
 module.exports = router;
