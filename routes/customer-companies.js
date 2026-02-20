@@ -308,6 +308,7 @@ router.put('/:id', requireRole(['admin', 'expert']), writeOperationsLimiter, val
     const { id } = req.params;
     const {
       company_name,
+      company_domain,
       contact_phone,
       address,
       sla_level,
@@ -338,6 +339,10 @@ router.put('/:id', requireRole(['admin', 'expert']), writeOperationsLimiter, val
       if (company_name !== undefined) {
         updates.push('company_name = ?');
         values.push(company_name);
+      }
+      if (company_domain !== undefined) {
+        updates.push('company_domain = ?');
+        values.push(company_domain.toLowerCase());
       }
       if (contact_phone !== undefined) {
         updates.push('contact_phone = ?');
@@ -389,6 +394,14 @@ router.put('/:id', requireRole(['admin', 'expert']), writeOperationsLimiter, val
         await connection.query(
           'UPDATE customers SET sla_level = ? WHERE customer_company_id = ?',
           [sla_level, id]
+        );
+      }
+
+      // If company domain changed, update all team members
+      if (company_domain !== undefined) {
+        await connection.query(
+          'UPDATE customers SET company_domain = ? WHERE customer_company_id = ?',
+          [company_domain.toLowerCase(), id]
         );
       }
 
