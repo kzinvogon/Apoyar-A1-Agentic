@@ -19571,7 +19571,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     document.getElementById('ai-trends-tickets').textContent = `${allAffectedTickets.size} tickets affected`;
     document.getElementById('ai-critical-count').textContent = criticalTickets.size;
     document.getElementById('ai-warning-count').textContent = warningTickets.size;
-    document.getElementById('ai-analyzed-count').textContent = ticketStats.total || 0;
+    document.getElementById('ai-analyzed-count').textContent = ticketStats.analyzed || 0;
 
     const listEl = document.getElementById('ai-trends-list');
 

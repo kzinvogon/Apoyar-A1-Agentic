@@ -1728,7 +1728,7 @@ Return the structured rule as JSON.`
       // Increase GROUP_CONCAT limit for large ticket ID lists (default 1024 is too small)
       await connection.query('SET SESSION group_concat_max_len = 1000000');
 
-      // Live SLA breach queries (always current, no refresh needed)
+      // Live SLA breach queries — filtered by period to match other stats
       const [responseBreached] = await connection.query(`
         SELECT COUNT(*) as count, GROUP_CONCAT(id) as ticket_ids
         FROM tickets
@@ -1737,7 +1737,8 @@ Return the structured rule as JSON.`
         AND first_responded_at IS NULL
         AND response_due_at IS NOT NULL
         AND response_due_at < NOW()
-      `);
+        AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+      `, [period]);
 
       const [resolveBreached] = await connection.query(`
         SELECT COUNT(*) as count, GROUP_CONCAT(id) as ticket_ids
@@ -1747,7 +1748,8 @@ Return the structured rule as JSON.`
         AND first_responded_at IS NOT NULL
         AND resolve_due_at IS NOT NULL
         AND resolve_due_at < NOW()
-      `);
+        AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+      `, [period]);
 
       const [responseRisk] = await connection.query(`
         SELECT COUNT(*) as count, GROUP_CONCAT(id) as ticket_ids
@@ -1757,7 +1759,8 @@ Return the structured rule as JSON.`
         AND first_responded_at IS NULL
         AND response_due_at IS NOT NULL
         AND response_due_at BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 2 HOUR)
-      `);
+        AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+      `, [period]);
 
       const [resolveRisk] = await connection.query(`
         SELECT COUNT(*) as count, GROUP_CONCAT(id) as ticket_ids
@@ -1767,7 +1770,8 @@ Return the structured rule as JSON.`
         AND first_responded_at IS NOT NULL
         AND resolve_due_at IS NOT NULL
         AND resolve_due_at BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 2 HOUR)
-      `);
+        AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+      `, [period]);
 
       // Build live SLA insights
       const liveInsights = [];
