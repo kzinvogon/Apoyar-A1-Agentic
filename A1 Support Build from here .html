@@ -3545,7 +3545,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               <span id="pool-action-separator" style="display:none;width:1px;height:24px;background:#e5e7eb;margin:0 4px"></span>
               <button id="btn-self-assign" class="btn success" onclick="selfAssignTicket()" style="display:none">👋 Self Assign</button>
               <button id="btn-next" class="btn primary" onclick="advanceStatus()">Next status</button>
-              <button id="btn-reassign" class="btn ghost admin-only-btn" onclick="openCompletion('reassign')">Reassign</button>
+              <button id="btn-reassign" class="btn ghost" onclick="openCompletion('reassign')" style="display:none">Reassign</button>
               <button id="btn-mark-system" class="btn ghost admin-only-btn" onclick="markAsSystemMonitor()" title="Mark this ticket as a system monitoring alert">📡 Mark as System</button>
               <button id="btn-ai-assist" class="btn ai-btn" onclick="loadAISuggestions()">AI Assist</button>
               <span style="width:1px;height:24px;background:#e5e7eb;margin:0 4px"></span>
@@ -5127,6 +5127,71 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
               <div id="slack-message" class="subtitle" style="color:#16a34a;display:none;margin-top:12px"></div>
               <div id="slack-error" class="subtitle" style="color:#b91c1c;display:none;margin-top:12px"></div>
+            </div>
+
+            <!-- SMS Integration -->
+            <div id="sms-integration" style="border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px">
+              <div class="row space mb-12">
+                <div class="row" style="gap:12px">
+                  <div style="width:48px;height:48px;background:linear-gradient(135deg,#0ea5e9,#0284c7);border-radius:8px;display:flex;align-items:center;justify-content:center">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="white"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12zM7 9h2v2H7zm4 0h2v2h-2zm4 0h2v2h-2z"/></svg>
+                  </div>
+                  <div>
+                    <div style="font-weight:600;font-size:16px">SMS (Twilio)</div>
+                    <div class="subtitle" style="color:#666">Manage tickets via text message</div>
+                  </div>
+                </div>
+                <div id="sms-status-badge">
+                  <span id="sms-disconnected-badge" class="badge" style="background:#fee2e2;color:#b91c1c">Not Connected</span>
+                  <span id="sms-connected-badge" class="badge" style="background:#dcfce7;color:#16a34a;display:none">Connected</span>
+                </div>
+              </div>
+
+              <!-- Not Connected State -->
+              <div id="sms-not-connected">
+                <div class="subtitle mb-12">
+                  <strong>Features:</strong>
+                  <ul style="margin:8px 0 0 20px;padding:0">
+                    <li>Create tickets: text <code>new: [description]</code></li>
+                    <li>View ticket: text <code>#123</code></li>
+                    <li>List tickets: text <code>my tickets</code></li>
+                    <li>Switch modes: text <code>mode expert</code> or <code>mode customer</code></li>
+                    <li>Get help: text <code>help</code></li>
+                  </ul>
+                </div>
+                <div style="margin-bottom:12px">
+                  <div class="subtitle mb-8"><strong>Connect your Twilio number:</strong></div>
+                  <div class="row" style="gap:8px;flex-wrap:wrap">
+                    <input id="sms-phone-number" class="input" placeholder="+14155551234 (E.164)" style="max-width:200px"/>
+                    <input id="sms-account-sid" class="input" placeholder="Account SID (optional)" style="max-width:220px"/>
+                    <button class="btn primary" onclick="connectSms()">Connect SMS</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Connected State -->
+              <div id="sms-connected" style="display:none">
+                <div class="subtitle mb-12" style="background:#f0fdf4;padding:12px;border-radius:4px;border-left:4px solid #16a34a">
+                  <strong>Connected:</strong> <span id="sms-phone-display">-</span>
+                  <br>
+                  <span style="color:#666">Connected on: <span id="sms-connected-date">-</span></span>
+                </div>
+
+                <div class="mb-12">
+                  <strong>Test SMS:</strong>
+                  <div class="row mt-8" style="gap:8px">
+                    <input id="sms-test-phone" class="input" placeholder="Your phone number" style="max-width:200px"/>
+                    <button class="btn" onclick="testSms()">Send Test</button>
+                  </div>
+                </div>
+
+                <div class="row" style="gap:8px">
+                  <button class="btn" onclick="disconnectSms()" style="color:#b91c1c">Disconnect</button>
+                </div>
+              </div>
+
+              <div id="sms-message" class="subtitle" style="color:#16a34a;display:none;margin-top:12px"></div>
+              <div id="sms-error" class="subtitle" style="color:#b91c1c;display:none;margin-top:12px"></div>
             </div>
 
             <!-- Placeholder for future integrations -->
@@ -8080,7 +8145,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   function nav(el){ document.querySelectorAll('.navlink').forEach(n=>n.classList.remove('active')); el.classList.add('active'); switchView(el.getAttribute('data-target')); }
   function navTo(view){ switchView(view); }
-  function switchView(view){ currentView=view; if(view!=='ticket-detail' && typeof exitFullscreen === 'function') exitFullscreen(); ['dash','profile','tickets','ticket-detail','experts','expert-detail','customers','cmdb-hub','cmdb','cmdb-detail','manage-cmdb','cmdb-mgmt','wizard','raise','tenants','subscriptions','billing','plans','currencies','system','usage','customer-plans','customer-billing','my-company','company-admin','analytics','ai-insights','ticket-rules','email-processing','system-control','knowledge-base','raw-variables','audit-log','notifications'].forEach(n=>{ const el=document.getElementById('view-'+n); if(el) el.style.display=(n===view)?'block':'none'; }); if(view!=='dash') { clearExpertPowerSearch(); } if(view==='dash') { fetchTicketsFromAPI().then(() => renderAllDashboards()); loadAITrends(); } if(view==='tickets') { console.log('[switchView] Switching to tickets view'); window.insightTicketFilter = null; window.insightTitle = null; window.slaAtRiskFilter = false; loadFilterSettings('tickets'); renderList(); } if(view==='experts') { loadFilterSettings('experts'); renderExperts(); } if(view==='expert-detail') renderExpertDetail(); if(view==='customers') { loadFilterSettings('customers'); renderCustomers(); } if(view==='cmdb-hub') initCmdbHub(); if(view==='cmdb') { loadFilterSettings('cmdb'); renderCMDB(); } if(view==='cmdb-detail') renderCMDBDetail(); if(view==='manage-cmdb') loadManageCMDB(); if(view==='cmdb-mgmt') loadCMDBMgmt(); if(view==='raise') loadRaiseFormOptions(); if(view==='ticket-detail') renderTicketDetail(); if(view==='tenants') loadTenants(); if(view==='subscriptions') loadSubscriptions(); if(view==='billing') loadBilling(); if(view==='plans') loadPlans(); if(view==='currencies') loadCurrenciesAdmin(); if(view==='system') loadSystemOverview(); if(view==='usage') loadUsageDashboard(); if(view==='customer-plans') loadCustomerPlans(); if(view==='customer-billing') loadCustomerBilling(); if(view==='my-company') loadMyCompany(); if(view==='company-admin') loadCompanyAdminUsers(); if(view==='analytics') loadAnalytics(); if(view==='ai-insights') loadAIInsights(); if(view==='ticket-rules') loadTicketRules(); if(view==='email-processing') loadEmailProcessing(); if(view==='system-control') loadSystemControlSettings(); if(view==='knowledge-base') initKnowledgeBase(); if(view==='raw-variables') loadRawVariables(); if(view==='audit-log') { loadAuditActions(); loadAuditLog(); } if(view==='notifications') loadNotifications(); if(view==='wizard') { initWizardSection(); loadCompanyProfile(); loadEmailIngestSettings(); loadSystemSenders(); loadExpertRegSettings(); loadSupportSettings(); loadTeamsIntegrationStatus(); loadSlackIntegrationStatus(); loadSLAData(); } if(view==='profile') loadProfile(); }
+  function switchView(view){ currentView=view; if(view!=='ticket-detail' && typeof exitFullscreen === 'function') exitFullscreen(); ['dash','profile','tickets','ticket-detail','experts','expert-detail','customers','cmdb-hub','cmdb','cmdb-detail','manage-cmdb','cmdb-mgmt','wizard','raise','tenants','subscriptions','billing','plans','currencies','system','usage','customer-plans','customer-billing','my-company','company-admin','analytics','ai-insights','ticket-rules','email-processing','system-control','knowledge-base','raw-variables','audit-log','notifications'].forEach(n=>{ const el=document.getElementById('view-'+n); if(el) el.style.display=(n===view)?'block':'none'; }); if(view!=='dash') { clearExpertPowerSearch(); } if(view==='dash') { fetchTicketsFromAPI().then(() => renderAllDashboards()); loadAITrends(); } if(view==='tickets') { console.log('[switchView] Switching to tickets view'); window.insightTicketFilter = null; window.insightTitle = null; window.slaAtRiskFilter = false; loadFilterSettings('tickets'); renderList(); } if(view==='experts') { loadFilterSettings('experts'); renderExperts(); } if(view==='expert-detail') renderExpertDetail(); if(view==='customers') { loadFilterSettings('customers'); renderCustomers(); } if(view==='cmdb-hub') initCmdbHub(); if(view==='cmdb') { loadFilterSettings('cmdb'); renderCMDB(); } if(view==='cmdb-detail') renderCMDBDetail(); if(view==='manage-cmdb') loadManageCMDB(); if(view==='cmdb-mgmt') loadCMDBMgmt(); if(view==='raise') loadRaiseFormOptions(); if(view==='ticket-detail') renderTicketDetail(); if(view==='tenants') loadTenants(); if(view==='subscriptions') loadSubscriptions(); if(view==='billing') loadBilling(); if(view==='plans') loadPlans(); if(view==='currencies') loadCurrenciesAdmin(); if(view==='system') loadSystemOverview(); if(view==='usage') loadUsageDashboard(); if(view==='customer-plans') loadCustomerPlans(); if(view==='customer-billing') loadCustomerBilling(); if(view==='my-company') loadMyCompany(); if(view==='company-admin') loadCompanyAdminUsers(); if(view==='analytics') loadAnalytics(); if(view==='ai-insights') loadAIInsights(); if(view==='ticket-rules') loadTicketRules(); if(view==='email-processing') loadEmailProcessing(); if(view==='system-control') loadSystemControlSettings(); if(view==='knowledge-base') initKnowledgeBase(); if(view==='raw-variables') loadRawVariables(); if(view==='audit-log') { loadAuditActions(); loadAuditLog(); } if(view==='notifications') loadNotifications(); if(view==='wizard') { initWizardSection(); loadCompanyProfile(); loadEmailIngestSettings(); loadSystemSenders(); loadExpertRegSettings(); loadSupportSettings(); loadTeamsIntegrationStatus(); loadSlackIntegrationStatus(); loadSmsIntegrationStatus(); loadSLAData(); } if(view==='profile') loadProfile(); }
   function configureRole(){
     const currentRole = window.role || role; // Use global role from login, fallback to local
     document.getElementById('nav-admin').style.display = (currentRole==='admin') ? 'block' : 'none';
@@ -12554,6 +12619,171 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       window.history.replaceState({}, document.title, window.location.pathname);
       switchView('wizard');
     }
+  }
+
+  // =====================================================
+  // SMS Integration Functions
+  // =====================================================
+
+  async function loadSmsIntegrationStatus() {
+    try {
+      const tenantCode = window.currentUser?.tenantCode || window.tenant || 'apoyar';
+      const response = await fetch(`/api/integrations/${tenantCode}/sms/status`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+
+      if (!response.ok) {
+        console.log('SMS integration status check failed or not available');
+        return;
+      }
+
+      const data = await response.json();
+
+      if (data.connected) {
+        const el1 = document.getElementById('sms-not-connected');
+        const el2 = document.getElementById('sms-connected');
+        const el3 = document.getElementById('sms-disconnected-badge');
+        const el4 = document.getElementById('sms-connected-badge');
+        const el5 = document.getElementById('sms-phone-display');
+        const el6 = document.getElementById('sms-connected-date');
+        if (el1) el1.style.display = 'none';
+        if (el2) el2.style.display = 'block';
+        if (el3) el3.style.display = 'none';
+        if (el4) el4.style.display = 'inline';
+        if (el5) el5.textContent = data.twilio_phone_number || 'Unknown';
+        if (el6) el6.textContent = data.connected_at ? new Date(data.connected_at).toLocaleDateString() : '-';
+      } else {
+        const el1 = document.getElementById('sms-not-connected');
+        const el2 = document.getElementById('sms-connected');
+        const el3 = document.getElementById('sms-disconnected-badge');
+        const el4 = document.getElementById('sms-connected-badge');
+        if (el1) el1.style.display = 'block';
+        if (el2) el2.style.display = 'none';
+        if (el3) el3.style.display = 'inline';
+        if (el4) el4.style.display = 'none';
+      }
+    } catch (error) {
+      console.error('Error loading SMS integration status:', error);
+    }
+  }
+
+  async function connectSms() {
+    const phoneInput = document.getElementById('sms-phone-number');
+    const sidInput = document.getElementById('sms-account-sid');
+    const phone = (phoneInput ? phoneInput.value : '').trim();
+    const sid = (sidInput ? sidInput.value : '').trim();
+
+    if (!phone) {
+      showSmsError('Please enter a Twilio phone number in E.164 format (e.g. +14155551234)');
+      return;
+    }
+
+    if (!/^\+[1-9]\d{1,14}$/.test(phone)) {
+      showSmsError('Invalid phone format. Use E.164 (e.g. +14155551234)');
+      return;
+    }
+
+    try {
+      const tenantCode = window.currentUser?.tenantCode || window.tenant || 'apoyar';
+      const response = await fetch(`/api/integrations/${tenantCode}/sms/connect`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          twilio_phone_number: phone,
+          twilio_account_sid: sid || undefined
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        if (phoneInput) phoneInput.value = '';
+        if (sidInput) sidInput.value = '';
+        showSmsMessage('SMS integration connected!');
+        loadSmsIntegrationStatus();
+      } else {
+        showSmsError(data.error || 'Failed to connect');
+      }
+    } catch (error) {
+      console.error('Error connecting SMS:', error);
+      showSmsError('Failed to connect SMS integration');
+    }
+  }
+
+  async function disconnectSms() {
+    if (!confirm('Are you sure you want to disconnect SMS integration?')) return;
+
+    try {
+      const tenantCode = window.currentUser?.tenantCode || window.tenant || 'apoyar';
+      const response = await fetch(`/api/integrations/${tenantCode}/sms/disconnect`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        showSmsMessage('SMS integration disconnected');
+        loadSmsIntegrationStatus();
+      } else {
+        showSmsError(data.error || 'Failed to disconnect');
+      }
+    } catch (error) {
+      console.error('Error disconnecting SMS:', error);
+      showSmsError('Failed to disconnect');
+    }
+  }
+
+  async function testSms() {
+    const input = document.getElementById('sms-test-phone');
+    const phone = (input ? input.value : '').trim();
+
+    if (!phone) {
+      showSmsError('Enter a phone number to send the test to');
+      return;
+    }
+
+    try {
+      const tenantCode = window.currentUser?.tenantCode || window.tenant || 'apoyar';
+      const response = await fetch(`/api/integrations/${tenantCode}/sms/test`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ to_phone_number: phone })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        showSmsMessage('Test SMS sent! Check your phone.');
+      } else {
+        showSmsError(data.error || 'Failed to send test SMS');
+      }
+    } catch (error) {
+      console.error('Error sending test SMS:', error);
+      showSmsError('Failed to send test. Is the SMS connector running?');
+    }
+  }
+
+  function showSmsMessage(message) {
+    const msgEl = document.getElementById('sms-message');
+    const errEl = document.getElementById('sms-error');
+    if (errEl) errEl.style.display = 'none';
+    if (msgEl) { msgEl.textContent = message; msgEl.style.display = 'block'; }
+    setTimeout(() => { if (msgEl) msgEl.style.display = 'none'; }, 4000);
+  }
+
+  function showSmsError(message) {
+    const msgEl = document.getElementById('sms-message');
+    const errEl = document.getElementById('sms-error');
+    if (msgEl) msgEl.style.display = 'none';
+    if (errEl) { errEl.textContent = message; errEl.style.display = 'block'; }
+    setTimeout(() => { if (errEl) errEl.style.display = 'none'; }, 5000);
   }
 
   // Expert Registration Settings Functions
