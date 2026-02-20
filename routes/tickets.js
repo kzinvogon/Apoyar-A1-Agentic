@@ -486,7 +486,8 @@ router.get('/:tenantId', readOperationsLimiter, validateTicketGet, async (req, r
       search,
       sort_by = 'created_at',
       sort_dir = 'desc',
-      include_system = 'true'
+      include_system = 'true',
+      ticket_ids
     } = req.query;
 
     // Pagination params
@@ -598,6 +599,15 @@ router.get('/:tenantId', readOperationsLimiter, validateTicketGet, async (req, r
       // System tickets filter
       if (include_system === 'false') {
         whereConditions.push("(u2.username != 'system' AND u2.email != 'system@tenant.local')");
+      }
+
+      // Ticket IDs filter (from AI Insights click-through)
+      if (ticket_ids) {
+        const ids = ticket_ids.split(',').map(id => parseInt(id)).filter(id => !isNaN(id) && id > 0);
+        if (ids.length > 0) {
+          whereConditions.push(`t.id IN (${ids.map(() => '?').join(',')})`);
+          params.push(...ids);
+        }
       }
 
       // Search filter (title, requester name, company name, or ticket ID)

@@ -16671,6 +16671,11 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     params.set('sort_by', sortBy === 'id' ? 'id' : sortBy === 'date' ? 'created_at' : sortBy);
     params.set('sort_dir', sortDir || 'desc');
 
+    // Insight ticket filter (from AI Insights click-through)
+    if (window.insightTicketFilter && window.insightTicketFilter.length > 0) {
+      params.set('ticket_ids', window.insightTicketFilter.join(','));
+    }
+
     // Impersonation filtering - override assignee/requester filters
     if (window.impersonatedUser) {
       if (window.impersonatedUser.role === 'expert') {
@@ -16986,13 +16991,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         return false;
       }
 
-      // Insight ticket filter (from AI Insights dashboard)
-      if (window.insightTicketFilter && window.insightTicketFilter.length > 0) {
-        // Convert both to numbers for comparison to handle string/number mismatch
-        const ticketId = parseInt(t.id);
-        const matchesInsight = window.insightTicketFilter.some(id => parseInt(id) === ticketId);
-        if (!matchesInsight) return false;
-      }
+      // Insight ticket filter now handled server-side via ticket_ids param
 
       // Search filter
       if (searchTerm) {

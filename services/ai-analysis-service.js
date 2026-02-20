@@ -1725,6 +1725,9 @@ Return the structured rule as JSON.`
         LIMIT 10
       `, [period]);
 
+      // Increase GROUP_CONCAT limit for large ticket ID lists (default 1024 is too small)
+      await connection.query('SET SESSION group_concat_max_len = 1000000');
+
       // Live SLA breach queries (always current, no refresh needed)
       const [responseBreached] = await connection.query(`
         SELECT COUNT(*) as count, GROUP_CONCAT(id) as ticket_ids
