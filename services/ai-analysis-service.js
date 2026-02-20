@@ -1728,49 +1728,60 @@ Return the structured rule as JSON.`
       // Increase GROUP_CONCAT limit for large ticket ID lists (default 1024 is too small)
       await connection.query('SET SESSION group_concat_max_len = 1000000');
 
-      // Live SLA breach queries — filtered by period to match other stats
+      // Exclude system-generated tickets from SLA insights
+      // System tickets (monitoring alerts etc.) have SLAs but never get human responses
+      const systemExclude = `AND NOT EXISTS (
+        SELECT 1 FROM users u WHERE u.id = t.requester_id
+        AND (u.username = 'system' OR u.email = 'system@tenant.local')
+      )`;
+
+      // Live SLA breach queries — filtered by period, excluding system tickets
       const [responseBreached] = await connection.query(`
-        SELECT COUNT(*) as count, GROUP_CONCAT(id) as ticket_ids
-        FROM tickets
-        WHERE status NOT IN ('resolved', 'closed')
-        AND sla_definition_id IS NOT NULL
-        AND first_responded_at IS NULL
-        AND response_due_at IS NOT NULL
-        AND response_due_at < NOW()
-        AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+        SELECT COUNT(*) as count, GROUP_CONCAT(t.id) as ticket_ids
+        FROM tickets t
+        WHERE t.status NOT IN ('resolved', 'closed')
+        AND t.sla_definition_id IS NOT NULL
+        AND t.first_responded_at IS NULL
+        AND t.response_due_at IS NOT NULL
+        AND t.response_due_at < NOW()
+        AND t.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+        ${systemExclude}
       `, [period]);
 
       const [resolveBreached] = await connection.query(`
-        SELECT COUNT(*) as count, GROUP_CONCAT(id) as ticket_ids
-        FROM tickets
-        WHERE status NOT IN ('resolved', 'closed')
-        AND sla_definition_id IS NOT NULL
-        AND first_responded_at IS NOT NULL
-        AND resolve_due_at IS NOT NULL
-        AND resolve_due_at < NOW()
-        AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+        SELECT COUNT(*) as count, GROUP_CONCAT(t.id) as ticket_ids
+        FROM tickets t
+        WHERE t.status NOT IN ('resolved', 'closed')
+        AND t.sla_definition_id IS NOT NULL
+        AND t.first_responded_at IS NOT NULL
+        AND t.resolve_due_at IS NOT NULL
+        AND t.resolve_due_at < NOW()
+        AND t.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+        ${systemExclude}
       `, [period]);
 
       const [responseRisk] = await connection.query(`
-        SELECT COUNT(*) as count, GROUP_CONCAT(id) as ticket_ids
-        FROM tickets
-        WHERE status NOT IN ('resolved', 'closed')
-        AND sla_definition_id IS NOT NULL
-        AND first_responded_at IS NULL
-        AND response_due_at IS NOT NULL
-        AND response_due_at BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 2 HOUR)
-        AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+        SELECT COUNT(*) as count, GROUP_CONCAT(t.id) as ticket_ids
+        FROM tickets t
+        WHERE t.status NOT IN ('resolved', 'closed')
+        AND t.sla_definition_id IS NOT NULL
+        AND t.first_responded_at IS NULL
+        AND t.response_due_at IS NOT NULL
+        AND t.response_due_at BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 2 HOUR)
+        AND t.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+        ${systemExclude}
       `, [period]);
 
       const [resolveRisk] = await connection.query(`
-        SELECT COUNT(*) as count, GROUP_CONCAT(id) as ticket_ids
-        FROM tickets
-        WHERE status NOT IN ('resolved', 'closed')
-        AND sla_definition_id IS NOT NULL
-        AND first_responded_at IS NOT NULL
-        AND resolve_due_at IS NOT NULL
-        AND resolve_due_at BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 2 HOUR)
-        AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+        SELECT COUNT(*) as count, GROUP_CONCAT(t.id) as ticket_ids
+        FROM tickets t
+        WHERE t.status NOT IN ('resolved', 'closed')
+        AND t.sla_definition_id IS NOT NULL
+        AND t.first_responded_at IS NOT NULL
+        AND t.resolve_due_at IS NOT NULL
+        AND t.resolve_due_at BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 2 HOUR)
+        AND t.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+        ${systemExclude}
       `, [period]);
 
       // Build live SLA insights
@@ -1855,6 +1866,7 @@ Return the structured rule as JSON.`
       `, [period]);
 
       // Get AI performance metrics (filter outliers: processing_time > 60s is clearly erroneous)
+      // Exclude system tickets to match the insight counts
       const [performance] = await connection.query(`
         SELECT
           AVG(confidence_score) as avg_confidence,
@@ -1863,6 +1875,7 @@ Return the structured rule as JSON.`
         FROM ai_email_analysis ai
         JOIN tickets t ON ai.ticket_id = t.id
         WHERE t.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+        ${systemExclude}
       `, [period]);
 
       // Get total tickets in period for ticketStats
