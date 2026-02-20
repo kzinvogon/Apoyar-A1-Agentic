@@ -13,6 +13,7 @@ const {
   readOperationsLimiter
 } = require('../middleware/rateLimiter');
 const { triggerTeamsNotificationAsync } = require('../services/teams-notification');
+const { triggerSmsNotificationAsync } = require('../services/sms-notification');
 
 // AI-powered CMDB auto-linking (fire-and-forget)
 const { triggerAutoLink } = require('../scripts/auto-link-cmdb');
@@ -62,6 +63,38 @@ async function triggerTicketRulesAsync(tenantCode, ticketId) {
     }
   } catch (error) {
     console.error(`[TicketRules] Error executing rules on ticket #${ticketId}:`, error.message);
+  }
+}
+
+// Helper: notify a company admin when one of their team members' tickets is created/resolved/updated
+async function notifyCompanyAdmin(connection, tenantCode, ticket, action, details) {
+  try {
+    const [rows] = await connection.query(`
+      SELECT cc.admin_email, cc.admin_user_id, cc.admin_receive_emails,
+             u.full_name as admin_name
+      FROM customers c
+      JOIN customer_companies cc ON c.customer_company_id = cc.id
+      JOIN users u ON cc.admin_user_id = u.id
+      WHERE c.user_id = ? AND cc.is_active = 1 AND cc.admin_email IS NOT NULL AND cc.admin_email != ''
+    `, [ticket.requester_id]);
+
+    if (rows.length === 0) return;
+    const admin = rows[0];
+
+    // Check company-level admin email toggle
+    if (admin.admin_receive_emails === 0) return;
+
+    // Don't duplicate if admin IS the requester
+    if (admin.admin_email === ticket.requester_email) return;
+
+    await sendTicketNotificationEmail({
+      ticket,
+      customer_email: admin.admin_email,
+      customer_name: admin.admin_name,
+      tenantCode
+    }, action, details);
+  } catch (err) {
+    console.error('notifyCompanyAdmin error:', err.message);
   }
 }
 
@@ -1315,7 +1348,7 @@ router.get('/:tenantId/export/csv', readOperationsLimiter, validateTicketGet, as
 router.post('/:tenantId', writeOperationsLimiter, validateTicketCreate, async (req, res) => {
   try {
     const { tenantId } = req.params;
-    const { title, description, priority, customer_id, cmdb_item_id, ci_id, due_date, sla_definition_id, category } = req.body;
+    const { title, description, priority, customer_id, cmdb_item_id, ci_id, due_date, sla_definition_id, category, assignee_id } = req.body;
     const tenantCode = tenantId.toLowerCase().replace(/[^a-z0-9]/g, '_');
     const connection = await getTenantConnection(tenantCode);
 
@@ -1375,12 +1408,24 @@ router.post('/:tenantId', writeOperationsLimiter, validateTicketCreate, async (r
         };
       }
 
+      // If admin/expert provided an assignee, set pool status to owned
+      const assignFields = {};
+      if (assignee_id && (req.user.role === 'admin' || req.user.role === 'expert')) {
+        assignFields.assignee_id = assignee_id;
+        assignFields.owned_by_expert_id = assignee_id;
+        assignFields.pool_status = 'IN_PROGRESS_OWNED';
+        assignFields.ownership_started_at = new Date();
+      }
+
       const [result] = await connection.query(
         `INSERT INTO tickets (title, description, priority, requester_id, cmdb_item_id, sla_deadline, category,
-                              sla_definition_id, sla_source, sla_applied_at, response_due_at, resolve_due_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                              sla_definition_id, sla_source, sla_applied_at, response_due_at, resolve_due_at
+                              ${assignee_id && assignFields.assignee_id ? ', assignee_id, owned_by_expert_id, pool_status, ownership_started_at' : ''})
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                 ${assignee_id && assignFields.assignee_id ? ', ?, ?, ?, ?' : ''})`,
         [title, description, mappedPriority, customer_id, cmdb_item_id || null, due_date || null, category || 'General',
-         slaFields.sla_definition_id, slaFields.sla_source, slaFields.sla_applied_at, slaFields.response_due_at, slaFields.resolve_due_at]
+         slaFields.sla_definition_id, slaFields.sla_source, slaFields.sla_applied_at, slaFields.response_due_at, slaFields.resolve_due_at,
+         ...(assignFields.assignee_id ? [assignFields.assignee_id, assignFields.owned_by_expert_id, assignFields.pool_status, assignFields.ownership_started_at] : [])]
       );
 
       const ticketId = result.insertId;
@@ -1391,6 +1436,17 @@ router.post('/:tenantId', writeOperationsLimiter, validateTicketCreate, async (r
          VALUES (?, ?, ?, ?)`,
         [ticketId, req.user.userId, 'created', `Ticket created by ${req.user.username}`]
       );
+
+      // Log assignment activity if assigned during creation
+      if (assignFields.assignee_id) {
+        const [assigneeInfo] = await connection.query('SELECT full_name FROM users WHERE id = ?', [assignFields.assignee_id]);
+        const assigneeName = assigneeInfo[0]?.full_name || `User #${assignFields.assignee_id}`;
+        await connection.query(
+          `INSERT INTO ticket_activity (ticket_id, user_id, activity_type, description)
+           VALUES (?, ?, 'assigned', ?)`,
+          [ticketId, req.user.userId, `Assigned to ${assigneeName} during ticket creation`]
+        );
+      }
 
       // Log SLA uplift audit event if user SLA override was used
       if (slaSource === 'user' && slaFields.sla_definition_id) {
@@ -1432,6 +1488,8 @@ router.post('/:tenantId', writeOperationsLimiter, validateTicketCreate, async (r
         `SELECT t.*,
                 u1.full_name as assignee_name,
                 u1.email as assignee_email,
+                u1.username as assignee_username,
+                u1.role as assignee_role,
                 u2.full_name as requester_name,
                 u2.email as requester_email,
                 u2.username as requester_username,
@@ -1445,7 +1503,7 @@ router.post('/:tenantId', writeOperationsLimiter, validateTicketCreate, async (r
         [ticketId]
       );
 
-      // Send email notification
+      // Send email notification to requester
       await sendTicketNotificationEmail({
         ticket: tickets[0],
         customer_email: tickets[0].requester_email,
@@ -1453,8 +1511,28 @@ router.post('/:tenantId', writeOperationsLimiter, validateTicketCreate, async (r
         tenantCode: tenantCode
       }, 'created', {});
 
+      // Notify company admin about member ticket creation
+      await notifyCompanyAdmin(connection, tenantCode, tickets[0], 'created', {});
+
+      // Send assignment email to expert if assigned during creation
+      if (assignFields.assignee_id && tickets[0].assignee_email) {
+        await sendTicketNotificationEmail({
+          ticket: tickets[0],
+          customer_email: tickets[0].assignee_email,
+          customer_name: tickets[0].assignee_name,
+          tenantCode: tenantCode
+        }, 'assigned', {
+          assignee_email: tickets[0].assignee_email,
+          assignee_username: tickets[0].assignee_username,
+          assignee_role: tickets[0].assignee_role
+        });
+      }
+
       // Send Teams notification (fire-and-forget)
       triggerTeamsNotificationAsync('created', tickets[0], tenantCode);
+
+      // Send SMS notification (fire-and-forget)
+      triggerSmsNotificationAsync('created', tickets[0], tenantCode);
 
       // Trigger AI-powered CMDB auto-linking (fire-and-forget)
       if (description && description.trim().length > 10) {
@@ -1845,7 +1923,11 @@ router.post('/:tenantId/:ticketId/accept-ownership', writeOperationsLimiter, req
       const [updatedTickets] = await connection.query(`
         SELECT t.*,
                u1.full_name as assignee_name,
+               u1.email as assignee_email,
+               u1.username as assignee_username,
+               u1.role as assignee_role,
                u2.full_name as requester_name,
+               u2.email as requester_email,
                owner.full_name as owner_name
         FROM tickets t
         LEFT JOIN users u1 ON t.assignee_id = u1.id
@@ -1853,6 +1935,20 @@ router.post('/:tenantId/:ticketId/accept-ownership', writeOperationsLimiter, req
         LEFT JOIN users owner ON t.owned_by_expert_id = owner.id
         WHERE t.id = ?
       `, [ticketId]);
+
+      // Send email notification to the expert who accepted ownership
+      if (updatedTickets[0].assignee_email) {
+        sendTicketNotificationEmail({
+          ticket: updatedTickets[0],
+          customer_email: updatedTickets[0].assignee_email,
+          customer_name: updatedTickets[0].assignee_name,
+          tenantCode: tenantCode
+        }, 'assigned', {
+          assignee_email: updatedTickets[0].assignee_email,
+          assignee_username: updatedTickets[0].assignee_username,
+          assignee_role: updatedTickets[0].assignee_role
+        }).catch(err => console.error('Accept-ownership email error:', err));
+      }
 
       await enrichTicketWithSLAStatus(updatedTickets[0], connection);
 
@@ -2615,8 +2711,14 @@ router.put('/:tenantId/:ticketId', writeOperationsLimiter, validateTicketUpdate,
             }, 'resolved', { comment });
           }
 
+          // Notify company admin about resolution
+          await notifyCompanyAdmin(connection, tenantCode, tickets[0], 'resolved', { comment });
+
           // Send Teams notification for resolved ticket
           triggerTeamsNotificationAsync('resolved', tickets[0], tenantCode, { resolutionComment: comment });
+
+          // Send SMS notification for resolved ticket
+          triggerSmsNotificationAsync('resolved', tickets[0], tenantCode, { resolutionComment: comment });
 
           // Queue-limited KB article auto-generation (never stampedes pool)
           enqueueKB(tenantCode, () => autoGenerateKBArticle(tenantCode, parseInt(ticketId), { userId: req.user.userId }), { ticketId });
@@ -2628,8 +2730,14 @@ router.put('/:tenantId/:ticketId', writeOperationsLimiter, validateTicketUpdate,
             tenantCode: tenantCode
           }, 'status_changed', { oldStatus, newStatus: status });
 
+          // Notify company admin about status change
+          await notifyCompanyAdmin(connection, tenantCode, tickets[0], 'status_changed', { oldStatus, newStatus: status });
+
           // Send Teams notification for status change
           triggerTeamsNotificationAsync('status_changed', tickets[0], tenantCode, { previous_status: oldStatus });
+
+          // Send SMS notification for status change
+          triggerSmsNotificationAsync('status_changed', tickets[0], tenantCode, { previous_status: oldStatus });
         }
 
         // Send email notification if ticket was assigned
@@ -2648,6 +2756,9 @@ router.put('/:tenantId/:ticketId', writeOperationsLimiter, validateTicketUpdate,
 
           // Send Teams notification for assignment
           triggerTeamsNotificationAsync('assigned', tickets[0], tenantCode, { assignedTo: tickets[0].assignee_name });
+
+          // Send SMS notification for assignment
+          triggerSmsNotificationAsync('assigned', tickets[0], tenantCode, { assignedTo: tickets[0].assignee_name });
         }
       } catch (notifyErr) {
         // Log but don't fail the response - the ticket update already succeeded

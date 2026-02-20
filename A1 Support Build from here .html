@@ -4191,6 +4191,16 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
                 </select>
               </div>
 
+              <div class="mb-12" style="display:flex;align-items:center;gap:8px">
+                <input type="checkbox" id="company-admin-emails" checked/>
+                <label class="subtitle" for="company-admin-emails" style="margin:0">Admin receives member ticket emails</label>
+              </div>
+
+              <div class="mb-12" style="display:flex;align-items:center;gap:8px">
+                <input type="checkbox" id="company-members-emails" checked/>
+                <label class="subtitle" for="company-members-emails" style="margin:0">Members receive email notifications</label>
+              </div>
+
               <div class="mb-12">
                 <label class="subtitle">Notes</label>
                 <textarea id="company-notes" class="input" rows="2" placeholder="Internal notes about this company"></textarea>
@@ -5746,6 +5756,10 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               </div>
               <div class="mb-12"><label class="subtitle">Link to CMDB Item (optional)</label><select id="rq-item" class="input"></select></div>
               <div class="mb-12"><label class="subtitle">Link to CI (optional)</label><select id="rq-ci" class="input"></select></div>
+              <div id="rq-assignee-field" class="mb-12" style="display:none">
+                <label class="subtitle">Assign to Expert (optional)</label>
+                <select id="rq-assignee" class="input"><option value="">— Auto (Ticket Pool) —</option></select>
+              </div>
               <div class="mb-12"><label class="subtitle">Attachment (placeholder)</label><input class="input" placeholder="Choose file… (not uploaded in demo)"/></div>
               <div class="row"><button class="btn primary" onclick="submitRequest()">Submit request</button><button class="btn" onclick="startChat('assist')">Chat instead</button></div>
               <div class="subtitle" id="rq-hint" style="margin-top:8px">Optional fields can be blank — the assistant will help fill them.</div>
@@ -17827,8 +17841,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const btnReassign = document.getElementById('btn-reassign');
     const btnSelfAssign = document.getElementById('btn-self-assign');
 
-    // Show workflow buttons only if: not in pool, OR owned by me, OR (owned by someone and I'm admin)
-    const canModifyTicket = !isInPool || isOwnedByMe || (isOwned && currentRole === 'admin');
+    // Show workflow buttons only if: not in pool, OR owned by me, OR (owned by someone and I'm admin), OR admin viewing pool ticket
+    const canModifyTicket = !isInPool || isOwnedByMe || (isOwned && currentRole === 'admin') || currentRole === 'admin';
     const showWorkflowButtons = canModifyTicket;
 
     if (btnNext) btnNext.style.display = (isCustomer || !showWorkflowButtons) ? 'none' : 'inline-block';
@@ -21802,6 +21816,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     document.getElementById('company-address').value = company.address || '';
     document.getElementById('company-sla').value = company.sla_level || 'basic';
     document.getElementById('company-notes').value = company.notes || '';
+    document.getElementById('company-admin-emails').checked = company.admin_receive_emails !== 0;
+    document.getElementById('company-members-emails').checked = company.members_receive_emails !== 0;
     document.getElementById('company-form-message').style.display = 'none';
     document.getElementById('company-form-error').style.display = 'none';
 
@@ -21859,7 +21875,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       contact_phone: document.getElementById('company-phone').value,
       address: document.getElementById('company-address').value,
       sla_level: document.getElementById('company-sla').value,
-      notes: document.getElementById('company-notes').value
+      notes: document.getElementById('company-notes').value,
+      admin_receive_emails: document.getElementById('company-admin-emails').checked,
+      members_receive_emails: document.getElementById('company-members-emails').checked
     };
 
     try {
@@ -23586,16 +23604,45 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       // Show SLA override field for admin/expert
       document.querySelectorAll('.sla-override-field').forEach(el => el.style.display = 'block');
       await loadSLAOptionsForRaiseRequest();
+      // Show assignee dropdown for admin/expert
+      const assigneeField = document.getElementById('rq-assignee-field');
+      if (assigneeField) {
+        assigneeField.style.display = 'block';
+        await loadAssigneesForRaiseRequest();
+      }
     } else {
-      // Customer role - hide the customer selector and SLA override completely
+      // Customer role - hide the customer selector, SLA override, and assignee completely
       customerField.style.display = 'none';
       document.querySelectorAll('.sla-override-field').forEach(el => el.style.display = 'none');
+      const assigneeField = document.getElementById('rq-assignee-field');
+      if (assigneeField) assigneeField.style.display = 'none';
     }
 
     const relevant=CMDB_ITEMS.filter(i => currentRole!=='customer' || !tenant || i.customer===tenant);
     sItem.innerHTML = '<option value=\"\">—</option>' + relevant.map(i => `<option value="${i.cmdb_id}">${i.name}</option>`).join('');
     sCI.innerHTML = '<option value=\"\">—</option>';
     sItem.onchange = () => { const id = sItem.value; const cies = CIS_BY_ITEM[id] || []; sCI.innerHTML = '<option value=\"\">—</option>' + cies.map(ci => `<option value="${ci.ci_id}">${ci.name}</option>`).join(''); };
+  }
+
+  async function loadAssigneesForRaiseRequest() {
+    try {
+      const token = localStorage.getItem('token');
+      const tenantCode = window.tenant || tenant || 'apoyar';
+      const res = await fetch(`${API_BASE}/api/experts/${tenantCode}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (!data.success || !data.experts) return;
+
+      const select = document.getElementById('rq-assignee');
+      if (!select) return;
+      select.innerHTML = '<option value="">— Auto (Ticket Pool) —</option>' +
+        data.experts.filter(e => e.is_active !== false).map(e =>
+          `<option value="${e.id}">${e.full_name || e.username} (${e.role})</option>`
+        ).join('');
+    } catch (err) {
+      console.error('Error loading assignees:', err);
+    }
   }
 
   async function loadSLAOptionsForRaiseRequest() {
@@ -23713,7 +23760,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           customer_id: customerId,
           ...(slaId && { sla_definition_id: parseInt(slaId) }),
           ...(itemId && { cmdb_item_id: parseInt(itemId) }),
-          ...(ciId && { ci_id: parseInt(ciId) })
+          ...(ciId && { ci_id: parseInt(ciId) }),
+          ...(document.getElementById('rq-assignee')?.value && { assignee_id: parseInt(document.getElementById('rq-assignee').value) })
         })
       });
       

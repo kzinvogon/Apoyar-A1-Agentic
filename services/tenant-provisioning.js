@@ -256,6 +256,8 @@ async function createTenantTables(connection) {
       is_active BOOLEAN DEFAULT TRUE,
       notes TEXT,
       sla_definition_id INT,
+      admin_receive_emails TINYINT(1) DEFAULT 1 COMMENT 'Company admin gets notified about member tickets',
+      members_receive_emails TINYINT(1) DEFAULT 1 COMMENT 'All members receive email notifications (overrides individual)',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       UNIQUE KEY unique_domain (company_domain),
@@ -847,6 +849,35 @@ async function createTenantTables(connection) {
     ('Send Screenshot', 'Could you please share a screenshot of the issue?', 'request_screenshot', 2),
     ('Checking', 'Let me check that for you, one moment please...', 'text', 3),
     ('Anything Else', 'Is there anything else I can help you with?', 'text', 4)
+  `);
+
+  // SMS user preferences table
+  await connection.execute(`
+    CREATE TABLE IF NOT EXISTS sms_user_preferences (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      phone_number VARCHAR(20) NOT NULL,
+      mode ENUM('expert', 'customer') DEFAULT 'customer',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      UNIQUE KEY unique_user (user_id),
+      UNIQUE KEY unique_phone (phone_number),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+
+  // SMS conversation state table
+  await connection.execute(`
+    CREATE TABLE IF NOT EXISTS sms_conversation_state (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      phone_number VARCHAR(20) NOT NULL,
+      state_key VARCHAR(50) NOT NULL,
+      state_data JSON,
+      expires_at TIMESTAMP NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY unique_phone_state (phone_number, state_key),
+      INDEX idx_expires (expires_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
 }
 

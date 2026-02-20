@@ -85,6 +85,8 @@ router.get('/', requireRole(['admin', 'expert']), readOperationsLimiter, async (
           sd.name as sla_name,
           cc.is_active,
           cc.notes,
+          cc.admin_receive_emails,
+          cc.members_receive_emails,
           cc.created_at,
           cc.updated_at,
           u.full_name as admin_name,
@@ -132,6 +134,8 @@ router.get('/:id', requireRole(['admin', 'expert']), readOperationsLimiter, asyn
           sd.name as sla_name,
           cc.is_active,
           cc.notes,
+          cc.admin_receive_emails,
+          cc.members_receive_emails,
           cc.created_at,
           cc.updated_at,
           u.full_name as admin_name,
@@ -309,7 +313,9 @@ router.put('/:id', requireRole(['admin', 'expert']), writeOperationsLimiter, val
       sla_level,
       sla_definition_id,
       notes,
-      is_active
+      is_active,
+      admin_receive_emails,
+      members_receive_emails
     } = req.body;
 
     const connection = await getTenantConnection(tenantCode);
@@ -357,6 +363,14 @@ router.put('/:id', requireRole(['admin', 'expert']), writeOperationsLimiter, val
         updates.push('is_active = ?');
         values.push(is_active);
       }
+      if (admin_receive_emails !== undefined) {
+        updates.push('admin_receive_emails = ?');
+        values.push(admin_receive_emails ? 1 : 0);
+      }
+      if (members_receive_emails !== undefined) {
+        updates.push('members_receive_emails = ?');
+        values.push(members_receive_emails ? 1 : 0);
+      }
 
       if (updates.length === 0) {
         return res.status(400).json({ success: false, message: 'No fields to update' });
@@ -399,6 +413,8 @@ router.put('/:id', requireRole(['admin', 'expert']), writeOperationsLimiter, val
           cc.sla_level,
           cc.is_active,
           cc.notes,
+          cc.admin_receive_emails,
+          cc.members_receive_emails,
           cc.created_at,
           cc.updated_at
         FROM customer_companies cc

@@ -43,6 +43,25 @@ async function isUserEmailNotificationsEnabled(tenantCode, userEmail) {
   try {
     const connection = await getTenantConnection(tenantCode);
     try {
+      // Check company-level override first
+      try {
+        const [companyRows] = await connection.query(`
+          SELECT cc.members_receive_emails
+          FROM customers c
+          JOIN customer_companies cc ON c.customer_company_id = cc.id
+          JOIN users u ON c.user_id = u.id
+          WHERE u.email = ? AND cc.is_active = 1
+          LIMIT 1
+        `, [userEmail]);
+
+        if (companyRows.length > 0 && companyRows[0].members_receive_emails === 0) {
+          return false; // Company-wide emails disabled — overrides individual setting
+        }
+      } catch (companyErr) {
+        // Column may not exist yet on older tenants — skip check
+        console.error('Company email check skipped:', companyErr.message);
+      }
+
       // First check if column exists to avoid query errors
       const [cols] = await connection.query(`
         SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
