@@ -21654,9 +21654,11 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     if(!body) return;
     body.innerHTML='<tr><td colspan="8" style="text-align:center;">Loading...</td></tr>';
 
-    // Load companies if not loaded
+    // Load companies if not loaded, and always populate the filter dropdown
     if (allCustomerCompanies.length === 0) {
       await loadCustomerCompanies();
+    } else {
+      populateCustomerCompanyFilter();
     }
 
     try {
