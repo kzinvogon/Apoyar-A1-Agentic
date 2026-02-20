@@ -18519,6 +18519,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           t.assignee_id = assigneeId;
           t.assignee_name = expertName;
           t.status = 'In Progress';
+          t.pool_status = 'IN_PROGRESS_OWNED';
+          t.owned_by_expert_id = assigneeId;
         }
 
         // Update the assignee dropdown in the detail view

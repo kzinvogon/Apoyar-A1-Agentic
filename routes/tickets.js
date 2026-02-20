@@ -2540,6 +2540,21 @@ router.put('/:tenantId/:ticketId', writeOperationsLimiter, validateTicketUpdate,
       if (assignee_id !== undefined) {
         updates.push('assignee_id = ?');
         values.push(assignee_id);
+
+        // When assigning a pool ticket, transition to owned state
+        if (assignee_id && (currentTicket.pool_status === 'OPEN_POOL' || currentTicket.pool_status === 'CLAIMED_LOCKED')) {
+          updates.push('pool_status = ?');
+          values.push('IN_PROGRESS_OWNED');
+          updates.push('owned_by_expert_id = ?');
+          values.push(assignee_id);
+          updates.push('ownership_started_at = NOW()');
+          updates.push('claimed_by_expert_id = NULL');
+          updates.push('claimed_until_at = NULL');
+          // Set first_responded_at if not already set
+          if (!currentTicket.first_responded_at) {
+            updates.push('first_responded_at = COALESCE(first_responded_at, NOW())');
+          }
+        }
       }
 
       if (priority !== undefined) {
