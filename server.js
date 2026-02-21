@@ -57,7 +57,7 @@ const knowledgeBaseRoutes = require('./routes/knowledge-base');
 const rawVariablesRoutes = require('./routes/raw-variables');
 const integrationsTeamsRoutes = require('./routes/integrations-teams');
 const integrationsSlackRoutes = require('./routes/integrations-slack');
-const integrationsSmsRoutes = require('./routes/integrations-sms');
+// const integrationsSmsRoutes = require('./routes/integrations-sms'); // TODO: uncomment when SMS feature is ready
 const slaRoutes = require('./routes/sla');
 const adminRoutes = require('./routes/admin');
 const notificationsRoutes = require('./routes/notifications');
@@ -148,7 +148,7 @@ app.use('/api/kb', knowledgeBaseRoutes);
 app.use('/api/raw-variables', rawVariablesRoutes);
 app.use('/api/integrations', integrationsTeamsRoutes);
 app.use('/api/integrations', integrationsSlackRoutes);
-app.use('/api/integrations', integrationsSmsRoutes);
+// app.use('/api/integrations', integrationsSmsRoutes); // TODO: uncomment when SMS feature is ready
 app.use('/api/sla', slaRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', notificationsRoutes);
