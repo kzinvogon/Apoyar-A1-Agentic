@@ -14501,9 +14501,11 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     loadReportCompanyFilter();
   }
 
+  let _companyFilterLoaded = false;
   async function loadReportCompanyFilter() {
     const sel = document.getElementById('report-gen-company');
-    if (!sel || sel.options.length > 1) return;
+    if (!sel || _companyFilterLoaded) return;
+    _companyFilterLoaded = true;
     try {
       const res = await fetch(`${API_BASE}/api/customer-companies`, {
         headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
@@ -14511,6 +14513,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       if (res.ok) {
         const data = await res.json();
         const list = Array.isArray(data) ? data : (data.companies || []);
+        // Clear any existing company options (keep "All Companies")
+        while (sel.options.length > 1) sel.remove(1);
         list.forEach(c => {
           const opt = document.createElement('option');
           opt.value = c.id;
@@ -14518,7 +14522,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           sel.appendChild(opt);
         });
       }
-    } catch (e) { /* ignore */ }
+    } catch (e) { _companyFilterLoaded = false; }
   }
 
   async function loadReportConfig() {
