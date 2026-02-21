@@ -353,6 +353,20 @@ router.post('/:tenantCode/items', async (req, res) => {
     const connection = await getTenantConnection(tenantCode);
 
     try {
+      // Demo mode: enforce CMDB item cap
+      if (req.demoTenant) {
+        const maxItems = parseInt(process.env.DEMO_MAX_CMDB_ITEMS) || 30;
+        const [countResult] = await connection.query('SELECT COUNT(*) as cnt FROM cmdb_items');
+        if (countResult[0].cnt >= maxItems) {
+          connection.release();
+          return res.status(400).json({
+            success: false,
+            message: `DEMO MODE: Limited to ${maxItems} CMDB items.`,
+            demo_limit_reached: true
+          });
+        }
+      }
+
       // Generate unique CMDB ID
       const cmdb_id = `CMDB-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
@@ -751,6 +765,24 @@ router.post('/:tenantCode/import/items', upload.single('file'), async (req, res)
     const connection = await getTenantConnection(tenantCode);
     const errors = [];
     let lineNumber = 1;
+
+    // Demo mode: enforce CMDB item cap on import
+    if (req.demoTenant) {
+      const maxItems = parseInt(process.env.DEMO_MAX_CMDB_ITEMS) || 30;
+      try {
+        const [countResult] = await connection.query('SELECT COUNT(*) as cnt FROM cmdb_items');
+        if (countResult[0].cnt >= maxItems) {
+          connection.release();
+          return res.status(400).json({
+            success: false,
+            message: `DEMO MODE: Limited to ${maxItems} CMDB items. Cannot import more.`,
+            demo_limit_reached: true
+          });
+        }
+      } catch (e) {
+        // ignore cap check errors, let import proceed
+      }
+    }
 
     // Map to consolidate rows by asset name
     // Key: AssetName, Value: { asset info, fields: [{field_name, field_value}] }

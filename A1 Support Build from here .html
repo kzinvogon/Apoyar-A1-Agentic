@@ -1239,6 +1239,10 @@ vNext-FULL-ActionsSLA:
 </style>
 </head>
 <body>
+<!-- Demo Mode Banner -->
+<div id="demo-banner" style="display:none;background:#6366f1;color:white;text-align:center;padding:8px;font-size:13px;position:relative;z-index:10000">
+  Demo Mode — Data resets nightly. <span id="demo-persona-label"></span>
+</div>
 <ion-app>
 
 <!-- Ionic Side Menu for Mobile Navigation -->
@@ -1443,6 +1447,11 @@ vNext-FULL-ActionsSLA:
         <span>👁️</span>
         <span id="topnav-impersonation-name">—</span>
         <button onclick="clearImpersonation()" style="background:none;border:none;cursor:pointer;color:#92400e;font-weight:bold;padding:0 2px;font-size:14px;line-height:1;" title="Exit impersonation">×</button>
+      </div>
+      <div id="persona-switcher" style="display:none;margin-right:8px;">
+        <select id="persona-select" onchange="switchPersona(this.value)" style="padding:4px 8px;border-radius:6px;border:1px solid #6366f1;background:#eef2ff;color:#4338ca;font-size:12px;font-weight:500;cursor:pointer;max-width:180px;">
+          <option value="">Switch Persona...</option>
+        </select>
       </div>
       <div class="topnav-actions">
         <div style="position:relative;display:inline-block;">
@@ -7175,7 +7184,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   // API Base URL - use current origin for deployed version, localhost for development
   const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'http://localhost:3000'
+    ? window.location.origin
     : window.location.origin;
 
   // Error banner
@@ -7261,6 +7270,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           // Check for OAuth callbacks
           checkTeamsOAuthCallback();
           checkSlackOAuthCallback();
+
+          // Check demo mode and load personas if applicable
+          checkDemoMode();
 
           // Load data (skip for master admin - they don't have tenant data)
           const currentRole = window.role || localStorage.getItem('role');
@@ -7758,9 +7770,12 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         go('app');
         if (!localStorage.getItem('walkthrough_done')) setTimeout(startWalkthrough, 800);
 
+        // Check demo mode and load personas if applicable
+        checkDemoMode();
+
         // Load tickets from API before rendering
         await fetchTicketsFromAPI();
-        
+
         renderAllDashboards();
         loadRaiseFormOptions();
         renderList();
@@ -27499,6 +27514,110 @@ function showToast(message, type = 'info', duration = 3000) {
     setTimeout(() => toast.remove(), 300);
   }, duration);
 }
+
+// ============================================
+// DEMO MODE FUNCTIONS
+// ============================================
+window.isDemoMode = false;
+window.demoPersonas = [];
+
+async function checkDemoMode() {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    const resp = await fetch(API_BASE + '/api/demo/status', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (!resp.ok) { window.isDemoMode = false; return; }
+    const data = await resp.json();
+    window.isDemoMode = data.demo === true;
+    if (window.isDemoMode) {
+      var banner = document.getElementById('demo-banner');
+      if (banner) banner.style.display = 'block';
+      await loadPersonas();
+      if (data.personaKey) {
+        var p = window.demoPersonas.find(function(x) { return x.persona_key === data.personaKey; });
+        if (p) {
+          var label = document.getElementById('demo-persona-label');
+          if (label) label.textContent = 'Viewing as: ' + p.display_name;
+        }
+      }
+    }
+  } catch (e) { window.isDemoMode = false; }
+}
+
+async function loadPersonas() {
+  try {
+    var token = localStorage.getItem('token');
+    var resp = await fetch(API_BASE + '/api/demo/personas', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (!resp.ok) return;
+    var data = await resp.json();
+    if (!data.success || !data.personas) return;
+    window.demoPersonas = data.personas;
+    var sel = document.getElementById('persona-select');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">Switch Persona...</option>';
+    data.personas.forEach(function(p) {
+      var opt = document.createElement('option');
+      opt.value = p.persona_key;
+      opt.textContent = p.display_name;
+      if (p.description) opt.title = p.description;
+      sel.appendChild(opt);
+    });
+    var switcher = document.getElementById('persona-switcher');
+    if (switcher) switcher.style.display = 'block';
+  } catch (e) { console.warn('Failed to load personas:', e); }
+}
+
+async function switchPersona(personaKey) {
+  if (!personaKey) return;
+  try {
+    var token = localStorage.getItem('token');
+    var resp = await fetch(API_BASE + '/api/demo/switch-persona', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ persona_key: personaKey })
+    });
+    var data = await resp.json();
+    if (!data.success) { showToast(data.message || 'Failed to switch persona', 'error'); return; }
+    localStorage.setItem('token', data.token);
+    var persona = data.persona;
+    localStorage.setItem('role', persona.role);
+    localStorage.setItem('currentUser', JSON.stringify({
+      username: persona.username, email: persona.email,
+      fullName: persona.full_name, role: persona.role, tenantCode: 'demo'
+    }));
+    localStorage.setItem('username', persona.username);
+    localStorage.setItem('loginRole', persona.role);
+    var label = document.getElementById('demo-persona-label');
+    if (label) label.textContent = 'Viewing as: ' + persona.display_name;
+    showToast('Switched to ' + persona.display_name, 'success', 2000);
+    setTimeout(function() { location.reload(); }, 500);
+  } catch (e) { showToast('Failed to switch persona', 'error'); }
+}
+
+// Intercept fetch for demo simulated write toasts
+(function() {
+  var origFetch = window.fetch;
+  window.fetch = function() {
+    return origFetch.apply(this, arguments).then(function(response) {
+      if (window.isDemoMode) {
+        var cloned = response.clone();
+        cloned.json().then(function(body) {
+          if (body && body.demo_simulated === true) {
+            showToast('DEMO MODE: Changes simulated. Updates will not take place.', 'warning', 4000);
+          }
+          if (body && body.demo_limit_reached === true) {
+            showToast(body.message || 'DEMO MODE: Limit reached.', 'warning', 4000);
+          }
+        }).catch(function() {});
+      }
+      return response;
+    });
+  };
+})();
 
 // ============================================
 // KNOWLEDGE BASE FUNCTIONS

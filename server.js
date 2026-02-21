@@ -124,6 +124,16 @@ app.use(express.static(__dirname, {
   }
 }));
 
+// Demo mode middleware — only loaded when DEMO_FEATURES_ENABLED=true
+if (process.env.DEMO_FEATURES_ENABLED === 'true') {
+  console.log('🎭 Demo mode enabled — loading demo middleware');
+  const { attachDemoFlag, demoSimulateWrites } = require('./middleware/demoMode');
+  const demoRoutes = require('./routes/demo');
+  app.use('/api', attachDemoFlag);
+  app.use('/api', demoSimulateWrites);
+  app.use('/api/demo', demoRoutes);
+}
+
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/master', masterRoutes);

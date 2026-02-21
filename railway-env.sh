@@ -20,6 +20,11 @@ case "$1" in
     railway service link web-uat
     echo "✅ Switched to UAT (web-uat-uat.up.railway.app)"
     ;;
+  demo)
+    railway environment link demo
+    railway service link web-demo
+    echo "🎭 Switched to DEMO (demo.serviflow.app)"
+    ;;
   status)
     railway status
     ;;
@@ -35,6 +40,7 @@ case "$1" in
     echo "Commands:"
     echo "  source railway-env.sh uat     - Switch to UAT (default)"
     echo "  source railway-env.sh prod    - Switch to Production"
+    echo "  source railway-env.sh demo    - Switch to Demo"
     echo "  source railway-env.sh status  - Show current environment"
     echo ""
     railway status

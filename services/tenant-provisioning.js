@@ -903,6 +903,22 @@ async function createTenantTables(connection) {
       INDEX idx_expires (expires_at)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
+
+  // Demo personas table (used by demo environment for persona switching)
+  await connection.execute(`
+    CREATE TABLE IF NOT EXISTS demo_personas (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      persona_key VARCHAR(50) NOT NULL UNIQUE,
+      display_name VARCHAR(100) NOT NULL,
+      user_id INT NOT NULL,
+      role ENUM('admin','expert','customer') NOT NULL,
+      company_id INT DEFAULT NULL,
+      description VARCHAR(255),
+      sort_order INT DEFAULT 0,
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      FOREIGN KEY (company_id) REFERENCES customer_companies(id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
 }
 
 /**
