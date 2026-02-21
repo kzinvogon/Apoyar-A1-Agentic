@@ -26,10 +26,10 @@ router.get('/:tenantId', async (req, res) => {
       const [ticketStats] = await connection.query(
         `SELECT
           COUNT(*) as total,
-          SUM(CASE WHEN status = 'open' THEN 1 ELSE 0 END) as open_count,
-          SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as in_progress_count,
-          SUM(CASE WHEN status = 'resolved' THEN 1 ELSE 0 END) as resolved_count,
-          SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) as closed_count
+          SUM(CASE WHEN status = 'Open' THEN 1 ELSE 0 END) as open_count,
+          SUM(CASE WHEN status = 'In Progress' THEN 1 ELSE 0 END) as in_progress_count,
+          SUM(CASE WHEN status = 'Resolved' THEN 1 ELSE 0 END) as resolved_count,
+          SUM(CASE WHEN status = 'Closed' THEN 1 ELSE 0 END) as closed_count
          FROM tickets
          WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? DAY) ${customerFilter}`,
         [parseInt(period), ...customerParams]
@@ -75,9 +75,9 @@ router.get('/:tenantId', async (req, res) => {
       const [slaStats] = await connection.query(
         `SELECT
           COUNT(*) as total_with_sla,
-          SUM(CASE WHEN status IN ('resolved', 'closed') AND updated_at <= sla_deadline THEN 1 ELSE 0 END) as met_sla,
-          SUM(CASE WHEN status IN ('resolved', 'closed') AND updated_at > sla_deadline THEN 1 ELSE 0 END) as missed_sla,
-          SUM(CASE WHEN status NOT IN ('resolved', 'closed') AND NOW() > sla_deadline THEN 1 ELSE 0 END) as breached_sla
+          SUM(CASE WHEN status IN ('Resolved', 'Closed') AND updated_at <= sla_deadline THEN 1 ELSE 0 END) as met_sla,
+          SUM(CASE WHEN status IN ('Resolved', 'Closed') AND updated_at > sla_deadline THEN 1 ELSE 0 END) as missed_sla,
+          SUM(CASE WHEN status NOT IN ('Resolved', 'Closed') AND NOW() > sla_deadline THEN 1 ELSE 0 END) as breached_sla
          FROM tickets
          WHERE sla_deadline IS NOT NULL
          AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY) ${customerFilter}`,
@@ -100,7 +100,7 @@ router.get('/:tenantId', async (req, res) => {
         const [workload] = await connection.query(
           `SELECT u.full_name, u.username,
             COUNT(t.id) as assigned_tickets,
-            SUM(CASE WHEN t.status IN ('open', 'in_progress') THEN 1 ELSE 0 END) as active_tickets
+            SUM(CASE WHEN t.status IN ('Open', 'In Progress') THEN 1 ELSE 0 END) as active_tickets
            FROM tickets t
            LEFT JOIN users u ON t.assignee_id = u.id
            WHERE t.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
@@ -117,7 +117,7 @@ router.get('/:tenantId', async (req, res) => {
       const [trendData] = await connection.query(
         `SELECT DATE(created_at) as date,
           COUNT(*) as created,
-          SUM(CASE WHEN status = 'resolved' OR status = 'closed' THEN 1 ELSE 0 END) as resolved
+          SUM(CASE WHEN status = 'Resolved' OR status = 'Closed' THEN 1 ELSE 0 END) as resolved
          FROM tickets
          WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? DAY) ${customerFilter}
          GROUP BY DATE(created_at)
@@ -191,10 +191,10 @@ router.get('/:tenantId/export/csv', async (req, res) => {
       const [trendData] = await connection.query(
         `SELECT DATE(created_at) as date,
           COUNT(*) as total_created,
-          SUM(CASE WHEN status = 'open' THEN 1 ELSE 0 END) as open_count,
-          SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as in_progress_count,
-          SUM(CASE WHEN status = 'resolved' THEN 1 ELSE 0 END) as resolved_count,
-          SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) as closed_count
+          SUM(CASE WHEN status = 'Open' THEN 1 ELSE 0 END) as open_count,
+          SUM(CASE WHEN status = 'In Progress' THEN 1 ELSE 0 END) as in_progress_count,
+          SUM(CASE WHEN status = 'Resolved' THEN 1 ELSE 0 END) as resolved_count,
+          SUM(CASE WHEN status = 'Closed' THEN 1 ELSE 0 END) as closed_count
          FROM tickets
          WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
          GROUP BY DATE(created_at)

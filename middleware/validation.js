@@ -148,7 +148,7 @@ const validateTicketCreate = [
     .optional()
     .isInt({ min: 1 }).withMessage('Customer ID must be a positive integer'),
   body('cmdb_item_id')
-    .optional()
+    .optional({ values: 'falsy' })
     .isInt({ min: 1 }).withMessage('CMDB Item ID must be a positive integer'),
   body('ci_id')
     .optional()

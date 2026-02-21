@@ -4187,6 +4187,16 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
                 </select>
               </div>
 
+              <div class="mb-12" style="display:flex;align-items:center;gap:8px">
+                <input type="checkbox" id="customer-admin-emails" checked/>
+                <label class="subtitle" for="customer-admin-emails" style="margin:0">Admin receives member ticket emails</label>
+              </div>
+
+              <div class="mb-12" style="display:flex;align-items:center;gap:8px">
+                <input type="checkbox" id="customer-members-emails" checked/>
+                <label class="subtitle" for="customer-members-emails" style="margin:0">Members receive email notifications</label>
+              </div>
+
               <div id="customer-form-message" class="subtitle" style="color:#16a34a;display:none;margin-top:8px"></div>
               <div id="customer-form-error" class="subtitle" style="color:#b91c1c;display:none;margin-top:8px"></div>
 
@@ -22452,6 +22462,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         document.getElementById('customer-phone').value = c.contact_phone || '';
         document.getElementById('customer-address').value = c.address || '';
         document.getElementById('customer-sla').value = c.sla_level || 'basic';
+        document.getElementById('customer-admin-emails').checked = c.admin_receive_emails !== 0;
+        document.getElementById('customer-members-emails').checked = c.members_receive_emails !== 0;
         document.getElementById('customer-form-message').style.display = 'none';
         document.getElementById('customer-form-error').style.display = 'none';
         const modal = document.getElementById('customer-modal');
@@ -22698,7 +22710,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       company_domain: document.getElementById('customer-domain').value.toLowerCase(),
       contact_phone: document.getElementById('customer-phone').value,
       address: document.getElementById('customer-address').value,
-      sla_level: document.getElementById('customer-sla').value
+      sla_level: document.getElementById('customer-sla').value,
+      admin_receive_emails: document.getElementById('customer-admin-emails').checked,
+      members_receive_emails: document.getElementById('customer-members-emails').checked
     };
 
     try {
@@ -22908,21 +22922,26 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       }
     }
 
-    // Populate customer dropdown
+    // Populate customer dropdown (hide for customer role — backend already filters)
     const sel=document.getElementById('cmdb-customer');
-    const current=sel.value;
-    sel.innerHTML='<option value="">All customers</option>';
-    [...new Set(CMDB_ITEMS.map(i=>i.customer_name||i.customer||''))].filter(c=>c).sort().forEach(c=>{
-      const o=document.createElement('option');
-      o.value=c;
-      o.textContent = c;
-      if(c===current) o.selected=true;
-      sel.appendChild(o);
-    });
+    const isCustomerRole = (window.role || role) === 'customer';
+    if (sel) {
+      sel.style.display = isCustomerRole ? 'none' : '';
+      if (!isCustomerRole) {
+        const current=sel.value;
+        sel.innerHTML='<option value="">All customers</option>';
+        [...new Set(CMDB_ITEMS.map(i=>i.customer_name||i.customer||''))].filter(c=>c).sort().forEach(c=>{
+          const o=document.createElement('option');
+          o.value=c;
+          o.textContent = c;
+          if(c===current) o.selected=true;
+          sel.appendChild(o);
+        });
+      }
+    }
 
     const q=(document.getElementById('cmdb-search').value||'').toLowerCase();
-    const isCustomerRole = (window.role || role) === 'customer';
-    const custFilter = isCustomerRole ? '' : sel.value;
+    const custFilter = isCustomerRole ? '' : (sel ? sel.value : '');
     const body=document.getElementById('cmdb-body');
     body.innerHTML='';
 
@@ -26086,7 +26105,7 @@ async function displayAIInsights(data) {
     document.getElementById('ai-avg-confidence').textContent = !isNaN(avgConf) ? avgConf.toFixed(1) + '%' : '--';
 
     const avgTime = parseFloat(data.performance.avg_processing_time);
-    document.getElementById('ai-avg-time').textContent = !isNaN(avgTime) ? avgTime.toFixed(0) + 'ms' : '--';
+    document.getElementById('ai-avg-time').textContent = !isNaN(avgTime) ? (avgTime / 1000).toFixed(2) + 's' : '--';
   }
 
   // Load AI CMDB suggestions count

@@ -389,39 +389,76 @@ async function main() {
       console.log('🏢 Seeding companies...');
 
       const companies = [
-        { name: 'FinTechCo Ltd', domain: 'fintechco.com', admin: 'sarah.chen' },
-        { name: 'MedTech Systems', domain: 'medtechsystems.com', admin: 'james.wilson' },
-        { name: 'Global Retail Group', domain: 'globalretail.com', admin: 'priya.patel' },
+        { name: 'FinTechCo Ltd', domain: 'fintechco.com', admin: 'sarah.chen', phone: '+44 20 7946 0958', address: '100 Finsbury Pavement, London EC2A 1RS' },
+        { name: 'MedTech Systems', domain: 'medtechsystems.com', admin: 'james.wilson', phone: '+44 161 234 5678', address: '55 Portland Street, Manchester M1 3HP' },
+        { name: 'Global Retail Group', domain: 'globalretail.com', admin: 'priya.patel', phone: '+44 121 345 6789', address: '1 Colmore Row, Birmingham B3 2BJ' },
       ];
 
       const companyIds = {};
       for (const c of companies) {
         const [result] = await tenantConn.query(
-          `INSERT INTO customer_companies (company_name, company_domain, admin_user_id, admin_email, is_active)
-           VALUES (?, ?, ?, ?, TRUE)
+          `INSERT INTO customer_companies (company_name, company_domain, admin_user_id, admin_email, contact_phone, address, is_active)
+           VALUES (?, ?, ?, ?, ?, ?, TRUE)
            ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)`,
-          [c.name, c.domain, userIds[c.admin], `admin@${c.domain}`]
+          [c.name, c.domain, userIds[c.admin], `admin@${c.domain}`, c.phone, c.address]
         );
         companyIds[c.name] = result.insertId;
       }
 
-      // Create customer records
+      // Assign SLA definitions to companies (Critical for FinTech, Priority for MedTech, Standard for Retail)
+      // We'll set these after SLA defs are created (see step 6)
+
+      // Create customer admin records
       const customerCompanyMap = {
-        'sarah.chen': { company: 'FinTechCo Ltd', isAdmin: true },
-        'james.wilson': { company: 'MedTech Systems', isAdmin: true },
-        'priya.patel': { company: 'Global Retail Group', isAdmin: true },
+        'sarah.chen': { company: 'FinTechCo Ltd', isAdmin: true, jobTitle: 'IT Director' },
+        'james.wilson': { company: 'MedTech Systems', isAdmin: true, jobTitle: 'Head of IT' },
+        'priya.patel': { company: 'Global Retail Group', isAdmin: true, jobTitle: 'Technology Manager' },
       };
 
       for (const [username, info] of Object.entries(customerCompanyMap)) {
         await tenantConn.query(
-          `INSERT IGNORE INTO customers (user_id, customer_company_id, is_company_admin, company_name, company_domain)
-           VALUES (?, ?, ?, ?, ?)`,
+          `INSERT IGNORE INTO customers (user_id, customer_company_id, is_company_admin, company_name, company_domain, job_title)
+           VALUES (?, ?, ?, ?, ?, ?)`,
           [userIds[username], companyIds[info.company], info.isAdmin, info.company,
-           companies.find(c => c.name === info.company).domain]
+           companies.find(c => c.name === info.company).domain, info.jobTitle]
         );
       }
 
-      console.log(`   Created ${companies.length} companies`);
+      // ── 4b. Seed Customer Team Members ──────────────────────────────
+      console.log('👥 Seeding customer team members...');
+
+      const teamMembers = [
+        // FinTechCo Ltd team
+        { username: 'david.lee', email: 'david.lee@fintechco.com', full_name: 'David Lee', company: 'FinTechCo Ltd', jobTitle: 'Senior Developer' },
+        { username: 'emily.wang', email: 'emily.wang@fintechco.com', full_name: 'Emily Wang', company: 'FinTechCo Ltd', jobTitle: 'Business Analyst' },
+        { username: 'tom.clark', email: 'tom.clark@fintechco.com', full_name: 'Tom Clark', company: 'FinTechCo Ltd', jobTitle: 'DevOps Engineer' },
+        // MedTech Systems team
+        { username: 'lisa.taylor', email: 'lisa.taylor@medtechsystems.com', full_name: 'Lisa Taylor', company: 'MedTech Systems', jobTitle: 'Lab Technician' },
+        { username: 'raj.sharma', email: 'raj.sharma@medtechsystems.com', full_name: 'Raj Sharma', company: 'MedTech Systems', jobTitle: 'Data Scientist' },
+        // Global Retail Group team
+        { username: 'anna.brown', email: 'anna.brown@globalretail.com', full_name: 'Anna Brown', company: 'Global Retail Group', jobTitle: 'Store Manager' },
+        { username: 'mark.jones', email: 'mark.jones@globalretail.com', full_name: 'Mark Jones', company: 'Global Retail Group', jobTitle: 'Logistics Coordinator' },
+        { username: 'sophie.green', email: 'sophie.green@globalretail.com', full_name: 'Sophie Green', company: 'Global Retail Group', jobTitle: 'E-commerce Specialist' },
+      ];
+
+      for (const m of teamMembers) {
+        const [result] = await tenantConn.query(
+          `INSERT INTO users (username, password_hash, role, email, full_name, is_active)
+           VALUES (?, ?, 'customer', ?, ?, TRUE)
+           ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)`,
+          [m.username, pwHash, m.email, m.full_name]
+        );
+        userIds[m.username] = result.insertId;
+
+        await tenantConn.query(
+          `INSERT IGNORE INTO customers (user_id, customer_company_id, is_company_admin, company_name, company_domain, job_title)
+           VALUES (?, ?, FALSE, ?, ?, ?)`,
+          [result.insertId, companyIds[m.company], m.company,
+           companies.find(c => c.name === m.company).domain, m.jobTitle]
+        );
+      }
+
+      console.log(`   Created ${companies.length} companies with ${teamMembers.length} team members`);
 
       // ── 5. Seed CMDB Items ────────────────────────────────────────────
       console.log('🖥️  Seeding CMDB items...');
@@ -500,6 +537,17 @@ async function main() {
       for (const s of slaDefs) slaMap[s.name] = s.id;
 
       console.log(`   Created ${slaDefs.length} SLA definitions`);
+
+      // Assign SLA definitions to customer companies
+      if (slaMap['Critical']) {
+        await tenantConn.query('UPDATE customer_companies SET sla_definition_id = ? WHERE company_name = ?', [slaMap['Critical'], 'FinTechCo Ltd']);
+      }
+      if (slaMap['Priority']) {
+        await tenantConn.query('UPDATE customer_companies SET sla_definition_id = ? WHERE company_name = ?', [slaMap['Priority'], 'MedTech Systems']);
+      }
+      if (slaMap['Standard']) {
+        await tenantConn.query('UPDATE customer_companies SET sla_definition_id = ? WHERE company_name = ?', [slaMap['Standard'], 'Global Retail Group']);
+      }
 
       // ── 7. Seed Tickets ───────────────────────────────────────────────
       console.log('🎫 Seeding tickets...');
@@ -612,7 +660,9 @@ async function main() {
       const statusWeights = [30, 25, 15, 20, 10]; // approximate distribution
       const workTypes = ['incident', 'service_request', 'problem', 'change'];
       const execModes = ['standard', 'automated', 'manual'];
-      const customerUsers = ['sarah.chen', 'james.wilson', 'priya.patel'];
+      const customerUsers = ['sarah.chen', 'james.wilson', 'priya.patel',
+        'david.lee', 'emily.wang', 'tom.clark', 'lisa.taylor', 'raj.sharma',
+        'anna.brown', 'mark.jones', 'sophie.green'];
       const expertUsers = ['mike.torres', 'emma.brooks'];
       const slaNames = ['Standard', 'Priority', 'Critical'];
 
@@ -648,9 +698,11 @@ async function main() {
           ? new Date(createdAt.getTime() + Math.floor(rng() * 4 * 60 * 60 * 1000))
           : null;
 
-        const wt = pick(rng, workTypes);
-        const em = pick(rng, execModes);
-        const confidence = (0.7 + rng() * 0.3).toFixed(3);
+        // ~15% of tickets need triage (low confidence or unclassified)
+        const needsTriage = rng() < 0.15;
+        const wt = needsTriage && rng() < 0.4 ? null : pick(rng, workTypes);
+        const em = needsTriage ? null : pick(rng, execModes);
+        const confidence = needsTriage ? (rng() * 0.45).toFixed(3) : (0.7 + rng() * 0.3).toFixed(3);
 
         const [result] = await tenantConn.query(
           `INSERT INTO tickets (title, description, status, priority, category,
@@ -673,7 +725,7 @@ async function main() {
             new Date(createdAt.getTime() + (slaName === 'Critical' ? 120 : slaName === 'Priority' ? 480 : 2880) * 60 * 1000),
             firstRespondedAt,
             resolvedAt,
-            wt, em, confidence, createdAt,
+            wt, em, confidence, needsTriage ? null : createdAt,
             createdAt,
             resolvedAt || createdAt,
           ]
@@ -1169,8 +1221,83 @@ async function main() {
 
       console.log(`   Created ${changeCount} CMDB change records`);
 
-      // ── 17. Seed expert profiles ────────────────────────────────────────
-      console.log('👨‍💻 Seeding expert profiles...');
+      // ── 16b. Seed Configuration Items (CIs) ────────────────────────────
+      console.log('🔧 Seeding configuration items...');
+
+      // CI templates per asset category
+      const ciTemplates = {
+        'Hardware': {
+          'Laptop': [
+            { key: 'serial_number', val: () => `SN-${Math.random().toString(36).substr(2, 8).toUpperCase()}`, type: 'string' },
+            { key: 'os', val: () => pick(rng2, ['Windows 11 Pro', 'Windows 11 Enterprise', 'macOS Sonoma 14.3']), type: 'string' },
+            { key: 'ram_gb', val: () => pick(rng2, ['8', '16', '32']), type: 'number' },
+            { key: 'storage_gb', val: () => pick(rng2, ['256', '512', '1024']), type: 'number' },
+            { key: 'warranty_expiry', val: () => `2027-${String(1 + Math.floor(rng2() * 12)).padStart(2, '0')}-15`, type: 'string' },
+          ],
+          'Server': [
+            { key: 'ip_address', val: () => `10.${Math.floor(rng2() * 255)}.${Math.floor(rng2() * 255)}.${1 + Math.floor(rng2() * 254)}`, type: 'string' },
+            { key: 'hostname', val: () => `srv-${Math.random().toString(36).substr(2, 6)}`, type: 'string' },
+            { key: 'os', val: () => pick(rng2, ['Windows Server 2022', 'Ubuntu 22.04 LTS', 'RHEL 9']), type: 'string' },
+            { key: 'cpu_cores', val: () => pick(rng2, ['8', '16', '32', '64']), type: 'number' },
+            { key: 'ram_gb', val: () => pick(rng2, ['32', '64', '128', '256']), type: 'number' },
+          ],
+          'Printer': [
+            { key: 'ip_address', val: () => `192.168.${Math.floor(rng2() * 10)}.${100 + Math.floor(rng2() * 50)}`, type: 'string' },
+            { key: 'connection_type', val: () => pick(rng2, ['Ethernet', 'WiFi', 'USB + Network']), type: 'string' },
+            { key: 'monthly_page_volume', val: () => String(500 + Math.floor(rng2() * 4500)), type: 'number' },
+          ],
+        },
+        'Software': {
+          '*': [
+            { key: 'license_type', val: () => pick(rng2, ['Per-user', 'Per-device', 'Site license', 'Subscription']), type: 'string' },
+            { key: 'license_count', val: () => String(5 + Math.floor(rng2() * 95)), type: 'number' },
+            { key: 'renewal_date', val: () => `2026-${String(1 + Math.floor(rng2() * 12)).padStart(2, '0')}-01`, type: 'string' },
+            { key: 'version', val: () => `${1 + Math.floor(rng2() * 5)}.${Math.floor(rng2() * 10)}.${Math.floor(rng2() * 20)}`, type: 'string' },
+          ]
+        },
+        'Network': {
+          '*': [
+            { key: 'ip_address', val: () => `10.0.${Math.floor(rng2() * 10)}.${1 + Math.floor(rng2() * 254)}`, type: 'string' },
+            { key: 'firmware_version', val: () => `v${1 + Math.floor(rng2() * 3)}.${Math.floor(rng2() * 10)}.${Math.floor(rng2() * 5)}`, type: 'string' },
+            { key: 'management_url', val: () => `https://${Math.random().toString(36).substr(2, 6)}.local:443`, type: 'string' },
+            { key: 'vlan', val: () => String(10 + Math.floor(rng2() * 90)), type: 'number' },
+          ]
+        },
+        'Cloud': {
+          '*': [
+            { key: 'account_id', val: () => `${Math.random().toString(36).substr(2, 12)}`, type: 'string' },
+            { key: 'region', val: () => pick(rng2, ['eu-west-2', 'eu-west-1', 'us-east-1', 'uk-south']), type: 'string' },
+            { key: 'monthly_cost_gbp', val: () => (50 + rng2() * 950).toFixed(2), type: 'number' },
+            { key: 'tier', val: () => pick(rng2, ['Free', 'Pro', 'Business', 'Enterprise']), type: 'string' },
+          ]
+        }
+      };
+
+      let ciCount = 0;
+      for (const item of cmdbRows) {
+        const catTemplates = ciTemplates[item.asset_category];
+        if (!catTemplates) continue;
+
+        // Look up the category_field_value to find specific template, fallback to wildcard
+        const [itemDetail] = await tenantConn.query('SELECT category_field_value FROM cmdb_items WHERE id = ?', [item.id]);
+        const catFieldVal = itemDetail[0]?.category_field_value || '';
+        const template = catTemplates[catFieldVal] || catTemplates['*'];
+        if (!template) continue;
+
+        for (const ci of template) {
+          await tenantConn.query(
+            `INSERT INTO configuration_items (cmdb_item_id, key_name, value, data_type)
+             VALUES (?, ?, ?, ?)`,
+            [item.id, ci.key, ci.val(), ci.type]
+          );
+          ciCount++;
+        }
+      }
+
+      console.log(`   Created ${ciCount} configuration items`);
+
+      // ── 17. Seed expert and user profiles ──────────────────────────────
+      console.log('👨‍💻 Seeding expert profiles and user profile data...');
 
       await tenantConn.query(
         `UPDATE experts SET skills = ?, availability_status = 'available', max_concurrent_tickets = 10
@@ -1183,7 +1310,27 @@ async function main() {
         ['Software, Email, Security, Cloud, Network', userIds['emma.brooks']]
       );
 
-      console.log('   Updated 2 expert profiles');
+      // Set profile fields for all users (phone, department, location)
+      const profileData = {
+        'demo_admin': { phone: '+44 20 7946 0100', department: 'IT Management', location: 'London' },
+        'alex.morgan': { phone: '+44 20 7946 0101', department: 'Service Delivery', location: 'London' },
+        'mike.torres': { phone: '+44 20 7946 0102', department: 'IT Support L1', location: 'London' },
+        'emma.brooks': { phone: '+44 20 7946 0103', department: 'IT Support L2', location: 'Manchester' },
+        'sarah.chen': { phone: '+44 20 7946 0200', department: 'Finance IT', location: 'London' },
+        'james.wilson': { phone: '+44 161 234 5680', department: 'Lab IT', location: 'Manchester' },
+        'priya.patel': { phone: '+44 121 345 6790', department: 'Retail IT', location: 'Birmingham' },
+      };
+
+      for (const [username, data] of Object.entries(profileData)) {
+        if (userIds[username]) {
+          await tenantConn.query(
+            `UPDATE users SET phone = ?, department = ?, location = ? WHERE id = ?`,
+            [data.phone, data.department, data.location, userIds[username]]
+          );
+        }
+      }
+
+      console.log('   Updated 2 expert profiles + 7 user profiles');
 
       // ── 18. Seed report history ─────────────────────────────────────────
       console.log('📄 Seeding report history...');
@@ -1233,6 +1380,78 @@ async function main() {
       }
 
       console.log(`   Created ${actionCount} AI action log entries`);
+
+      // ── 20. Create notifications table and seed data ─────────────────────
+      console.log('🔔 Seeding notifications...');
+
+      await tenantConn.query(`
+        CREATE TABLE IF NOT EXISTS notifications (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          ticket_id INT NOT NULL,
+          type VARCHAR(64) NOT NULL,
+          severity VARCHAR(16) NOT NULL,
+          message VARCHAR(255) NOT NULL,
+          payload_json JSON NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          delivered_at TIMESTAMP NULL,
+          INDEX idx_ticket_id (ticket_id),
+          INDEX idx_type (type),
+          INDEX idx_created_at (created_at),
+          INDEX idx_delivered_at (delivered_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      const notifTypes = [
+        { type: 'sla_response_near', severity: 'warning', msg: 'Response SLA approaching deadline' },
+        { type: 'sla_response_breached', severity: 'critical', msg: 'Response SLA has been breached' },
+        { type: 'sla_resolve_near', severity: 'warning', msg: 'Resolution SLA approaching deadline' },
+        { type: 'sla_resolve_breached', severity: 'critical', msg: 'Resolution SLA has been breached' },
+        { type: 'ticket_assigned', severity: 'info', msg: 'Ticket has been assigned' },
+        { type: 'ticket_updated', severity: 'info', msg: 'Ticket has been updated' },
+        { type: 'ticket_comment', severity: 'info', msg: 'New comment on ticket' },
+      ];
+
+      let notifCount = 0;
+      const rng3 = seededRandom(77);
+      for (let i = 0; i < 50; i++) {
+        const ticketId = ticketIds[Math.floor(rng3() * ticketIds.length)];
+        const notif = notifTypes[Math.floor(rng3() * notifTypes.length)];
+        const daysAgo = Math.floor(rng3() * 14);
+        const delivered = rng3() < 0.7;
+
+        await tenantConn.query(
+          `INSERT INTO notifications (ticket_id, type, severity, message, created_at, delivered_at)
+           VALUES (?, ?, ?, ?, NOW() - INTERVAL ? DAY, ?)`,
+          [ticketId, notif.type, notif.severity, notif.msg, daysAgo,
+           delivered ? new Date(Date.now() - (daysAgo * 24 - 1) * 60 * 60 * 1000) : null]
+        );
+        notifCount++;
+      }
+
+      console.log(`   Created ${notifCount} notifications`);
+
+      // ── 21. Set pool_status for tickets ───────────────────────────────────
+      console.log('🎯 Setting ticket pool statuses...');
+
+      // Open unassigned tickets stay OPEN_POOL (default)
+      // Assigned in-progress tickets should be IN_PROGRESS_OWNED
+      await tenantConn.query(`
+        UPDATE tickets SET pool_status = 'IN_PROGRESS_OWNED',
+          owned_by_expert_id = assignee_id,
+          ownership_started_at = created_at
+        WHERE assignee_id IS NOT NULL AND status IN ('In Progress', 'Pending')
+      `);
+
+      // Resolved/Closed tickets
+      await tenantConn.query(`
+        UPDATE tickets SET pool_status = 'COMPLETED'
+        WHERE status IN ('Resolved', 'Closed')
+      `);
+
+      const [poolCounts] = await tenantConn.query(`
+        SELECT pool_status, COUNT(*) as cnt FROM tickets GROUP BY pool_status
+      `);
+      console.log('   Pool distribution:', poolCounts.map(r => `${r.pool_status}=${r.cnt}`).join(', '));
 
     } finally {
       await tenantConn.end();
