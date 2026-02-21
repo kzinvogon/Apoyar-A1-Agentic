@@ -11,8 +11,8 @@ const mysql = require('mysql2/promise');
 
 const ENVS = {
   localhost: { host: 'localhost', port: 3306, user: 'root', password: '' },
-  uat:      { host: 'tramway.proxy.rlwy.net', port: 19355, user: 'root', password: process.env.RAILWAY_MYSQL_PASSWORD || '' },
-  prod:     { host: 'tramway.proxy.rlwy.net', port: 19355, user: 'root', password: process.env.RAILWAY_MYSQL_PASSWORD || '' },
+  uat:      { host: process.env.MYSQLHOST || 'tramway.proxy.rlwy.net', port: parseInt(process.env.MYSQLPORT || '20773', 10), user: process.env.MYSQLUSER || 'serviflow_app', password: process.env.RAILWAY_MYSQL_PASSWORD || '' },
+  prod:     { host: process.env.MYSQLHOST || 'tramway.proxy.rlwy.net', port: parseInt(process.env.MYSQLPORT || '20773', 10), user: process.env.MYSQLUSER || 'serviflow_app', password: process.env.RAILWAY_MYSQL_PASSWORD || '' },
 };
 
 async function run() {
