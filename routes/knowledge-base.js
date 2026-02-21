@@ -20,7 +20,7 @@ router.use(verifyToken);
 router.get('/:tenantCode/articles', async (req, res) => {
   try {
     const { tenantCode } = req.params;
-    const { page = 1, limit = 20, category, status, search, sort = 'created_at', order = 'DESC' } = req.query;
+    const { page = 1, limit = 20, category, category_id, status, search, sort = 'created_at', order = 'DESC' } = req.query;
 
     if (req.user.tenantCode !== tenantCode && req.user.role !== 'super_admin') {
       return res.status(403).json({ error: 'Access denied' });
@@ -29,10 +29,17 @@ router.get('/:tenantCode/articles', async (req, res) => {
     const connection = await getTenantConnection(tenantCode);
 
     try {
+      // Resolve category_id to category name if provided
+      let categoryFilter = category;
+      if (!categoryFilter && category_id) {
+        const [catRows] = await connection.query('SELECT name FROM kb_categories WHERE id = ?', [category_id]);
+        if (catRows.length > 0) categoryFilter = catRows[0].name;
+      }
+
       const offset = (parseInt(page) - 1) * parseInt(limit);
       let sql = `
         SELECT
-          ka.id, ka.article_id, ka.title, ka.summary, ka.category, ka.tags,
+          ka.id, ka.article_id, ka.title, ka.summary, ka.category, ka.category AS category_name, ka.tags,
           ka.status, ka.visibility, ka.view_count, ka.helpful_count, ka.not_helpful_count,
           ka.source_type, ka.created_at, ka.updated_at, ka.published_at,
           u.full_name as created_by_name
@@ -43,9 +50,9 @@ router.get('/:tenantCode/articles', async (req, res) => {
       const params = [];
 
       // Filter by category
-      if (category) {
+      if (categoryFilter) {
         sql += ' AND ka.category = ?';
-        params.push(category);
+        params.push(categoryFilter);
       }
 
       // Filter by status (experts see all, customers only published)
@@ -77,9 +84,9 @@ router.get('/:tenantCode/articles', async (req, res) => {
       // Get total count
       let countSql = 'SELECT COUNT(*) as total FROM kb_articles WHERE 1=1';
       const countParams = [];
-      if (category) {
+      if (categoryFilter) {
         countSql += ' AND category = ?';
-        countParams.push(category);
+        countParams.push(categoryFilter);
       }
       if (status) {
         countSql += ' AND status = ?';
@@ -209,7 +216,7 @@ router.get('/:tenantCode/articles/:articleId', async (req, res) => {
 router.post('/:tenantCode/articles', requireRole(['admin', 'expert']), async (req, res) => {
   try {
     const { tenantCode } = req.params;
-    const { title, content, summary, category, tags, status, visibility } = req.body;
+    const { title, content, summary, category, category_id, tags, status, visibility } = req.body;
 
     if (req.user.tenantCode !== tenantCode && req.user.role !== 'super_admin') {
       return res.status(403).json({ error: 'Access denied' });
@@ -219,9 +226,21 @@ router.post('/:tenantCode/articles', requireRole(['admin', 'expert']), async (re
       return res.status(400).json({ error: 'Title and content are required' });
     }
 
+    // Resolve category_id to name if provided
+    let resolvedCategory = category;
+    if (!resolvedCategory && category_id) {
+      const connection = await getTenantConnection(tenantCode);
+      try {
+        const [catRows] = await connection.query('SELECT name FROM kb_categories WHERE id = ?', [category_id]);
+        if (catRows.length > 0) resolvedCategory = catRows[0].name;
+      } finally {
+        connection.release();
+      }
+    }
+
     const kbService = new KnowledgeBaseService(tenantCode);
     const result = await kbService.createArticle({
-      title, content, summary, category, tags, status, visibility
+      title, content, summary, category: resolvedCategory, tags, status, visibility
     }, req.user.userId);
 
     res.json({
@@ -240,15 +259,27 @@ router.post('/:tenantCode/articles', requireRole(['admin', 'expert']), async (re
 router.put('/:tenantCode/articles/:articleId', requireRole(['admin', 'expert']), async (req, res) => {
   try {
     const { tenantCode, articleId } = req.params;
-    const { title, content, summary, category, tags, status, visibility, change_reason } = req.body;
+    const { title, content, summary, category, category_id, tags, status, visibility, change_reason } = req.body;
 
     if (req.user.tenantCode !== tenantCode && req.user.role !== 'super_admin') {
       return res.status(403).json({ error: 'Access denied' });
     }
 
+    // Resolve category_id to name if provided
+    let resolvedCategory = category;
+    if (!resolvedCategory && category_id) {
+      const connection = await getTenantConnection(tenantCode);
+      try {
+        const [catRows] = await connection.query('SELECT name FROM kb_categories WHERE id = ?', [category_id]);
+        if (catRows.length > 0) resolvedCategory = catRows[0].name;
+      } finally {
+        connection.release();
+      }
+    }
+
     const kbService = new KnowledgeBaseService(tenantCode);
     const result = await kbService.updateArticle(parseInt(articleId), {
-      title, content, summary, category, tags, status, visibility
+      title, content, summary, category: resolvedCategory, tags, status, visibility
     }, req.user.userId, change_reason || 'Updated');
 
     res.json({

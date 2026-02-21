@@ -760,6 +760,17 @@ async function main() {
         { id: 'KB-0015', title: 'How to Use the CMDB', cat: 'Getting Started', content: '# How to Use the CMDB\n\n## What is the CMDB?\nThe Configuration Management Database (CMDB) tracks all IT assets and their relationships.\n\n## Browsing Assets\n1. Navigate to the CMDB section from the sidebar\n2. Use filters to narrow by category, company, or status\n3. Click on any asset to view its details\n\n## Asset Categories\n- **Hardware**: Laptops, servers, printers, network equipment\n- **Software**: Licenses, applications, SaaS subscriptions\n- **Network**: Switches, routers, firewalls, access points\n- **Cloud**: Cloud instances, services, and subscriptions\n\n## Linking to Tickets\nWhen raising a ticket, you can link it to an affected CMDB item for better context and reporting.\n\n## Reporting\nCMDB data feeds into reports showing asset health, distribution, and SLA coverage.' },
       ];
 
+      // Ensure kb_categories has entries for all article categories
+      const articleCats = [...new Set(kbArticles.map(a => a.cat))];
+      for (let i = 0; i < articleCats.length; i++) {
+        const catName = articleCats[i];
+        const slug = catName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+        await tenantConn.query(
+          `INSERT IGNORE INTO kb_categories (name, slug, sort_order) VALUES (?, ?, ?)`,
+          [catName, slug, 10 + i]
+        );
+      }
+
       for (const kb of kbArticles) {
         await tenantConn.query(
           `INSERT IGNORE INTO kb_articles (article_id, title, content, category, status, visibility, source_type, created_by, published_at)
