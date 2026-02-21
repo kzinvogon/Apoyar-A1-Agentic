@@ -303,13 +303,13 @@ router.get('/:tenantCode/items/:cmdbId', async (req, res) => {
 
       const item = items[0];
 
-      // Get associated Configuration Items
+      // Get associated Configuration Items (aliased for frontend compatibility)
       const [cis] = await connection.query(
-        `SELECT ci.*, u.full_name as created_by_name
+        `SELECT ci.id AS ci_id, ci.cmdb_item_id, ci.key_name AS ci_name,
+                ci.value AS category_field_value, ci.data_type, ci.created_at, ci.updated_at
          FROM configuration_items ci
-         LEFT JOIN users u ON ci.created_by = u.id
          WHERE ci.cmdb_item_id = ?
-         ORDER BY ci.created_at DESC`,
+         ORDER BY ci.key_name ASC`,
         [item.id]
       );
 
@@ -591,11 +591,11 @@ router.get('/:tenantCode/items/:cmdbId/cis', async (req, res) => {
       }
 
       const [cis] = await connection.query(
-        `SELECT ci.*, u.full_name as created_by_name
+        `SELECT ci.id AS ci_id, ci.cmdb_item_id, ci.key_name AS ci_name,
+                ci.value AS category_field_value, ci.data_type, ci.created_at, ci.updated_at
          FROM configuration_items ci
-         LEFT JOIN users u ON ci.created_by = u.id
          WHERE ci.cmdb_item_id = ?
-         ORDER BY ci.created_at DESC`,
+         ORDER BY ci.key_name ASC`,
         [cmdbItems[0].id]
       );
 
