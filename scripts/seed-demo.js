@@ -278,10 +278,75 @@ async function main() {
         { name: 'Last Login', fn: async () => { const { migrate } = require('../migrations/add-last-login-column'); await migrate('demo'); }},
         { name: 'Ticket-CMDB Relations', fn: async () => { const { runMigration } = require('../migrations/add-ticket-cmdb-relations'); await runMigration('demo'); }},
         { name: 'Category SLA Mappings', fn: async () => { const { runMigration } = require('../migrations/add-category-sla-mappings'); await runMigration('demo'); }},
+        { name: 'Email Notifications', fn: async () => { const { runMigration } = require('../migrations/add-email-notifications-column'); await runMigration('demo'); }},
+        { name: 'Must Reset Password', fn: async () => { const { runMigration } = require('../migrations/add-must-reset-password'); await runMigration('demo'); }},
+        { name: 'Invitation Columns', fn: async () => { const { runMigration } = require('../migrations/add-invitation-columns'); await runMigration('demo'); }},
+        { name: 'Ticket Classification', fn: async () => { const { runMigration } = require('../migrations/add-ticket-classification-fields'); await runMigration('demo'); }},
+        { name: 'Ticket Ownership', fn: async () => { const { runMigration } = require('../migrations/add-ticket-ownership-workflow'); await runMigration('demo'); }},
       ];
       for (const m of migrations) {
         try { await m.fn(); } catch (e) { console.warn(`   ⚠️ ${m.name}: ${e.message}`); }
       }
+
+      // Patch missing columns that come from standalone migration scripts
+      // (scripts that can't be imported because they auto-execute main())
+      console.log('🔧 Patching schema for production parity...');
+      const { getTenantConnection } = require('../config/database');
+      const patchConn = await getTenantConnection('demo');
+      try {
+        const [existingCols] = await patchConn.query(`
+          SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+          WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN ('users', 'tickets')
+        `);
+        const colSet = new Set(existingCols.map(r => r.COLUMN_NAME));
+
+        // Users table — columns from add-user-profile-columns, add-expert-permissions, etc.
+        const userPatches = [
+          { col: 'location', sql: "ADD COLUMN location VARCHAR(100) DEFAULT NULL" },
+          { col: 'street_address', sql: "ADD COLUMN street_address VARCHAR(255) DEFAULT NULL" },
+          { col: 'city', sql: "ADD COLUMN city VARCHAR(100) DEFAULT NULL" },
+          { col: 'state', sql: "ADD COLUMN state VARCHAR(100) DEFAULT NULL" },
+          { col: 'postcode', sql: "ADD COLUMN postcode VARCHAR(20) DEFAULT NULL" },
+          { col: 'country', sql: "ADD COLUMN country VARCHAR(100) DEFAULT NULL" },
+          { col: 'timezone', sql: "ADD COLUMN timezone VARCHAR(50) DEFAULT NULL" },
+          { col: 'language', sql: "ADD COLUMN language VARCHAR(10) DEFAULT 'en'" },
+          { col: 'reset_token', sql: "ADD COLUMN reset_token VARCHAR(255) DEFAULT NULL" },
+          { col: 'reset_token_expiry', sql: "ADD COLUMN reset_token_expiry DATETIME DEFAULT NULL" },
+        ];
+        for (const p of userPatches) {
+          if (!colSet.has(p.col)) {
+            try { await patchConn.query(`ALTER TABLE users ${p.sql}`); }
+            catch (e) { /* already exists */ }
+          }
+        }
+
+        // Tickets table — columns from uat-schema-parity and various standalone migrations
+        const ticketPatches = [
+          { col: 'previous_assignee_id', sql: "ADD COLUMN previous_assignee_id INT DEFAULT NULL" },
+          { col: 'resolution_status', sql: "ADD COLUMN resolution_status ENUM('pending','accepted','rejected') DEFAULT NULL" },
+          { col: 'rejection_reason', sql: "ADD COLUMN rejection_reason VARCHAR(255) DEFAULT NULL" },
+          { col: 'rejection_comment', sql: "ADD COLUMN rejection_comment TEXT DEFAULT NULL" },
+          { col: 'csat_rating', sql: "ADD COLUMN csat_rating INT DEFAULT NULL" },
+          { col: 'csat_comment', sql: "ADD COLUMN csat_comment TEXT DEFAULT NULL" },
+          { col: 'resolution_comment', sql: "ADD COLUMN resolution_comment TEXT DEFAULT NULL" },
+          { col: 'ai_accuracy_feedback', sql: "ADD COLUMN ai_accuracy_feedback ENUM('accurate','inaccurate','partial') DEFAULT NULL" },
+          { col: 'source_metadata', sql: "ADD COLUMN source_metadata JSON DEFAULT NULL" },
+          { col: 'email_message_id', sql: "ADD COLUMN email_message_id VARCHAR(255) DEFAULT NULL" },
+          { col: 'email_in_reply_to', sql: "ADD COLUMN email_in_reply_to VARCHAR(255) DEFAULT NULL" },
+          { col: 'email_references', sql: "ADD COLUMN email_references TEXT DEFAULT NULL" },
+        ];
+        for (const p of ticketPatches) {
+          if (!colSet.has(p.col)) {
+            try { await patchConn.query(`ALTER TABLE tickets ${p.sql}`); }
+            catch (e) { /* already exists */ }
+          }
+        }
+
+        console.log('✅ Schema patching complete');
+      } finally {
+        patchConn.release();
+      }
+
       console.log('✅ Migrations complete\n');
 
       // ── 3. Seed Users ──────────────────────────────────────────────────
@@ -801,6 +866,362 @@ async function main() {
       }
 
       console.log(`   Created ${features.length} features`);
+
+      // ── 13. Create AI tables and seed AI email analysis ─────────────────
+      console.log('🧠 Seeding AI analysis data...');
+
+      // Create AI tables if they don't exist
+      await tenantConn.query(`
+        CREATE TABLE IF NOT EXISTS ai_email_analysis (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          ticket_id INT NOT NULL,
+          sentiment VARCHAR(50),
+          confidence_score INT,
+          ai_category VARCHAR(100),
+          root_cause_type VARCHAR(100),
+          impact_level VARCHAR(50),
+          key_phrases JSON,
+          technical_terms JSON,
+          suggested_assignee VARCHAR(100),
+          estimated_resolution_time INT,
+          similar_ticket_ids JSON,
+          analysis_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          ai_model_version VARCHAR(100),
+          processing_time_ms INT,
+          FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE,
+          INDEX idx_ticket_id (ticket_id),
+          INDEX idx_sentiment (sentiment),
+          INDEX idx_ai_category (ai_category)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await tenantConn.query(`
+        CREATE TABLE IF NOT EXISTS ai_insights (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          insight_type VARCHAR(50) NOT NULL,
+          title VARCHAR(200) NOT NULL,
+          description TEXT,
+          severity VARCHAR(50),
+          affected_tickets JSON,
+          metrics JSON,
+          time_range_start TIMESTAMP NULL,
+          time_range_end TIMESTAMP NULL,
+          status ENUM('active', 'acknowledged', 'resolved') DEFAULT 'active',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          INDEX idx_insight_type (insight_type),
+          INDEX idx_severity (severity),
+          INDEX idx_status (status)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await tenantConn.query(`
+        CREATE TABLE IF NOT EXISTS ai_action_log (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          ticket_id INT NOT NULL,
+          user_id INT NULL,
+          action_type VARCHAR(50) NOT NULL,
+          action_params JSON,
+          executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          success BOOLEAN DEFAULT TRUE,
+          error_message TEXT,
+          FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE,
+          INDEX idx_ticket_id (ticket_id),
+          INDEX idx_action_type (action_type)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      // Add ai_analyzed column to tickets if missing
+      const [aiAnalyzedCol] = await tenantConn.query(
+        "SHOW COLUMNS FROM tickets LIKE 'ai_analyzed'"
+      );
+      if (aiAnalyzedCol.length === 0) {
+        await tenantConn.query('ALTER TABLE tickets ADD COLUMN ai_analyzed BOOLEAN DEFAULT FALSE');
+      }
+
+      // Seed ai_email_analysis for ~85 of the 100 tickets
+      const sentiments = ['positive', 'neutral', 'negative', 'urgent'];
+      const sentimentWeights = [20, 45, 25, 10];
+      const aiCategories = ['Hardware Failure', 'Software Bug', 'Network Connectivity', 'Access Management',
+                            'Configuration Issue', 'Performance Degradation', 'Security Concern', 'Service Request'];
+      const rootCauses = ['Configuration', 'Hardware Failure', 'Software Bug', 'User Error',
+                          'Network Issue', 'Capacity', 'Security', 'Third Party'];
+      const impactLevels = ['individual', 'team', 'department', 'organization'];
+
+      const rng2 = seededRandom(99);
+      let aiAnalysisCount = 0;
+
+      for (let i = 0; i < ticketIds.length; i++) {
+        if (rng2() > 0.85) continue; // skip ~15%
+
+        const sentiment = weightedPick(rng2, sentiments, sentimentWeights);
+        const confidence = Math.floor(70 + rng2() * 30);
+        const aiCat = pick(rng2, aiCategories);
+        const rootCause = pick(rng2, rootCauses);
+        const impact = pick(rng2, impactLevels);
+        const estResolution = Math.floor(30 + rng2() * 240); // 30-270 minutes
+        const processingTime = Math.floor(800 + rng2() * 3000);
+
+        const keyPhrases = JSON.stringify(
+          [pick(rng2, ['cannot access', 'not working', 'slow performance', 'error message', 'keeps crashing']),
+           pick(rng2, ['since yesterday', 'intermittent', 'affecting team', 'urgent', 'recurring issue'])]
+        );
+        const techTerms = JSON.stringify(
+          [pick(rng2, ['VPN', 'DHCP', 'DNS', 'Active Directory', 'SSL', 'API', 'SMTP', 'TCP/IP']),
+           pick(rng2, ['firewall', 'proxy', 'endpoint', 'registry', 'driver', 'firmware', 'cache'])]
+        );
+
+        // Pick a suggested assignee from experts
+        const suggestedAssignee = pick(rng2, expertUsers);
+
+        // Created at: around the ticket creation time (within a few hours)
+        const ticketAge = 30 - Math.floor(i * 30 / ticketIds.length);
+        const analysisDate = new Date(Date.now() - (ticketAge * 24 - 2) * 60 * 60 * 1000);
+
+        await tenantConn.query(
+          `INSERT INTO ai_email_analysis
+           (ticket_id, sentiment, confidence_score, ai_category, root_cause_type,
+            impact_level, key_phrases, technical_terms, suggested_assignee,
+            estimated_resolution_time, similar_ticket_ids, analysis_timestamp,
+            ai_model_version, processing_time_ms)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '[]', ?, 'claude-3-5-sonnet-20241022', ?)`,
+          [ticketIds[i], sentiment, confidence, aiCat, rootCause,
+           impact, keyPhrases, techTerms, suggestedAssignee,
+           estResolution, analysisDate, processingTime]
+        );
+        aiAnalysisCount++;
+      }
+
+      // Mark analyzed tickets
+      await tenantConn.query(
+        `UPDATE tickets SET ai_analyzed = TRUE WHERE id IN (
+          SELECT ticket_id FROM ai_email_analysis
+        )`
+      );
+
+      console.log(`   Created ${aiAnalysisCount} AI email analyses`);
+
+      // ── 14. Seed AI Insights ────────────────────────────────────────────
+      console.log('📊 Seeding AI insights...');
+
+      const now = new Date();
+      const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+      const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
+      const fiveDaysAgo = new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000);
+
+      const insights = [
+        {
+          type: 'volume_spike', title: 'Network Ticket Volume Spike Detected',
+          desc: 'Network-related tickets increased 180% over the past 7 days compared to the previous period. 12 new network tickets were created, versus an average of 4.3 per week.',
+          severity: 'warning',
+          tickets: JSON.stringify(ticketIds.slice(0, 8)),
+          metrics: JSON.stringify({ avgCount: 4.3, currentCount: 12, percentIncrease: 180, category: 'Network' }),
+          start: twoWeeksAgo, end: oneWeekAgo,
+          status: 'active'
+        },
+        {
+          type: 'sentiment_trend', title: 'Negative Sentiment Rising in FinTechCo Tickets',
+          desc: 'Sentiment analysis shows 65% of FinTechCo tickets in the past 5 days carry negative or urgent sentiment, up from 30% the previous week. Consider proactive outreach.',
+          severity: 'warning',
+          tickets: JSON.stringify(ticketIds.slice(10, 18)),
+          metrics: JSON.stringify({ currentNegativePct: 65, previousNegativePct: 30, company: 'FinTechCo Ltd', period: '5 days' }),
+          start: fiveDaysAgo, end: now,
+          status: 'active'
+        },
+        {
+          type: 'sla_risk', title: 'SLA Compliance Dropping Below Threshold',
+          desc: 'SLA compliance has dropped to 82% this week (target: 90%). 6 tickets breached response SLA and 3 breached resolution SLA. Primary cause: unassigned tickets in the queue.',
+          severity: 'critical',
+          tickets: JSON.stringify(ticketIds.slice(20, 29)),
+          metrics: JSON.stringify({ compliancePct: 82, target: 90, responseBreaches: 6, resolveBreaches: 3 }),
+          start: oneWeekAgo, end: now,
+          status: 'active'
+        },
+        {
+          type: 'category_trend', title: 'Recurring Printing Issues — Potential Hardware Problem',
+          desc: 'Printing category tickets have appeared 8 times in the past 10 days, affecting 2 companies. The pattern suggests a shared infrastructure issue rather than isolated incidents.',
+          severity: 'info',
+          tickets: JSON.stringify(ticketIds.slice(30, 38)),
+          metrics: JSON.stringify({ category: 'Printing', count: 8, period: '10 days', affectedCompanies: 2 }),
+          start: new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000), end: now,
+          status: 'active'
+        },
+        {
+          type: 'resolution_trend', title: 'Average Resolution Time Improved by 25%',
+          desc: 'Average ticket resolution time decreased from 18.4 hours to 13.8 hours this week. Largest improvement in Software category (42% faster). AI-assisted routing may be contributing.',
+          severity: 'info',
+          tickets: JSON.stringify([]),
+          metrics: JSON.stringify({ previousAvgHours: 18.4, currentAvgHours: 13.8, improvementPct: 25, bestCategory: 'Software', bestCategoryImprovement: 42 }),
+          start: oneWeekAgo, end: now,
+          status: 'active'
+        },
+        {
+          type: 'workload_alert', title: 'Expert L1 Workload Exceeding Capacity',
+          desc: 'mike.torres has 12 active tickets assigned, exceeding the recommended maximum of 8. Consider redistributing 4 tickets to emma.brooks who has capacity.',
+          severity: 'warning',
+          tickets: JSON.stringify(ticketIds.slice(40, 52)),
+          metrics: JSON.stringify({ expert: 'mike.torres', activeTickets: 12, maxRecommended: 8, alternateExpert: 'emma.brooks', alternateCapacity: 4 }),
+          start: threeDaysAgo, end: now,
+          status: 'active'
+        },
+        {
+          type: 'root_cause', title: 'Configuration Issues Are Top Root Cause',
+          desc: 'AI analysis identified Configuration as the root cause in 34% of tickets this month, followed by User Error (22%) and Hardware Failure (18%). Consider updating documentation and deployment checklists.',
+          severity: 'info',
+          tickets: JSON.stringify([]),
+          metrics: JSON.stringify({ topCause: 'Configuration', topCausePct: 34, secondCause: 'User Error', secondCausePct: 22, thirdCause: 'Hardware Failure', thirdCausePct: 18 }),
+          start: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000), end: now,
+          status: 'acknowledged'
+        },
+        {
+          type: 'volume_spike', title: 'Account Access Tickets Spike on Monday Mornings',
+          desc: 'Pattern detected: Account Access tickets are 3x higher on Mondays between 8-10 AM. This is likely due to password expiry policies hitting over the weekend. Consider adjusting expiry windows.',
+          severity: 'info',
+          tickets: JSON.stringify(ticketIds.slice(55, 62)),
+          metrics: JSON.stringify({ category: 'Account Access', peakDay: 'Monday', peakHours: '08:00-10:00', multiplier: 3 }),
+          start: new Date(now.getTime() - 21 * 24 * 60 * 60 * 1000), end: now,
+          status: 'resolved'
+        },
+      ];
+
+      let insightCount = 0;
+      for (const ins of insights) {
+        await tenantConn.query(
+          `INSERT INTO ai_insights (insight_type, title, description, severity, affected_tickets, metrics, time_range_start, time_range_end, status, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [ins.type, ins.title, ins.desc, ins.severity, ins.tickets, ins.metrics, ins.start, ins.end, ins.status,
+           new Date(ins.end.getTime() - Math.floor(Math.random() * 2 * 60 * 60 * 1000))]
+        );
+        insightCount++;
+      }
+
+      console.log(`   Created ${insightCount} AI insights`);
+
+      // ── 15. Seed ticket-CMDB links ──────────────────────────────────────
+      console.log('🔗 Seeding ticket-CMDB links...');
+
+      // Get CMDB item IDs
+      const [cmdbRows] = await tenantConn.query('SELECT id, asset_name, asset_category FROM cmdb_items ORDER BY id');
+      let cmdbLinkCount = 0;
+
+      for (let i = 0; i < Math.min(ticketIds.length, 60); i++) {
+        if (rng2() > 0.6) continue; // ~60% of first 60 tickets get a CMDB link
+        const cmdbItem = cmdbRows[Math.floor(rng2() * cmdbRows.length)];
+        const relTypes = ['affected', 'caused_by', 'related'];
+        const matchMethods = ['ai', 'manual', 'auto'];
+        try {
+          await tenantConn.query(
+            `INSERT IGNORE INTO ticket_cmdb_items (ticket_id, cmdb_item_id, relationship_type, confidence_score, matched_by, match_reason, created_by)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [ticketIds[i], cmdbItem.id, pick(rng2, relTypes),
+             (70 + rng2() * 30).toFixed(2), pick(rng2, matchMethods),
+             `Matched based on ${cmdbItem.asset_category} category and ticket context`,
+             userIds[pick(rng2, expertUsers)]]
+          );
+          cmdbLinkCount++;
+        } catch (e) { /* skip duplicates */ }
+      }
+
+      console.log(`   Created ${cmdbLinkCount} ticket-CMDB links`);
+
+      // ── 16. Seed CMDB change history ────────────────────────────────────
+      console.log('📝 Seeding CMDB change history...');
+
+      const changeTypes = ['created', 'updated', 'relationship_added', 'custom_field_updated'];
+      let changeCount = 0;
+
+      for (const item of cmdbRows) {
+        // Each CMDB item gets 1-4 change records
+        const numChanges = 1 + Math.floor(rng2() * 4);
+        for (let j = 0; j < numChanges; j++) {
+          const daysAgo = Math.floor(rng2() * 30);
+          const changeType = j === 0 ? 'created' : pick(rng2, changeTypes);
+          const changeDesc = changeType === 'created' ? `${item.asset_name} added to CMDB`
+            : changeType === 'relationship_added' ? `Linked to configuration item`
+            : changeType === 'custom_field_updated' ? `Custom field updated for ${item.asset_name}`
+            : `${item.asset_name} details updated`;
+
+          await tenantConn.query(
+            `INSERT INTO cmdb_change_history (cmdb_item_id, change_type, field_name, old_value, new_value, changed_by, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, NOW() - INTERVAL ? DAY)`,
+            [item.id, changeType,
+             changeType === 'updated' ? 'status' : changeType === 'custom_field_updated' ? 'asset_location' : null,
+             changeType === 'updated' ? 'inactive' : null,
+             changeType === 'updated' ? 'active' : changeDesc,
+             userIds[pick(rng2, ['demo_admin', 'mike.torres', 'emma.brooks'])],
+             daysAgo]
+          );
+          changeCount++;
+        }
+      }
+
+      console.log(`   Created ${changeCount} CMDB change records`);
+
+      // ── 17. Seed expert profiles ────────────────────────────────────────
+      console.log('👨‍💻 Seeding expert profiles...');
+
+      await tenantConn.query(
+        `UPDATE experts SET skills = ?, availability_status = 'available', max_concurrent_tickets = 10
+         WHERE user_id = ?`,
+        ['Network, Hardware, Account Access, Printing', userIds['mike.torres']]
+      );
+      await tenantConn.query(
+        `UPDATE experts SET skills = ?, availability_status = 'available', max_concurrent_tickets = 8
+         WHERE user_id = ?`,
+        ['Software, Email, Security, Cloud, Network', userIds['emma.brooks']]
+      );
+
+      console.log('   Updated 2 expert profiles');
+
+      // ── 18. Seed report history ─────────────────────────────────────────
+      console.log('📄 Seeding report history...');
+
+      const reportMonths = [
+        { month: 1, year: 2026, label: 'January 2026' },
+        { month: 12, year: 2025, label: 'December 2025' },
+      ];
+
+      for (const rm of reportMonths) {
+        await tenantConn.query(
+          `INSERT IGNORE INTO report_history
+           (report_type, period_month, period_year, company_filter, generated_by,
+            recipients_json, ticket_count, cmdb_change_count, sla_compliance_pct,
+            status, generated_at)
+           VALUES ('monthly', ?, ?, NULL, ?, ?, ?, ?, ?, 'sent', ?)`,
+          [rm.month, rm.year, userIds['demo_admin'],
+           JSON.stringify(['admin@serviflowdemo.com', 'reports@serviflowdemo.com']),
+           Math.floor(80 + Math.random() * 40),
+           Math.floor(20 + Math.random() * 30),
+           (82 + Math.random() * 15).toFixed(1),
+           new Date(rm.year, rm.month, 1)] // generated on the 1st of the following month
+        );
+      }
+
+      console.log(`   Created ${reportMonths.length} report history records`);
+
+      // ── 19. Seed AI action log ──────────────────────────────────────────
+      console.log('🤖 Seeding AI action log...');
+
+      const actionTypes = ['classify', 'suggest_priority', 'suggest_assignee', 'auto_respond', 'detect_sentiment'];
+      let actionCount = 0;
+
+      for (let i = 0; i < 40; i++) {
+        const ticketId = ticketIds[Math.floor(rng2() * ticketIds.length)];
+        const actionType = pick(rng2, actionTypes);
+        const daysAgo = Math.floor(rng2() * 30);
+
+        await tenantConn.query(
+          `INSERT INTO ai_action_log (ticket_id, user_id, action_type, action_params, executed_at, success)
+           VALUES (?, ?, ?, ?, NOW() - INTERVAL ? DAY, TRUE)`,
+          [ticketId, userIds[pick(rng2, expertUsers)], actionType,
+           JSON.stringify({ model: 'claude-3-5-sonnet', confidence: (0.75 + rng2() * 0.25).toFixed(3) }),
+           daysAgo]
+        );
+        actionCount++;
+      }
+
+      console.log(`   Created ${actionCount} AI action log entries`);
 
     } finally {
       await tenantConn.end();
