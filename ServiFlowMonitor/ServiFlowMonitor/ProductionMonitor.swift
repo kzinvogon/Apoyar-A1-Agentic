@@ -473,97 +473,117 @@ class ProductionMonitor: ObservableObject {
             return
         }
 
-        // Invoke Claude Code CLI
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        process.arguments = ["claude", "--print", "cat \(tempFile.path) && echo 'Please diagnose and fix this production issue immediately.'"]
-        process.currentDirectoryURL = URL(fileURLWithPath: projectPath)
+        // Invoke Claude Code CLI on a background thread
+        diagnoseStatus = "Claude Code is diagnosing..."
+        let capturedProjectPath = projectPath
+        let capturedTempPath = tempFile.path
 
-        // Set up environment
-        var env = ProcessInfo.processInfo.environment
-        env["PATH"] = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:\(env["PATH"] ?? "")"
-        process.environment = env
+        DispatchQueue.global(qos: .userInitiated).async {
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+            process.arguments = ["claude", "--print", "cat \(capturedTempPath) && echo 'Please diagnose and fix this production issue immediately.'"]
+            process.currentDirectoryURL = URL(fileURLWithPath: capturedProjectPath)
 
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = pipe
+            var env = ProcessInfo.processInfo.environment
+            env["PATH"] = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:\(env["PATH"] ?? "")"
+            process.environment = env
 
-        do {
-            diagnoseStatus = "Claude Code is diagnosing..."
-            try process.run()
+            let pipe = Pipe()
+            process.standardOutput = pipe
+            process.standardError = pipe
 
-            // Don't wait for completion - Claude Code runs interactively
-            // Just notify that it's been triggered
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
-                self?.isDiagnosing = false
-                self?.diagnoseStatus = "Claude Code invoked"
-                self?.sendNotification(
-                    title: "Auto-Diagnose Triggered",
-                    body: "Claude Code is investigating the production issue",
-                    isRecovery: false
-                )
+            do {
+                try process.run()
+            } catch {
+                print("Failed to invoke Claude Code: \(error)")
             }
 
-        } catch {
-            print("Failed to invoke Claude Code: \(error)")
-            isDiagnosing = false
-            diagnoseStatus = "Failed: \(error.localizedDescription)"
-
-            // Try alternative: open Terminal with claude command
-            await openTerminalWithClaude(prompt: prompt)
+            // Clean up temp file after a delay
+            DispatchQueue.global().asyncAfter(deadline: .now() + 120) {
+                try? FileManager.default.removeItem(at: tempFile)
+            }
         }
 
-        // Clean up temp file after a delay
-        DispatchQueue.main.asyncAfter(deadline: .now() + 60) {
-            try? FileManager.default.removeItem(at: tempFile)
+        // Update UI state without blocking
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+            self?.isDiagnosing = false
+            self?.diagnoseStatus = "Claude Code invoked"
+            self?.sendNotification(
+                title: "Auto-Diagnose Triggered",
+                body: "Claude Code is investigating the production issue",
+                isRecovery: false
+            )
         }
     }
 
     private func fetchRailwayLogs() async -> String {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/bin/bash")
-        process.arguments = ["-c", """
-            cd "\(projectPath)" && source railway-env.sh prod 2>/dev/null && railway logs --tail 50 2>&1 | tail -50
-            """]
+        // Run blocking Process work off the main thread to avoid freezing the UI
+        return await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async { [projectPath] in
+                let process = Process()
+                process.executableURL = URL(fileURLWithPath: "/bin/bash")
+                process.arguments = ["-c", """
+                    cd "\(projectPath)" && source railway-env.sh prod 2>/dev/null && railway logs -n 50 2>&1 | tail -50
+                    """]
 
-        var env = ProcessInfo.processInfo.environment
-        env["PATH"] = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:\(env["PATH"] ?? "")"
-        process.environment = env
+                var env = ProcessInfo.processInfo.environment
+                env["PATH"] = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:\(env["PATH"] ?? "")"
+                process.environment = env
 
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = pipe
+                let pipe = Pipe()
+                process.standardOutput = pipe
+                process.standardError = pipe
 
-        do {
-            try process.run()
-            process.waitUntilExit()
+                do {
+                    try process.run()
 
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            return String(data: data, encoding: .utf8) ?? "Failed to read logs"
-        } catch {
-            return "Failed to fetch logs: \(error.localizedDescription)"
+                    // Timeout: kill process after 15 seconds to prevent hanging
+                    let deadline = DispatchTime.now() + 15
+                    DispatchQueue.global().asyncAfter(deadline: deadline) {
+                        if process.isRunning { process.terminate() }
+                    }
+
+                    process.waitUntilExit()
+
+                    let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                    let output = String(data: data, encoding: .utf8) ?? "Failed to read logs"
+                    continuation.resume(returning: output)
+                } catch {
+                    continuation.resume(returning: "Failed to fetch logs: \(error.localizedDescription)")
+                }
+            }
         }
     }
 
     private func openTerminalWithClaude(prompt: String) async {
-        // Fallback: Open Terminal app with the claude command
-        let script = """
-            tell application "Terminal"
-                activate
-                do script "cd '\(projectPath)' && claude"
-            end tell
-            """
+        // Fallback: Open Terminal app with the claude command — run off main thread
+        let capturedPath = projectPath
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            DispatchQueue.global(qos: .userInitiated).async {
+                let script = """
+                    tell application "Terminal"
+                        activate
+                        do script "cd '\(capturedPath)' && claude"
+                    end tell
+                    """
 
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        process.arguments = ["-e", script]
+                let process = Process()
+                process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+                process.arguments = ["-e", script]
 
-        do {
-            try process.run()
-            process.waitUntilExit()
-            diagnoseStatus = "Opened Terminal with Claude"
-        } catch {
-            diagnoseStatus = "Failed to open Terminal"
+                do {
+                    try process.run()
+                    process.waitUntilExit()
+                    DispatchQueue.main.async { [weak self = self] in
+                        self?.diagnoseStatus = "Opened Terminal with Claude"
+                    }
+                } catch {
+                    DispatchQueue.main.async { [weak self = self] in
+                        self?.diagnoseStatus = "Failed to open Terminal"
+                    }
+                }
+                continuation.resume()
+            }
         }
     }
 
