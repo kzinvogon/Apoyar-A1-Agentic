@@ -634,7 +634,31 @@ async function createTenantTables(connection) {
       ('enhanced_sla_billing_mode', 'none', 'string', 'SLA uplift tracking mode: none, report_only, or chargeback'),
       ('batch_delay_seconds', '2', 'number', 'Delay in seconds between batch processing operations (minimum 3)'),
       ('batch_size', '5', 'number', 'Maximum number of items to process per batch (maximum 10)'),
-      ('sla_check_interval_seconds', '300', 'number', 'How often to check for SLA breaches in seconds (minimum 60)')
+      ('sla_check_interval_seconds', '300', 'number', 'How often to check for SLA breaches in seconds (minimum 60)'),
+      ('monthly_report_enabled', 'false', 'boolean', 'Enable automatic monthly report email'),
+      ('monthly_report_recipients', '[]', 'json', 'JSON array of email addresses to receive monthly report'),
+      ('monthly_report_send_day', '1', 'number', 'Day of month to send report (1-28)'),
+      ('monthly_report_include_system_tickets', 'false', 'boolean', 'Include system-generated tickets in monthly report')
+  `);
+
+  // Report history table
+  await connection.execute(`
+    CREATE TABLE IF NOT EXISTS report_history (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      report_type VARCHAR(50) NOT NULL DEFAULT 'monthly',
+      period_month INT NOT NULL,
+      period_year INT NOT NULL,
+      company_filter VARCHAR(255),
+      generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      generated_by INT,
+      recipients_json TEXT,
+      ticket_count INT,
+      cmdb_change_count INT,
+      sla_compliance_pct DECIMAL(5,2),
+      status VARCHAR(20) DEFAULT 'sent',
+      error_message TEXT,
+      INDEX idx_period (period_year, period_month)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
   // Email ingest settings table

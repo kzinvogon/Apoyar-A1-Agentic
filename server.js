@@ -1,7 +1,10 @@
 // APP_MODE routing - must be at the very top before any other requires
 if (process.env.APP_MODE === 'teams') {
-  console.log('🤖 APP_MODE=teams detected, starting Teams Connector...');
+  console.log('APP_MODE=teams detected, starting Teams Connector...');
   require('./teams-connector/server.js');
+} else if (process.env.APP_MODE === 'sms') {
+  console.log('APP_MODE=sms detected, starting SMS Connector...');
+  require('./sms-connector/server.js');
 } else {
 // Main ServiFlow app starts here
 const express = require('express');
@@ -54,6 +57,7 @@ const knowledgeBaseRoutes = require('./routes/knowledge-base');
 const rawVariablesRoutes = require('./routes/raw-variables');
 const integrationsTeamsRoutes = require('./routes/integrations-teams');
 const integrationsSlackRoutes = require('./routes/integrations-slack');
+const integrationsSmsRoutes = require('./routes/integrations-sms');
 const slaRoutes = require('./routes/sla');
 const adminRoutes = require('./routes/admin');
 const notificationsRoutes = require('./routes/notifications');
@@ -65,12 +69,16 @@ const marketingRoutes = require('./routes/marketing');
 const signupRoutes = require('./routes/signup');
 const billingRoutes = require('./routes/billing');
 const chatRoutes = require('./routes/chat');
+const reportsRoutes = require('./routes/reports');
 
 // Import email processor service
 const { startEmailProcessing } = require('./services/email-processor');
 
 // Import housekeeping service
 const housekeeping = require('./services/housekeeping');
+
+// Import report scheduler service
+const reportScheduler = require('./services/report-scheduler');
 
 // Import chat socket service
 const { initializeChatSocket } = require('./services/chat-socket');
@@ -140,6 +148,7 @@ app.use('/api/kb', knowledgeBaseRoutes);
 app.use('/api/raw-variables', rawVariablesRoutes);
 app.use('/api/integrations', integrationsTeamsRoutes);
 app.use('/api/integrations', integrationsSlackRoutes);
+app.use('/api/integrations', integrationsSmsRoutes);
 app.use('/api/sla', slaRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', notificationsRoutes);
@@ -150,6 +159,7 @@ app.use('/api/plans', plansPublicRoutes);
 app.use('/api/signup', signupRoutes);
 app.use('/api/billing', billingRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/reports', reportsRoutes);
 
 // Public routes (no authentication required) - Must be before authenticated routes
 app.use('/ticket', publicTicketRoutes);
@@ -518,6 +528,13 @@ async function startServer() {
         console.warn(`⚠️  Warning: Could not start housekeeping scheduler:`, hkError.message);
       }
 
+      // Start monthly report scheduler
+      try {
+        reportScheduler.startScheduler();
+      } catch (rsError) {
+        console.warn(`⚠️  Warning: Could not start report scheduler:`, rsError.message);
+      }
+
       console.log(`\n✨ Features available:`);
       console.log(`   • Multi-tenant MySQL backend`);
       console.log(`   • Master admin system`);
@@ -557,6 +574,8 @@ process.on('SIGINT', async () => {
     }
     // Stop housekeeping scheduler
     housekeeping.stopScheduler();
+    // Stop report scheduler
+    reportScheduler.stopScheduler();
     await closeAllConnections();
     console.log('✅ Database connections closed');
   } catch (error) {
@@ -569,6 +588,7 @@ process.on('SIGTERM', async () => {
   console.log('\n🛑 Received SIGTERM, shutting down...');
   try {
     housekeeping.stopScheduler();
+    reportScheduler.stopScheduler();
     await closeAllConnections();
     console.log('✅ Database connections closed');
   } catch (error) {

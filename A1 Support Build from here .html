@@ -1641,6 +1641,7 @@ vNext-FULL-ActionsSLA:
                 <div class="nav-subitem" data-section="admin-section-billing" onclick="openAdminSettings('admin-section-billing')">💳 Billing & Subscription</div>
                 <div class="nav-subitem" data-section="admin-section-housekeeping" onclick="openAdminSettings('admin-section-housekeeping')">🧹 Housekeeping</div>
                 <div class="nav-subitem" data-section="admin-section-chat" onclick="openAdminSettings('admin-section-chat')">💬 Chat Settings</div>
+                <div class="nav-subitem" data-section="admin-section-reports" onclick="openAdminSettings('admin-section-reports')">📊 Monthly Reports</div>
               </div>
             </div>
             <div class="navlink" data-target="system-control" onclick="nav(this)">🔧 System Control</div>
@@ -5519,6 +5520,92 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               </div>
             </div>
           </div>
+
+          <!-- Monthly Reports Section -->
+          <div id="admin-section-reports" class="wizard-section card p-16 mb-12" style="display:none">
+            <div class="row space mb-12">
+              <h4 class="subtitle" style="margin:0;font-weight:600">📊 Monthly Reports</h4>
+            </div>
+
+            <!-- Config Panel -->
+            <div class="card p-16 mb-12" style="background:#f8fafc;border:1px solid #e2e8f0">
+              <h5 class="subtitle" style="font-weight:600;margin:0 0 12px 0">Auto-Send Configuration</h5>
+              <div class="mb-8">
+                <label class="subtitle">
+                  <input type="checkbox" id="report-cfg-enabled" style="margin-right:8px"/>
+                  Enable automatic monthly report emails
+                </label>
+              </div>
+              <div class="mb-8">
+                <label class="subtitle">Recipients (comma-separated emails)</label>
+                <input id="report-cfg-recipients" class="input" placeholder="admin@company.com, manager@company.com" style="font-size:13px"/>
+              </div>
+              <div class="mb-8" style="display:flex;gap:12px">
+                <div style="flex:1">
+                  <label class="subtitle">Send Day of Month (1-28)</label>
+                  <input id="report-cfg-send-day" class="input" type="number" min="1" max="28" value="1" style="font-size:13px;width:100px"/>
+                </div>
+                <div style="flex:1">
+                  <label class="subtitle">
+                    <input type="checkbox" id="report-cfg-include-system" style="margin-right:8px"/>
+                    Include system-generated tickets
+                  </label>
+                </div>
+              </div>
+              <button class="btn primary" onclick="saveReportConfig()">Save Configuration</button>
+              <span id="report-cfg-message" class="subtitle" style="color:#16a34a;display:none;margin-left:12px"></span>
+              <span id="report-cfg-error" class="subtitle" style="color:#b91c1c;display:none;margin-left:12px"></span>
+            </div>
+
+            <!-- Generate Panel -->
+            <div class="card p-16 mb-12" style="background:#f8fafc;border:1px solid #e2e8f0">
+              <h5 class="subtitle" style="font-weight:600;margin:0 0 12px 0">Generate Report</h5>
+              <div class="mb-8" style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+                <div>
+                  <label class="subtitle">Month</label>
+                  <select id="report-gen-month" class="input" style="font-size:13px;width:140px"></select>
+                </div>
+                <div>
+                  <label class="subtitle">Year</label>
+                  <input id="report-gen-year" class="input" type="number" style="font-size:13px;width:90px"/>
+                </div>
+                <div>
+                  <label class="subtitle">Company Filter (optional)</label>
+                  <select id="report-gen-company" class="input" style="font-size:13px;width:200px">
+                    <option value="">All Companies</option>
+                  </select>
+                </div>
+              </div>
+              <div style="display:flex;gap:8px;margin-top:8px">
+                <button class="btn" onclick="previewMonthlyReport()">Preview Report</button>
+                <button class="btn primary" onclick="sendMonthlyReportNow()">Send Now</button>
+              </div>
+              <span id="report-gen-message" class="subtitle" style="color:#16a34a;display:none;margin-top:8px;display:block"></span>
+              <span id="report-gen-error" class="subtitle" style="color:#b91c1c;display:none;margin-top:8px;display:block"></span>
+            </div>
+
+            <!-- History Table -->
+            <div>
+              <h5 class="subtitle" style="font-weight:600;margin:0 0 12px 0">Report History</h5>
+              <table class="table" style="width:100%;font-size:13px">
+                <thead>
+                  <tr>
+                    <th>Period</th>
+                    <th>Company</th>
+                    <th>Tickets</th>
+                    <th>SLA %</th>
+                    <th>Recipients</th>
+                    <th>Status</th>
+                    <th>Sent</th>
+                  </tr>
+                </thead>
+                <tbody id="report-history-body">
+                  <tr><td colspan="7" style="text-align:center;color:var(--muted);padding:16px">Loading...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
         </div>
 
         <!-- Raw Variables Editor -->
@@ -11853,6 +11940,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     if (sectionId === 'admin-section-sla') loadSLAData();
     if (sectionId === 'admin-section-housekeeping') loadHousekeepingInfo();
     if (sectionId === 'admin-section-chat') loadCannedResponsesAdmin();
+    if (sectionId === 'admin-section-reports') loadReportSection();
   }
 
   function initWizardSection() {
@@ -14329,6 +14417,232 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     } catch (e) {
       if (btn) { btn.disabled = false; btn.textContent = 'Run Now'; }
       if (errEl) { errEl.textContent = 'Error: ' + e.message; errEl.style.display = 'block'; }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Monthly Reports Functions
+  // ---------------------------------------------------------------------------
+  function loadReportSection() {
+    loadReportConfig();
+    loadReportHistory();
+    initReportGeneratePanel();
+  }
+
+  function initReportGeneratePanel() {
+    // Populate month selector
+    const monthSel = document.getElementById('report-gen-month');
+    if (monthSel && monthSel.options.length === 0) {
+      const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+      months.forEach((m, i) => {
+        const opt = document.createElement('option');
+        opt.value = i + 1;
+        opt.textContent = m;
+        monthSel.appendChild(opt);
+      });
+      // Default to previous month
+      const now = new Date();
+      const prevMonth = now.getMonth() === 0 ? 12 : now.getMonth();
+      monthSel.value = prevMonth;
+    }
+    // Populate year
+    const yearInput = document.getElementById('report-gen-year');
+    if (yearInput && !yearInput.value) {
+      const now = new Date();
+      yearInput.value = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+    }
+    // Populate company dropdown
+    loadReportCompanyFilter();
+  }
+
+  async function loadReportCompanyFilter() {
+    const sel = document.getElementById('report-gen-company');
+    if (!sel || sel.options.length > 1) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/customer-companies/${currentTenantCode}`, {
+        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+      });
+      if (res.ok) {
+        const companies = await res.json();
+        (Array.isArray(companies) ? companies : []).forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c.id;
+          opt.textContent = c.company_name;
+          sel.appendChild(opt);
+        });
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  async function loadReportConfig() {
+    try {
+      const res = await fetch(`${API_BASE}/api/reports/${currentTenantCode}/monthly/config`, {
+        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+      });
+      if (!res.ok) return;
+      const cfg = await res.json();
+      const enabledEl = document.getElementById('report-cfg-enabled');
+      const recipEl = document.getElementById('report-cfg-recipients');
+      const dayEl = document.getElementById('report-cfg-send-day');
+      const sysEl = document.getElementById('report-cfg-include-system');
+      if (enabledEl) enabledEl.checked = cfg.enabled;
+      if (recipEl) recipEl.value = (cfg.recipients || []).join(', ');
+      if (dayEl) dayEl.value = cfg.sendDay || 1;
+      if (sysEl) sysEl.checked = cfg.includeSystemTickets;
+    } catch (e) { console.error('Failed to load report config:', e); }
+  }
+
+  async function saveReportConfig() {
+    const msgEl = document.getElementById('report-cfg-message');
+    const errEl = document.getElementById('report-cfg-error');
+    if (msgEl) { msgEl.style.display = 'none'; }
+    if (errEl) { errEl.style.display = 'none'; }
+    const enabled = document.getElementById('report-cfg-enabled')?.checked || false;
+    const recipStr = document.getElementById('report-cfg-recipients')?.value || '';
+    const recipients = recipStr.split(',').map(s => s.trim()).filter(Boolean);
+    const sendDay = parseInt(document.getElementById('report-cfg-send-day')?.value, 10) || 1;
+    const includeSystemTickets = document.getElementById('report-cfg-include-system')?.checked || false;
+
+    // Validate emails
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    for (const email of recipients) {
+      if (!emailRegex.test(email)) {
+        if (errEl) { errEl.textContent = 'Invalid email: ' + email; errEl.style.display = 'inline'; }
+        return;
+      }
+    }
+    if (sendDay < 1 || sendDay > 28) {
+      if (errEl) { errEl.textContent = 'Send day must be 1-28'; errEl.style.display = 'inline'; }
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/api/reports/${currentTenantCode}/monthly/config`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') },
+        body: JSON.stringify({ enabled, recipients, sendDay, includeSystemTickets })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        if (msgEl) { msgEl.textContent = 'Configuration saved.'; msgEl.style.display = 'inline'; }
+      } else {
+        if (errEl) { errEl.textContent = data.error || 'Save failed'; errEl.style.display = 'inline'; }
+      }
+    } catch (e) {
+      if (errEl) { errEl.textContent = 'Error: ' + e.message; errEl.style.display = 'inline'; }
+    }
+  }
+
+  function previewMonthlyReport() {
+    const month = document.getElementById('report-gen-month')?.value;
+    const year = document.getElementById('report-gen-year')?.value;
+    const company = document.getElementById('report-gen-company')?.value || '';
+    if (!month || !year) return;
+    const url = `${API_BASE}/api/reports/${currentTenantCode}/monthly/preview?month=${year}-${String(month).padStart(2,'0')}&company=${company}`;
+    // Open preview in a modal iframe
+    let modal = document.getElementById('report-preview-modal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'report-preview-modal';
+      modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:10000;display:flex;align-items:center;justify-content:center';
+      modal.innerHTML = `<div style="background:#fff;border-radius:12px;width:90%;max-width:800px;height:85vh;display:flex;flex-direction:column;overflow:hidden">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid #e2e8f0">
+          <strong>Report Preview</strong>
+          <button onclick="document.getElementById('report-preview-modal').style.display='none'" style="background:none;border:none;font-size:20px;cursor:pointer">&times;</button>
+        </div>
+        <iframe id="report-preview-iframe" style="flex:1;border:none;width:100%"></iframe>
+      </div>`;
+      document.body.appendChild(modal);
+    }
+    modal.style.display = 'flex';
+    const iframe = document.getElementById('report-preview-iframe');
+    // Fetch with auth and inject into iframe
+    fetch(url, { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } })
+      .then(r => r.text())
+      .then(html => {
+        iframe.srcdoc = html;
+      })
+      .catch(e => {
+        iframe.srcdoc = '<p style="padding:20px;color:red">Failed to load preview: ' + e.message + '</p>';
+      });
+  }
+
+  async function sendMonthlyReportNow() {
+    const msgEl = document.getElementById('report-gen-message');
+    const errEl = document.getElementById('report-gen-error');
+    if (msgEl) { msgEl.style.display = 'none'; msgEl.textContent = ''; }
+    if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
+
+    const month = parseInt(document.getElementById('report-gen-month')?.value, 10);
+    const year = parseInt(document.getElementById('report-gen-year')?.value, 10);
+    const companyFilter = document.getElementById('report-gen-company')?.value || null;
+    if (!month || !year) {
+      if (errEl) { errEl.textContent = 'Please select month and year.'; errEl.style.display = 'block'; }
+      return;
+    }
+
+    // Get recipients from config
+    const recipStr = document.getElementById('report-cfg-recipients')?.value || '';
+    const recipients = recipStr.split(',').map(s => s.trim()).filter(Boolean);
+    if (recipients.length === 0) {
+      if (errEl) { errEl.textContent = 'No recipients configured. Add recipients in the configuration above.'; errEl.style.display = 'block'; }
+      return;
+    }
+
+    if (!confirm(`Send the report for ${document.getElementById('report-gen-month')?.selectedOptions[0]?.textContent} ${year} to ${recipients.length} recipient(s)?`)) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/api/reports/${currentTenantCode}/monthly/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') },
+        body: JSON.stringify({ month, year, recipients, companyFilter })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        if (msgEl) { msgEl.textContent = data.message; msgEl.style.display = 'block'; }
+        loadReportHistory();
+      } else {
+        if (msgEl && data.message) { msgEl.textContent = data.message; msgEl.style.display = 'block'; }
+        if (errEl && data.error) { errEl.textContent = data.error; errEl.style.display = 'block'; }
+        loadReportHistory();
+      }
+    } catch (e) {
+      if (errEl) { errEl.textContent = 'Error: ' + e.message; errEl.style.display = 'block'; }
+    }
+  }
+
+  async function loadReportHistory() {
+    const tbody = document.getElementById('report-history-body');
+    if (!tbody) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/reports/${currentTenantCode}/monthly/history?limit=20`, {
+        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+      });
+      if (!res.ok) throw new Error('Failed');
+      const history = await res.json();
+      if (!history.length) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:16px">No reports sent yet.</td></tr>';
+        return;
+      }
+      const monthNames = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      tbody.innerHTML = history.map(h => {
+        let recipients = '';
+        try { recipients = JSON.parse(h.recipients_json || '[]').join(', '); } catch { recipients = h.recipients_json || ''; }
+        const statusBadge = h.status === 'sent'
+          ? '<span style="background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:4px;font-size:11px">Sent</span>'
+          : '<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:4px;font-size:11px">' + (h.status || 'unknown') + '</span>';
+        return `<tr>
+          <td>${monthNames[h.period_month] || h.period_month} ${h.period_year}</td>
+          <td>${h.company_filter || 'All'}</td>
+          <td>${h.ticket_count != null ? h.ticket_count : '—'}</td>
+          <td>${h.sla_compliance_pct != null ? h.sla_compliance_pct + '%' : '—'}</td>
+          <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${recipients}">${recipients || '—'}</td>
+          <td>${statusBadge}</td>
+          <td>${h.generated_at ? new Date(h.generated_at).toLocaleDateString() : '—'}</td>
+        </tr>`;
+      }).join('');
+    } catch (e) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:16px">Failed to load history.</td></tr>';
     }
   }
 
