@@ -14632,15 +14632,18 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       return;
     }
 
-    // Get recipients from config
-    const recipStr = document.getElementById('report-cfg-recipients')?.value || '';
-    const recipients = recipStr.split(',').map(s => s.trim()).filter(Boolean);
+    // Prompt for recipients — pre-fill from config field or current user email
+    const defaultRecip = document.getElementById('report-cfg-recipients')?.value || window.currentUser?.email || '';
+    const emailInput = prompt('Send report to (comma-separated emails):', defaultRecip);
+    if (!emailInput) return;
+    const recipients = emailInput.split(',').map(s => s.trim()).filter(Boolean);
     if (recipients.length === 0) {
-      if (errEl) { errEl.textContent = 'No recipients configured. Add recipients in the configuration above.'; errEl.style.display = 'block'; }
+      if (errEl) { errEl.textContent = 'No recipients entered.'; errEl.style.display = 'block'; }
       return;
     }
 
-    if (!confirm(`Send the report for ${document.getElementById('report-gen-month')?.selectedOptions[0]?.textContent} ${year} to ${recipients.length} recipient(s)?`)) return;
+    const monthName = document.getElementById('report-gen-month')?.selectedOptions[0]?.textContent;
+    if (!confirm(`Send ${monthName} ${year} report to ${recipients.join(', ')}?`)) return;
 
     try {
       const res = await fetch(`${API_BASE}/api/reports/${_rptTenant()}/monthly/send`, {
