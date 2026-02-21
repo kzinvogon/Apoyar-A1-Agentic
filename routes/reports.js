@@ -126,7 +126,10 @@ router.get('/:tenantCode/monthly/preview', async (req, res) => {
     const companyId = resolveCompanyFilter(req);
     const { start, end } = periodDates(month, year);
 
-    const includeSystem = await getIncludeSystem(tenantCode);
+    // includeSystem: prefer query param, fall back to tenant setting
+    const includeSystem = req.query.includeSystem != null
+      ? req.query.includeSystem === '1' || req.query.includeSystem === 'true'
+      : await getIncludeSystem(tenantCode);
     const companyName = await getCompanyName(tenantCode, companyId) || req.reportAccess.companyName;
     const tenantName = await getTenantName(tenantCode);
 
@@ -169,7 +172,10 @@ router.post('/:tenantCode/monthly/send', async (req, res) => {
     const companyId = resolveCompanyFilter(req);
     const { start, end } = periodDates(month, year);
 
-    const includeSystem = await getIncludeSystem(tenantCode);
+    // includeSystem: prefer body param, fall back to tenant setting
+    const includeSystem = req.body.includeSystem != null
+      ? !!req.body.includeSystem
+      : await getIncludeSystem(tenantCode);
     const companyName = await getCompanyName(tenantCode, companyId) || req.reportAccess.companyName;
     const tenantName = await getTenantName(tenantCode);
 

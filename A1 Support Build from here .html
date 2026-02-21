@@ -5582,17 +5582,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
                 <label class="subtitle">Recipients (comma-separated emails)</label>
                 <input id="report-cfg-recipients" class="input" placeholder="admin@company.com, manager@company.com" style="font-size:13px"/>
               </div>
-              <div class="mb-8" style="display:flex;gap:12px">
-                <div style="flex:1">
-                  <label class="subtitle">Send Day of Month (1-28)</label>
-                  <input id="report-cfg-send-day" class="input" type="number" min="1" max="28" value="1" style="font-size:13px;width:100px"/>
-                </div>
-                <div style="flex:1">
-                  <label class="subtitle">
-                    <input type="checkbox" id="report-cfg-include-system" style="margin-right:8px"/>
-                    Include system-generated tickets
-                  </label>
-                </div>
+              <div class="mb-8">
+                <label class="subtitle">Send Day of Month (1-28)</label>
+                <input id="report-cfg-send-day" class="input" type="number" min="1" max="28" value="1" style="font-size:13px;width:100px"/>
               </div>
               <button class="btn primary" onclick="saveReportConfig()">Save Configuration</button>
               <span id="report-cfg-message" class="subtitle" style="color:#16a34a;display:none;margin-left:12px"></span>
@@ -5617,6 +5609,12 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
                     <option value="">All Companies</option>
                   </select>
                 </div>
+              </div>
+              <div class="mb-8">
+                <label class="subtitle">
+                  <input type="checkbox" id="report-gen-include-system" style="margin-right:8px"/>
+                  Include system-generated tickets
+                </label>
               </div>
               <div style="display:flex;gap:8px;margin-top:8px">
                 <button class="btn" onclick="previewMonthlyReport()">Preview Report</button>
@@ -14535,11 +14533,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       const enabledEl = document.getElementById('report-cfg-enabled');
       const recipEl = document.getElementById('report-cfg-recipients');
       const dayEl = document.getElementById('report-cfg-send-day');
-      const sysEl = document.getElementById('report-cfg-include-system');
       if (enabledEl) enabledEl.checked = cfg.enabled;
       if (recipEl) recipEl.value = (cfg.recipients || []).join(', ');
       if (dayEl) dayEl.value = cfg.sendDay || 1;
-      if (sysEl) sysEl.checked = cfg.includeSystemTickets;
     } catch (e) { console.error('Failed to load report config:', e); }
   }
 
@@ -14552,7 +14548,6 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const recipStr = document.getElementById('report-cfg-recipients')?.value || '';
     const recipients = recipStr.split(',').map(s => s.trim()).filter(Boolean);
     const sendDay = parseInt(document.getElementById('report-cfg-send-day')?.value, 10) || 1;
-    const includeSystemTickets = document.getElementById('report-cfg-include-system')?.checked || false;
 
     // Validate emails
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -14571,7 +14566,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       const res = await fetch(`${API_BASE}/api/reports/${_rptTenant()}/monthly/config`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') },
-        body: JSON.stringify({ enabled, recipients, sendDay, includeSystemTickets })
+        body: JSON.stringify({ enabled, recipients, sendDay })
       });
       const data = await res.json();
       if (res.ok && data.success) {
@@ -14588,8 +14583,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const month = document.getElementById('report-gen-month')?.value;
     const year = document.getElementById('report-gen-year')?.value;
     const company = document.getElementById('report-gen-company')?.value || '';
+    const includeSystem = document.getElementById('report-gen-include-system')?.checked ? '1' : '0';
     if (!month || !year) return;
-    const url = `${API_BASE}/api/reports/${_rptTenant()}/monthly/preview?month=${year}-${String(month).padStart(2,'0')}&company=${company}`;
+    const url = `${API_BASE}/api/reports/${_rptTenant()}/monthly/preview?month=${year}-${String(month).padStart(2,'0')}&company=${company}&includeSystem=${includeSystem}`;
     // Open preview in a modal iframe
     let modal = document.getElementById('report-preview-modal');
     if (!modal) {
@@ -14627,6 +14623,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const month = parseInt(document.getElementById('report-gen-month')?.value, 10);
     const year = parseInt(document.getElementById('report-gen-year')?.value, 10);
     const companyFilter = document.getElementById('report-gen-company')?.value || null;
+    const includeSystem = document.getElementById('report-gen-include-system')?.checked || false;
     if (!month || !year) {
       if (errEl) { errEl.textContent = 'Please select month and year.'; errEl.style.display = 'block'; }
       return;
@@ -14649,7 +14646,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       const res = await fetch(`${API_BASE}/api/reports/${_rptTenant()}/monthly/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') },
-        body: JSON.stringify({ month, year, recipients, companyFilter })
+        body: JSON.stringify({ month, year, recipients, companyFilter, includeSystem })
       });
       const data = await res.json();
       if (res.ok && data.success) {

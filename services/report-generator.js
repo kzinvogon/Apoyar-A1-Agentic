@@ -81,32 +81,7 @@ async function aggregateMonthlyData(tenantCode, startDate, endDate, companyFilte
     LIMIT 10
   `, [startDate, endDate, ...companyParams]);
 
-  // 2. Ticket list
-  const ticketList = await q(`
-    SELECT t.id, t.title, t.status, t.priority, t.category,
-      t.created_at, t.updated_at,
-      req.full_name as requester_name, req.username as requester_username,
-      asg.full_name as assignee_name, asg.username as assignee_username,
-      t.response_due_at, t.resolve_due_at, t.first_responded_at,
-      CASE
-        WHEN t.sla_definition_id IS NULL THEN 'No SLA'
-        WHEN t.status IN ('Resolved','Closed') AND t.resolve_due_at IS NOT NULL AND t.updated_at <= t.resolve_due_at THEN 'Met'
-        WHEN t.status IN ('Resolved','Closed') AND t.resolve_due_at IS NOT NULL AND t.updated_at > t.resolve_due_at THEN 'Breached'
-        WHEN t.resolve_due_at IS NOT NULL AND NOW() > t.resolve_due_at THEN 'Breached'
-        WHEN t.resolve_due_at IS NOT NULL AND NOW() > DATE_SUB(t.resolve_due_at, INTERVAL 1 HOUR) THEN 'At Risk'
-        ELSE 'On Track'
-      END as sla_status
-    FROM tickets t
-    LEFT JOIN users req ON t.requester_id = req.id
-    LEFT JOIN users asg ON t.assignee_id = asg.id
-    ${companyFilter ? 'JOIN customers c ON c.user_id = t.requester_id' : ''}
-    WHERE t.created_at >= ? AND t.created_at < ?
-    ${systemClause}
-    ${companyFilter ? 'AND c.customer_company_id = ?' : ''}
-    ORDER BY t.created_at DESC
-  `, [startDate, endDate, ...(companyFilter ? [companyFilter] : [])]);
-
-  // 3. CMDB changes
+  // 2. CMDB changes
   let cmdbChanges = { total: 0, byType: [], topAssets: [] };
   try {
     const [cmdbTotal] = await q(`
@@ -259,7 +234,6 @@ async function aggregateMonthlyData(tenantCode, startDate, endDate, companyFilte
     summary: summaryRow || { total: 0, open_count: 0, in_progress_count: 0, resolved_count: 0, closed_count: 0 },
     priorityBreakdown,
     categoryBreakdown,
-    ticketList,
     cmdbChanges,
     sla: {
       totalWithSla,
@@ -314,9 +288,6 @@ function renderReportHTML(data, meta) {
   const prioColor = { critical: '#dc2626', high: '#ea580c', medium: '#d97706', low: '#16a34a', none: '#6b7280' };
   // Status color map
   const statusColor = { 'Open': '#3b82f6', 'In Progress': '#d97706', 'Resolved': '#16a34a', 'Closed': '#6b7280' };
-  // SLA status color
-  const slaColor = { 'Met': '#16a34a', 'On Track': '#3b82f6', 'At Risk': '#d97706', 'Breached': '#dc2626', 'No SLA': '#9ca3af' };
-
   return `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
@@ -401,37 +372,6 @@ ${data.categoryBreakdown.length > 0 ? `
     ${data.categoryBreakdown.map((r, i) => `<tr><td style="${i < data.categoryBreakdown.length - 1 ? 'border-bottom:1px solid #f1f5f9' : ''}">${esc(r.category || 'Uncategorised')}</td><td style="text-align:right;${i < data.categoryBreakdown.length - 1 ? 'border-bottom:1px solid #f1f5f9' : ''}">${r.count}</td></tr>`).join('')}
   </table>
 </td></tr>` : ''}
-
-<!-- Ticket List -->
-${data.ticketList.length > 0 ? `
-<tr><td style="padding:16px 40px 0">
-  <h2 style="margin:0 0 12px 0;font-size:16px;color:#1e293b">All Tickets (${data.ticketList.length})</h2>
-  <div style="overflow-x:auto">
-  <table width="100%" cellpadding="6" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:8px;border-collapse:separate;overflow:hidden;font-size:12px">
-    <tr style="background:#f8fafc">
-      <th style="text-align:left;color:#64748b;font-weight:600;border-bottom:1px solid #e2e8f0">#</th>
-      <th style="text-align:left;color:#64748b;font-weight:600;border-bottom:1px solid #e2e8f0">Title</th>
-      <th style="text-align:left;color:#64748b;font-weight:600;border-bottom:1px solid #e2e8f0">Requester</th>
-      <th style="text-align:left;color:#64748b;font-weight:600;border-bottom:1px solid #e2e8f0">Assignee</th>
-      <th style="text-align:left;color:#64748b;font-weight:600;border-bottom:1px solid #e2e8f0">Status</th>
-      <th style="text-align:left;color:#64748b;font-weight:600;border-bottom:1px solid #e2e8f0">SLA</th>
-    </tr>
-    ${data.ticketList.slice(0, 50).map((t, i) => `<tr style="background:${i % 2 === 0 ? '#ffffff' : '#f8fafc'}">
-      <td style="border-bottom:1px solid #f1f5f9">${t.id}</td>
-      <td style="border-bottom:1px solid #f1f5f9;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.title)}</td>
-      <td style="border-bottom:1px solid #f1f5f9">${esc(t.requester_name || t.requester_username || '—')}</td>
-      <td style="border-bottom:1px solid #f1f5f9">${esc(t.assignee_name || t.assignee_username || 'Unassigned')}</td>
-      <td style="border-bottom:1px solid #f1f5f9"><span style="color:${statusColor[t.status] || '#6b7280'}">${esc(t.status)}</span></td>
-      <td style="border-bottom:1px solid #f1f5f9"><span style="color:${slaColor[t.sla_status] || '#9ca3af'}">${esc(t.sla_status)}</span></td>
-    </tr>`).join('')}
-    ${data.ticketList.length > 50 ? `<tr><td colspan="6" style="text-align:center;color:#64748b;padding:8px">... and ${data.ticketList.length - 50} more tickets</td></tr>` : ''}
-  </table>
-  </div>
-</td></tr>` : `
-<tr><td style="padding:16px 40px 0">
-  <h2 style="margin:0 0 12px 0;font-size:16px;color:#1e293b">Tickets</h2>
-  <p style="color:#64748b">No tickets created during this period.</p>
-</td></tr>`}
 
 <!-- CMDB Changes -->
 <tr><td style="padding:16px 40px 0">
