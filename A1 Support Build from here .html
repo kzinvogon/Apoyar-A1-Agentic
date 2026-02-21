@@ -14505,7 +14505,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const sel = document.getElementById('report-gen-company');
     if (!sel || sel.options.length > 1) return;
     try {
-      const res = await fetch(`${API_BASE}/api/customer-companies/${_rptTenant()}`, {
+      const res = await fetch(`${API_BASE}/api/customer-companies`, {
         headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
       });
       if (res.ok) {
