@@ -14423,6 +14423,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   // ---------------------------------------------------------------------------
   // Monthly Reports Functions
   // ---------------------------------------------------------------------------
+  function _rptTenant() { return window.tenant || 'apoyar'; }
+
   function loadReportSection() {
     loadReportConfig();
     loadReportHistory();
@@ -14459,7 +14461,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const sel = document.getElementById('report-gen-company');
     if (!sel || sel.options.length > 1) return;
     try {
-      const res = await fetch(`${API_BASE}/api/customer-companies/${currentTenantCode}`, {
+      const res = await fetch(`${API_BASE}/api/customer-companies/${_rptTenant()}`, {
         headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
       });
       if (res.ok) {
@@ -14476,7 +14478,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   async function loadReportConfig() {
     try {
-      const res = await fetch(`${API_BASE}/api/reports/${currentTenantCode}/monthly/config`, {
+      const res = await fetch(`${API_BASE}/api/reports/${_rptTenant()}/monthly/config`, {
         headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
       });
       if (!res.ok) return;
@@ -14517,7 +14519,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     }
 
     try {
-      const res = await fetch(`${API_BASE}/api/reports/${currentTenantCode}/monthly/config`, {
+      const res = await fetch(`${API_BASE}/api/reports/${_rptTenant()}/monthly/config`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') },
         body: JSON.stringify({ enabled, recipients, sendDay, includeSystemTickets })
@@ -14538,7 +14540,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const year = document.getElementById('report-gen-year')?.value;
     const company = document.getElementById('report-gen-company')?.value || '';
     if (!month || !year) return;
-    const url = `${API_BASE}/api/reports/${currentTenantCode}/monthly/preview?month=${year}-${String(month).padStart(2,'0')}&company=${company}`;
+    const url = `${API_BASE}/api/reports/${_rptTenant()}/monthly/preview?month=${year}-${String(month).padStart(2,'0')}&company=${company}`;
     // Open preview in a modal iframe
     let modal = document.getElementById('report-preview-modal');
     if (!modal) {
@@ -14592,7 +14594,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     if (!confirm(`Send the report for ${document.getElementById('report-gen-month')?.selectedOptions[0]?.textContent} ${year} to ${recipients.length} recipient(s)?`)) return;
 
     try {
-      const res = await fetch(`${API_BASE}/api/reports/${currentTenantCode}/monthly/send`, {
+      const res = await fetch(`${API_BASE}/api/reports/${_rptTenant()}/monthly/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') },
         body: JSON.stringify({ month, year, recipients, companyFilter })
@@ -14615,7 +14617,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const tbody = document.getElementById('report-history-body');
     if (!tbody) return;
     try {
-      const res = await fetch(`${API_BASE}/api/reports/${currentTenantCode}/monthly/history?limit=20`, {
+      const res = await fetch(`${API_BASE}/api/reports/${_rptTenant()}/monthly/history?limit=20`, {
         headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
       });
       if (!res.ok) throw new Error('Failed');
