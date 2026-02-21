@@ -545,6 +545,22 @@ async function startServer() {
         console.warn(`⚠️  Warning: Could not start report scheduler:`, rsError.message);
       }
 
+      // Run demo seed if requested (must run inside Railway network)
+      if (process.env.RUN_DEMO_SEED === 'true') {
+        console.log('\n🎭 RUN_DEMO_SEED=true — running demo seed script...');
+        try {
+          const { execSync: execSyncSeed } = require('child_process');
+          execSyncSeed('node scripts/seed-demo.js --reset', {
+            stdio: 'inherit',
+            timeout: 120000,
+            env: { ...process.env }
+          });
+          console.log('✅ Demo seed complete');
+        } catch (seedErr) {
+          console.error('❌ Demo seed failed:', seedErr.message);
+        }
+      }
+
       console.log(`\n✨ Features available:`);
       console.log(`   • Multi-tenant MySQL backend`);
       console.log(`   • Master admin system`);
