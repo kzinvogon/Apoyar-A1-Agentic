@@ -139,8 +139,8 @@ async function aggregateMonthlyData(tenantCode, startDate, endDate, companyFilte
   let slaDefinitions = [];
   try {
     slaDefinitions = await q(`
-      SELECT name, priority, response_time_minutes, resolve_time_minutes
-      FROM sla_definitions WHERE is_active = 1 ORDER BY priority
+      SELECT name, response_target_minutes, resolve_target_minutes
+      FROM sla_definitions WHERE is_active = 1 ORDER BY name
     `);
   } catch (err) {
     // table may not exist
@@ -416,11 +416,10 @@ ${data.categoryBreakdown.length > 0 ? `
   <table width="100%" cellpadding="8" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:8px;border-collapse:separate;overflow:hidden">
     <tr style="background:#f8fafc">
       <th style="text-align:left;font-size:12px;color:#64748b;font-weight:600;border-bottom:1px solid #e2e8f0">Name</th>
-      <th style="text-align:left;font-size:12px;color:#64748b;font-weight:600;border-bottom:1px solid #e2e8f0">Priority</th>
-      <th style="text-align:right;font-size:12px;color:#64748b;font-weight:600;border-bottom:1px solid #e2e8f0">Response</th>
-      <th style="text-align:right;font-size:12px;color:#64748b;font-weight:600;border-bottom:1px solid #e2e8f0">Resolve</th>
+      <th style="text-align:right;font-size:12px;color:#64748b;font-weight:600;border-bottom:1px solid #e2e8f0">Response Target</th>
+      <th style="text-align:right;font-size:12px;color:#64748b;font-weight:600;border-bottom:1px solid #e2e8f0">Resolve Target</th>
     </tr>
-    ${data.sla.definitions.map((d, i) => `<tr><td style="${i < data.sla.definitions.length - 1 ? 'border-bottom:1px solid #f1f5f9' : ''}">${esc(d.name)}</td><td style="${i < data.sla.definitions.length - 1 ? 'border-bottom:1px solid #f1f5f9' : ''}">${esc(d.priority || '—')}</td><td style="text-align:right;${i < data.sla.definitions.length - 1 ? 'border-bottom:1px solid #f1f5f9' : ''}">${fmtMin(d.response_time_minutes)}</td><td style="text-align:right;${i < data.sla.definitions.length - 1 ? 'border-bottom:1px solid #f1f5f9' : ''}">${fmtMin(d.resolve_time_minutes)}</td></tr>`).join('')}
+    ${data.sla.definitions.map((d, i) => `<tr><td style="${i < data.sla.definitions.length - 1 ? 'border-bottom:1px solid #f1f5f9' : ''}">${esc(d.name)}</td><td style="text-align:right;${i < data.sla.definitions.length - 1 ? 'border-bottom:1px solid #f1f5f9' : ''}">${fmtMin(d.response_target_minutes)}</td><td style="text-align:right;${i < data.sla.definitions.length - 1 ? 'border-bottom:1px solid #f1f5f9' : ''}">${fmtMin(d.resolve_target_minutes)}</td></tr>`).join('')}
   </table>` : ''}
 </td></tr>
 
