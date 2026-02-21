@@ -276,6 +276,8 @@ async function main() {
         { name: 'CMDB V2', fn: async () => { const { runMigration } = require('../migrations/add-cmdb-v2-tables'); await runMigration('demo'); }},
         { name: 'Soft Delete', fn: async () => { const { runMigration } = require('../migrations/add-soft-delete-columns'); await runMigration('demo'); }},
         { name: 'Last Login', fn: async () => { const { migrate } = require('../migrations/add-last-login-column'); await migrate('demo'); }},
+        { name: 'Ticket-CMDB Relations', fn: async () => { const { runMigration } = require('../migrations/add-ticket-cmdb-relations'); await runMigration('demo'); }},
+        { name: 'Category SLA Mappings', fn: async () => { const { runMigration } = require('../migrations/add-category-sla-mappings'); await runMigration('demo'); }},
       ];
       for (const m of migrations) {
         try { await m.fn(); } catch (e) { console.warn(`   ⚠️ ${m.name}: ${e.message}`); }
