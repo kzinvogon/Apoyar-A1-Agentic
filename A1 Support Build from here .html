@@ -14509,8 +14509,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
       });
       if (res.ok) {
-        const companies = await res.json();
-        (Array.isArray(companies) ? companies : []).forEach(c => {
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : (data.companies || []);
+        list.forEach(c => {
           const opt = document.createElement('option');
           opt.value = c.id;
           opt.textContent = c.company_name;
