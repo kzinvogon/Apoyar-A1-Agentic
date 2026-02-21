@@ -1679,6 +1679,7 @@ vNext-FULL-ActionsSLA:
           <div class="navlink" data-target="profile" onclick="nav(this)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> My Profile</div>
           <div class="navlink" data-target="my-company" onclick="nav(this)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/></svg> My Company</div>
           <div class="navlink" id="nav-company-admin" data-target="company-admin" onclick="nav(this)" style="display:none"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg> Team Admin</div>
+          <div class="navlink" id="nav-company-reports" data-target="company-reports" onclick="nav(this)" style="display:none"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> Monthly Reports</div>
           <div class="navlink" data-target="usage" onclick="nav(this)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> Usage</div>
           <div class="navlink" id="nav-customer-billing" data-target="customer-billing" onclick="nav(this)" style="display:none"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg> Billing</div>
           <div class="navlink" id="nav-customer-plans" data-target="customer-plans" onclick="nav(this)" style="display:none"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Plans</div>
@@ -3073,6 +3074,47 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               </thead>
               <tbody id="company-admin-users-body">
                 <tr><td colspan="7" class="subtitle">Loading users...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Company Reports View (company admin) -->
+        <div id="view-company-reports" style="display:none">
+          <div class="row space mb-12">
+            <div class="row"><button class="btn ghost" onclick="switchView('dash')">← Back</button><h3 class="title" style="margin:0 0 0 8px">Monthly Reports</h3></div>
+          </div>
+
+          <!-- Generate Panel -->
+          <div class="card p-16 mb-12">
+            <h5 class="subtitle" style="font-weight:600;margin:0 0 12px 0">Generate Report</h5>
+            <div class="mb-8" style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+              <div>
+                <label class="subtitle">Month</label>
+                <select id="cr-report-month" class="input" style="font-size:13px;width:140px"></select>
+              </div>
+              <div>
+                <label class="subtitle">Year</label>
+                <input id="cr-report-year" class="input" type="number" style="font-size:13px;width:90px"/>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:12px">
+              <button class="btn" onclick="previewCompanyReport()">Preview Report</button>
+              <button class="btn primary" onclick="sendCompanyReport()">Email Report</button>
+            </div>
+            <div id="cr-report-message" class="subtitle" style="color:#16a34a;display:none;margin-top:8px"></div>
+            <div id="cr-report-error" class="subtitle" style="color:#b91c1c;display:none;margin-top:8px"></div>
+          </div>
+
+          <!-- History -->
+          <div class="card p-16">
+            <h5 class="subtitle" style="font-weight:600;margin:0 0 12px 0">Report History</h5>
+            <table class="table" style="width:100%;font-size:13px">
+              <thead>
+                <tr><th>Period</th><th>Tickets</th><th>SLA %</th><th>Status</th><th>Date</th></tr>
+              </thead>
+              <tbody id="cr-report-history-body">
+                <tr><td colspan="5" style="text-align:center;color:var(--muted);padding:16px">Loading...</td></tr>
               </tbody>
             </table>
           </div>
@@ -8232,7 +8274,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   function nav(el){ document.querySelectorAll('.navlink').forEach(n=>n.classList.remove('active')); el.classList.add('active'); switchView(el.getAttribute('data-target')); }
   function navTo(view){ switchView(view); }
-  function switchView(view){ currentView=view; if(view!=='ticket-detail' && typeof exitFullscreen === 'function') exitFullscreen(); ['dash','profile','tickets','ticket-detail','experts','expert-detail','customers','cmdb-hub','cmdb','cmdb-detail','manage-cmdb','cmdb-mgmt','wizard','raise','tenants','subscriptions','billing','plans','currencies','system','usage','customer-plans','customer-billing','my-company','company-admin','analytics','ai-insights','ticket-rules','email-processing','system-control','knowledge-base','raw-variables','audit-log','notifications'].forEach(n=>{ const el=document.getElementById('view-'+n); if(el) el.style.display=(n===view)?'block':'none'; }); if(view!=='dash') { clearExpertPowerSearch(); } if(view==='dash') { fetchTicketsFromAPI().then(() => renderAllDashboards()); loadAITrends(); } if(view==='tickets') { console.log('[switchView] Switching to tickets view'); window.insightTicketFilter = null; window.insightTitle = null; window.slaAtRiskFilter = false; loadFilterSettings('tickets'); renderList(); } if(view==='experts') { loadFilterSettings('experts'); renderExperts(); } if(view==='expert-detail') renderExpertDetail(); if(view==='customers') { loadFilterSettings('customers'); renderCustomers(); } if(view==='cmdb-hub') initCmdbHub(); if(view==='cmdb') { loadFilterSettings('cmdb'); renderCMDB(); } if(view==='cmdb-detail') renderCMDBDetail(); if(view==='manage-cmdb') loadManageCMDB(); if(view==='cmdb-mgmt') loadCMDBMgmt(); if(view==='raise') loadRaiseFormOptions(); if(view==='ticket-detail') renderTicketDetail(); if(view==='tenants') loadTenants(); if(view==='subscriptions') loadSubscriptions(); if(view==='billing') loadBilling(); if(view==='plans') loadPlans(); if(view==='currencies') loadCurrenciesAdmin(); if(view==='system') loadSystemOverview(); if(view==='usage') loadUsageDashboard(); if(view==='customer-plans') loadCustomerPlans(); if(view==='customer-billing') loadCustomerBilling(); if(view==='my-company') loadMyCompany(); if(view==='company-admin') loadCompanyAdminUsers(); if(view==='analytics') loadAnalytics(); if(view==='ai-insights') loadAIInsights(); if(view==='ticket-rules') loadTicketRules(); if(view==='email-processing') loadEmailProcessing(); if(view==='system-control') loadSystemControlSettings(); if(view==='knowledge-base') initKnowledgeBase(); if(view==='raw-variables') loadRawVariables(); if(view==='audit-log') { loadAuditActions(); loadAuditLog(); } if(view==='notifications') loadNotifications(); if(view==='wizard') { initWizardSection(); loadCompanyProfile(); loadEmailIngestSettings(); loadSystemSenders(); loadExpertRegSettings(); loadSupportSettings(); loadTeamsIntegrationStatus(); loadSlackIntegrationStatus(); loadSmsIntegrationStatus(); loadSLAData(); } if(view==='profile') loadProfile(); }
+  function switchView(view){ currentView=view; if(view!=='ticket-detail' && typeof exitFullscreen === 'function') exitFullscreen(); ['dash','profile','tickets','ticket-detail','experts','expert-detail','customers','cmdb-hub','cmdb','cmdb-detail','manage-cmdb','cmdb-mgmt','wizard','raise','tenants','subscriptions','billing','plans','currencies','system','usage','customer-plans','customer-billing','my-company','company-admin','company-reports','analytics','ai-insights','ticket-rules','email-processing','system-control','knowledge-base','raw-variables','audit-log','notifications'].forEach(n=>{ const el=document.getElementById('view-'+n); if(el) el.style.display=(n===view)?'block':'none'; }); if(view!=='dash') { clearExpertPowerSearch(); } if(view==='dash') { fetchTicketsFromAPI().then(() => renderAllDashboards()); loadAITrends(); } if(view==='tickets') { console.log('[switchView] Switching to tickets view'); window.insightTicketFilter = null; window.insightTitle = null; window.slaAtRiskFilter = false; loadFilterSettings('tickets'); renderList(); } if(view==='experts') { loadFilterSettings('experts'); renderExperts(); } if(view==='expert-detail') renderExpertDetail(); if(view==='customers') { loadFilterSettings('customers'); renderCustomers(); } if(view==='cmdb-hub') initCmdbHub(); if(view==='cmdb') { loadFilterSettings('cmdb'); renderCMDB(); } if(view==='cmdb-detail') renderCMDBDetail(); if(view==='manage-cmdb') loadManageCMDB(); if(view==='cmdb-mgmt') loadCMDBMgmt(); if(view==='raise') loadRaiseFormOptions(); if(view==='ticket-detail') renderTicketDetail(); if(view==='tenants') loadTenants(); if(view==='subscriptions') loadSubscriptions(); if(view==='billing') loadBilling(); if(view==='plans') loadPlans(); if(view==='currencies') loadCurrenciesAdmin(); if(view==='system') loadSystemOverview(); if(view==='usage') loadUsageDashboard(); if(view==='customer-plans') loadCustomerPlans(); if(view==='customer-billing') loadCustomerBilling(); if(view==='my-company') loadMyCompany(); if(view==='company-admin') loadCompanyAdminUsers(); if(view==='company-reports') loadCompanyReports(); if(view==='analytics') loadAnalytics(); if(view==='ai-insights') loadAIInsights(); if(view==='ticket-rules') loadTicketRules(); if(view==='email-processing') loadEmailProcessing(); if(view==='system-control') loadSystemControlSettings(); if(view==='knowledge-base') initKnowledgeBase(); if(view==='raw-variables') loadRawVariables(); if(view==='audit-log') { loadAuditActions(); loadAuditLog(); } if(view==='notifications') loadNotifications(); if(view==='wizard') { initWizardSection(); loadCompanyProfile(); loadEmailIngestSettings(); loadSystemSenders(); loadExpertRegSettings(); loadSupportSettings(); loadTeamsIntegrationStatus(); loadSlackIntegrationStatus(); loadSmsIntegrationStatus(); loadSLAData(); } if(view==='profile') loadProfile(); }
   function configureRole(){
     const currentRole = window.role || role; // Use global role from login, fallback to local
     document.getElementById('nav-admin').style.display = (currentRole==='admin') ? 'block' : 'none';
@@ -8317,9 +8359,11 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     if (currentRole === 'customer') {
       // Show Company Admin link only if user is a company admin
       const companyAdminNav = document.getElementById('nav-company-admin');
+      const companyReportsNav = document.getElementById('nav-company-reports');
       if (companyAdminNav) {
         const isCompanyAdmin = window.currentUser && window.currentUser.isCompanyAdmin;
         companyAdminNav.style.display = isCompanyAdmin ? 'block' : 'none';
+        if (companyReportsNav) companyReportsNav.style.display = isCompanyAdmin ? 'block' : 'none';
       }
 
       // Load tenant settings for conditional nav display
@@ -14645,6 +14689,139 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       }).join('');
     } catch (e) {
       tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:16px">Failed to load history.</td></tr>';
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Company Reports Functions (customer / company admin view)
+  // ---------------------------------------------------------------------------
+  function loadCompanyReports() {
+    initCompanyReportPanel();
+    loadCompanyReportHistory();
+  }
+
+  function initCompanyReportPanel() {
+    const monthSel = document.getElementById('cr-report-month');
+    if (monthSel && monthSel.options.length === 0) {
+      const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+      months.forEach((m, i) => {
+        const opt = document.createElement('option');
+        opt.value = i + 1;
+        opt.textContent = m;
+        monthSel.appendChild(opt);
+      });
+      const now = new Date();
+      monthSel.value = now.getMonth() === 0 ? 12 : now.getMonth();
+    }
+    const yearInput = document.getElementById('cr-report-year');
+    if (yearInput && !yearInput.value) {
+      const now = new Date();
+      yearInput.value = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+    }
+  }
+
+  function previewCompanyReport() {
+    const month = document.getElementById('cr-report-month')?.value;
+    const year = document.getElementById('cr-report-year')?.value;
+    if (!month || !year) return;
+    const tc = _rptTenant();
+    const url = `${API_BASE}/api/reports/${tc}/monthly/preview?month=${year}-${String(month).padStart(2,'0')}`;
+    let modal = document.getElementById('report-preview-modal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'report-preview-modal';
+      modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:10000;display:flex;align-items:center;justify-content:center';
+      modal.innerHTML = `<div style="background:#fff;border-radius:12px;width:90%;max-width:800px;height:85vh;display:flex;flex-direction:column;overflow:hidden">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid #e2e8f0">
+          <strong>Report Preview</strong>
+          <button onclick="document.getElementById('report-preview-modal').style.display='none'" style="background:none;border:none;font-size:20px;cursor:pointer">&times;</button>
+        </div>
+        <iframe id="report-preview-iframe" style="flex:1;border:none;width:100%"></iframe>
+      </div>`;
+      document.body.appendChild(modal);
+    }
+    modal.style.display = 'flex';
+    const iframe = document.getElementById('report-preview-iframe');
+    fetch(url, { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } })
+      .then(r => r.text())
+      .then(html => { iframe.srcdoc = html; })
+      .catch(e => { iframe.srcdoc = '<p style="padding:20px;color:red">Failed to load preview: ' + e.message + '</p>'; });
+  }
+
+  async function sendCompanyReport() {
+    const msgEl = document.getElementById('cr-report-message');
+    const errEl = document.getElementById('cr-report-error');
+    if (msgEl) { msgEl.style.display = 'none'; msgEl.textContent = ''; }
+    if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
+
+    const month = parseInt(document.getElementById('cr-report-month')?.value, 10);
+    const year = parseInt(document.getElementById('cr-report-year')?.value, 10);
+    if (!month || !year) {
+      if (errEl) { errEl.textContent = 'Please select month and year.'; errEl.style.display = 'block'; }
+      return;
+    }
+
+    // Get current user's email as default recipient
+    const userEmail = window.currentUser?.email;
+    if (!userEmail) {
+      if (errEl) { errEl.textContent = 'Could not determine your email address.'; errEl.style.display = 'block'; }
+      return;
+    }
+
+    const emailInput = prompt('Send report to (comma-separated emails):', userEmail);
+    if (!emailInput) return;
+    const recipients = emailInput.split(',').map(s => s.trim()).filter(Boolean);
+    if (recipients.length === 0) return;
+
+    const monthName = document.getElementById('cr-report-month')?.selectedOptions[0]?.textContent;
+    if (!confirm(`Send ${monthName} ${year} report to ${recipients.join(', ')}?`)) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/api/reports/${_rptTenant()}/monthly/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') },
+        body: JSON.stringify({ month, year, recipients })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        if (msgEl) { msgEl.textContent = data.message; msgEl.style.display = 'block'; }
+        loadCompanyReportHistory();
+      } else {
+        if (errEl) { errEl.textContent = data.error || data.message || 'Send failed'; errEl.style.display = 'block'; }
+      }
+    } catch (e) {
+      if (errEl) { errEl.textContent = 'Error: ' + e.message; errEl.style.display = 'block'; }
+    }
+  }
+
+  async function loadCompanyReportHistory() {
+    const tbody = document.getElementById('cr-report-history-body');
+    if (!tbody) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/reports/${_rptTenant()}/monthly/history?limit=20`, {
+        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+      });
+      if (!res.ok) throw new Error('Failed');
+      const history = await res.json();
+      if (!history.length) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:16px">No reports sent yet.</td></tr>';
+        return;
+      }
+      const monthNames = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      tbody.innerHTML = history.map(h => {
+        const statusBadge = h.status === 'sent'
+          ? '<span style="background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:4px;font-size:11px">Sent</span>'
+          : '<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:4px;font-size:11px">' + (h.status || '?') + '</span>';
+        return `<tr>
+          <td>${monthNames[h.period_month] || h.period_month} ${h.period_year}</td>
+          <td>${h.ticket_count != null ? h.ticket_count : '—'}</td>
+          <td>${h.sla_compliance_pct != null ? h.sla_compliance_pct + '%' : '—'}</td>
+          <td>${statusBadge}</td>
+          <td>${h.generated_at ? new Date(h.generated_at).toLocaleDateString() : '—'}</td>
+        </tr>`;
+      }).join('');
+    } catch (e) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:16px">Failed to load history.</td></tr>';
     }
   }
 
