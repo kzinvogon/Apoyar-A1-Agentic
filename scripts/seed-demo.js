@@ -201,6 +201,24 @@ async function main() {
       )
     `);
 
+    // Create audit_log table in master DB
+    await rootConn.query(`
+      CREATE TABLE IF NOT EXISTS audit_log (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        tenant_code VARCHAR(50),
+        user_id INT,
+        username VARCHAR(100),
+        action VARCHAR(100),
+        entity_type VARCHAR(100),
+        entity_id VARCHAR(100),
+        details_json TEXT,
+        ip VARCHAR(45),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_tenant_code (tenant_code),
+        INDEX idx_created_at (created_at)
+      )
+    `);
+
     // Check if demo tenant already exists
     const [existing] = await rootConn.query("SELECT id FROM tenants WHERE tenant_code='demo'");
     if (existing.length > 0 && !isReset) {
@@ -1456,6 +1474,30 @@ async function main() {
     } finally {
       await tenantConn.end();
     }
+
+    // ── 18. Seed audit log entries ──────────────────────────────────────────
+    await rootConn.query(`DELETE FROM audit_log WHERE tenant_code = 'demo'`);
+    const auditActions = [
+      { user_id: 1, username: 'demo_admin', action: 'login', entity_type: 'session', entity_id: null, details: '{"method":"password"}', ip: '203.0.113.10' },
+      { user_id: 1, username: 'demo_admin', action: 'create_user', entity_type: 'user', entity_id: '2', details: '{"username":"mike.ross","role":"agent"}', ip: '203.0.113.10' },
+      { user_id: 1, username: 'demo_admin', action: 'update_sla', entity_type: 'sla_definition', entity_id: '1', details: '{"name":"Critical SLA","response_time":"changed to 1h"}', ip: '203.0.113.10' },
+      { user_id: 2, username: 'mike.ross', action: 'login', entity_type: 'session', entity_id: null, details: '{"method":"password"}', ip: '198.51.100.22' },
+      { user_id: 2, username: 'mike.ross', action: 'update_ticket', entity_type: 'ticket', entity_id: '15', details: '{"status":"Open→In Progress"}', ip: '198.51.100.22' },
+      { user_id: 1, username: 'demo_admin', action: 'create_category', entity_type: 'category', entity_id: '5', details: '{"name":"Cloud Services"}', ip: '203.0.113.10' },
+      { user_id: 3, username: 'rachel.green', action: 'login', entity_type: 'session', entity_id: null, details: '{"method":"password"}', ip: '192.0.2.45' },
+      { user_id: 3, username: 'rachel.green', action: 'resolve_ticket', entity_type: 'ticket', entity_id: '8', details: '{"resolution":"Password reset completed"}', ip: '192.0.2.45' },
+      { user_id: 1, username: 'demo_admin', action: 'update_settings', entity_type: 'settings', entity_id: null, details: '{"setting":"email_notifications","value":"enabled"}', ip: '203.0.113.10' },
+      { user_id: 1, username: 'demo_admin', action: 'export_report', entity_type: 'report', entity_id: null, details: '{"type":"ticket_summary","period":"last_30_days"}', ip: '203.0.113.10' },
+    ];
+    for (let i = 0; i < auditActions.length; i++) {
+      const a = auditActions[i];
+      const daysAgo = auditActions.length - i;
+      await rootConn.query(`
+        INSERT INTO audit_log (tenant_code, user_id, username, action, entity_type, entity_id, details_json, ip, created_at)
+        VALUES ('demo', ?, ?, ?, ?, ?, ?, ?, DATE_SUB(NOW(), INTERVAL ? DAY))
+      `, [a.user_id, a.username, a.action, a.entity_type, a.entity_id, a.details, a.ip, daysAgo]);
+    }
+    console.log(`   Audit log: ${auditActions.length} entries`);
 
     console.log('\n✅ Demo seeding complete!');
     console.log('   Login: demo@serviflow.app / Demo123!');
