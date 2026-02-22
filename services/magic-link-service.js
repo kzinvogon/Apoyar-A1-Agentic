@@ -16,22 +16,35 @@ const TOKEN_EXPIRY_MINUTES = 15;
 // ── Tenant Resolution ──────────────────────────────────────────────
 
 /**
+ * Hosts where any email can sign up (open signup).
+ * Demo + UAT environments allow open signup with auto-provisioning.
+ * Production requires email domain mapping via tenant_email_domains.
+ */
+const OPEN_SIGNUP_HOSTS = ['demo.serviflow.app', 'web-demo.up.railway.app', 'web-uat-uat.up.railway.app'];
+
+/**
  * Resolve which tenant an email belongs to.
- * - Demo host → demo tenant (is_demo=1)
+ * - Open signup host → first active tenant for that host (any email accepted)
  * - Otherwise → tenant_email_domains lookup by email domain
  */
 async function resolveTenant(email, host) {
-  // Demo host detection
-  const demoHosts = ['demo.serviflow.app', 'web-demo.up.railway.app'];
-  const isDemoHost = demoHosts.some(h => host && host.includes(h));
+  // Open signup host detection (demo, UAT)
+  const isOpenSignup = OPEN_SIGNUP_HOSTS.some(h => host && host.includes(h));
 
-  if (isDemoHost) {
-    const rows = await masterQuery(
+  if (isOpenSignup) {
+    // Try is_demo tenant first, then fall back to first active tenant
+    let rows = await masterQuery(
       'SELECT id, tenant_code FROM tenants WHERE is_demo = 1 AND status = ? LIMIT 1',
       ['active']
     );
+    if (rows.length === 0) {
+      rows = await masterQuery(
+        'SELECT id, tenant_code FROM tenants WHERE status = ? ORDER BY id ASC LIMIT 1',
+        ['active']
+      );
+    }
     if (rows.length === 0) return null;
-    return { tenantId: rows[0].id, tenantCode: rows[0].tenant_code, isDemo: true };
+    return { tenantId: rows[0].id, tenantCode: rows[0].tenant_code, isDemo: true, isOpenSignup: true };
   }
 
   // Production: resolve by email domain
@@ -46,7 +59,7 @@ async function resolveTenant(email, host) {
     [domain, 'active']
   );
   if (rows.length === 0) return null;
-  return { tenantId: rows[0].tenant_id, tenantCode: rows[0].tenant_code, isDemo: false };
+  return { tenantId: rows[0].tenant_id, tenantCode: rows[0].tenant_code, isDemo: false, isOpenSignup: false };
 }
 
 // ── Token Management ───────────────────────────────────────────────
@@ -154,11 +167,10 @@ async function consumeMagicLink(tokenPlain, host) {
     [link.id]
   );
 
-  // Host binding check (demo tokens stay on demo)
-  const demoHosts = ['demo.serviflow.app', 'web-demo.up.railway.app'];
-  const requestedOnDemo = demoHosts.some(h => link.requested_host && link.requested_host.includes(h));
-  const consumedOnDemo = demoHosts.some(h => host && host.includes(h));
-  if (requestedOnDemo !== consumedOnDemo) {
+  // Host binding check (open-signup tokens stay on open-signup hosts)
+  const requestedOnOpenSignup = OPEN_SIGNUP_HOSTS.some(h => link.requested_host && link.requested_host.includes(h));
+  const consumedOnOpenSignup = OPEN_SIGNUP_HOSTS.some(h => host && host.includes(h));
+  if (requestedOnOpenSignup !== consumedOnOpenSignup) {
     return { success: false, message: 'This link cannot be used on this domain' };
   }
 
@@ -180,8 +192,8 @@ async function consumeMagicLink(tokenPlain, host) {
   const tenantCode = tenantRows[0].tenant_code;
   const isDemo = tenantRows[0].is_demo === 1;
 
-  // Find or create user
-  const user = await findOrCreateUser(tenantCode, link.email, isDemo);
+  // Find or create user — open-signup hosts allow auto-provisioning with any email
+  const user = await findOrCreateUser(tenantCode, link.email, isDemo || requestedOnOpenSignup);
   if (!user) {
     return { success: false, message: 'Unable to provision user account' };
   }
@@ -240,10 +252,10 @@ async function consumeMagicLink(tokenPlain, host) {
 // ── User Provisioning ──────────────────────────────────────────────
 
 /**
- * Find user by email in tenant DB, or auto-create if the tenant allows it.
- * Auto-provision happens when: demo tenant OR tenant has a verified email domain.
+ * Find user by email in tenant DB, or auto-create if allowed.
+ * @param {boolean} canAutoProvision - true for open-signup hosts (demo/UAT) or verified domains
  */
-async function findOrCreateUser(tenantCode, email, isDemo) {
+async function findOrCreateUser(tenantCode, email, canAutoProvision) {
   const conn = await getTenantConnection(tenantCode);
   try {
     // Look up existing user
@@ -253,21 +265,6 @@ async function findOrCreateUser(tenantCode, email, isDemo) {
     );
     if (existing.length > 0) {
       return existing[0];
-    }
-
-    // Check if auto-provisioning is allowed:
-    // 1. Demo tenants always auto-provision
-    // 2. Non-demo tenants auto-provision if their email domain is verified
-    let canAutoProvision = isDemo;
-    if (!canAutoProvision) {
-      const domain = email.split('@')[1]?.toLowerCase();
-      if (domain) {
-        const domainRows = await masterQuery(
-          'SELECT is_verified FROM tenant_email_domains WHERE domain = ?',
-          [domain]
-        );
-        canAutoProvision = domainRows.length > 0 && domainRows[0].is_verified === 1;
-      }
     }
 
     if (!canAutoProvision) return null;
@@ -289,8 +286,9 @@ async function findOrCreateUser(tenantCode, email, isDemo) {
       [userId, 'customer']
     );
 
-    // For demo tenants: also grant all demo persona roles + company memberships
-    if (isDemo) {
+    // For open-signup hosts: also grant all demo persona roles + company memberships
+    // so users can freely switch personas in demo/UAT
+    if (canAutoProvision) {
       try {
         const [personas] = await conn.query('SELECT DISTINCT role, company_id FROM demo_personas');
         for (const p of personas) {
