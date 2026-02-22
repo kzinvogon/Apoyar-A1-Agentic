@@ -360,6 +360,22 @@ async function main() {
           }
         }
 
+        // expert_ticket_permissions table (not in tenant-provisioning)
+        await patchConn.query(`
+          CREATE TABLE IF NOT EXISTS expert_ticket_permissions (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            expert_id INT NOT NULL,
+            permission_type ENUM('all_tickets','specific_customers','title_patterns') NOT NULL,
+            customer_id INT DEFAULT NULL,
+            title_pattern VARCHAR(255) DEFAULT NULL,
+            is_active BOOLEAN DEFAULT TRUE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_expert_id (expert_id),
+            INDEX idx_permission_type (permission_type)
+          )
+        `);
+
         console.log('✅ Schema patching complete');
       } finally {
         patchConn.release();
