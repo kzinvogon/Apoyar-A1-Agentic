@@ -240,7 +240,8 @@ async function consumeMagicLink(tokenPlain, host) {
 // ── User Provisioning ──────────────────────────────────────────────
 
 /**
- * Find user by email in tenant DB, or create if demo tenant.
+ * Find user by email in tenant DB, or auto-create if the tenant allows it.
+ * Auto-provision happens when: demo tenant OR tenant has a verified email domain.
  */
 async function findOrCreateUser(tenantCode, email, isDemo) {
   const conn = await getTenantConnection(tenantCode);
@@ -254,12 +255,26 @@ async function findOrCreateUser(tenantCode, email, isDemo) {
       return existing[0];
     }
 
-    // Auto-create only for demo tenants
-    if (!isDemo) return null;
+    // Check if auto-provisioning is allowed:
+    // 1. Demo tenants always auto-provision
+    // 2. Non-demo tenants auto-provision if their email domain is verified
+    let canAutoProvision = isDemo;
+    if (!canAutoProvision) {
+      const domain = email.split('@')[1]?.toLowerCase();
+      if (domain) {
+        const domainRows = await masterQuery(
+          'SELECT is_verified FROM tenant_email_domains WHERE domain = ?',
+          [domain]
+        );
+        canAutoProvision = domainRows.length > 0 && domainRows[0].is_verified === 1;
+      }
+    }
+
+    if (!canAutoProvision) return null;
 
     // Create user with no password (magic-link-only)
     const username = email.split('@')[0].replace(/[^a-zA-Z0-9._-]/g, '') + '_' + Date.now().toString(36);
-    const fullName = email.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    const fullName = email.split('@')[0].replace(/[._+-]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
     const [result] = await conn.query(
       `INSERT INTO users (username, email, password_hash, full_name, role, auth_method, is_active)
@@ -268,22 +283,29 @@ async function findOrCreateUser(tenantCode, email, isDemo) {
     );
     const userId = result.insertId;
 
-    // For demo: grant all demo persona roles + company memberships
-    // so the user can freely switch personas
-    const [personas] = await conn.query('SELECT DISTINCT role, company_id FROM demo_personas');
-    const roleSet = new Set(personas.map(p => p.role));
-    for (const role of roleSet) {
-      await conn.query(
-        'INSERT IGNORE INTO tenant_user_roles (tenant_user_id, role_key) VALUES (?, ?)',
-        [userId, role]
-      );
-    }
-    const companyIds = [...new Set(personas.filter(p => p.company_id).map(p => p.company_id))];
-    for (const cid of companyIds) {
-      await conn.query(
-        'INSERT IGNORE INTO tenant_user_company_memberships (tenant_user_id, company_id) VALUES (?, ?)',
-        [userId, cid]
-      );
+    // Grant default customer role
+    await conn.query(
+      'INSERT IGNORE INTO tenant_user_roles (tenant_user_id, role_key) VALUES (?, ?)',
+      [userId, 'customer']
+    );
+
+    // For demo tenants: also grant all demo persona roles + company memberships
+    if (isDemo) {
+      try {
+        const [personas] = await conn.query('SELECT DISTINCT role, company_id FROM demo_personas');
+        for (const p of personas) {
+          await conn.query(
+            'INSERT IGNORE INTO tenant_user_roles (tenant_user_id, role_key) VALUES (?, ?)',
+            [userId, p.role]
+          );
+          if (p.company_id) {
+            await conn.query(
+              'INSERT IGNORE INTO tenant_user_company_memberships (tenant_user_id, company_id) VALUES (?, ?)',
+              [userId, p.company_id]
+            );
+          }
+        }
+      } catch (e) { /* demo_personas table may not exist */ }
     }
 
     const [newUser] = await conn.query('SELECT * FROM users WHERE id = ?', [userId]);
