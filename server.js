@@ -70,6 +70,7 @@ const signupRoutes = require('./routes/signup');
 const billingRoutes = require('./routes/billing');
 const chatRoutes = require('./routes/chat');
 const reportsRoutes = require('./routes/reports');
+const sessionContextRoutes = require('./routes/session-context');
 
 // Import email processor service
 const { startEmailProcessing } = require('./services/email-processor');
@@ -124,6 +125,13 @@ app.use(express.static(__dirname, {
   }
 }));
 
+// Magic link auth routes — only loaded when MAGIC_LINK_AUTH_ENABLED=true
+if (process.env.MAGIC_LINK_AUTH_ENABLED === 'true') {
+  console.log('🔗 Magic link auth enabled');
+  const magicAuthRoutes = require('./routes/magic-auth');
+  app.use('/api/public/auth/magic', magicAuthRoutes);
+}
+
 // Demo mode middleware — only loaded when DEMO_FEATURES_ENABLED=true
 if (process.env.DEMO_FEATURES_ENABLED === 'true') {
   console.log('🎭 Demo mode enabled — loading demo middleware');
@@ -170,6 +178,7 @@ app.use('/api/signup', signupRoutes);
 app.use('/api/billing', billingRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/reports', reportsRoutes);
+app.use('/api/me', sessionContextRoutes);
 
 // Public routes (no authentication required) - Must be before authenticated routes
 app.use('/ticket', publicTicketRoutes);
@@ -196,6 +205,22 @@ app.get('/', (req, res) => {
 // Login route - redirect to main app (login screen is shown by default in SPA)
 app.get('/login', (req, res) => {
   res.redirect('/');
+});
+
+// Magic link callback route — SPA handles the token via JS
+app.get('/auth/magic', (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.sendFile(path.join(__dirname, 'A1 Support Build from here .html'));
+});
+
+// Context chooser route — SPA shows role/company picker
+app.get('/choose-context', (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.sendFile(path.join(__dirname, 'A1 Support Build from here .html'));
 });
 
 // Accept invitation route - for invited experts to set their password

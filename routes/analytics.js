@@ -17,10 +17,20 @@ router.get('/:tenantId', async (req, res) => {
 
     try {
       // Customer role filtering - customers only see their own ticket stats
+      // Multi-role: use active_company_id for company-scoped analytics, else fallback to requester_id
       const isCustomer = req.user.role === 'customer';
-      const customerFilter = isCustomer ? 'AND requester_id = ?' : '';
-      const customerFilterWithT = isCustomer ? 'AND t.requester_id = ?' : '';
-      const customerParams = isCustomer ? [req.user.userId] : [];
+      let customerFilter = '';
+      let customerFilterWithT = '';
+      let customerParams = [];
+      if (isCustomer && req.user.active_company_id) {
+        customerFilter = 'AND requester_id IN (SELECT c.user_id FROM customers c WHERE c.customer_company_id = ?)';
+        customerFilterWithT = 'AND t.requester_id IN (SELECT c.user_id FROM customers c WHERE c.customer_company_id = ?)';
+        customerParams = [req.user.active_company_id];
+      } else if (isCustomer) {
+        customerFilter = 'AND requester_id = ?';
+        customerFilterWithT = 'AND t.requester_id = ?';
+        customerParams = [req.user.userId];
+      }
 
       // Ticket statistics
       const [ticketStats] = await connection.query(

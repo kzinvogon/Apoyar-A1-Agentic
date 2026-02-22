@@ -92,6 +92,12 @@ async function authenticateTenantUser(tenantCode, username, password) {
       }
 
       const user = rows[0];
+
+      // Magic-link-only users cannot password login
+      if (!user.password_hash) {
+        return { success: false, message: 'Invalid credentials' };
+      }
+
       const isValidPassword = await bcrypt.compare(password, user.password_hash);
 
       if (!isValidPassword) {
@@ -134,14 +140,64 @@ async function authenticateTenantUser(tenantCode, username, password) {
         [user.id]
       );
 
-      // Generate JWT token
+      // Load multi-role data
+      let roles = [];
+      let companies = [];
+      try {
+        const [roleRows] = await connection.query(
+          'SELECT role_key FROM tenant_user_roles WHERE tenant_user_id = ?',
+          [user.id]
+        );
+        roles = roleRows.map(r => r.role_key);
+      } catch (e) {
+        // Table may not exist yet — fallback
+      }
+      // Fallback to users.role if no explicit roles
+      if (roles.length === 0) {
+        roles = [user.role];
+      }
+
+      try {
+        const [companyRows] = await connection.query(
+          `SELECT tucm.company_id as id, cc.company_name, tucm.membership_role
+           FROM tenant_user_company_memberships tucm
+           JOIN customer_companies cc ON cc.id = tucm.company_id
+           WHERE tucm.tenant_user_id = ?`,
+          [user.id]
+        );
+        companies = companyRows;
+      } catch (e) {
+        // Table may not exist yet — fallback
+      }
+
+      // Auto-resolve active role + company for simple cases
+      let activeRole = null;
+      let activeCompanyId = null;
+      let requiresContext = false;
+
+      if (roles.length === 1) {
+        activeRole = roles[0];
+        if (activeRole === 'customer' && companies.length === 1) {
+          activeCompanyId = companies[0].id;
+        } else if (activeRole === 'customer' && companies.length > 1) {
+          requiresContext = true;
+        }
+      } else if (roles.length > 1) {
+        requiresContext = true;
+      }
+
+      // Generate JWT token with multi-role payload
       const token = jwt.sign(
         {
           userId: user.id,
           username: user.username,
-          role: user.role,
+          role: activeRole || user.role, // backward compat
           tenantCode: tenantCode,
-          userType: 'tenant'
+          userType: 'tenant',
+          roles,
+          active_role: activeRole,
+          active_company_id: activeCompanyId,
+          requires_context: requiresContext
         },
         JWT_SECRET,
         { expiresIn: JWT_EXPIRES_IN }
@@ -154,12 +210,15 @@ async function authenticateTenantUser(tenantCode, username, password) {
           username: user.username,
           email: user.email,
           fullName: user.full_name,
-          role: user.role,
+          role: activeRole || user.role,
           tenantCode: tenantCode,
           isCompanyAdmin: user.is_company_admin === 1,
-          customerCompanyId: user.customer_company_id || null
+          customerCompanyId: user.customer_company_id || null,
+          roles,
+          companies
         },
-        token
+        token,
+        requires_context: requiresContext
       };
     } finally {
       connection.release();
@@ -213,6 +272,22 @@ function requireRole(allowedRoles) {
   };
 }
 
+// Require an active role to be set (rejects tokens where requires_context is still true)
+function requireActiveRole(req, res, next) {
+  if (!req.user || !req.user.active_role) {
+    return res.status(403).json({ message: 'Please select a role before continuing', requires_context: true });
+  }
+  next();
+}
+
+// Require customer users to have an active company selected
+function requireCustomerCompany(req, res, next) {
+  if (req.user && req.user.role === 'customer' && !req.user.active_company_id) {
+    return res.status(403).json({ message: 'Please select a company before continuing', requires_context: true });
+  }
+  next();
+}
+
 // Hash password utility
 async function hashPassword(password) {
   const saltRounds = 10;
@@ -231,6 +306,8 @@ module.exports = {
   requireMasterAuth,
   requireTenantAuth,
   requireRole,
+  requireActiveRole,
+  requireCustomerCompany,
   hashPassword,
   comparePassword,
   JWT_SECRET,

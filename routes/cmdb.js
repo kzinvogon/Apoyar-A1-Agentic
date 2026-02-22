@@ -226,21 +226,34 @@ router.get('/:tenantCode/items', async (req, res) => {
 
       // Customer role filtering - customers can only see their own company's CMDB items
       if (req.user.role === 'customer') {
-        // Get customer's company name
-        const [customerInfo] = await connection.query(
-          `SELECT cc.company_name
-           FROM customers c
-           JOIN customer_companies cc ON c.customer_company_id = cc.id
-           WHERE c.user_id = ?`,
-          [req.user.userId]
-        );
-
-        if (customerInfo.length > 0 && customerInfo[0].company_name) {
-          conditions.push('ci.customer_name = ?');
-          params.push(customerInfo[0].company_name);
+        // Multi-role: use active_company_id from JWT if available
+        if (req.user.active_company_id) {
+          const [companyInfo] = await connection.query(
+            'SELECT company_name FROM customer_companies WHERE id = ?',
+            [req.user.active_company_id]
+          );
+          if (companyInfo.length > 0) {
+            conditions.push('ci.customer_name = ?');
+            params.push(companyInfo[0].company_name);
+          } else {
+            return res.json({ success: true, items: [] });
+          }
         } else {
-          // Customer has no company - return empty results
-          return res.json({ success: true, items: [] });
+          // Fallback: look up customer's company from database
+          const [customerInfo] = await connection.query(
+            `SELECT cc.company_name
+             FROM customers c
+             JOIN customer_companies cc ON c.customer_company_id = cc.id
+             WHERE c.user_id = ?`,
+            [req.user.userId]
+          );
+
+          if (customerInfo.length > 0 && customerInfo[0].company_name) {
+            conditions.push('ci.customer_name = ?');
+            params.push(customerInfo[0].company_name);
+          } else {
+            return res.json({ success: true, items: [] });
+          }
         }
       }
 

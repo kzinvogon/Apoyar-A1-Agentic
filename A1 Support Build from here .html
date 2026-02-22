@@ -1448,6 +1448,12 @@ vNext-FULL-ActionsSLA:
         <span id="topnav-impersonation-name">—</span>
         <button onclick="clearImpersonation()" style="background:none;border:none;cursor:pointer;color:#92400e;font-weight:bold;padding:0 2px;font-size:14px;line-height:1;" title="Exit impersonation">×</button>
       </div>
+      <div id="mode-switcher" style="display:none;margin-right:8px;">
+        <button onclick="showContextChooser()" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--card-bg);color:var(--ink);font-size:12px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:4px;">
+          <span id="mode-switcher-label">Admin</span>
+          <span style="font-size:10px;opacity:.6">&#9662;</span>
+        </button>
+      </div>
       <div id="persona-switcher" style="display:none;margin-right:8px;">
         <select id="persona-select" onchange="switchPersona(this.value)" style="padding:4px 8px;border-radius:6px;border:1px solid #6366f1;background:#eef2ff;color:#4338ca;font-size:12px;font-weight:500;cursor:pointer;max-width:180px;">
           <option value="">Switch Persona...</option>
@@ -1511,7 +1517,33 @@ vNext-FULL-ActionsSLA:
         <h1 class="title" style="margin-bottom:4px">Sign in</h1>
         <p class="subtitle" style="margin:0">Welcome back to ServiFlow</p>
       </div>
-      
+
+      <!-- Magic Link Login Form (shown on demo/magic-link-enabled hosts) -->
+      <div id="magic-link-form" style="display:none">
+        <div id="magic-link-request" >
+          <div class="mb-16">
+            <label for="magic-email" style="display:block;margin-bottom:6px;font-weight:500;font-size:14px;color:var(--ink)">Email address</label>
+            <input type="email" id="magic-email" class="input" placeholder="you@company.com">
+          </div>
+          <div style="margin-bottom:16px">
+            <button class="btn primary" onclick="requestMagicLink()" style="width:100%;padding:10px;font-size:14px">Email me a sign-in link</button>
+          </div>
+          <div style="text-align:center;margin-bottom:16px">
+            <a href="#" onclick="toggleLoginMode('password'); return false;" style="color:var(--muted);text-decoration:none;font-size:12px">Or sign in with password</a>
+          </div>
+        </div>
+        <div id="magic-link-sent" style="display:none;text-align:center;padding:16px 0;">
+          <div style="width:48px;height:48px;margin:0 auto 12px;border-radius:50%;background:#ecfdf5;display:flex;align-items:center;justify-content:center;">
+            <span style="font-size:24px;">&#x2709;</span>
+          </div>
+          <h3 style="margin:0 0 8px;color:var(--ink)">Check your inbox</h3>
+          <p style="color:var(--muted);font-size:13px;margin:0 0 16px;">We sent a sign-in link to <strong id="magic-link-email-display"></strong>. Click the link in the email to sign in.</p>
+          <a href="#" onclick="resetMagicLinkForm(); return false;" style="color:var(--primary);text-decoration:none;font-size:13px">Use a different email</a>
+        </div>
+      </div>
+
+      <!-- Password Login Form (default) -->
+      <div id="password-form">
       <div class="mb-16">
         <label for="username" style="display:block;margin-bottom:6px;font-weight:500;font-size:14px;color:var(--ink)">Username or Email</label>
         <input type="text" id="username" class="input" placeholder="Enter your username or email">
@@ -1521,7 +1553,7 @@ vNext-FULL-ActionsSLA:
         <label for="password" style="display:block;margin-bottom:6px;font-weight:500;font-size:14px;color:var(--ink)">Password</label>
         <input type="password" id="password" class="input" placeholder="Enter your password">
       </div>
-      
+
       <div class="mb-16">
         <label for="role" style="display:block;margin-bottom:6px;font-weight:500;font-size:14px;color:var(--ink)">Role</label>
         <select id="role" class="input" onchange="toggleTenantField()" style="cursor:pointer">
@@ -1536,14 +1568,16 @@ vNext-FULL-ActionsSLA:
         <label for="tenant" style="display:block;margin-bottom:6px;font-weight:500;font-size:14px;color:var(--ink)">Tenant Code</label>
         <input type="text" id="tenant" class="input" placeholder="Enter tenant code (e.g., apoyar)">
         </div>
-      
+
       <div style="margin-bottom:16px">
         <button class="btn primary" onclick="login()" style="width:100%;padding:10px;font-size:14px">Sign in</button>
       </div>
 
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
         <a href="#" onclick="showForgotPassword(); return false;" style="color:var(--ink);text-decoration:none;font-size:12px;font-weight:500">Forgot password?</a>
+        <a href="#" id="magic-link-toggle" onclick="toggleLoginMode('magic'); return false;" style="color:var(--muted);text-decoration:none;font-size:12px;display:none">Sign in with email link</a>
         <a href="#" onclick="showDemoCredentials(); return false;" style="color:var(--muted);text-decoration:none;font-size:12px">Demo credentials</a>
+      </div>
       </div>
 
       <div id="login-error" style="display:none;color:#dc2626;background:#fef2f2;padding:10px;border-radius:8px;margin-bottom:12px;border:1px solid #fecaca;font-size:13px"></div>
@@ -1553,6 +1587,21 @@ vNext-FULL-ActionsSLA:
       </div>
     </div>
   </section>
+
+  <!-- Context Chooser Modal (role/company picker) -->
+  <div id="context-chooser-modal" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.5);align-items:center;justify-content:center;">
+    <div class="card p-24" style="max-width:420px;width:90%;margin:auto;position:relative;">
+      <div style="text-align:center;margin-bottom:20px;">
+        <h2 style="margin:0 0 4px;color:var(--ink)">Choose your view</h2>
+        <p style="color:var(--muted);font-size:13px;margin:0" id="context-chooser-subtitle">Select a role to continue</p>
+      </div>
+      <div id="context-role-picker" style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-bottom:16px;"></div>
+      <div id="context-company-picker" style="display:none;margin-bottom:16px;">
+        <p style="font-weight:500;font-size:14px;margin:0 0 8px;color:var(--ink)">Select company</p>
+        <div id="context-company-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+      </div>
+    </div>
+  </div>
 
   <!-- FORGOT PASSWORD -->
   <section id="scr-forgot-password" class="screen">
@@ -7232,6 +7281,28 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     loginScreen.style.display = 'block';
     document.getElementById('topnav-right').style.display = 'none';
 
+    // Initialize login mode (magic link vs password) based on host
+    initLoginMode();
+
+    // Handle /auth/magic?token=XXX callback
+    if (window.location.pathname === '/auth/magic') {
+      const magicParams = new URLSearchParams(window.location.search);
+      const magicToken = magicParams.get('token');
+      if (magicToken) {
+        handleMagicLinkToken(magicToken);
+        return; // Stop here — handleMagicLinkToken will complete the flow
+      }
+    }
+
+    // Handle /choose-context route — show context chooser for existing session
+    if (window.location.pathname === '/choose-context') {
+      const existingToken = localStorage.getItem('token');
+      if (existingToken) {
+        showContextChooser();
+      }
+      window.history.replaceState({}, '', '/');
+    }
+
     // Check for existing valid session
     const token = localStorage.getItem('token');
     const storedRole = localStorage.getItem('role');
@@ -7283,6 +7354,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
           // Check demo mode and load personas if applicable
           checkDemoMode();
+
+          // Update mode switcher for multi-role users
+          updateModeSwitcher();
 
           // Load data (skip for master admin - they don't have tenant data)
           const currentRole = window.role || localStorage.getItem('role');
@@ -7752,45 +7826,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       
       if (data.success) {
         console.log('Login successful');
-        // Store session data in localStorage for API calls and session restoration
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('role', data.user.role);
-        localStorage.setItem('tenantCode', data.user.tenantCode || (role === 'customer' ? 'apoyar' : 'apoyar'));
-        localStorage.setItem('currentUser', JSON.stringify(data.user));
-        localStorage.setItem('username', data.user.username);
-        localStorage.setItem('loginRole', data.user.role); // Store original login role for switch permissions
 
-        // Set global variables
-        window.currentUser = data.user;
-        window.role = data.user.role;
-        window.loginRole = data.user.role; // Track original login role
-        window.tenant = data.user.tenantCode || (data.user.role === 'customer' ? 'apoyar' : null);
-        window.isMasterAdmin = data.user.role === 'super_admin';
-        // Also set local tenant variable for functions that use it directly
-        tenant = window.tenant;
-        
-        // Update UI
-        document.getElementById('chip-role').textContent = data.user.role === 'super_admin' ? 'Master Admin' : data.user.role;
-        document.getElementById('tenant-chip').style.display = (role === 'customer' || role === 'super_admin') ? 'block' : 'none';
-        document.getElementById('chip-tenant').textContent = window.tenant || '—';
-        
-        // Configure role and show app
-        configureRole();
-        switchView('dash');
-        go('app');
-        if (!localStorage.getItem('walkthrough_done')) setTimeout(startWalkthrough, 800);
-
-        // Check demo mode and load personas if applicable
-        checkDemoMode();
-
-        // Load tickets from API before rendering
-        await fetchTicketsFromAPI();
-
-        renderAllDashboards();
-        loadRaiseFormOptions();
-        renderList();
-        startSLAInterval();
-        updateRefreshIntervalUI();
+        // Use shared completeLogin for both password and magic link
+        completeLogin(data);
       } else {
         console.log('Login failed:', data.message);
         errorDiv.textContent = data.message || 'Login failed';
@@ -7812,6 +7850,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     localStorage.removeItem('currentUser');
     localStorage.removeItem('username');
     localStorage.removeItem('loginRole');
+    localStorage.removeItem('roles');
+    localStorage.removeItem('active_role');
+    localStorage.removeItem('active_company_id');
 
     // Clear admin mode and step-up reauth
     localStorage.setItem('serviflow.adminMode', '0');
@@ -7855,7 +7896,375 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
     alert('Demo Credentials:\n\n' + credentials);
   }
-  
+
+  // ── Magic Link + Multi-Role Auth ────────────────────────────────
+
+  /** Detect if current host supports magic link login */
+  function isMagicLinkHost() {
+    const h = window.location.hostname;
+    return h.includes('demo.serviflow') || h.includes('web-demo') || h.includes('web-uat');
+  }
+
+  /** Toggle between magic-link and password login modes */
+  function toggleLoginMode(mode) {
+    const magicForm = document.getElementById('magic-link-form');
+    const pwdForm = document.getElementById('password-form');
+    const errorDiv = document.getElementById('login-error');
+    if (errorDiv) errorDiv.style.display = 'none';
+
+    if (mode === 'magic') {
+      if (magicForm) magicForm.style.display = 'block';
+      if (pwdForm) pwdForm.style.display = 'none';
+    } else {
+      if (magicForm) magicForm.style.display = 'none';
+      if (pwdForm) pwdForm.style.display = 'block';
+    }
+  }
+
+  /** Initialize login form mode based on host */
+  function initLoginMode() {
+    const toggle = document.getElementById('magic-link-toggle');
+    if (isMagicLinkHost()) {
+      toggleLoginMode('magic');
+      if (toggle) toggle.style.display = 'inline';
+    } else {
+      toggleLoginMode('password');
+      if (toggle) toggle.style.display = 'none';
+    }
+  }
+
+  /** Request magic link email */
+  async function requestMagicLink() {
+    const emailInput = document.getElementById('magic-email');
+    const email = emailInput ? emailInput.value.trim() : '';
+    const errorDiv = document.getElementById('login-error');
+    if (errorDiv) errorDiv.style.display = 'none';
+
+    if (!email || !email.includes('@')) {
+      if (errorDiv) {
+        errorDiv.textContent = 'Please enter a valid email address';
+        errorDiv.style.display = 'block';
+      }
+      return;
+    }
+
+    try {
+      await fetch(`${API_BASE}/api/public/auth/magic/request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+
+      // Always show "check inbox" (anti-enumeration)
+      const reqDiv = document.getElementById('magic-link-request');
+      const sentDiv = document.getElementById('magic-link-sent');
+      const emailDisplay = document.getElementById('magic-link-email-display');
+      if (reqDiv) reqDiv.style.display = 'none';
+      if (sentDiv) sentDiv.style.display = 'block';
+      if (emailDisplay) emailDisplay.textContent = email;
+    } catch (err) {
+      console.error('Magic link request failed:', err);
+      if (errorDiv) {
+        errorDiv.textContent = 'Connection error. Please try again.';
+        errorDiv.style.display = 'block';
+      }
+    }
+  }
+
+  /** Reset magic link form to request state */
+  function resetMagicLinkForm() {
+    const reqDiv = document.getElementById('magic-link-request');
+    const sentDiv = document.getElementById('magic-link-sent');
+    const emailInput = document.getElementById('magic-email');
+    if (reqDiv) reqDiv.style.display = 'block';
+    if (sentDiv) sentDiv.style.display = 'none';
+    if (emailInput) emailInput.value = '';
+  }
+
+  /** Handle /auth/magic?token=XXX callback */
+  async function handleMagicLinkToken(token) {
+    const errorDiv = document.getElementById('login-error');
+    if (errorDiv) errorDiv.style.display = 'none';
+
+    try {
+      const response = await fetch(`${API_BASE}/api/public/auth/magic/consume`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token })
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        if (errorDiv) {
+          errorDiv.textContent = data.message || 'Invalid or expired link';
+          errorDiv.style.display = 'block';
+        }
+        // Clean URL
+        window.history.replaceState({}, '', '/');
+        return;
+      }
+
+      // Clean URL
+      window.history.replaceState({}, '', '/');
+
+      // Complete login with the response
+      completeLogin(data);
+
+    } catch (err) {
+      console.error('Magic link consume failed:', err);
+      if (errorDiv) {
+        errorDiv.textContent = 'Authentication error. Please try again.';
+        errorDiv.style.display = 'block';
+      }
+      window.history.replaceState({}, '', '/');
+    }
+  }
+
+  /**
+   * Shared login completion — works for both password and magic link login.
+   * Handles requires_context by showing the context chooser.
+   */
+  function completeLogin(data) {
+    // Store session data
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('role', data.user.role);
+    localStorage.setItem('tenantCode', data.user.tenantCode || 'apoyar');
+    localStorage.setItem('currentUser', JSON.stringify(data.user));
+    localStorage.setItem('username', data.user.username);
+    localStorage.setItem('loginRole', data.user.role);
+
+    // Store multi-role data
+    if (data.user.roles) localStorage.setItem('roles', JSON.stringify(data.user.roles));
+    if (data.user.role) localStorage.setItem('active_role', data.user.role);
+
+    // Set global variables
+    window.currentUser = data.user;
+    window.role = data.user.role;
+    window.loginRole = data.user.role;
+    window.tenant = data.user.tenantCode || 'apoyar';
+    window.isMasterAdmin = data.user.role === 'super_admin';
+    tenant = window.tenant;
+
+    // If context selection is required, show chooser
+    if (data.requires_context) {
+      showContextChooser();
+      return;
+    }
+
+    // Full app entry
+    enterApp();
+  }
+
+  /** Enter the app after login + context selection is complete */
+  async function enterApp() {
+    const currentRole = window.role || localStorage.getItem('role');
+
+    // Update UI
+    const chipRole = document.getElementById('chip-role');
+    if (chipRole) chipRole.textContent = currentRole === 'super_admin' ? 'Master Admin' : currentRole;
+    const tenantChip = document.getElementById('tenant-chip');
+    if (tenantChip) tenantChip.style.display = (currentRole === 'customer' || currentRole === 'super_admin') ? 'block' : 'none';
+    const chipTenant = document.getElementById('chip-tenant');
+    if (chipTenant) chipTenant.textContent = window.tenant || '-';
+
+    // Configure role and show app
+    configureRole();
+    switchView('dash');
+    go('app');
+    if (!localStorage.getItem('walkthrough_done')) setTimeout(startWalkthrough, 800);
+
+    // Update mode switcher
+    updateModeSwitcher();
+
+    // Check demo mode and load personas if applicable
+    checkDemoMode();
+
+    // Load data (skip for master admin)
+    if (currentRole !== 'super_admin') {
+      await fetchTicketsFromAPI();
+      loadRaiseFormOptions();
+    }
+    renderAllDashboards();
+    renderList();
+    startSLAInterval();
+    updateRefreshIntervalUI();
+  }
+
+  /** Show the context chooser modal (role + company picker) */
+  async function showContextChooser() {
+    const modal = document.getElementById('context-chooser-modal');
+    if (!modal) return;
+
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    // Fetch context from API
+    let ctx;
+    try {
+      const resp = await fetch(`${API_BASE}/api/me/context`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      ctx = await resp.json();
+    } catch (err) {
+      console.error('Failed to load context:', err);
+      // Fall through to app entry
+      enterApp();
+      return;
+    }
+
+    if (!ctx.success) {
+      enterApp();
+      return;
+    }
+
+    const rolePicker = document.getElementById('context-role-picker');
+    const companyPicker = document.getElementById('context-company-picker');
+    const companyList = document.getElementById('context-company-list');
+    const subtitle = document.getElementById('context-chooser-subtitle');
+
+    // Build role tiles
+    const roleIcons = { admin: '&#x1F6E0;', expert: '&#x1F527;', customer: '&#x1F464;' };
+    const roleLabels = { admin: 'Admin', expert: 'Expert', customer: 'Customer' };
+    if (rolePicker) {
+      rolePicker.innerHTML = ctx.roles.map(r => `
+        <button onclick="selectContextRole('${r}')" style="flex:1;min-width:100px;padding:16px 12px;border-radius:10px;border:2px solid var(--border);background:var(--card-bg);cursor:pointer;text-align:center;transition:border-color .15s,box-shadow .15s;" onmouseenter="this.style.borderColor='var(--primary)';this.style.boxShadow='0 0 0 3px rgba(67,97,238,.15)'" onmouseleave="this.style.borderColor='var(--border)';this.style.boxShadow='none'">
+          <div style="font-size:24px;margin-bottom:6px;">${roleIcons[r] || '&#x1F465;'}</div>
+          <div style="font-weight:600;font-size:14px;color:var(--ink)">${roleLabels[r] || r}</div>
+        </button>
+      `).join('');
+    }
+
+    // Hide company picker initially
+    if (companyPicker) companyPicker.style.display = 'none';
+    if (subtitle) subtitle.textContent = 'Select a role to continue';
+
+    // Store context for later use
+    window._contextData = ctx;
+
+    // Show modal
+    modal.style.display = 'flex';
+  }
+
+  /** Handle role selection in context chooser */
+  async function selectContextRole(role) {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    try {
+      const resp = await fetch(`${API_BASE}/api/me/select-role`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role })
+      });
+      const data = await resp.json();
+
+      if (!data.success) {
+        alert(data.message || 'Failed to select role');
+        return;
+      }
+
+      // Update stored token + role
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('role', data.active_role);
+      localStorage.setItem('active_role', data.active_role);
+      window.role = data.active_role;
+
+      if (data.active_company_id) {
+        localStorage.setItem('active_company_id', String(data.active_company_id));
+      }
+
+      // If customer needs to pick company, show company picker
+      if (data.requires_context && data.companies && data.companies.length > 0) {
+        const companyPicker = document.getElementById('context-company-picker');
+        const companyList = document.getElementById('context-company-list');
+        const subtitle = document.getElementById('context-chooser-subtitle');
+        if (subtitle) subtitle.textContent = 'Now select your company';
+        if (companyList) {
+          companyList.innerHTML = data.companies.map(c => `
+            <button onclick="selectContextCompany(${c.id})" style="padding:12px 16px;border-radius:8px;border:1px solid var(--border);background:var(--card-bg);cursor:pointer;text-align:left;font-size:14px;font-weight:500;color:var(--ink);transition:border-color .15s;" onmouseenter="this.style.borderColor='var(--primary)'" onmouseleave="this.style.borderColor='var(--border)'">${c.company_name}</button>
+          `).join('');
+        }
+        if (companyPicker) companyPicker.style.display = 'block';
+        // Hide role picker
+        const rolePicker = document.getElementById('context-role-picker');
+        if (rolePicker) rolePicker.style.display = 'none';
+        return;
+      }
+
+      // Done — close modal and enter app
+      closeContextChooser();
+      enterApp();
+
+    } catch (err) {
+      console.error('Error selecting role:', err);
+      alert('Failed to select role. Please try again.');
+    }
+  }
+
+  /** Handle company selection in context chooser */
+  async function selectContextCompany(companyId) {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    try {
+      const resp = await fetch(`${API_BASE}/api/me/select-company`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ company_id: companyId })
+      });
+      const data = await resp.json();
+
+      if (!data.success) {
+        alert(data.message || 'Failed to select company');
+        return;
+      }
+
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('active_company_id', String(data.active_company_id));
+
+      closeContextChooser();
+      enterApp();
+
+    } catch (err) {
+      console.error('Error selecting company:', err);
+      alert('Failed to select company. Please try again.');
+    }
+  }
+
+  /** Close context chooser modal */
+  function closeContextChooser() {
+    const modal = document.getElementById('context-chooser-modal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  /** Update mode switcher button in top nav */
+  function updateModeSwitcher() {
+    const switcher = document.getElementById('mode-switcher');
+    const label = document.getElementById('mode-switcher-label');
+    const storedRoles = localStorage.getItem('roles');
+
+    let roles = [];
+    try { roles = storedRoles ? JSON.parse(storedRoles) : []; } catch(e) {}
+
+    // Only show if user has multiple roles
+    if (roles.length > 1 && switcher && label) {
+      const currentRole = window.role || localStorage.getItem('role') || '';
+      const roleLabels = { admin: 'Admin', expert: 'Expert', customer: 'Customer' };
+      const companyId = localStorage.getItem('active_company_id');
+      let text = roleLabels[currentRole] || currentRole;
+      // If customer with company, show company name if available
+      if (currentRole === 'customer' && window.currentUser && window._contextData) {
+        const company = (window._contextData.companies || []).find(c => c.id == companyId);
+        if (company) text += ' / ' + company.company_name;
+      }
+      label.textContent = text;
+      switcher.style.display = 'flex';
+    } else if (switcher) {
+      switcher.style.display = 'none';
+    }
+  }
+
   function toggleTenantField() {
     const role = document.getElementById('role').value;
     const tenantField = document.getElementById('tenant-field');

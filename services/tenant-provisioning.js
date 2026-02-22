@@ -214,13 +214,14 @@ async function createTenantTables(connection) {
     CREATE TABLE IF NOT EXISTS users (
       id INT AUTO_INCREMENT PRIMARY KEY,
       username VARCHAR(50) UNIQUE NOT NULL,
-      password_hash VARCHAR(255) NOT NULL,
+      password_hash VARCHAR(255) NULL,
       role ENUM('admin', 'expert', 'customer') NOT NULL,
       email VARCHAR(100),
       full_name VARCHAR(100),
       phone VARCHAR(50) DEFAULT NULL,
       department VARCHAR(100) DEFAULT NULL,
       receive_email_updates TINYINT(1) DEFAULT 1,
+      auth_method ENUM('password','magic_link','both') DEFAULT 'password',
       is_active BOOLEAN DEFAULT TRUE,
       last_login TIMESTAMP NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -917,6 +918,33 @@ async function createTenantTables(connection) {
       sort_order INT DEFAULT 0,
       FOREIGN KEY (user_id) REFERENCES users(id),
       FOREIGN KEY (company_id) REFERENCES customer_companies(id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+
+  // Multi-role: user roles table
+  await connection.execute(`
+    CREATE TABLE IF NOT EXISTS tenant_user_roles (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      tenant_user_id INT NOT NULL,
+      role_key ENUM('admin','expert','customer') NOT NULL,
+      granted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      granted_by INT NULL,
+      UNIQUE KEY unique_user_role (tenant_user_id, role_key),
+      FOREIGN KEY (tenant_user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+
+  // Multi-role: user company memberships
+  await connection.execute(`
+    CREATE TABLE IF NOT EXISTS tenant_user_company_memberships (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      tenant_user_id INT NOT NULL,
+      company_id INT NOT NULL,
+      membership_role ENUM('member','admin') DEFAULT 'member',
+      joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY unique_user_company (tenant_user_id, company_id),
+      FOREIGN KEY (tenant_user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (company_id) REFERENCES customer_companies(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
 }

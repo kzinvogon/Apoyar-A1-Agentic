@@ -542,8 +542,14 @@ router.get('/:tenantId', readOperationsLimiter, validateTicketGet, async (req, r
 
       // ========== ROLE-BASED ACCESS CONTROL ==========
       if (req.user.role === 'customer') {
-        whereConditions.push('t.requester_id = ?');
-        params.push(req.user.userId);
+        // Multi-role: use active_company_id if available, else fallback to requester_id
+        if (req.user.active_company_id) {
+          whereConditions.push('t.requester_id IN (SELECT c.user_id FROM customers c WHERE c.customer_company_id = ?)');
+          params.push(req.user.active_company_id);
+        } else {
+          whereConditions.push('t.requester_id = ?');
+          params.push(req.user.userId);
+        }
       } else if (req.user.role === 'expert') {
         const [permissions] = await connection.query(
           `SELECT permission_type, customer_id, title_pattern
@@ -1185,19 +1191,22 @@ router.get('/:tenantId/:ticketId', readOperationsLimiter, validateTicketGet, asy
 
       // Customer permission check - customers can only see their own tickets or company tickets
       if (req.user.role === 'customer') {
-        // Use == for type coercion (userId might be string from JWT, requester_id is number from DB)
         const isOwnTicket = ticket.requester_id == req.user.userId;
 
-        // If not own ticket, check company membership
+        // Multi-role: use active_company_id from JWT if available
         let isSameCompany = false;
         if (!isOwnTicket && ticket.requester_company_id) {
-          // Look up customer's company from database
-          const [customerInfo] = await connection.query(
-            `SELECT c.customer_company_id FROM customers c WHERE c.user_id = ?`,
-            [req.user.userId]
-          );
-          if (customerInfo.length > 0 && customerInfo[0].customer_company_id) {
-            isSameCompany = ticket.requester_company_id == customerInfo[0].customer_company_id;
+          if (req.user.active_company_id) {
+            isSameCompany = ticket.requester_company_id == req.user.active_company_id;
+          } else {
+            // Fallback: look up customer's company from database
+            const [customerInfo] = await connection.query(
+              `SELECT c.customer_company_id FROM customers c WHERE c.user_id = ?`,
+              [req.user.userId]
+            );
+            if (customerInfo.length > 0 && customerInfo[0].customer_company_id) {
+              isSameCompany = ticket.requester_company_id == customerInfo[0].customer_company_id;
+            }
           }
         }
 

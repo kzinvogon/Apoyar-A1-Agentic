@@ -70,7 +70,8 @@ router.post('/tenant/login', loginLimiter, validateTenantLogin, async (req, res)
       success: true,
       message: 'Login successful',
       user: result.user,
-      token: result.token
+      token: result.token,
+      requires_context: result.requires_context || false
     });
   } catch (error) {
     console.error('Error in tenant login:', error);

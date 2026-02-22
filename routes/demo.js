@@ -3,16 +3,14 @@
  *
  * Only mounted when DEMO_FEATURES_ENABLED=true.
  * All endpoints require tenant auth and double-lock check.
+ * Persona switch validates against user's tenant_user_roles + tenant_user_company_memberships (RBAC).
  */
 const express = require('express');
-const jwt = require('jsonwebtoken');
 const router = express.Router();
 const { verifyToken } = require('../middleware/auth');
 const { isDemoRequest, attachDemoFlag } = require('../middleware/demoMode');
 const { getTenantConnection } = require('../config/database');
-
-const JWT_SECRET = process.env.JWT_SECRET;
-const JWT_EXPIRES_IN = '24h';
+const { issueMultiRoleJWT, getUserContext } = require('../services/magic-link-service');
 
 // All demo routes require authentication + demo flag
 router.use(verifyToken);
@@ -52,7 +50,9 @@ router.get('/personas', async (req, res) => {
 
 /**
  * POST /api/demo/switch-persona
- * Switch to a different demo persona (issues a new JWT)
+ * Switch to a different demo persona (issues a new JWT).
+ * Validates persona role/company against user's RBAC assignments.
+ * Audit logs record actor_email + acting_as_persona_key.
  */
 router.post('/switch-persona', async (req, res) => {
   if (!isDemoRequest(req)) {
@@ -68,6 +68,7 @@ router.post('/switch-persona', async (req, res) => {
   const connection = await getTenantConnection(tenantCode);
 
   try {
+    // Fetch persona
     const [rows] = await connection.query(`
       SELECT dp.*, u.username, u.full_name, u.email,
              cc.company_name
@@ -84,20 +85,70 @@ router.post('/switch-persona', async (req, res) => {
 
     const persona = rows[0];
 
-    // Issue a new JWT with persona context
-    const token = jwt.sign(
-      {
-        userId: persona.user_id,
-        username: persona.username,
-        role: persona.role,
-        tenantCode,
-        userType: 'tenant',
-        personaKey: persona.persona_key,
-        activeCompanyId: persona.company_id || null
-      },
-      JWT_SECRET,
-      { expiresIn: JWT_EXPIRES_IN }
-    );
+    // RBAC: validate persona's role exists in user's tenant_user_roles
+    const context = await getUserContext(tenantCode, req.user.userId);
+    if (!context.roles.includes(persona.role)) {
+      return res.status(403).json({
+        success: false,
+        message: `You do not have the '${persona.role}' role required for this persona`
+      });
+    }
+
+    // RBAC: validate persona's company membership (if persona has a company)
+    if (persona.company_id) {
+      const hasCompany = context.companies.some(c => c.id === persona.company_id);
+      if (!hasCompany) {
+        return res.status(403).json({
+          success: false,
+          message: 'You are not a member of this persona\'s company'
+        });
+      }
+    }
+
+    // Load persona user's roles for the JWT
+    const personaContext = await getUserContext(tenantCode, persona.user_id);
+
+    // Issue a new JWT with multi-role payload + persona info
+    const token = issueMultiRoleJWT({
+      userId: persona.user_id,
+      username: persona.username,
+      role: persona.role,
+      tenantCode,
+      userType: 'tenant',
+      roles: personaContext.roles,
+      active_role: persona.role,
+      active_company_id: persona.company_id || null,
+      requires_context: false,
+      personaKey: persona.persona_key
+    });
+
+    // Audit log: record both identities
+    try {
+      // Get actual user's email for audit
+      const [actorRows] = await connection.query(
+        'SELECT email FROM users WHERE id = ?',
+        [req.user.userId]
+      );
+      const actorEmail = actorRows[0]?.email || req.user.username;
+
+      await connection.query(
+        `INSERT INTO tenant_audit_log (user_id, action, details, ip_address)
+         VALUES (?, 'demo_persona_switch', ?, ?)`,
+        [
+          req.user.userId,
+          JSON.stringify({
+            actor_email: actorEmail,
+            acting_as_persona_key: persona.persona_key,
+            persona_user_id: persona.user_id,
+            persona_role: persona.role,
+            persona_company_id: persona.company_id
+          }),
+          req.ip || null
+        ]
+      );
+    } catch (auditErr) {
+      console.error('Audit log error (non-fatal):', auditErr.message);
+    }
 
     res.json({
       success: true,
