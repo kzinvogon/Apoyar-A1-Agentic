@@ -288,6 +288,34 @@ function requireCustomerCompany(req, res, next) {
   next();
 }
 
+// Require elevated admin token (for System Admin Tools)
+function requireElevatedAdmin(req, res, next) {
+  if (!req.user || req.user.role !== 'admin' || !req.user.is_elevated_admin) {
+    return res.status(403).json({ success: false, message: 'System Admin elevation required' });
+  }
+  next();
+}
+
+// Generate elevated admin token (30-min expiry, same claims + is_elevated_admin)
+function generateElevatedToken(user) {
+  return jwt.sign(
+    {
+      userId: user.userId,
+      username: user.username,
+      role: user.role,
+      tenantCode: user.tenantCode,
+      userType: user.userType,
+      roles: user.roles,
+      active_role: user.active_role,
+      active_company_id: user.active_company_id,
+      requires_context: user.requires_context,
+      is_elevated_admin: true
+    },
+    JWT_SECRET,
+    { expiresIn: '30m' }
+  );
+}
+
 // Hash password utility
 async function hashPassword(password) {
   const saltRounds = 10;
@@ -308,6 +336,8 @@ module.exports = {
   requireRole,
   requireActiveRole,
   requireCustomerCompany,
+  requireElevatedAdmin,
+  generateElevatedToken,
   hashPassword,
   comparePassword,
   JWT_SECRET,

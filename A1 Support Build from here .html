@@ -159,8 +159,8 @@ vNext-FULL-ActionsSLA:
   .fullscreen-toggle-btn{padding:8px 14px;border-radius:6px;border:2px solid var(--primary);background:var(--card);cursor:pointer;font-size:13px;font-weight:600;color:var(--primary);transition:all .15s;display:inline-flex;align-items:center;gap:6px}
   .fullscreen-toggle-btn:hover{background:var(--primary);color:var(--bg)}
   .fullscreen-toggle-btn:hover svg{stroke:var(--bg)}
-  .leftnav .subtitle{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:0 0 8px 12px;font-weight:500}
-  .navlink{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;margin-bottom:2px;cursor:pointer;font-size:14px;font-weight:400;color:var(--muted);transition:all .15s ease}
+  .leftnav .subtitle{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:0 0 2px 10px;font-weight:500}
+  .navlink{display:flex;align-items:center;gap:6px;padding:2px 10px;border-radius:6px;margin-bottom:0;cursor:pointer;font-size:13px;font-weight:400;color:var(--muted);transition:all .15s ease}
   .navlink svg{flex-shrink:0;opacity:.7;transition:opacity .15s}
   .navlink:hover svg{opacity:1}
   .navlink.active svg{opacity:1;stroke:var(--bg)}
@@ -172,25 +172,18 @@ vNext-FULL-ActionsSLA:
   .navlink:focus,.navlink:active:not(.active){background:transparent;color:var(--muted);outline:none;-webkit-tap-highlight-color:transparent}
   .navlink:hover:active:not(.active){background:var(--card-hover);color:var(--ink)}
   /* Collapsible Nav Group */
-  .nav-group{margin-bottom:2px}
+  .nav-group{margin-bottom:0}
   .nav-group .navlink{display:flex;justify-content:space-between;align-items:center}
   .nav-group .chev{font-size:10px;transition:transform .15s}
-  .nav-group.open .chev{transform:rotate(90deg)}
-  .nav-subitems{display:none;padding-left:12px}
-  .nav-group.open .nav-subitems{display:block}
-  .nav-subitem{display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:6px;margin-bottom:2px;cursor:pointer;font-size:13px;color:var(--muted);transition:all .15s ease}
+  .nav-group.open > .navlink > .chev,
+  .nav-group.open > .subtitle > .chev{transform:rotate(90deg)}
+  .nav-subitems{display:none;padding-left:10px}
+  .nav-group.open > .nav-subitems{display:block}
+  .nav-subitem{display:flex;align-items:center;gap:6px;padding:2px 10px;border-radius:6px;margin-bottom:0;cursor:pointer;font-size:12px;color:var(--muted);transition:all .15s ease}
   .nav-subitem:hover{background:var(--card-hover);color:var(--ink)}
   .nav-subitem.active{background:var(--primary);color:var(--bg)}
   .nav-subitem:focus,.nav-subitem:active:not(.active){background:transparent;color:var(--muted);outline:none;-webkit-tap-highlight-color:transparent}
   .nav-subitem:hover:active:not(.active){background:var(--card-hover);color:var(--ink)}
-  /* Admin Mode Toggle */
-  .admin-mode-toggle{display:flex;align-items:center;gap:8px;padding:8px 12px;margin-bottom:8px;border-radius:8px;background:var(--card);border:1px solid var(--border);font-size:12px;color:var(--muted)}
-  .admin-mode-toggle .switch{position:relative;width:32px;height:18px;flex-shrink:0}
-  .admin-mode-toggle .switch input{opacity:0;width:0;height:0}
-  .admin-mode-toggle .slider{position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:18px;transition:.2s}
-  .admin-mode-toggle .slider:before{content:"";position:absolute;height:14px;width:14px;left:2px;bottom:2px;background:#fff;border-radius:50%;transition:.2s}
-  .admin-mode-toggle .switch input:checked+.slider{background:var(--primary)}
-  .admin-mode-toggle .switch input:checked+.slider:before{transform:translateX(14px)}
   /* Admin-only sections in ticket detail */
   .admin-section{position:relative;background:var(--card-hover);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:12px}
   .admin-section::before{content:'Admin';position:absolute;top:-8px;left:12px;background:var(--card);padding:0 6px;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:500}
@@ -565,7 +558,8 @@ vNext-FULL-ActionsSLA:
     .sla{font-size:11px;padding:4px 8px}
 
     /* Navigation links */
-    .navlink{padding:12px;font-size:15px;min-height:44px}
+    .navlink{padding:3px 10px;font-size:13px;min-height:auto}
+    .nav-subitem{padding:2px 10px;font-size:12px}
 
     /* Filter panel - collapsible */
     #ticket-filters-card .row.wrap{display:none !important}
@@ -1303,32 +1297,56 @@ vNext-FULL-ActionsSLA:
         <ion-icon name="chevron-forward-outline" slot="end" id="ionic-admin-settings-chev" style="font-size:14px;transition:transform .15s"></ion-icon>
       </ion-item>
       <div id="ionic-admin-settings-subitems" style="display:none;padding-left:32px;background:var(--card-hover)">
-        <ion-item button onclick="openAdminSettings('admin-section-profile'); closeIonicMenu();">
-          <ion-label style="font-size:14px">Company Profile</ion-label>
-        </ion-item>
-        <ion-item button onclick="openAdminSettings('admin-section-email-ingest'); closeIonicMenu();">
-          <ion-label style="font-size:14px">Email Ingest</ion-label>
-        </ion-item>
-        <ion-item button onclick="openAdminSettings('admin-section-expert-reg'); closeIonicMenu();">
-          <ion-label style="font-size:14px">Expert Registration</ion-label>
-        </ion-item>
         <ion-item button onclick="openAdminSettings('admin-section-support'); closeIonicMenu();">
           <ion-label style="font-size:14px">Support Settings</ion-label>
-        </ion-item>
-        <ion-item button onclick="openAdminSettings('admin-section-integrations'); closeIonicMenu();">
-          <ion-label style="font-size:14px">Integrations</ion-label>
         </ion-item>
         <ion-item button onclick="openAdminSettings('admin-section-sla'); closeIonicMenu();">
           <ion-label style="font-size:14px">SLA Management</ion-label>
         </ion-item>
+        <ion-item button onclick="openAdminSettings('admin-section-profile'); closeIonicMenu();">
+          <ion-label style="font-size:14px">Company Profile</ion-label>
+        </ion-item>
         <ion-item button onclick="openAdminSettings('admin-section-cmdb-fields'); closeIonicMenu();">
           <ion-label style="font-size:14px">CMDB Custom Fields</ion-label>
         </ion-item>
+        <ion-item button onclick="openAdminSettings('admin-section-expert-reg'); closeIonicMenu();">
+          <ion-label style="font-size:14px">Expert Registration</ion-label>
+        </ion-item>
         <ion-item button onclick="openAdminSettings('admin-section-chat'); closeIonicMenu();">
-          <ion-label>💬 Chat Settings</ion-label>
+          <ion-label style="font-size:14px">Chat Settings</ion-label>
+        </ion-item>
+        <ion-item button onclick="openAdminSettings('admin-section-reports'); closeIonicMenu();">
+          <ion-label style="font-size:14px">Monthly Reports</ion-label>
         </ion-item>
         <ion-item button onclick="openAdminSettings('admin-section-billing'); closeIonicMenu();">
           <ion-label style="font-size:14px">Billing & Subscription</ion-label>
+        </ion-item>
+      </div>
+      <div id="ionic-system-admin-tools" style="display:none">
+        <ion-item-divider><ion-label>System Admin Tools</ion-label></ion-item-divider>
+        <ion-item button onclick="openAdminSettings('admin-section-email-ingest'); closeIonicMenu();">
+          <ion-icon name="mail-outline" slot="start"></ion-icon>
+          <ion-label style="font-size:14px">Email Ingest</ion-label>
+        </ion-item>
+        <ion-item button onclick="openAdminSettings('admin-section-integrations'); closeIonicMenu();">
+          <ion-icon name="link-outline" slot="start"></ion-icon>
+          <ion-label style="font-size:14px">Integrations</ion-label>
+        </ion-item>
+        <ion-item button onclick="ionicNav('audit-log'); closeIonicMenu();">
+          <ion-icon name="list-outline" slot="start"></ion-icon>
+          <ion-label style="font-size:14px">Audit Log</ion-label>
+        </ion-item>
+        <ion-item button onclick="ionicNav('system-control'); closeIonicMenu();">
+          <ion-icon name="construct-outline" slot="start"></ion-icon>
+          <ion-label style="font-size:14px">System Control</ion-label>
+        </ion-item>
+        <ion-item button onclick="openAdminSettings('admin-section-housekeeping'); closeIonicMenu();">
+          <ion-icon name="trash-outline" slot="start"></ion-icon>
+          <ion-label style="font-size:14px">Housekeeping</ion-label>
+        </ion-item>
+        <ion-item button onclick="ionicNav('raw-variables'); closeIonicMenu();">
+          <ion-icon name="code-outline" slot="start"></ion-icon>
+          <ion-label style="font-size:14px">Raw Variables</ion-label>
         </ion-item>
       </div>
       <ion-item button onclick="ionicNav('raise'); closeIonicMenu();">
@@ -1447,6 +1465,9 @@ vNext-FULL-ActionsSLA:
         <span>👁️</span>
         <span id="topnav-impersonation-name">—</span>
         <button onclick="clearImpersonation()" style="background:none;border:none;cursor:pointer;color:#92400e;font-weight:bold;padding:0 2px;font-size:14px;line-height:1;" title="Exit impersonation">×</button>
+      </div>
+      <div id="elevation-badge" style="display:none;padding:4px 12px;border-radius:999px;background:#dcfce7;color:#166534;font-size:11px;font-weight:500;border:1px solid #22c55e;align-items:center;gap:4px;white-space:nowrap;margin-right:8px;cursor:default;" title="Elevated System Admin session active (30 min)">
+        <span>System Admin</span>
       </div>
       <div id="mode-switcher" style="display:none;margin-right:8px;">
         <button onclick="showContextChooser()" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--card-bg);color:var(--ink);font-size:12px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:4px;">
@@ -1658,53 +1679,69 @@ vNext-FULL-ActionsSLA:
         </div>
         
         <div id="nav-admin">
-          <div class="subtitle">Admin Navigation</div>
-          <div class="navlink" data-target="dash" onclick="nav(this)">🏠 Dashboard</div>
-          <div class="admin-mode-toggle">
-            <label class="switch"><input type="checkbox" id="adminModeToggle" onchange="setAdminMode(this.checked)"><span class="slider"></span></label>
-            <span>Admin Mode</span>
-          </div>
-          <div id="adminMenuInsertPoint"></div>
-          <div class="navlink" data-target="tickets" onclick="nav(this)">🎫 Tickets</div>
-          <div class="navlink" data-target="knowledge-base" onclick="nav(this)">📚 Knowledge Base</div>
-          <div class="navlink" data-target="experts" onclick="nav(this)">👩‍🔧 Manage Experts</div>
-          <div class="navlink" data-target="customers" onclick="nav(this)">🧑‍💼 Manage Customers</div>
-          <div class="nav-group" id="nav-cmdb-group">
-            <div class="navlink" onclick="toggleNavGroup('nav-cmdb-group')">🗃️ CMDB <span class="chev">▸</span></div>
+          <div class="nav-group" id="nav-section-operations">
+            <div class="subtitle" style="margin-top:4px;cursor:pointer" onclick="toggleNavGroup('nav-section-operations')">Operations <span class="chev">▸</span></div>
             <div class="nav-subitems">
-              <div class="nav-subitem" data-section="cmdb-section-items" onclick="openCmdb('cmdb-section-items')">CMDB Items</div>
-              <div class="nav-subitem" data-section="cmdb-section-types" onclick="openCmdb('cmdb-section-types')">CMDB Types</div>
-              <div class="nav-subitem" data-section="cmdb-section-management" onclick="openCmdb('cmdb-section-management')">CMDB Management</div>
-              <div class="nav-subitem" data-section="cmdb-section-assetviewer" onclick="openCmdb('cmdb-section-assetviewer')">👁️ Asset Viewer</div>
+              <div class="navlink" data-target="dash" onclick="nav(this)">🏠 Dashboard</div>
+              <div class="navlink" data-target="tickets" onclick="nav(this)">🎫 Tickets</div>
+              <div class="nav-group" id="nav-cmdb-group">
+                <div class="navlink" onclick="toggleNavGroup('nav-cmdb-group')">🗃️ CMDB <span class="chev">▸</span></div>
+                <div class="nav-subitems">
+                  <div class="nav-subitem" data-section="cmdb-section-items" onclick="openCmdb('cmdb-section-items')">CMDB Items</div>
+                  <div class="nav-subitem" data-section="cmdb-section-types" onclick="openCmdb('cmdb-section-types')">CMDB Types</div>
+                  <div class="nav-subitem" data-section="cmdb-section-management" onclick="openCmdb('cmdb-section-management')">CMDB Management</div>
+                  <div class="nav-subitem" data-section="cmdb-section-assetviewer" onclick="openCmdb('cmdb-section-assetviewer')">Asset Viewer</div>
+                </div>
+              </div>
+              <div class="navlink" data-target="knowledge-base" onclick="nav(this)">📚 Knowledge Base</div>
+              <div class="navlink" data-target="experts" onclick="nav(this)">👩‍🔧 Manage Experts</div>
+              <div class="navlink" data-target="customers" onclick="nav(this)">🧑‍💼 Manage Customers</div>
+              <div class="navlink" data-target="raise" onclick="nav(this)">📝 Raise Request</div>
+              <div class="navlink" data-target="notifications" onclick="nav(this)">🔔 Notifications <span id="notif-badge-admin" style="display:none;background:#ef4444;color:white;padding:1px 6px;border-radius:10px;font-size:11px;margin-left:4px"></span></div>
             </div>
           </div>
-          <div class="navlink" data-target="analytics" onclick="nav(this)">📈 Analytics</div>
-          <div class="navlink" data-target="ai-insights" onclick="nav(this)">🤖 AI Insights</div>
-          <div class="navlink" data-target="usage" onclick="nav(this)">📊 Usage & Limits</div>
-          <div class="navlink" data-target="raise" onclick="nav(this)">📝 Raise Request</div>
-          <div class="navlink" data-target="notifications" onclick="nav(this)">🔔 Notifications <span id="notif-badge-admin" style="display:none;background:#ef4444;color:white;padding:1px 6px;border-radius:10px;font-size:11px;margin-left:4px"></span></div>
-          <div id="adminMenuOriginalPoint"></div>
-          <div id="adminMenuGroup" style="display:none">
-            <div class="navlink" data-target="ticket-rules" onclick="nav(this)">⚙️ Automated Actions</div>
-            <div class="nav-group" id="nav-admin-settings-group">
-              <div class="navlink" onclick="toggleNavGroup('nav-admin-settings-group')">🪄 Admin Settings <span class="chev">▸</span></div>
-              <div class="nav-subitems">
-                <div class="nav-subitem" data-section="admin-section-profile" onclick="openAdminSettings('admin-section-profile')">🏢 Company Profile</div>
-                <div class="nav-subitem" data-section="admin-section-email-ingest" onclick="openAdminSettings('admin-section-email-ingest')">📧 Email Ingest</div>
-                <div class="nav-subitem" data-section="admin-section-expert-reg" onclick="openAdminSettings('admin-section-expert-reg')">👤 Expert Registration</div>
-                <div class="nav-subitem" data-section="admin-section-support" onclick="openAdminSettings('admin-section-support')">🎫 Support Settings</div>
-                <div class="nav-subitem" data-section="admin-section-integrations" onclick="openAdminSettings('admin-section-integrations')">🔗 Integrations</div>
-                <div class="nav-subitem" data-section="admin-section-sla" onclick="openAdminSettings('admin-section-sla')">⏱️ SLA Management</div>
-                <div class="nav-subitem" data-section="admin-section-cmdb-fields" onclick="openAdminSettings('admin-section-cmdb-fields')">🗃️ CMDB Custom Fields</div>
-                <div class="nav-subitem" data-section="admin-section-billing" onclick="openAdminSettings('admin-section-billing')">💳 Billing & Subscription</div>
-                <div class="nav-subitem" data-section="admin-section-housekeeping" onclick="openAdminSettings('admin-section-housekeeping')">🧹 Housekeeping</div>
-                <div class="nav-subitem" data-section="admin-section-chat" onclick="openAdminSettings('admin-section-chat')">💬 Chat Settings</div>
-                <div class="nav-subitem" data-section="admin-section-reports" onclick="openAdminSettings('admin-section-reports')">📊 Monthly Reports</div>
+
+          <div class="nav-group" id="nav-section-insights">
+            <div class="subtitle" style="margin-top:4px;cursor:pointer" onclick="toggleNavGroup('nav-section-insights')">Insights <span class="chev">▸</span></div>
+            <div class="nav-subitems">
+              <div class="navlink" data-target="ai-insights" onclick="nav(this)">🤖 AI Insights</div>
+              <div class="navlink" data-target="analytics" onclick="nav(this)">📈 Analytics</div>
+              <div class="navlink" data-target="usage" onclick="nav(this)">📊 Usage & Limits</div>
+            </div>
+          </div>
+
+          <div class="nav-group" id="nav-section-config">
+            <div class="subtitle" style="margin-top:4px;cursor:pointer" onclick="toggleNavGroup('nav-section-config')">Config <span class="chev">▸</span></div>
+            <div class="nav-subitems">
+              <div class="navlink" data-target="ticket-rules" onclick="nav(this)">⚙️ Automated Actions</div>
+              <div class="nav-group" id="nav-admin-settings-group">
+                <div class="navlink" onclick="toggleNavGroup('nav-admin-settings-group')">🪄 Admin Settings <span class="chev">▸</span></div>
+                <div class="nav-subitems">
+                  <div class="nav-subitem" data-section="admin-section-support" onclick="openAdminSettings('admin-section-support')">🎫 Support Settings</div>
+                  <div class="nav-subitem" data-section="admin-section-sla" onclick="openAdminSettings('admin-section-sla')">⏱️ SLA Management</div>
+                  <div class="nav-subitem" data-section="admin-section-profile" onclick="openAdminSettings('admin-section-profile')">🏢 Company Profile</div>
+                  <div class="nav-subitem" data-section="admin-section-cmdb-fields" onclick="openAdminSettings('admin-section-cmdb-fields')">🗃️ CMDB Custom Fields</div>
+                  <div class="nav-subitem" data-section="admin-section-expert-reg" onclick="openAdminSettings('admin-section-expert-reg')">👤 Expert Registration</div>
+                  <div class="nav-subitem" data-section="admin-section-chat" onclick="openAdminSettings('admin-section-chat')">💬 Chat Settings</div>
+                  <div class="nav-subitem" data-section="admin-section-reports" onclick="openAdminSettings('admin-section-reports')">📊 Monthly Reports</div>
+                  <div class="nav-subitem" data-section="admin-section-billing" onclick="openAdminSettings('admin-section-billing')">💳 Billing & Subscription</div>
+                </div>
               </div>
             </div>
-            <div class="navlink" data-target="system-control" onclick="nav(this)">🔧 System Control</div>
-            <div class="navlink" data-target="audit-log" onclick="nav(this)">📋 Audit Log</div>
-            <div class="navlink" data-target="raw-variables" onclick="openRawVariablesSecure(this)">⚙️ Raw Variables</div>
+          </div>
+
+          <div id="nav-system-admin-tools" style="display:none">
+            <div class="nav-group" id="nav-system-tools-group">
+              <div class="subtitle" style="margin-top:4px;cursor:pointer" onclick="openSystemAdminTools()">System Admin Tools <span class="chev">▸</span></div>
+              <div class="nav-subitems">
+                <div class="nav-subitem" data-section="admin-section-email-ingest" onclick="openAdminSettings('admin-section-email-ingest')">📧 Email Ingest</div>
+                <div class="nav-subitem" data-section="admin-section-integrations" onclick="openAdminSettings('admin-section-integrations')">🔗 Integrations</div>
+                <div class="nav-subitem" data-target="audit-log" onclick="nav(this)">📋 Audit Log</div>
+                <div class="nav-subitem" data-target="system-control" onclick="nav(this)">🔧 System Control</div>
+                <div class="nav-subitem" data-section="admin-section-housekeeping" onclick="openAdminSettings('admin-section-housekeeping')">🧹 Housekeeping</div>
+                <div class="nav-subitem" data-target="raw-variables" onclick="nav(this)">⚙️ Raw Variables</div>
+              </div>
+            </div>
           </div>
         </div>
         <div id="nav-expert" style="display:none">
@@ -4416,14 +4453,14 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           </div>
         </div>
 
-        <!-- Reauth Modal for Raw Variables -->
+        <!-- Elevation / Reauth Modal (System Admin Tools) -->
         <div id="reauth-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:1000;overflow-y:auto;align-items:flex-start;justify-content:center;padding:40px 16px">
           <div style="max-width:400px;width:100%;background:var(--card);border-radius:12px;padding:24px;box-shadow:0 20px 40px rgba(0,0,0,0.2)">
             <div class="row space mb-16">
-              <h3 style="margin:0">🔐 Confirm Identity</h3>
-              <button class="btn ghost small" onclick="closeReauthModal()">✕</button>
+              <h3 style="margin:0">System Admin Authentication</h3>
+              <button class="btn ghost small" onclick="closeReauthModal()">&#x2715;</button>
             </div>
-            <p class="subtitle mb-16">Raw Variables contains sensitive configuration. Please re-enter your password to continue.</p>
+            <p class="subtitle mb-16">System Admin Tools contain sensitive configuration. Please re-enter your password to continue.</p>
             <div class="mb-16">
               <label class="subtitle">Password</label>
               <input type="password" id="reauth-password" class="input" placeholder="Enter your password" onkeydown="if(event.key==='Enter')submitReauth()">
@@ -7881,19 +7918,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     localStorage.removeItem('active_role');
     localStorage.removeItem('active_company_id');
 
-    // Clear admin mode and step-up reauth
-    localStorage.setItem('serviflow.adminMode', '0');
+    // Clear elevation token and reauth state
+    localStorage.removeItem('token_base');
     sessionStorage.removeItem('serviflow.reauthUntil');
-
-    // Reset admin mode UI
-    const grp = document.getElementById('adminMenuGroup');
-    const orig = document.getElementById('adminMenuOriginalPoint');
-    if (grp && orig) {
-      grp.style.display = 'none';
-      orig.parentNode.insertBefore(grp, orig.nextSibling);
-    }
-    const cb = document.getElementById('adminModeToggle');
-    if (cb) cb.checked = false;
 
     // Clear global variables
     window.currentUser = null;
@@ -8801,11 +8828,17 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       updateIonicMenu(); // eslint-disable-line no-undef -- function defined later, guarded by typeof
     }
 
+    // Show System Admin Tools section for all admins (requires elevation to open)
+    const sysAdminTools = document.getElementById('nav-system-admin-tools');
+    if (sysAdminTools) sysAdminTools.style.display = isAdmin ? 'block' : 'none';
+    const ionicSysAdmin = document.getElementById('ionic-system-admin-tools');
+    if (ionicSysAdmin) ionicSysAdmin.style.display = isAdmin ? 'block' : 'none';
+
+    // Update elevation badge visibility
+    if (typeof updateElevationBadge === 'function') updateElevationBadge();
+
     // Initialize collapsible nav groups
     initNavGroups();
-
-    // Initialize Admin Mode
-    initAdminMode();
 
     // Load notification badge for admin/expert roles
     if (currentRole === 'admin' || currentRole === 'expert') {
@@ -12474,6 +12507,16 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   }
 
   function initNavGroups() {
+    // Section groups (Operations defaults open, others respect localStorage)
+    const sectionGroups = ['nav-section-operations', 'nav-section-insights', 'nav-section-config'];
+    sectionGroups.forEach(id => {
+      let saved = null;
+      try { saved = localStorage.getItem(`serviflow.nav.${id}.open`); } catch(e) {}
+      const defaultOpen = (id === 'nav-section-operations') ? '1' : '0';
+      const isOpen = (saved !== null) ? saved === '1' : defaultOpen === '1';
+      const el = document.getElementById(id);
+      if (el) el.classList.toggle('open', isOpen);
+    });
     // CMDB groups
     let cmdbOpen = '0';
     try { cmdbOpen = localStorage.getItem('serviflow.nav.nav-cmdb-group.open') || '0'; } catch(e) {}
@@ -12486,78 +12529,67 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     try { adminOpen = localStorage.getItem('serviflow.nav.nav-admin-settings-group.open') || '0'; } catch(e) {}
     const adminGroup = document.getElementById('nav-admin-settings-group');
     if (adminGroup) adminGroup.classList.toggle('open', adminOpen === '1');
+    // System Admin Tools group (only opened via elevation, never auto-open)
+    const sysGroup = document.getElementById('nav-system-tools-group');
+    if (sysGroup) sysGroup.classList.remove('open');
   }
 
-  // Admin Mode Functions
-  function applyAdminMode(on) {
-    const grp = document.getElementById('adminMenuGroup');
-    const ins = document.getElementById('adminMenuInsertPoint');
-    const orig = document.getElementById('adminMenuOriginalPoint');
-    if (!grp || !ins || !orig) return;
-
-    if (on) {
-      grp.style.display = '';
-      ins.parentNode.insertBefore(grp, ins.nextSibling);
-    } else {
-      grp.style.display = 'none';
-      orig.parentNode.insertBefore(grp, orig.nextSibling);
-    }
-  }
-
-  function setAdminMode(on) {
-    applyAdminMode(on);
-    try { localStorage.setItem('serviflow.adminMode', on ? '1' : '0'); } catch(e) {}
-  }
-
-  function initAdminMode() {
-    let on = '0';
-    try { on = localStorage.getItem('serviflow.adminMode') || '0'; } catch(e) {}
-    const enabled = on === '1';
-    const cb = document.getElementById('adminModeToggle');
-    if (cb) cb.checked = enabled;
-    applyAdminMode(enabled);
-  }
-
-  // Reauth functions for Raw Variables security
+  // --- System Admin Elevation ---
   let pendingReauthCallback = null;
 
-  function hasReauth() {
+  function isElevated() {
+    const token = localStorage.getItem('token');
+    if (!token) return false;
     try {
-      const until = sessionStorage.getItem('serviflow.reauthUntil');
-      if (!until) return false;
-      return Date.now() < parseInt(until, 10);
-    } catch(e) { return false; }
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.is_elevated_admin === true && payload.exp * 1000 > Date.now();
+    } catch { return false; }
+  }
+
+  function updateElevationBadge() {
+    const badge = document.getElementById('elevation-badge');
+    if (badge) badge.style.display = isElevated() ? 'flex' : 'none';
+  }
+
+  // Check elevation badge periodically (every 30s)
+  setInterval(updateElevationBadge, 30000);
+
+  function openSystemAdminTools() {
+    if (isElevated()) {
+      toggleNavGroup('nav-system-tools-group');
+    } else {
+      pendingReauthCallback = () => {
+        const grp = document.getElementById('nav-system-tools-group');
+        if (grp && !grp.classList.contains('open')) grp.classList.add('open');
+      };
+      showElevationModal();
+    }
   }
 
   function ensureReauthThen(cb) {
-    if (hasReauth()) {
+    if (isElevated()) {
       cb();
     } else {
       pendingReauthCallback = cb;
-      showReauthModal();
+      showElevationModal();
     }
   }
 
-  function openRawVariablesSecure(el) {
-    if (hasReauth()) {
-      nav(el);
-    } else {
-      pendingReauthCallback = () => nav(el);
-      showReauthModal();
-    }
-  }
-
-  function showReauthModal() {
+  function showElevationModal() {
     const modal = document.getElementById('reauth-modal');
-    modal.style.display = 'flex';
-    modal.scrollTop = 0;
-    document.getElementById('reauth-password').value = '';
-    document.getElementById('reauth-error').style.display = 'none';
-    document.getElementById('reauth-password').focus();
+    if (modal) {
+      modal.style.display = 'flex';
+      modal.scrollTop = 0;
+    }
+    const pwd = document.getElementById('reauth-password');
+    if (pwd) { pwd.value = ''; pwd.focus(); }
+    const err = document.getElementById('reauth-error');
+    if (err) err.style.display = 'none';
   }
 
   function closeReauthModal() {
-    document.getElementById('reauth-modal').style.display = 'none';
+    const modal = document.getElementById('reauth-modal');
+    if (modal) modal.style.display = 'none';
     pendingReauthCallback = null;
   }
 
@@ -12571,7 +12603,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     }
     try {
       const tenantCode = window.tenant || 'apoyar';
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('token_base') || localStorage.getItem('token');
       const res = await fetch(`/api/auth/${tenantCode}/reauth`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
@@ -12580,8 +12612,15 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       const data = await res.json();
       if (data.success) {
         sessionStorage.setItem('serviflow.reauthUntil', data.reauth_until);
+        if (data.elevated_token) {
+          const currentToken = localStorage.getItem('token');
+          if (!localStorage.getItem('token_base')) {
+            localStorage.setItem('token_base', currentToken);
+          }
+          localStorage.setItem('token', data.elevated_token);
+        }
+        updateElevationBadge();
         closeReauthModal();
-        // Run pending callback if any
         const cb = pendingReauthCallback;
         pendingReauthCallback = null;
         if (cb) cb();

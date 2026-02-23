@@ -216,6 +216,7 @@ async function createTenantTables(connection) {
       username VARCHAR(50) UNIQUE NOT NULL,
       password_hash VARCHAR(255) NULL,
       role ENUM('admin', 'expert', 'customer') NOT NULL,
+      admin_level ENUM('tenant_admin','system_admin') DEFAULT 'tenant_admin',
       email VARCHAR(100),
       full_name VARCHAR(100),
       phone VARCHAR(50) DEFAULT NULL,
@@ -969,10 +970,10 @@ async function createTenantAdmin(tenantCode, email, password, fullName) {
   try {
     const passwordHash = await bcrypt.hash(password, 10);
 
-    // Create admin user
+    // Create admin user (system_admin by default for provisioned tenants)
     const [result] = await tenantConnection.execute(`
-      INSERT INTO users (username, password_hash, role, email, full_name)
-      VALUES (?, ?, 'admin', ?, ?)
+      INSERT INTO users (username, password_hash, role, admin_level, email, full_name)
+      VALUES (?, ?, 'admin', 'system_admin', ?, ?)
     `, ['admin', passwordHash, email, fullName || 'Administrator']);
 
     console.log(`[Provision] Created admin user in ${databaseName}`);

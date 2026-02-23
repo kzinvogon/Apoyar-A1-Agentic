@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { authenticateMasterUser, authenticateTenantUser, hashPassword, comparePassword, verifyToken, JWT_SECRET } = require('../middleware/auth');
+const { authenticateMasterUser, authenticateTenantUser, hashPassword, comparePassword, verifyToken, generateElevatedToken, JWT_SECRET } = require('../middleware/auth');
 const { getMasterConnection, getTenantConnection } = require('../config/database');
 const {
   validateLogin,
@@ -1256,7 +1256,14 @@ router.post('/:tenantCode/reauth', verifyToken, async (req, res) => {
 
     // Return success with 10-minute window
     const reauthUntil = Date.now() + (10 * 60 * 1000);
-    res.json({ success: true, reauth_until: reauthUntil });
+
+    // If admin, generate an elevated token (30-min JWT with is_elevated_admin)
+    let elevated_token = undefined;
+    if (user.role === 'admin') {
+      elevated_token = generateElevatedToken(req.user);
+    }
+
+    res.json({ success: true, reauth_until: reauthUntil, elevated_token });
 
   } catch (error) {
     console.error('[Reauth] Error:', error.message);

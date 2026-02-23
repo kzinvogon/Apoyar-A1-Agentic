@@ -1,12 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const { getTenantConnection } = require('../config/database');
-const { verifyToken, requireRole } = require('../middleware/auth');
+const { verifyToken, requireElevatedAdmin } = require('../middleware/auth');
 const { logAudit, AUDIT_ACTIONS } = require('../utils/auditLog');
 
-// Apply authentication to all routes
+// Apply authentication to all routes — system admin only
 router.use(verifyToken);
-router.use(requireRole(['admin']));
+router.use(requireElevatedAdmin);
 
 // Get all variables for a tenant (aggregated from multiple sources)
 router.get('/:tenantId', async (req, res) => {

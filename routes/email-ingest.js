@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { getTenantConnection } = require('../config/database');
-const { verifyToken, requireRole } = require('../middleware/auth');
+const { verifyToken, requireRole, requireElevatedAdmin } = require('../middleware/auth');
 const { body } = require('express-validator');
 const { handleValidationErrors } = require('../middleware/validation');
 const {
@@ -52,8 +52,8 @@ const validateEmailIngestSettings = [
   handleValidationErrors
 ];
 
-// Get email ingest settings
-router.get('/:tenantId/settings', readOperationsLimiter, async (req, res) => {
+// Get email ingest settings (system admin only)
+router.get('/:tenantId/settings', requireElevatedAdmin, readOperationsLimiter, async (req, res) => {
   try {
     const { tenantId } = req.params;
     const tenantCode = tenantId.toLowerCase().replace(/[^a-z0-9]/g, '_');
@@ -97,8 +97,8 @@ function sanitizeSettings(settings) {
   return safe;
 }
 
-// Update email ingest settings
-router.put('/:tenantId/settings', requireRole(['admin']), writeOperationsLimiter, validateEmailIngestSettings, async (req, res) => {
+// Update email ingest settings (system admin only)
+router.put('/:tenantId/settings', requireElevatedAdmin, writeOperationsLimiter, validateEmailIngestSettings, async (req, res) => {
   try {
     const { tenantId } = req.params;
     const {
