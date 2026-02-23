@@ -277,8 +277,8 @@ async function sendTicketNotificationEmail(ticketData, action, details = {}) {
 
     // Build ticket URL - use token if available, otherwise use ticket ID
     const ticketUrl = token
-      ? `${process.env.BASE_URL || 'https://serviflow.app'}/ticket/view/${token}`
-      : `${process.env.BASE_URL || 'https://serviflow.app'}/ticket/${ticket.id}`;
+      ? `${process.env.BASE_URL || 'https://app.serviflow.app'}/ticket/view/${token}`
+      : `${process.env.BASE_URL || 'https://app.serviflow.app'}/ticket/${ticket.id}`;
 
     // Build email subject
     const subject = `[Ticket #${ticket.id}] ${ticket.title} - ${action}`;
@@ -288,7 +288,7 @@ async function sendTicketNotificationEmail(ticketData, action, details = {}) {
     let actionDescription = '';
 
     if (action === 'resolved') {
-      const loginUrl = `${process.env.BASE_URL || 'https://serviflow.app'}/?username=${encodeURIComponent(ticket.requester_username || ticket.requester_email)}&role=${ticket.requester_role || 'customer'}`;
+      const loginUrl = `${process.env.BASE_URL || 'https://app.serviflow.app'}/?username=${encodeURIComponent(ticket.requester_username || ticket.requester_email)}&role=${ticket.requester_role || 'customer'}`;
 
       emailBody = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -319,7 +319,7 @@ async function sendTicketNotificationEmail(ticketData, action, details = {}) {
         </div>
       `;
     } else if (action === 'status_changed') {
-      const loginUrl = `${process.env.BASE_URL || 'https://serviflow.app'}/?username=${encodeURIComponent(ticket.requester_username || ticket.requester_email)}&role=${ticket.requester_role || 'customer'}`;
+      const loginUrl = `${process.env.BASE_URL || 'https://app.serviflow.app'}/?username=${encodeURIComponent(ticket.requester_username || ticket.requester_email)}&role=${ticket.requester_role || 'customer'}`;
 
       emailBody = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -349,7 +349,7 @@ async function sendTicketNotificationEmail(ticketData, action, details = {}) {
         </div>
       `;
     } else if (action === 'created') {
-      const loginUrl = `${process.env.BASE_URL || 'https://serviflow.app'}/?username=${encodeURIComponent(ticket.requester_username || ticket.requester_email)}&role=${ticket.requester_role || 'customer'}`;
+      const loginUrl = `${process.env.BASE_URL || 'https://app.serviflow.app'}/?username=${encodeURIComponent(ticket.requester_username || ticket.requester_email)}&role=${ticket.requester_role || 'customer'}`;
 
       emailBody = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -380,7 +380,7 @@ async function sendTicketNotificationEmail(ticketData, action, details = {}) {
         </div>
       `;
     } else if (action === 'assigned') {
-      const loginUrl = `${process.env.BASE_URL || 'https://serviflow.app'}/?username=${encodeURIComponent(details.assignee_username || details.assignee_email)}&role=${details.assignee_role || 'expert'}`;
+      const loginUrl = `${process.env.BASE_URL || 'https://app.serviflow.app'}/?username=${encodeURIComponent(details.assignee_username || details.assignee_email)}&role=${details.assignee_role || 'expert'}`;
 
       emailBody = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">

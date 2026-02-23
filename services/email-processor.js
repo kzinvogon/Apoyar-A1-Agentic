@@ -1163,7 +1163,7 @@ class EmailProcessor {
               })]
             );
 
-            const loginUrl = process.env.BASE_URL || 'https://serviflow.app';
+            const loginUrl = process.env.BASE_URL || 'https://app.serviflow.app';
             sendNotificationEmail(
               fromEmail,
               'Your Expert Account Has Been Reactivated - A1 Support',
@@ -1225,7 +1225,7 @@ class EmailProcessor {
         console.log(`✅ Upgraded ${fromEmail} to expert role`);
 
         // Send upgrade confirmation email (non-blocking)
-        const loginUrl = process.env.BASE_URL || 'https://serviflow.app';
+        const loginUrl = process.env.BASE_URL || 'https://app.serviflow.app';
         sendNotificationEmail(
           fromEmail,
           'Your Account Has Been Upgraded to Expert - A1 Support',
@@ -1280,7 +1280,7 @@ class EmailProcessor {
       console.log(`✅ Created expert account for ${fromEmail} (userId=${userId})`);
 
       // Send welcome email with credentials (non-blocking)
-      const loginUrl = process.env.BASE_URL || 'https://serviflow.app';
+      const loginUrl = process.env.BASE_URL || 'https://app.serviflow.app';
       sendNotificationEmail(
         fromEmail,
         'Welcome to A1 Support - Your Expert Account is Ready',
@@ -1985,7 +1985,7 @@ class EmailProcessor {
     console.log(`Created new customer: ${username} (${email}) for domain: ${domain}`);
 
     // Send welcome email with credentials (non-blocking)
-    const loginUrl = process.env.BASE_URL || 'https://serviflow.app';
+    const loginUrl = process.env.BASE_URL || 'https://app.serviflow.app';
     sendNotificationEmail(
       email,
       'Welcome to A1 Support - Your Account is Ready',
@@ -2214,7 +2214,7 @@ class EmailProcessor {
 
     // Generate secure access token for the ticket
     const token = await createTicketAccessToken(this.tenantCode, ticketId, 30);
-    const ticketUrl = `${process.env.BASE_URL || 'https://serviflow.app'}/ticket/view/${token}`;
+    const ticketUrl = `${process.env.BASE_URL || 'https://app.serviflow.app'}/ticket/view/${token}`;
     console.log(`🔐 Generated access token for ticket #${ticketId}`);
 
     // Build email subject with ticket token for reply threading
