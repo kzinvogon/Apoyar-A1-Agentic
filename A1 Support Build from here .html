@@ -4904,17 +4904,6 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
                   <button class="btn" onclick="disconnectMicrosoft365()" style="margin-left:auto;font-size:12px;padding:4px 12px">Disconnect</button>
                 </div>
               </div>
-
-              <div class="mb-12" style="background:#eff6ff;padding:14px;border-radius:6px;border-left:4px solid #3b82f6;font-size:13px">
-                <strong>One-time setup required by your M365 admin:</strong>
-                <ol style="margin:8px 0 0;padding-left:20px;line-height:1.7">
-                  <li>Create a mail-enabled security group in Exchange Admin and add the target mailbox</li>
-                  <li>Run in Exchange Online PowerShell:<br>
-                    <code style="background:#dbeafe;padding:2px 6px;border-radius:3px;font-size:12px">New-ApplicationAccessPolicy -AppId "05c4ccac-2615-405f-af73-2ede3d344080" -PolicyScopeGroupId "YourGroupName" -AccessRight RestrictAccess</code>
-                  </li>
-                  <li>Save settings above, then click <strong>Test Connection</strong> to verify</li>
-                </ol>
-              </div>
             </div>
 
             <div class="mb-12">
@@ -4949,6 +4938,20 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             <div id="email-last-checked" class="subtitle" style="color:#666;margin-top:8px"></div>
             <div id="email-ingest-message" class="subtitle" style="color:#16a34a;display:none;margin-top:8px"></div>
             <div id="email-ingest-error" class="subtitle" style="color:#b91c1c;display:none;margin-top:8px"></div>
+
+            <!-- M365 setup note — shown last so it doesn't break the settings flow -->
+            <div id="email-m365-setup-note" style="display:none;margin-top:16px">
+              <div style="background:#eff6ff;padding:14px;border-radius:6px;border-left:4px solid #3b82f6;font-size:13px">
+                <strong>One-time setup required by your M365 admin:</strong>
+                <ol style="margin:8px 0 0;padding-left:20px;line-height:1.7">
+                  <li>Create a mail-enabled security group in Exchange Admin and add the target mailbox</li>
+                  <li>Run in Exchange Online PowerShell:<br>
+                    <code style="background:#dbeafe;padding:2px 6px;border-radius:3px;font-size:12px">New-ApplicationAccessPolicy -AppId "05c4ccac-2615-405f-af73-2ede3d344080" -PolicyScopeGroupId "YourGroupName" -AccessRight RestrictAccess</code>
+                  </li>
+                  <li>Save settings above, then click <strong>Test Connection</strong> to verify</li>
+                </ol>
+              </div>
+            </div>
 
             <!-- System Senders Section -->
             <div style="margin-top:24px;padding-top:24px;border-top:1px solid #e5e7eb">
@@ -15298,17 +15301,20 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const m365Btn = document.getElementById('email-provider-m365');
     const imapFields = document.getElementById('email-imap-fields');
     const m365Fields = document.getElementById('email-m365-fields');
+    const m365Note = document.getElementById('email-m365-setup-note');
 
     if (provider === 'imap') {
       if (imapBtn) { imapBtn.className = 'btn primary'; }
       if (m365Btn) { m365Btn.className = 'btn'; }
       if (imapFields) { imapFields.style.display = 'block'; }
       if (m365Fields) { m365Fields.style.display = 'none'; }
+      if (m365Note) { m365Note.style.display = 'none'; }
     } else {
       if (imapBtn) { imapBtn.className = 'btn'; }
       if (m365Btn) { m365Btn.className = 'btn primary'; }
       if (imapFields) { imapFields.style.display = 'none'; }
       if (m365Fields) { m365Fields.style.display = 'block'; }
+      if (m365Note) { m365Note.style.display = 'block'; }
       loadOAuth2Status();
     }
     toggleOutboundSmtpFields();
