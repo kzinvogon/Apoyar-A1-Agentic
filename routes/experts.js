@@ -113,13 +113,17 @@ router.get('/:tenantId/:expertId', async (req, res) => {
       const [experts] = await connection.query(
         `SELECT
           u.id, u.username, u.email, u.full_name, u.role, u.is_active,
+          u.phone, u.department, u.rating, u.reference_code,
+          u.first_name, u.middle_name, u.last_name, u.screen_name,
+          u.location, u.street_address, u.city, u.state, u.postcode, u.country,
+          u.timezone, u.language, u.interface_language, u.security_level,
+          u.receive_email_updates AS email_updates,
           u.created_at, u.updated_at, u.last_login,
           COUNT(CASE WHEN t.status IN ('open', 'in_progress', 'paused') THEN 1 END) as open_tickets
          FROM users u
          LEFT JOIN tickets t ON u.id = t.assignee_id
          WHERE u.id = ? AND u.role IN ('admin', 'expert')
-         GROUP BY u.id, u.username, u.email, u.full_name, u.role, u.is_active,
-                  u.created_at, u.updated_at, u.last_login`,
+         GROUP BY u.id`,
         [expertId]
       );
 
@@ -208,7 +212,9 @@ router.put('/:tenantId/:expertId', async (req, res) => {
     const { tenantId, expertId } = req.params;
     const {
       username, email, full_name, role, phone, department, is_active, status,
-      location, street_address, city, state, postcode, country, timezone, language
+      location, street_address, city, state, postcode, country, timezone, language,
+      email_updates, rating, reference_code, first_name, middle_name, last_name,
+      screen_name, interface_language, security_level
     } = req.body;
 
     const connection = await getTenantConnection(tenantId);
@@ -257,6 +263,15 @@ router.put('/:tenantId/:expertId', async (req, res) => {
       if (country !== undefined) { updates.push('country = ?'); values.push(country); }
       if (timezone !== undefined) { updates.push('timezone = ?'); values.push(timezone); }
       if (language !== undefined) { updates.push('language = ?'); values.push(language); }
+      if (email_updates !== undefined) { updates.push('receive_email_updates = ?'); values.push(email_updates ? 1 : 0); }
+      if (rating !== undefined) { updates.push('rating = ?'); values.push(rating); }
+      if (reference_code !== undefined) { updates.push('reference_code = ?'); values.push(reference_code); }
+      if (first_name !== undefined) { updates.push('first_name = ?'); values.push(first_name); }
+      if (middle_name !== undefined) { updates.push('middle_name = ?'); values.push(middle_name); }
+      if (last_name !== undefined) { updates.push('last_name = ?'); values.push(last_name); }
+      if (screen_name !== undefined) { updates.push('screen_name = ?'); values.push(screen_name); }
+      if (interface_language !== undefined) { updates.push('interface_language = ?'); values.push(interface_language); }
+      if (security_level !== undefined) { updates.push('security_level = ?'); values.push(security_level); }
 
       // Handle is_active - accept both is_active boolean and status string
       if (is_active !== undefined) {
