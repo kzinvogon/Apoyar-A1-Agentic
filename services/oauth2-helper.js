@@ -1,4 +1,5 @@
 const https = require('https');
+const fetch = require('node-fetch');
 
 const MS_CLIENT_ID = process.env.MS_OAUTH_CLIENT_ID || '05c4ccac-2615-405f-af73-2ede3d344080';
 const MS_CLIENT_SECRET = process.env.MS_OAUTH_CLIENT_SECRET || '';
@@ -116,9 +117,40 @@ function buildXOAuth2Token(email, accessToken) {
   ).toString('base64');
 }
 
+/**
+ * Send an email via Microsoft Graph API.
+ * Requires Mail.Send application permission on the Azure AD app registration.
+ */
+async function sendMailViaGraph(connection, tenantCode, from, to, subject, htmlBody) {
+  const { accessToken } = await getValidAccessToken(connection, tenantCode);
+  const url = `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(from)}/sendMail`;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      message: {
+        subject,
+        body: { contentType: 'HTML', content: htmlBody },
+        toRecipients: [{ emailAddress: { address: to } }]
+      },
+      saveToSentItems: true
+    })
+  });
+
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`Graph sendMail failed (${response.status}): ${err}`);
+  }
+}
+
 module.exports = {
   getClientCredentialsToken,
   getValidAccessToken,
   buildXOAuth2Token,
+  sendMailViaGraph,
   MS_CLIENT_ID
 };

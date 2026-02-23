@@ -111,7 +111,10 @@ router.put('/:tenantId/settings', requireRole(['admin']), writeOperationsLimiter
       password,
       check_interval_minutes,
       auth_method,
-      oauth2_email
+      oauth2_email,
+      use_for_outbound,
+      smtp_host,
+      smtp_port
     } = req.body;
 
     const tenantCode = tenantId.toLowerCase().replace(/[^a-z0-9]/g, '_');
@@ -130,9 +133,9 @@ router.put('/:tenantId/settings', requireRole(['admin']), writeOperationsLimiter
       if (existingSettings.length === 0) {
         // Insert new settings
         await connection.query(`
-          INSERT INTO email_ingest_settings (enabled, server_type, server_host, server_port, use_ssl, username, password, check_interval_minutes, auth_method, oauth2_email)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, [enabled, server_type, server_host, server_port, use_ssl, username, actualPassword, check_interval_minutes, auth_method || 'basic', oauth2_email || null]);
+          INSERT INTO email_ingest_settings (enabled, server_type, server_host, server_port, use_ssl, username, password, check_interval_minutes, auth_method, oauth2_email, use_for_outbound, smtp_host, smtp_port)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [enabled, server_type, server_host, server_port, use_ssl, username, actualPassword, check_interval_minutes, auth_method || 'basic', oauth2_email || null, use_for_outbound || 0, smtp_host || null, smtp_port || 587]);
       } else {
         // Update existing settings
         await connection.query(`
@@ -147,9 +150,12 @@ router.put('/:tenantId/settings', requireRole(['admin']), writeOperationsLimiter
             check_interval_minutes = COALESCE(?, check_interval_minutes),
             auth_method = COALESCE(?, auth_method),
             oauth2_email = COALESCE(?, oauth2_email),
+            use_for_outbound = COALESCE(?, use_for_outbound),
+            smtp_host = COALESCE(?, smtp_host),
+            smtp_port = COALESCE(?, smtp_port),
             updated_at = NOW()
           WHERE id = ?
-        `, [enabled, server_type, server_host, server_port, use_ssl, username, actualPassword, check_interval_minutes, auth_method || null, oauth2_email || null, existingSettings[0].id]);
+        `, [enabled, server_type, server_host, server_port, use_ssl, username, actualPassword, check_interval_minutes, auth_method || null, oauth2_email || null, use_for_outbound !== undefined ? use_for_outbound : null, smtp_host !== undefined ? smtp_host : null, smtp_port !== undefined ? smtp_port : null, existingSettings[0].id]);
       }
 
       // Fetch updated settings to return current state

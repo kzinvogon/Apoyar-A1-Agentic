@@ -4922,6 +4922,30 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               <input id="email-check-interval" class="input" type="number" min="1" max="60" placeholder="e.g., 5"/>
             </div>
 
+            <!-- Outbound Email Section -->
+            <div style="margin-top:16px;padding-top:16px;border-top:1px solid #e5e7eb">
+              <label class="subtitle" style="display:flex;align-items:center;cursor:pointer">
+                <input type="checkbox" id="email-use-for-outbound" style="margin-right:8px" onchange="toggleOutboundSmtpFields()"/>
+                Also use this email account for outbound notifications
+              </label>
+              <div class="subtitle" style="color:#6b7280;font-size:12px;margin-top:4px">
+                When enabled, ticket notifications and system emails will be sent from this mailbox
+                instead of the default system email.
+              </div>
+            </div>
+
+            <!-- SMTP fields (only for IMAP/basic when outbound enabled) -->
+            <div id="email-smtp-outbound-fields" style="display:none;margin-top:12px">
+              <div class="mb-12">
+                <label class="subtitle">SMTP Server Host</label>
+                <input id="email-smtp-host" class="input" placeholder="e.g., smtp.gmail.com"/>
+              </div>
+              <div class="mb-12">
+                <label class="subtitle">SMTP Server Port</label>
+                <input id="email-smtp-port" class="input" type="number" placeholder="587" value="587"/>
+              </div>
+            </div>
+
             <div id="email-last-checked" class="subtitle" style="color:#666;margin-top:8px"></div>
             <div id="email-ingest-message" class="subtitle" style="color:#16a34a;display:none;margin-top:8px"></div>
             <div id="email-ingest-error" class="subtitle" style="color:#b91c1c;display:none;margin-top:8px"></div>
@@ -15287,6 +15311,16 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       if (m365Fields) { m365Fields.style.display = 'block'; }
       loadOAuth2Status();
     }
+    toggleOutboundSmtpFields();
+  }
+
+  function toggleOutboundSmtpFields() {
+    const outboundChecked = document.getElementById('email-use-for-outbound')?.checked;
+    const smtpFields = document.getElementById('email-smtp-outbound-fields');
+    if (smtpFields) {
+      // Show SMTP fields only when outbound is enabled AND provider is IMAP (not O365)
+      smtpFields.style.display = (outboundChecked && currentEmailProvider === 'imap') ? 'block' : 'none';
+    }
   }
 
   async function loadOAuth2Status() {
@@ -15375,6 +15409,14 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           if (el) el.textContent = 'Last checked: ' + lastChecked.toLocaleString();
         }
 
+        // Load outbound settings
+        const outboundEl = document.getElementById('email-use-for-outbound');
+        if (outboundEl) outboundEl.checked = !!settings.use_for_outbound;
+        const smtpHostEl = document.getElementById('email-smtp-host');
+        if (smtpHostEl && settings.smtp_host) smtpHostEl.value = settings.smtp_host;
+        const smtpPortEl = document.getElementById('email-smtp-port');
+        if (smtpPortEl && settings.smtp_port) smtpPortEl.value = settings.smtp_port;
+
         // Select the correct provider tab based on auth_method
         if (settings.auth_method === 'oauth2') {
           selectEmailProvider('m365');
@@ -15383,6 +15425,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         } else {
           selectEmailProvider('imap');
         }
+        toggleOutboundSmtpFields();
       }
     } catch (error) {
       console.error('Error loading email ingest settings:', error);
@@ -15437,6 +15480,13 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       }
       payload.auth_method = 'oauth2';
       payload.oauth2_email = m365Email;
+    }
+
+    // Outbound email settings (applies to both providers)
+    payload.use_for_outbound = document.getElementById('email-use-for-outbound')?.checked ? 1 : 0;
+    if (currentEmailProvider === 'imap' && payload.use_for_outbound) {
+      payload.smtp_host = document.getElementById('email-smtp-host')?.value || null;
+      payload.smtp_port = parseInt(document.getElementById('email-smtp-port')?.value) || 587;
     }
 
     try {
