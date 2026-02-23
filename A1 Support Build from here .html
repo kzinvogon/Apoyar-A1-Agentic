@@ -8379,7 +8379,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     openRoleSwitcherModal();
   }
 
-  function openRoleSwitcherModal() {
+  async function openRoleSwitcherModal() {
     const loginRole = window.loginRole || window.role || role;
     const modal = document.getElementById('role-switcher-modal');
     if (!modal) return;
@@ -8405,7 +8405,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     if (window.impersonatedUser) {
       const impRole = window.impersonatedUser.role;
       radios.forEach(r => r.checked = (r.value === impRole));
-      onImpersonateRoleChange();
+      await onImpersonateRoleChange();
 
       if (impRole === 'expert') {
         document.getElementById('impersonate-expert-select').value = window.impersonatedUser.id;
@@ -8414,7 +8414,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       }
     } else {
       // Trigger to show/hide dropdown based on current role
-      onImpersonateRoleChange();
+      await onImpersonateRoleChange();
     }
 
     modal.style.display = 'flex';
@@ -8425,7 +8425,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     if (modal) modal.style.display = 'none';
   }
 
-  function onImpersonateRoleChange() {
+  async function onImpersonateRoleChange() {
     const selectedRole = document.querySelector('input[name="impersonate-role"]:checked')?.value;
     const expertSection = document.getElementById('impersonate-expert-section');
     const customerSection = document.getElementById('impersonate-customer-section');
@@ -8434,10 +8434,10 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     customerSection.style.display = 'none';
 
     if (selectedRole === 'expert') {
-      loadImpersonateExpertsDropdown();
+      await loadImpersonateExpertsDropdown();
       expertSection.style.display = 'block';
     } else if (selectedRole === 'customer') {
-      loadImpersonateCustomersDropdown();
+      await loadImpersonateCustomersDropdown();
       customerSection.style.display = 'block';
     }
   }
