@@ -1529,7 +1529,7 @@ vNext-FULL-ActionsSLA:
             <button class="btn primary" onclick="requestMagicLink()" style="width:100%;padding:10px;font-size:14px">Email me a sign-in link</button>
           </div>
           <div style="text-align:center;margin-bottom:16px">
-            <a href="#" onclick="toggleLoginMode('password'); return false;" style="color:var(--muted);text-decoration:none;font-size:12px">Or sign in with password</a>
+            <a href="#" onclick="toggleLoginMode('password'); return false;" style="color:var(--primary);text-decoration:none;font-size:13px">Or sign in with password</a>
           </div>
         </div>
         <div id="magic-link-sent" style="display:none;text-align:center;padding:16px 0;">
@@ -7951,12 +7951,21 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   /** Initialize login form mode based on host */
   function initLoginMode() {
     const toggle = document.getElementById('magic-link-toggle');
-    if (isMagicLinkHost()) {
+    const params = new URLSearchParams(window.location.search);
+    // ?admin forces password mode (for master admin access on demo)
+    const forcePassword = params.has('admin') || params.get('mode') === 'password';
+
+    if (isMagicLinkHost() && !forcePassword) {
       toggleLoginMode('magic');
       if (toggle) toggle.style.display = 'inline';
     } else {
       toggleLoginMode('password');
-      if (toggle) toggle.style.display = 'none';
+      if (toggle) toggle.style.display = isMagicLinkHost() ? 'inline' : 'none';
+      // Pre-select master_admin role if ?admin param
+      if (forcePassword && params.has('admin')) {
+        const roleSelect = document.getElementById('role');
+        if (roleSelect) { roleSelect.value = 'master_admin'; toggleTenantField(); }
+      }
     }
   }
 
