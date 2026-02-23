@@ -21201,6 +21201,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       const data = await response.json();
 
       if (data.success) {
+        cachedExperts = [];
         alert('Expert restored successfully!');
         await renderDeletedExperts();
       } else {
@@ -21988,6 +21989,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       const data = await response.json();
 
       if (data.success) {
+        cachedExperts = []; // Clear cache so dropdowns reload fresh
         closeExpertModal();
         renderExperts();
         alert(currentExpertId ? 'Expert updated successfully' : 'Expert created successfully');
@@ -22027,6 +22029,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       const data = await response.json();
 
       if (data.success) {
+        cachedExperts = [];
         alert('Expert deleted successfully');
         if (currentView === 'expert-detail') {
           switchView('experts');
