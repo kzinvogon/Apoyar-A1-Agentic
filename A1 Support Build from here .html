@@ -1537,7 +1537,7 @@ vNext-FULL-ActionsSLA:
             <span style="font-size:24px;">&#x2709;</span>
           </div>
           <h3 style="margin:0 0 8px;color:var(--ink)">Check your inbox</h3>
-          <p style="color:var(--muted);font-size:13px;margin:0 0 16px;">We sent a sign-in link to <strong id="magic-link-email-display"></strong>. Click the link in the email to sign in.</p>
+          <p style="color:var(--muted);font-size:13px;margin:0 0 16px;">We sent a sign-in link to <strong id="magic-link-email-display"></strong> — check your email to sign in.</p>
           <a href="#" onclick="resetMagicLinkForm(); return false;" style="color:var(--primary);text-decoration:none;font-size:13px">Use a different email</a>
         </div>
       </div>
@@ -7940,9 +7940,10 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const errorDiv = document.getElementById('login-error');
     if (errorDiv) errorDiv.style.display = 'none';
 
-    if (!email || !email.includes('@')) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+    if (!email || !emailRegex.test(email)) {
       if (errorDiv) {
-        errorDiv.textContent = 'Please enter a valid email address';
+        errorDiv.textContent = 'Please enter a valid email address (e.g. name@company.com)';
         errorDiv.style.display = 'block';
       }
       return;

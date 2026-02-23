@@ -39,7 +39,8 @@ setInterval(() => {
 router.post('/request', async (req, res) => {
   try {
     const { email } = req.body;
-    if (!email || !email.includes('@')) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+    if (!email || !emailRegex.test(email.trim())) {
       return res.status(400).json({ ok: false, message: 'Valid email is required' });
     }
 
