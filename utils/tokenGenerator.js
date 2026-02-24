@@ -68,14 +68,16 @@ async function validateTicketAccessToken(tenantCode, token) {
       [tokenData.id]
     );
 
-    // Fetch ticket details
+    // Fetch ticket details (including assignee info)
     const [ticketRows] = await connection.query(
       `SELECT t.id, t.title, t.description, t.status,
               t.priority, t.created_at, t.updated_at,
               u.full_name as requester_name, u.email as requester_email,
-              u.username as requester_username, u.role as requester_role
+              u.username as requester_username, u.role as requester_role,
+              a.full_name as assignee_name, a.email as assignee_email
        FROM tickets t
        LEFT JOIN users u ON t.requester_id = u.id
+       LEFT JOIN users a ON t.assignee_id = a.id
        WHERE t.id = ?`,
       [tokenData.ticket_id]
     );

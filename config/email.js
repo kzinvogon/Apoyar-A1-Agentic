@@ -261,10 +261,9 @@ async function sendTicketNotificationEmail(ticketData, action, details = {}) {
     const tenantDisplayName = await getTenantDisplayName(tenantCode);
 
     // Check if email sending is enabled (kill switch)
-    // Determine email type based on action:
-    // - 'assigned' action sends to experts/assignees
-    // - All other actions (created, resolved, status_changed) send to customers
-    const emailType = action === 'assigned' ? 'experts' : 'customers';
+    // Determine email type: explicit override in ticketData.emailType takes precedence,
+    // otherwise infer from action ('assigned' → experts, everything else → customers).
+    const emailType = ticketData.emailType || (action === 'assigned' ? 'experts' : 'customers');
     if (tenantCode) {
       const emailEnabled = await isEmailSendingEnabled(tenantCode, emailType);
       if (!emailEnabled) {
@@ -302,9 +301,18 @@ async function sendTicketNotificationEmail(ticketData, action, details = {}) {
     }
 
     // Build ticket URL - use token if available, otherwise use ticket ID
-    const ticketUrl = token
+    // Append action context so the splash page can show a relevant banner
+    let ticketUrl = token
       ? `${process.env.BASE_URL || 'https://app.serviflow.app'}/ticket/view/${token}`
       : `${process.env.BASE_URL || 'https://app.serviflow.app'}/ticket/${ticket.id}`;
+
+    if (action) {
+      ticketUrl += `?action=${encodeURIComponent(action)}`;
+      // For reassignments, include the previous expert's name
+      if (action === 'assigned' && details.oldAssigneeName) {
+        ticketUrl += `&from=${encodeURIComponent(details.oldAssigneeName)}`;
+      }
+    }
 
     // Build email subject
     const subject = `[Ticket #${ticket.id}] ${ticket.title} - ${action}`;

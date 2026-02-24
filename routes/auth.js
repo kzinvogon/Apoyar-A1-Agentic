@@ -15,7 +15,7 @@ const {
   accountEnumerationLimiter
 } = require('../middleware/rateLimiter');
 const crypto = require('crypto');
-const { sendEmail } = require('../config/email');
+const { sendEmail, getTenantDisplayName } = require('../config/email');
 const { logAudit, AUDIT_ACTIONS } = require('../utils/auditLog');
 
 // Master user login
@@ -737,10 +737,11 @@ router.post('/tenant/forgot-password', passwordChangeLimiter, async (req, res) =
       try {
         // Determine email type based on user role (customers vs experts)
         const emailType = user.role === 'customer' ? 'customers' : 'experts';
+        const tenantDisplayName = await getTenantDisplayName(tenant_code);
 
         await sendEmail(tenant_code, {
           to: email,
-          subject: 'Password Reset Request - A1 Support',
+          subject: `Password Reset Request - ${tenantDisplayName} ServiFlow Support`,
           html: `
             <h2>Password Reset Request</h2>
             <p>Hello ${user.full_name || user.username},</p>
@@ -749,7 +750,7 @@ router.post('/tenant/forgot-password', passwordChangeLimiter, async (req, res) =
             <p>This link will expire in 1 hour.</p>
             <p>If you didn't request this, please ignore this email.</p>
             <br>
-            <p>Best regards,<br>A1 Support Team</p>
+            <p>Best regards,<br>${tenantDisplayName} ServiFlow Support Team</p>
           `,
           emailType: emailType,
           skipUserCheck: true, // User explicitly requested password reset
@@ -841,16 +842,17 @@ router.post('/tenant/reset-password-with-token', passwordChangeLimiter, async (r
 
       // Send confirmation email
       try {
+        const tenantDisplayName = await getTenantDisplayName(tenant_code);
         await sendEmail(tenant_code, {
           to: user.email,
-          subject: 'Password Successfully Reset - A1 Support',
+          subject: `Password Successfully Reset - ${tenantDisplayName} ServiFlow Support`,
           html: `
             <h2>Password Reset Successful</h2>
             <p>Hello ${user.username},</p>
             <p>Your password has been successfully reset.</p>
             <p>If you didn't make this change, please contact support immediately.</p>
             <br>
-            <p>Best regards,<br>A1 Support Team</p>
+            <p>Best regards,<br>${tenantDisplayName} ServiFlow Support Team</p>
           `,
           skipKillSwitch: true // Security-critical: confirmation must always be sent
         });

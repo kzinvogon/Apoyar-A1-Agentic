@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { validateTicketAccessToken } = require('../utils/tokenGenerator');
+const { getMasterConnection } = require('../config/database');
 
 /**
  * Public ticket view route - No authentication required
@@ -30,8 +31,27 @@ router.get('/view/:token', async (req, res) => {
 
     const { ticket, token: tokenData } = ticketData;
 
+    // Read context query params (cosmetic only — token still controls access)
+    const action = req.query.action || null;
+    const fromExpert = req.query.from || null;
+
+    // Fetch tenant display name from master DB
+    let tenantName = tenantCode;
+    try {
+      const masterConn = await getMasterConnection();
+      const [tenantRows] = await masterConn.query(
+        'SELECT company_name FROM tenants WHERE tenant_code = ?',
+        [tenantCode]
+      );
+      if (tenantRows.length > 0 && tenantRows[0].company_name) {
+        tenantName = tenantRows[0].company_name;
+      }
+    } catch (e) {
+      // Fall back to tenant code if master DB lookup fails
+    }
+
     // Generate and return ticket view page
-    return res.send(generateTicketViewPage(ticket, tokenData, tenantCode));
+    return res.send(generateTicketViewPage(ticket, tokenData, tenantCode, tenantName, action, fromExpert));
 
   } catch (error) {
     console.error('Error validating ticket token:', error);
@@ -46,7 +66,7 @@ router.get('/view/:token', async (req, res) => {
 /**
  * Generate HTML for ticket view page
  */
-function generateTicketViewPage(ticket, tokenData, tenantCode) {
+function generateTicketViewPage(ticket, tokenData, tenantCode, tenantName, action, fromExpert) {
   const statusColor = {
     'Open': '#17a2b8',
     'In Progress': '#007bff',
@@ -64,6 +84,15 @@ function generateTicketViewPage(ticket, tokenData, tenantCode) {
 
   const expiresAt = new Date(tokenData.expires_at);
   const accessCount = tokenData.access_count;
+
+  // Build contextual banner based on action
+  const bannerConfig = {
+    assigned: { text: 'This ticket has been reassigned to you', color: '#007bff', icon: '&#x1f4e8;' },
+    created: { text: 'A new support ticket has been created', color: '#17a2b8', icon: '&#x2728;' },
+    resolved: { text: 'This ticket has been resolved', color: '#28a745', icon: '&#x2705;' },
+    status_changed: { text: 'This ticket status has been updated', color: '#ffc107', icon: '&#x1f504;' }
+  };
+  const banner = action && bannerConfig[action] ? bannerConfig[action] : null;
 
   return `
 <!DOCTYPE html>
@@ -98,6 +127,13 @@ function generateTicketViewPage(ticket, tokenData, tenantCode) {
       color: white;
       padding: 30px;
       text-align: center;
+    }
+    .header-logo {
+      margin-bottom: 8px;
+    }
+    .header-logo svg {
+      height: 40px;
+      width: auto;
     }
     .header h1 {
       font-size: 24px;
@@ -210,6 +246,48 @@ function generateTicketViewPage(ticket, tokenData, tenantCode) {
       font-weight: bold;
       margin-right: 5px;
     }
+    .context-banner {
+      padding: 14px 30px;
+      font-size: 15px;
+      font-weight: 600;
+      color: white;
+      text-align: center;
+    }
+    .context-banner .banner-icon {
+      margin-right: 8px;
+    }
+    .people-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+      padding: 20px;
+      background: #f0f4ff;
+      border-radius: 8px;
+      border: 1px solid #dde3f0;
+    }
+    .people-item {
+      display: flex;
+      flex-direction: column;
+    }
+    .people-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: #667eea;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+    .people-value {
+      font-size: 16px;
+      font-weight: 600;
+      color: #333;
+    }
+    .people-sub {
+      font-size: 12px;
+      color: #6c757d;
+      margin-top: 2px;
+    }
     @media (max-width: 600px) {
       .container {
         border-radius: 0;
@@ -230,9 +308,37 @@ function generateTicketViewPage(ticket, tokenData, tenantCode) {
   <div class="container">
     <!-- Header -->
     <div class="header">
-      <h1>🎫 Support Ticket</h1>
-      <p>Ticket #${ticket.id}</p>
+      <div class="header-logo">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 50">
+          <defs>
+            <linearGradient id="brandGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#ffffff"/>
+              <stop offset="100%" style="stop-color:#e0e7ff"/>
+            </linearGradient>
+          </defs>
+          <g transform="translate(5, 5)">
+            <path d="M12 2 C20 2, 26 8, 26 14 C26 20, 20 22, 14 22 C8 22, 2 28, 2 34 C2 40, 8 46, 16 46"
+                  stroke="url(#brandGradient)" stroke-width="4" fill="none" stroke-linecap="round"/>
+            <path d="M8 10 L22 10" stroke="url(#brandGradient)" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+            <path d="M6 22 L22 22" stroke="url(#brandGradient)" stroke-width="2" stroke-linecap="round" opacity="0.8"/>
+            <path d="M6 34 L20 34" stroke="url(#brandGradient)" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+            <circle cx="28" cy="14" r="3" fill="#10b981"/>
+          </g>
+          <text x="50" y="35" font-family="Inter, system-ui, sans-serif" font-size="26" font-weight="700" fill="#ffffff">
+            Servi<tspan fill="#e0e7ff">Flow</tspan>
+          </text>
+        </svg>
+      </div>
+      <h1>${tenantName}</h1>
+      <p>Service Request #${ticket.id}</p>
     </div>
+
+    ${banner ? `
+    <!-- Contextual Banner -->
+    <div class="context-banner" style="background-color: ${banner.color};">
+      <span class="banner-icon">${banner.icon}</span>${banner.text}${fromExpert ? ` (previously: ${fromExpert})` : ''}
+    </div>
+    ` : ''}
 
     <!-- Content -->
     <div class="content">
@@ -248,6 +354,29 @@ function generateTicketViewPage(ticket, tokenData, tenantCode) {
           Priority: ${ticket.priority}
         </span>
         ${ticket.category ? `<span class="badge" style="background-color: #6c757d;">${ticket.category}</span>` : ''}
+      </div>
+
+      <!-- People -->
+      <div class="people-grid">
+        ${ticket.requester_name ? `
+        <div class="people-item">
+          <span class="people-label">Customer</span>
+          <span class="people-value">${ticket.requester_name}</span>
+          ${ticket.requester_email ? `<span class="people-sub">${ticket.requester_email}</span>` : ''}
+        </div>
+        ` : ''}
+        ${ticket.assignee_name ? `
+        <div class="people-item">
+          <span class="people-label">Assigned To</span>
+          <span class="people-value">${ticket.assignee_name}</span>
+        </div>
+        ` : ''}
+        ${fromExpert ? `
+        <div class="people-item">
+          <span class="people-label">Previous Expert</span>
+          <span class="people-value">${fromExpert}</span>
+        </div>
+        ` : ''}
       </div>
 
       <!-- Metadata -->
@@ -276,12 +405,6 @@ function generateTicketViewPage(ticket, tokenData, tenantCode) {
             minute: '2-digit'
           })}</span>
         </div>
-        ${ticket.requester_name ? `
-        <div class="metadata-item">
-          <span class="metadata-label">Requester</span>
-          <span class="metadata-value">${ticket.requester_name}</span>
-        </div>
-        ` : ''}
       </div>
 
       <!-- Description -->

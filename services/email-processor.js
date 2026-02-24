@@ -7,7 +7,7 @@ function getSharedTenantConnection(tenantCode) {
   return _sharedGetTenantConnection(tenantCode);
 }
 
-const { sendNotificationEmail } = require('../config/email');
+const { sendNotificationEmail, getTenantDisplayName } = require('../config/email');
 const { createTicketAccessToken } = require('../utils/tokenGenerator');
 const { resolveApplicableSLA } = require('./sla-selector');
 const { computeInitialDeadlines } = require('./sla-calculator');
@@ -1164,9 +1164,10 @@ class EmailProcessor {
             );
 
             const loginUrl = process.env.BASE_URL || 'https://app.serviflow.app';
+            const tenantName = await getTenantDisplayName(this.tenantCode);
             sendNotificationEmail(
               fromEmail,
-              'Your Expert Account Has Been Reactivated - A1 Support',
+              `Your Expert Account Has Been Reactivated - ${tenantName} ServiFlow Support`,
               `
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                   <h2 style="color: #2563eb;">Account Reactivated!</h2>
@@ -1175,7 +1176,7 @@ class EmailProcessor {
                   <p><a href="${loginUrl}" style="background-color:#2563eb;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;display:inline-block">Login to Dashboard</a></p>
                   <p>Use your existing login credentials to access your account.</p>
                   <hr>
-                  <p style="color:#666;font-size:12px">This is an automated message from A1 Support.</p>
+                  <p style="color:#666;font-size:12px">This is an automated message from ${tenantName} ServiFlow Support.</p>
                 </div>
               `,
               this.tenantCode,
@@ -1188,16 +1189,17 @@ class EmailProcessor {
 
           // Already active expert/admin
           console.log(`User ${fromEmail} is already an active expert/admin`);
+          const tenantName2 = await getTenantDisplayName(this.tenantCode);
           sendNotificationEmail(
             fromEmail,
-            'You Already Have Expert Access - A1 Support',
+            `You Already Have Expert Access - ${tenantName2} ServiFlow Support`,
             `
               <h2>Expert Access Confirmed</h2>
               <p>Hello,</p>
               <p>You already have <strong>${existingUser.role}</strong> access in our system.</p>
               <p>Please use the login page to access your account. If you've forgotten your password, use the "Forgot Password" feature.</p>
               <hr>
-              <p style="color:#666;font-size:12px">This is an automated message from A1 Support.</p>
+              <p style="color:#666;font-size:12px">This is an automated message from ${tenantName2} ServiFlow Support.</p>
             `,
             this.tenantCode,
             'experts'
@@ -1226,9 +1228,10 @@ class EmailProcessor {
 
         // Send upgrade confirmation email (non-blocking)
         const loginUrl = process.env.BASE_URL || 'https://app.serviflow.app';
+        const tenantName3 = await getTenantDisplayName(this.tenantCode);
         sendNotificationEmail(
           fromEmail,
-          'Your Account Has Been Upgraded to Expert - A1 Support',
+          `Your Account Has Been Upgraded to Expert - ${tenantName3} ServiFlow Support`,
           `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
               <h2 style="color: #2563eb;">Account Upgraded!</h2>
@@ -1243,7 +1246,7 @@ class EmailProcessor {
               <p><a href="${loginUrl}" style="background-color:#2563eb;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;display:inline-block">Login to Dashboard</a></p>
               <p>Use your existing login credentials to access your upgraded account.</p>
               <hr>
-              <p style="color:#666;font-size:12px">This is an automated message from A1 Support.</p>
+              <p style="color:#666;font-size:12px">This is an automated message from ${tenantName3} ServiFlow Support.</p>
             </div>
           `,
           this.tenantCode,
@@ -1281,12 +1284,13 @@ class EmailProcessor {
 
       // Send welcome email with credentials (non-blocking)
       const loginUrl = process.env.BASE_URL || 'https://app.serviflow.app';
+      const tenantName4 = await getTenantDisplayName(this.tenantCode);
       sendNotificationEmail(
         fromEmail,
-        'Welcome to A1 Support - Your Expert Account is Ready',
+        `Welcome to ${tenantName4} ServiFlow Support - Your Expert Account is Ready`,
         `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #2563eb;">Welcome to A1 Support!</h2>
+            <h2 style="color: #2563eb;">Welcome to ${tenantName4} ServiFlow Support!</h2>
             <p>Hello ${fullName},</p>
             <p>Your expert account has been created successfully. You can now log in to the support dashboard.</p>
 
@@ -1312,7 +1316,7 @@ class EmailProcessor {
             <p>If you have any questions, please contact your administrator.</p>
 
             <hr style="border: 1px solid #e5e7eb; margin: 20px 0;">
-            <p style="color:#666;font-size:12px">This is an automated message from A1 Support. Please do not reply to this email.</p>
+            <p style="color:#666;font-size:12px">This is an automated message from ${tenantName4} ServiFlow Support. Please do not reply to this email.</p>
           </div>
         `,
         this.tenantCode,
@@ -1986,12 +1990,13 @@ class EmailProcessor {
 
     // Send welcome email with credentials (non-blocking)
     const loginUrl = process.env.BASE_URL || 'https://app.serviflow.app';
+    const tenantName5 = await getTenantDisplayName(this.tenantCode);
     sendNotificationEmail(
       email,
-      'Welcome to A1 Support - Your Account is Ready',
+      `Welcome to ${tenantName5} ServiFlow Support - Your Account is Ready`,
       `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #2563eb;">Welcome to A1 Support!</h2>
+          <h2 style="color: #2563eb;">Welcome to ${tenantName5} ServiFlow Support!</h2>
           <p>Hello ${username},</p>
           <p>Your customer account has been created. You can now submit and track support requests.</p>
 

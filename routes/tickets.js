@@ -1681,15 +1681,16 @@ router.post('/:tenantId/:ticketId/self-assign', writeOperationsLimiter, requireR
         [ticketId]
       );
 
-      // Send notification email to customer
+      // Notify customer that their ticket is now being worked on
       await sendTicketNotificationEmail({
         ticket: tickets[0],
         customer_email: tickets[0].requester_email,
         customer_name: tickets[0].requester_name,
-        tenantCode: tenantCode
-      }, 'assigned', {
-        assignee_email: tickets[0].assignee_email,
-        assignee_username: req.user.username
+        tenantCode: tenantCode,
+        emailType: 'customers'
+      }, 'status_changed', {
+        oldStatus: currentTicket.status,
+        newStatus: 'In Progress'
       });
 
       res.json({
@@ -2493,9 +2494,12 @@ router.put('/:tenantId/:ticketId', writeOperationsLimiter, validateTicketUpdate,
     const connection = await getTenantConnection(tenantCode);
     
     try {
-      // Get current ticket
+      // Get current ticket (JOIN assignee to capture old expert name for reassignment emails)
       const [currentTickets] = await connection.query(
-        'SELECT * FROM tickets WHERE id = ?',
+        `SELECT t.*, u.full_name as old_assignee_name
+         FROM tickets t
+         LEFT JOIN users u ON t.assignee_id = u.id
+         WHERE t.id = ?`,
         [ticketId]
       );
 
@@ -2506,6 +2510,7 @@ router.put('/:tenantId/:ticketId', writeOperationsLimiter, validateTicketUpdate,
       const currentTicket = currentTickets[0];
       const oldStatus = currentTicket.status;
       const oldAssigneeId = currentTicket.assignee_id;
+      const oldAssigneeName = currentTicket.old_assignee_name;
 
       // Update ticket
       const updates = [];
@@ -2775,7 +2780,8 @@ router.put('/:tenantId/:ticketId', writeOperationsLimiter, validateTicketUpdate,
             assignee_email: tickets[0].assignee_email,
             assignee_username: tickets[0].assignee_username,
             assignee_role: tickets[0].assignee_role,
-            comment
+            comment,
+            oldAssigneeName: oldAssigneeName
           });
 
           // Send Teams notification for assignment
