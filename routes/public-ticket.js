@@ -39,12 +39,16 @@ router.get('/view/:token', async (req, res) => {
     let tenantName = tenantCode;
     try {
       const masterConn = await getMasterConnection();
-      const [tenantRows] = await masterConn.query(
-        'SELECT company_name FROM tenants WHERE tenant_code = ?',
-        [tenantCode]
-      );
-      if (tenantRows.length > 0 && tenantRows[0].company_name) {
-        tenantName = tenantRows[0].company_name;
+      try {
+        const [tenantRows] = await masterConn.query(
+          'SELECT company_name FROM tenants WHERE tenant_code = ?',
+          [tenantCode]
+        );
+        if (tenantRows.length > 0 && tenantRows[0].company_name) {
+          tenantName = tenantRows[0].company_name;
+        }
+      } finally {
+        masterConn.release();
       }
     } catch (e) {
       // Fall back to tenant code if master DB lookup fails
