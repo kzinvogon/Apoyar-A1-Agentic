@@ -1947,8 +1947,8 @@ class EmailProcessor {
     const emailPrefix = email.split('@')[0];
     const fullName = emailPrefix.replace(/[._-]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 
-    // Generate username from email
-    let username = emailPrefix.replace(/[^a-z0-9]/g, '_');
+    // Use full email address as username
+    let username = email.toLowerCase();
 
     // Generate random password
     const bcrypt = require('bcrypt');
