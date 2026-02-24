@@ -1,6 +1,6 @@
 const nodemailer = require('nodemailer');
 const { createTicketAccessToken } = require('../utils/tokenGenerator');
-const { getTenantConnection } = require('./database');
+const { getTenantConnection, getMasterConnection } = require('./database');
 const { sendMailViaGraph } = require('../services/oauth2-helper');
 
 // Only create transporter if credentials are configured
@@ -92,6 +92,26 @@ async function isUserEmailNotificationsEnabled(tenantCode, userEmail) {
   }
 }
 
+// Cache tenant display names to avoid repeated master DB lookups
+const tenantNameCache = new Map();
+
+async function getTenantDisplayName(tenantCode) {
+  if (!tenantCode) return 'ServiFlow';
+  if (tenantNameCache.has(tenantCode)) return tenantNameCache.get(tenantCode);
+  try {
+    const masterConn = await getMasterConnection();
+    const [rows] = await masterConn.query(
+      'SELECT company_name FROM tenants WHERE tenant_code = ?',
+      [tenantCode]
+    );
+    const name = (rows.length > 0 && rows[0].company_name) ? rows[0].company_name : tenantCode;
+    tenantNameCache.set(tenantCode, name);
+    return name;
+  } catch (e) {
+    return tenantCode;
+  }
+}
+
 if (smtpEmail && smtpPassword && smtpEmail !== 'your-email@gmail.com' && smtpPassword !== 'your-app-password') {
   transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
@@ -152,8 +172,13 @@ async function getTenantEmailSender(tenantCode) {
       'SELECT auth_method, oauth2_email, use_for_outbound, smtp_host, smtp_port, username, password FROM email_ingest_settings ORDER BY id ASC LIMIT 1'
     );
 
-    if (rows.length === 0 || !rows[0].use_for_outbound) {
-      return null; // Fallback to global
+    if (rows.length === 0) {
+      return null; // No email config at all — fallback to global Gmail
+    }
+
+    if (!rows[0].use_for_outbound) {
+      // Tenant has email settings but explicitly disabled outbound — do NOT fallback to Gmail
+      return { disabled: true };
     }
 
     const settings = rows[0];
@@ -233,6 +258,7 @@ async function getTenantEmailSender(tenantCode) {
 async function sendTicketNotificationEmail(ticketData, action, details = {}) {
   try {
     const { ticket, customer_email, customer_name, tenantCode } = ticketData;
+    const tenantDisplayName = await getTenantDisplayName(tenantCode);
 
     // Check if email sending is enabled (kill switch)
     // Determine email type based on action:
@@ -425,6 +451,11 @@ async function sendTicketNotificationEmail(ticketData, action, details = {}) {
       }
     }
 
+    if (tenantSender && tenantSender.disabled) {
+      console.log(`🚫 Outbound email disabled for tenant ${tenantCode} — not sending to ${customer_email}`);
+      return { success: false, message: 'Tenant outbound email disabled' };
+    }
+
     if (tenantSender) {
       const result = await tenantSender.send(customer_email, subject, emailBody);
       console.log(`📧 Email sent via tenant sender to ${customer_email} - Message ID: ${result.messageId}`);
@@ -437,7 +468,7 @@ async function sendTicketNotificationEmail(ticketData, action, details = {}) {
     }
 
     const info = await transporter.sendMail({
-      from: `"A1 Support" <${process.env.SMTP_EMAIL || 'support@a1support.com'}>`,
+      from: `"${tenantDisplayName} ServiFlow Support" <${process.env.SMTP_EMAIL || 'support@a1support.com'}>`,
       to: customer_email,
       subject: subject,
       html: emailBody
@@ -456,6 +487,8 @@ async function sendTicketNotificationEmail(ticketData, action, details = {}) {
 // tenantCode and emailType are optional - if provided, checks kill switch
 async function sendNotificationEmail(to, subject, htmlContent, tenantCode = null, emailType = 'customers') {
   try {
+    const tenantDisplayName = await getTenantDisplayName(tenantCode);
+
     // Check kill switch if tenantCode provided
     if (tenantCode) {
       const emailEnabled = await isEmailSendingEnabled(tenantCode, emailType);
@@ -477,6 +510,11 @@ async function sendNotificationEmail(to, subject, htmlContent, tenantCode = null
       }
     }
 
+    if (tenantSender && tenantSender.disabled) {
+      console.log(`🚫 Outbound email disabled for tenant ${tenantCode} — not sending to ${to}`);
+      return { success: false, message: 'Tenant outbound email disabled' };
+    }
+
     if (tenantSender) {
       const result = await tenantSender.send(to, subject, htmlContent);
       console.log(`📧 Notification email sent via tenant sender to ${to}`);
@@ -490,7 +528,7 @@ async function sendNotificationEmail(to, subject, htmlContent, tenantCode = null
     }
 
     const info = await transporter.sendMail({
-      from: `"A1 Support" <${process.env.SMTP_EMAIL || 'support@a1support.com'}>`,
+      from: `"${tenantDisplayName} ServiFlow Support" <${process.env.SMTP_EMAIL || 'support@a1support.com'}>`,
       to: to,
       subject: subject,
       html: htmlContent
@@ -510,6 +548,8 @@ async function sendNotificationEmail(to, subject, htmlContent, tenantCode = null
 // options.skipKillSwitch - if true, bypasses kill switch (for security-critical emails like password reset)
 async function sendEmail(tenantCode, options) {
   try {
+    const tenantDisplayName = await getTenantDisplayName(tenantCode);
+
     // Check if email sending is enabled (kill switch)
     // Skip this check for security-critical emails (password reset, etc.)
     if (tenantCode && !options.skipKillSwitch) {
@@ -549,7 +589,12 @@ async function sendEmail(tenantCode, options) {
       }
     }
 
-    if (tenantSender) {
+    if (tenantSender && tenantSender.disabled && !options.skipKillSwitch) {
+      console.log(`🚫 Outbound email disabled for tenant ${tenantCode} — not sending to ${to}`);
+      return { success: false, message: 'Tenant outbound email disabled' };
+    }
+
+    if (tenantSender && !tenantSender.disabled) {
       const result = await tenantSender.send(to, subject, html);
       console.log(`📧 Email sent via tenant sender to ${to} - Message ID: ${result.messageId}`);
       return { success: true, messageId: result.messageId };
@@ -561,7 +606,7 @@ async function sendEmail(tenantCode, options) {
     }
 
     const info = await transporter.sendMail({
-      from: `"A1 Support" <${process.env.SMTP_EMAIL || 'support@a1support.com'}>`,
+      from: `"${tenantDisplayName} ServiFlow Support" <${process.env.SMTP_EMAIL || 'support@a1support.com'}>`,
       to: to,
       subject: subject,
       html: html
@@ -597,7 +642,7 @@ async function testEmailConnection(testEmail) {
       const testEmailHtml = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
           <h2 style="color: #28a745;">Email Connection Test Successful!</h2>
-          <p>This is a test email from the A1 Support Dashboard.</p>
+          <p>This is a test email from the ServiFlow Support Dashboard.</p>
           <p><strong>SMTP Configuration:</strong></p>
           <ul>
             <li><strong>Service:</strong> Gmail</li>
@@ -612,9 +657,9 @@ async function testEmailConnection(testEmail) {
       `;
 
       const info = await transporter.sendMail({
-        from: `"A1 Support" <${process.env.SMTP_EMAIL}>`,
+        from: `"ServiFlow Support" <${process.env.SMTP_EMAIL}>`,
         to: testEmail,
-        subject: 'A1 Support - Email Connection Test',
+        subject: 'ServiFlow Support - Email Connection Test',
         html: testEmailHtml
       });
 
@@ -653,6 +698,7 @@ module.exports = {
   sendTicketNotificationEmail,
   sendNotificationEmail,
   sendEmail,
-  testEmailConnection
+  testEmailConnection,
+  getTenantDisplayName
 };
 
