@@ -137,25 +137,40 @@ router.put('/:tenantId/settings', requireElevatedAdmin, writeOperationsLimiter, 
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [enabled, server_type, server_host, server_port, use_ssl, username, actualPassword, check_interval_minutes, auth_method || 'basic', oauth2_email || null, use_for_outbound || 0, smtp_host || null, smtp_port || 587]);
       } else {
-        // Update existing settings
+        // Update existing settings — use explicit values (allow clearing fields to null/empty)
         await connection.query(`
           UPDATE email_ingest_settings SET
-            enabled = COALESCE(?, enabled),
-            server_type = COALESCE(?, server_type),
-            server_host = COALESCE(?, server_host),
-            server_port = COALESCE(?, server_port),
-            use_ssl = COALESCE(?, use_ssl),
-            username = COALESCE(?, username),
-            password = COALESCE(?, password),
-            check_interval_minutes = COALESCE(?, check_interval_minutes),
-            auth_method = COALESCE(?, auth_method),
-            oauth2_email = COALESCE(?, oauth2_email),
-            use_for_outbound = COALESCE(?, use_for_outbound),
-            smtp_host = COALESCE(?, smtp_host),
-            smtp_port = COALESCE(?, smtp_port),
+            enabled = ?,
+            server_type = ?,
+            server_host = ?,
+            server_port = ?,
+            use_ssl = ?,
+            username = ?,
+            password = ?,
+            check_interval_minutes = ?,
+            auth_method = ?,
+            oauth2_email = ?,
+            use_for_outbound = ?,
+            smtp_host = ?,
+            smtp_port = ?,
             updated_at = NOW()
           WHERE id = ?
-        `, [enabled, server_type, server_host, server_port, use_ssl, username, actualPassword, check_interval_minutes, auth_method || null, oauth2_email || null, use_for_outbound !== undefined ? use_for_outbound : null, smtp_host !== undefined ? smtp_host : null, smtp_port !== undefined ? smtp_port : null, existingSettings[0].id]);
+        `, [
+          enabled !== undefined ? enabled : existingSettings[0].enabled,
+          server_type || null,
+          server_host || null,
+          server_port || null,
+          use_ssl !== undefined ? use_ssl : false,
+          username || null,
+          actualPassword || existingSettings[0].password,
+          check_interval_minutes || 5,
+          auth_method || 'basic',
+          oauth2_email || null,
+          use_for_outbound !== undefined ? use_for_outbound : 0,
+          smtp_host || null,
+          smtp_port || null,
+          existingSettings[0].id
+        ]);
       }
 
       // Fetch updated settings to return current state
@@ -172,6 +187,26 @@ router.put('/:tenantId/settings', requireElevatedAdmin, writeOperationsLimiter, 
     }
   } catch (error) {
     console.error('Error updating email ingest settings:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// Clear all email ingest settings (system admin only)
+router.delete('/:tenantId/settings', requireElevatedAdmin, writeOperationsLimiter, async (req, res) => {
+  try {
+    const { tenantId } = req.params;
+    const tenantCode = tenantId.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    const connection = await getTenantConnection(tenantCode);
+
+    try {
+      await connection.query('DELETE FROM email_ingest_settings');
+      console.log(`🗑️ Cleared all email ingest settings for tenant: ${tenantCode}`);
+      res.json({ success: true, message: 'Email settings cleared. No emails will be sent.' });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error clearing email ingest settings:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });

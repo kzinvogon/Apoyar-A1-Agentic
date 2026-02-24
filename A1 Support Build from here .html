@@ -2388,14 +2388,26 @@ vNext-FULL-ActionsSLA:
             </div>
           </div>
 
-          <!-- Delete Tenant Confirmation Modal -->
-          <div id="delete-tenant-modal" class="card p-16" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1000;max-width:400px;box-shadow:0 4px 20px rgba(0,0,0,0.3)">
-            <h4 style="color:var(--danger)">⚠️ Delete Tenant</h4>
-            <p class="mb-12">Are you sure you want to delete this tenant?</p>
-            <p class="subtitle mb-16">This will deactivate the tenant and they will no longer be able to access the system.</p>
+          <!-- Deactivate Tenant Confirmation Modal -->
+          <div id="delete-tenant-modal" class="card p-16" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1000;max-width:420px;box-shadow:0 4px 20px rgba(0,0,0,0.3)">
+            <h4 style="color:var(--danger)">Deactivate Tenant</h4>
+            <p class="mb-12">Are you sure you want to deactivate <strong id="delete-tenant-name"></strong> (<code id="delete-tenant-code"></code>)?</p>
+            <p class="subtitle mb-16">The tenant will be deactivated but all data is preserved. You can restore it later.</p>
             <div class="row">
-              <button class="btn danger" onclick="confirmDeleteTenant()">Yes, Delete</button>
+              <button class="btn danger" onclick="confirmDeleteTenant()">Yes, Deactivate</button>
               <button class="btn ghost" onclick="cancelDeleteTenant()">Cancel</button>
+            </div>
+          </div>
+
+          <!-- Permanent Delete Tenant Modal -->
+          <div id="permanent-delete-tenant-modal" class="card p-16" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1000;max-width:420px;box-shadow:0 4px 20px rgba(0,0,0,0.3)">
+            <h4 style="color:var(--danger)">PERMANENT DELETION</h4>
+            <p class="mb-8">This will permanently destroy ALL data for <strong id="perm-delete-tenant-name"></strong>. This cannot be undone.</p>
+            <p class="mb-8">Type <code id="perm-delete-tenant-code-display"></code> to confirm:</p>
+            <input id="perm-delete-confirm-input" class="mb-12" oninput="checkPermDeleteInput()" placeholder="Type tenant code..." style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-family:monospace">
+            <div class="row">
+              <button id="perm-delete-btn" class="btn danger" onclick="confirmPermanentDelete()" disabled>Permanently Delete</button>
+              <button class="btn ghost" onclick="cancelPermanentDelete()">Cancel</button>
             </div>
           </div>
 
@@ -4859,8 +4871,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           <div id="admin-section-email-ingest" class="wizard-section card p-16 mb-12" style="display:none">
             <div class="row space mb-12">
               <h4 class="subtitle" style="margin:0;font-weight:600">Email Ingest Rules</h4>
-              <div class="row">
+              <div class="row" style="gap:6px">
                 <button class="btn" onclick="testEmailConnection()">Test Connection</button>
+                <button class="btn" style="color:#b91c1c;border-color:#fca5a5" onclick="clearEmailIngestSettings()">Clear All</button>
                 <button class="btn primary" onclick="saveEmailIngestSettings()">Save Settings</button>
               </div>
             </div>
@@ -11150,10 +11163,13 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       const data = await response.json();
       
       if (data.success) {
-        const tenantCount = data.tenants.length;
-        document.getElementById('ma-tenants').textContent = tenantCount;
-        document.getElementById('ma-active').textContent = tenantCount;
-        
+        const totalCount = data.tenants.length;
+        const activeCount = data.tenants.filter(t => t.status === 'active').length;
+        const el1 = document.getElementById('ma-tenants');
+        if (el1) el1.textContent = totalCount;
+        const el2 = document.getElementById('ma-active');
+        if (el2) el2.textContent = activeCount;
+
         // Update tenant list if on tenants view
         if (currentView === 'tenants') {
           const tbody = document.getElementById('tenant-list-body');
@@ -11161,7 +11177,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             tbody.innerHTML = '';
             data.tenants.forEach(tenant => {
               const tr = document.createElement('tr');
-              const statusBadge = tenant.status === 'active' ? 'Active' : (tenant.status === 'suspended' ? 'Suspended' : 'Inactive');
+              const isActive = tenant.status === 'active';
+              const statusBadge = isActive ? 'Active' : (tenant.status === 'suspended' ? 'Suspended' : 'Inactive');
+              const statusClass = isActive ? 'success' : 'danger';
               const createdDate = new Date(tenant.created_at).toLocaleDateString();
 
               // Plan and subscription info
@@ -11183,18 +11201,33 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
                 subDisplay += ` (${daysLeft}d left)`;
               }
 
+              const escapedName = (tenant.company_name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+              const escapedCode = (tenant.tenant_code || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
+              let actionBtns = '';
+              if (isActive) {
+                actionBtns = `
+                  <button type="button" class="btn btn-sm" onclick="event.preventDefault();event.stopPropagation();editTenant(${tenant.id})">Edit</button>
+                  <button type="button" class="btn btn-sm" onclick="event.preventDefault();event.stopPropagation();manageTenantSubscription(${tenant.id})">Subscription</button>
+                  <button type="button" class="btn btn-sm btn-danger" onclick="event.preventDefault();event.stopPropagation();deleteTenant(${tenant.id},'${escapedName}','${escapedCode}')">Deactivate</button>
+                `;
+              } else {
+                actionBtns = `
+                  <button type="button" class="btn btn-sm" style="background:var(--success);color:#fff" onclick="event.preventDefault();event.stopPropagation();restoreTenant(${tenant.id})">Restore</button>
+                  <button type="button" class="btn btn-sm btn-danger" onclick="event.preventDefault();event.stopPropagation();permanentDeleteTenant(${tenant.id},'${escapedName}','${escapedCode}')">Permanently Delete</button>
+                `;
+              }
+
+              if (!isActive) tr.style.opacity = '0.7';
+
               tr.innerHTML = `
                 <td>${tenant.company_name}</td>
                 <td>${tenant.tenant_code}</td>
-                <td><span class="badge ${tenant.status === 'active' ? 'success' : 'danger'}">${statusBadge}</span></td>
+                <td><span class="badge ${statusClass}">${statusBadge}</span></td>
                 <td>${planName}</td>
                 <td><span class="badge ${subBadgeClass}">${subDisplay}</span></td>
                 <td>${createdDate}</td>
-                <td>
-                  <button type="button" class="btn btn-sm" onclick="event.preventDefault();event.stopPropagation();editTenant(${tenant.id})">Edit</button>
-                  <button type="button" class="btn btn-sm" onclick="event.preventDefault();event.stopPropagation();manageTenantSubscription(${tenant.id})">Subscription</button>
-                  <button type="button" class="btn btn-sm btn-danger" onclick="event.preventDefault();event.stopPropagation();deleteTenant(${tenant.id})">Delete</button>
-                </td>
+                <td>${actionBtns}</td>
               `;
               tbody.appendChild(tr);
             });
@@ -15524,7 +15557,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       payload.server_port = serverPort;
       payload.use_ssl = useSsl;
       payload.username = username;
-      payload.password = password || undefined;
+      payload.password = password || '';
     } else {
       // Microsoft 365 - save email address + auth_method
       const m365Email = document.getElementById('email-m365-address')?.value || '';
@@ -15579,6 +15612,43 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     } catch (error) {
       console.error('Error saving email ingest settings:', error);
       showEmailIngestError('Error saving email ingest settings');
+    }
+  }
+
+  async function clearEmailIngestSettings() {
+    if (!confirm('Clear all email settings? This will disable email ingest and outbound email. No emails will be sent until new settings are configured.')) return;
+    try {
+      const tenantCode = window.currentUser?.tenantCode || 'apoyar';
+      const response = await fetch(`${API_BASE}/api/email-ingest/${tenantCode}/settings`, {
+        method: 'DELETE',
+        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+      });
+      const data = await response.json();
+      if (data.success) {
+        // Reset all form fields
+        const fields = {
+          'email-ingest-enabled': false,
+          'email-server-host': '', 'email-server-port': '993',
+          'email-use-ssl': true, 'email-username': '', 'email-password': '',
+          'email-check-interval': '5', 'email-use-for-outbound': false,
+          'email-smtp-host': '', 'email-smtp-port': '587',
+          'email-m365-address': ''
+        };
+        for (const [id, val] of Object.entries(fields)) {
+          const el = document.getElementById(id);
+          if (!el) continue;
+          if (el.type === 'checkbox') el.checked = val;
+          else el.value = val;
+        }
+        toggleOutboundSmtpFields();
+        showEmailIngestMessage('All email settings cleared. No emails will be sent.');
+        setTimeout(() => hideEmailIngestMessages(), 4000);
+      } else {
+        showEmailIngestError(data.message || 'Error clearing settings');
+      }
+    } catch (error) {
+      console.error('Error clearing email settings:', error);
+      showEmailIngestError('Error clearing email settings');
     }
   }
 
@@ -16907,13 +16977,19 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     }
   }
   
-  // Store tenant ID for delete confirmation
+  // Store tenant info for delete/restore confirmation
   let pendingDeleteTenantId = null;
+  let pendingPermDeleteTenantId = null;
+  let pendingPermDeleteTenantCode = null;
 
-  function deleteTenant(tenantId) {
-    console.log('Delete tenant clicked:', tenantId);
+  function deleteTenant(tenantId, name, code) {
+    console.log('Deactivate tenant clicked:', tenantId);
     pendingDeleteTenantId = tenantId;
     const modal = document.getElementById('delete-tenant-modal');
+    const nameEl = document.getElementById('delete-tenant-name');
+    const codeEl = document.getElementById('delete-tenant-code');
+    if (nameEl) nameEl.textContent = name || 'Unknown';
+    if (codeEl) codeEl.textContent = code || '';
     if (modal) modal.style.display = 'block';
   }
 
@@ -16941,16 +17017,101 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       const data = await response.json();
 
       if (data.success) {
-        alert('Tenant deleted successfully');
-        loadTenants(); // Refresh the tenant list
+        alert('Tenant deactivated successfully');
+        loadTenants();
       } else {
-        alert('Error deleting tenant: ' + (data.message || 'Unknown error'));
+        alert('Error deactivating tenant: ' + (data.message || 'Unknown error'));
       }
     } catch (error) {
-      console.error('Error deleting tenant:', error);
-      alert('Error deleting tenant: ' + error.message);
+      console.error('Error deactivating tenant:', error);
+      alert('Error deactivating tenant: ' + error.message);
     } finally {
       pendingDeleteTenantId = null;
+    }
+  }
+
+  async function restoreTenant(tenantId) {
+    if (!confirm('Restore this tenant to active status?')) return;
+    try {
+      const response = await fetch(`${window.location.protocol}//${window.location.host}/api/master/tenants/${tenantId}/restore`, {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + localStorage.getItem('token')
+        }
+      });
+      const data = await response.json();
+      if (data.success) {
+        alert('Tenant restored successfully');
+        loadTenants();
+      } else {
+        alert('Error restoring tenant: ' + (data.message || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error restoring tenant:', error);
+      alert('Error restoring tenant: ' + error.message);
+    }
+  }
+
+  function permanentDeleteTenant(tenantId, name, code) {
+    pendingPermDeleteTenantId = tenantId;
+    pendingPermDeleteTenantCode = code;
+    const nameEl = document.getElementById('perm-delete-tenant-name');
+    const codeEl = document.getElementById('perm-delete-tenant-code-display');
+    const input = document.getElementById('perm-delete-confirm-input');
+    const btn = document.getElementById('perm-delete-btn');
+    if (nameEl) nameEl.textContent = name || 'Unknown';
+    if (codeEl) codeEl.textContent = code || '';
+    if (input) input.value = '';
+    if (btn) btn.disabled = true;
+    const modal = document.getElementById('permanent-delete-tenant-modal');
+    if (modal) modal.style.display = 'block';
+  }
+
+  function checkPermDeleteInput() {
+    const input = document.getElementById('perm-delete-confirm-input');
+    const btn = document.getElementById('perm-delete-btn');
+    if (input && btn) {
+      btn.disabled = input.value !== pendingPermDeleteTenantCode;
+    }
+  }
+
+  function cancelPermanentDelete() {
+    pendingPermDeleteTenantId = null;
+    pendingPermDeleteTenantCode = null;
+    const modal = document.getElementById('permanent-delete-tenant-modal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  async function confirmPermanentDelete() {
+    if (!pendingPermDeleteTenantId || !pendingPermDeleteTenantCode) return;
+
+    const tenantId = pendingPermDeleteTenantId;
+    const code = pendingPermDeleteTenantCode;
+    const modal = document.getElementById('permanent-delete-tenant-modal');
+    if (modal) modal.style.display = 'none';
+
+    try {
+      const response = await fetch(`${window.location.protocol}//${window.location.host}/api/master/tenants/${tenantId}/permanent`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': 'Bearer ' + localStorage.getItem('token'),
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ confirm_code: code })
+      });
+      const data = await response.json();
+      if (data.success) {
+        alert('Tenant permanently deleted');
+        loadTenants();
+      } else {
+        alert('Error: ' + (data.message || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error permanently deleting tenant:', error);
+      alert('Error: ' + error.message);
+    } finally {
+      pendingPermDeleteTenantId = null;
+      pendingPermDeleteTenantCode = null;
     }
   }
   
@@ -16960,6 +17121,11 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   window.manageTenantSubscription = manageTenantSubscription;
   window.confirmDeleteTenant = confirmDeleteTenant;
   window.cancelDeleteTenant = cancelDeleteTenant;
+  window.restoreTenant = restoreTenant;
+  window.permanentDeleteTenant = permanentDeleteTenant;
+  window.checkPermDeleteInput = checkPermDeleteInput;
+  window.confirmPermanentDelete = confirmPermanentDelete;
+  window.cancelPermanentDelete = cancelPermanentDelete;
   window.showEditTenantForm = showEditTenantForm;
   window.hideEditTenantForm = hideEditTenantForm;
   window.updateTenant = updateTenant;
