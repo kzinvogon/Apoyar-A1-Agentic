@@ -15,6 +15,7 @@ module.exports = [
   // Collaboration
   'integrations.teams',
   'integrations.slack',
+  'integrations.sms',
 
   // Monitoring - advanced classification
   'integrations.monitoring.classification',

@@ -909,6 +909,23 @@ async function createTenantTables(connection) {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
 
+  // Ticket access tokens (for public SMS ticket view URLs)
+  await connection.execute(`
+    CREATE TABLE IF NOT EXISTS ticket_access_tokens (
+      id INT NOT NULL AUTO_INCREMENT,
+      ticket_id INT NOT NULL,
+      token VARCHAR(64) NOT NULL,
+      expires_at DATETIME NOT NULL,
+      created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+      last_accessed_at DATETIME DEFAULT NULL,
+      access_count INT DEFAULT 0,
+      PRIMARY KEY (id),
+      UNIQUE KEY token (token),
+      KEY idx_ticket_id (ticket_id),
+      KEY idx_expires_at (expires_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+
   // Demo personas table (used by demo environment for persona switching)
   await connection.execute(`
     CREATE TABLE IF NOT EXISTS demo_personas (
