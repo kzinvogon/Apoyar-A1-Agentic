@@ -81,7 +81,8 @@
     "node-fetch": "^2.7.0",
     "nodemailer": "^7.0.10",
     "socket.io": "^4.8.3",
-    "stripe": "^20.1.2"
+    "stripe": "^20.1.2",
+    "twilio": "^5.12.2"
   },
   "engines": {
     "node": ">=18.0.0"
