@@ -2,10 +2,12 @@ const express = require('express');
 const router = express.Router();
 const { getTenantConnection } = require('../config/database');
 const { verifyToken, requireElevatedAdmin } = require('../middleware/auth');
+const { applyTenantMatch } = require('../middleware/tenantMatch');
 const { logAudit, AUDIT_ACTIONS } = require('../utils/auditLog');
 
 // Apply authentication to all routes — system admin only
 router.use(verifyToken);
+applyTenantMatch(router);
 router.use(requireElevatedAdmin);
 
 // Get all variables for a tenant (aggregated from multiple sources)

@@ -10,6 +10,9 @@ const router = express.Router();
 const { getMasterConnection, getTenantConnection } = require('../config/database');
 const { requireFeature } = require('../middleware/featureGuard');
 const { hasFeature } = require('../services/feature-flags');
+const { applyTenantMatch } = require('../middleware/tenantMatch');
+
+applyTenantMatch(router);
 
 const APP_BASE_URL = process.env.APP_BASE_URL || 'https://web-production-11114.up.railway.app';
 const SMS_CONNECTOR_URL = process.env.SMS_CONNECTOR_URL || 'http://localhost:3980';

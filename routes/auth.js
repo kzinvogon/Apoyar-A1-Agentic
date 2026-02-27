@@ -17,6 +17,9 @@ const {
 const crypto = require('crypto');
 const { sendEmail, getTenantDisplayName } = require('../config/email');
 const { logAudit, AUDIT_ACTIONS } = require('../utils/auditLog');
+const { applyTenantMatch, requireTenantMatch } = require('../middleware/tenantMatch');
+
+applyTenantMatch(router);
 
 // Master user login
 router.post('/master/login', loginLimiter, validateLogin, async (req, res) => {
@@ -1165,7 +1168,7 @@ router.post('/invitation/accept', async (req, res) => {
 });
 
 // Re-authentication for sensitive operations (e.g., Raw Variables)
-router.post('/:tenantCode/reauth', verifyToken, async (req, res) => {
+router.post('/:tenantCode/reauth', verifyToken, requireTenantMatch, async (req, res) => {
   const { tenantCode } = req.params;
   const { password } = req.body;
 
@@ -1216,7 +1219,7 @@ router.post('/:tenantCode/reauth', verifyToken, async (req, res) => {
 });
 
 // Admin password reset endpoint (admin only)
-router.post('/admin/reset-password/:tenantCode', verifyToken, async (req, res) => {
+router.post('/admin/reset-password/:tenantCode', verifyToken, requireTenantMatch, async (req, res) => {
   try {
     const { tenantCode } = req.params;
     const { username, newPassword } = req.body;

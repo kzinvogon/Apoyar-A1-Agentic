@@ -2,10 +2,12 @@ const express = require('express');
 const router = express.Router();
 const { getTenantConnection } = require('../config/database');
 const { verifyToken, requireRole } = require('../middleware/auth');
+const { applyTenantMatch } = require('../middleware/tenantMatch');
 const { AIAnalysisService } = require('../services/ai-analysis-service');
 
 // Apply verifyToken middleware to all analytics routes
 router.use(verifyToken);
+applyTenantMatch(router);
 
 // Get analytics dashboard data for a tenant
 router.get('/:tenantId', async (req, res) => {

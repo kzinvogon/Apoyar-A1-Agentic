@@ -8,10 +8,12 @@ const express = require('express');
 const router = express.Router();
 const { tenantQuery } = require('../config/database');
 const { verifyToken, requireRole } = require('../middleware/auth');
+const { applyTenantMatch } = require('../middleware/tenantMatch');
 const { sendEmail } = require('../config/email');
 const { aggregateMonthlyData, renderReportHTML } = require('../services/report-generator');
 
 router.use(verifyToken);
+applyTenantMatch(router);
 
 // ---------------------------------------------------------------------------
 // Middleware: allow admin OR company admin, attach company context

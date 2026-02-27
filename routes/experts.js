@@ -2,11 +2,13 @@ const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
 const { verifyToken, hashPassword } = require('../middleware/auth');
+const { applyTenantMatch } = require('../middleware/tenantMatch');
 const { getTenantConnection, getMasterConnection } = require('../config/database');
 const { sendEmail } = require('../config/email');
 
 // Apply verifyToken middleware to all expert routes
 router.use(verifyToken);
+applyTenantMatch(router);
 
 // Get all experts for a tenant
 router.get('/:tenantId', async (req, res) => {

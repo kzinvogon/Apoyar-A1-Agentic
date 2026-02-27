@@ -4,9 +4,11 @@ const { TicketRulesService } = require('../services/ticket-rules-service');
 const { AIAnalysisService } = require('../services/ai-analysis-service');
 const { getTenantConnection } = require('../config/database');
 const { verifyToken, requireRole } = require('../middleware/auth');
+const { applyTenantMatch } = require('../middleware/tenantMatch');
 
 // Apply authentication to all routes
 router.use(verifyToken);
+applyTenantMatch(router);
 
 // Get all rules for tenant
 router.get('/:tenantId', requireRole(['admin', 'expert']), async (req, res) => {

@@ -2,11 +2,13 @@ const express = require('express');
 const router = express.Router();
 const { getTenantConnection } = require('../config/database');
 const { verifyToken } = require('../middleware/auth');
+const { applyTenantMatch } = require('../middleware/tenantMatch');
 const { TicketRulesService } = require('../services/ticket-rules-service');
 const { logTicketActivity } = require('../services/activityLogger');
 
 // Apply verifyToken middleware to all chatbot routes
 router.use(verifyToken);
+applyTenantMatch(router);
 
 // AI-powered chatbot endpoint
 router.post('/:tenantId/chat', async (req, res) => {

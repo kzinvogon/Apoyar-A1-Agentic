@@ -5,19 +5,12 @@ const path = require('path');
 const fs = require('fs');
 const { getTenantConnection } = require('../config/database');
 const { verifyToken } = require('../middleware/auth');
+const { applyTenantMatch } = require('../middleware/tenantMatch');
 const { getOnlineExperts } = require('../services/chat-socket');
 const { ChatQualificationEngine } = require('../services/chat-qualification');
 
 router.use(verifyToken);
-
-// Tenant isolation: ensure URL tenantId matches the authenticated user's tenantCode
-router.param('tenantId', (req, res, next, tenantId) => {
-  const normalized = tenantId.toLowerCase().replace(/[^a-z0-9]/g, '_');
-  if (req.user && req.user.tenantCode !== normalized) {
-    return res.status(403).json({ error: 'Access denied' });
-  }
-  next();
-});
+applyTenantMatch(router);
 
 // Configure multer for chat file uploads (max 10MB)
 const chatUploadDir = path.join(__dirname, '..', 'uploads', 'chat');

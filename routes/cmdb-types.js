@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { getTenantConnection } = require('../config/database');
 const { verifyToken } = require('../middleware/auth');
+const { applyTenantMatch } = require('../middleware/tenantMatch');
 const {
   validateCmdbItemTypeCreate,
   validateCiTypeCreate
@@ -13,6 +14,7 @@ const {
 
 // Apply verifyToken middleware to all routes
 router.use(verifyToken);
+applyTenantMatch(router);
 
 // Get all CMDB Item Types
 router.get('/:tenantId/item-types', readOperationsLimiter, async (req, res) => {

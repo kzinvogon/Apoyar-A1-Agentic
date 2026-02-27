@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { getTenantConnection } = require('../config/database');
 const { verifyToken, requireRole, requireElevatedAdmin } = require('../middleware/auth');
+const { applyTenantMatch } = require('../middleware/tenantMatch');
 const { body } = require('express-validator');
 const { handleValidationErrors } = require('../middleware/validation');
 const {
@@ -19,6 +20,7 @@ const fetch = require('node-fetch');
 // All routes require authentication
 // ============================================================================
 router.use(verifyToken);
+applyTenantMatch(router);
 
 // Validation for email ingest settings
 const validateEmailIngestSettings = [

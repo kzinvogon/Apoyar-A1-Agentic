@@ -6,7 +6,12 @@
 const express = require('express');
 const router = express.Router();
 const { verifyToken, requireRole } = require('../middleware/auth');
+const { applyTenantMatch } = require('../middleware/tenantMatch');
 const { getTenantConnection } = require('../config/database');
+
+// Apply authentication and tenant isolation to all routes
+router.use(verifyToken);
+applyTenantMatch(router);
 
 // IANA timezone validation (basic check)
 function isValidTimezone(tz) {
@@ -35,7 +40,7 @@ function isStartBeforeEnd(start, end) {
 // ============================================
 
 // GET /api/sla/:tenantCode/business-hours - List all business hours profiles
-router.get('/:tenantCode/business-hours', verifyToken, requireRole(['admin']), async (req, res) => {
+router.get('/:tenantCode/business-hours', requireRole(['admin']),async (req, res) => {
   let connection;
   try {
     const { tenantCode } = req.params;
@@ -58,7 +63,7 @@ router.get('/:tenantCode/business-hours', verifyToken, requireRole(['admin']), a
 });
 
 // GET /api/sla/:tenantCode/business-hours/:id - Get single profile
-router.get('/:tenantCode/business-hours/:id', verifyToken, requireRole(['admin']), async (req, res) => {
+router.get('/:tenantCode/business-hours/:id', requireRole(['admin']),async (req, res) => {
   let connection;
   try {
     const { tenantCode, id } = req.params;
@@ -84,7 +89,7 @@ router.get('/:tenantCode/business-hours/:id', verifyToken, requireRole(['admin']
 });
 
 // POST /api/sla/:tenantCode/business-hours - Create profile
-router.post('/:tenantCode/business-hours', verifyToken, requireRole(['admin']), async (req, res) => {
+router.post('/:tenantCode/business-hours', requireRole(['admin']),async (req, res) => {
   let connection;
   try {
     const { tenantCode } = req.params;
@@ -146,7 +151,7 @@ router.post('/:tenantCode/business-hours', verifyToken, requireRole(['admin']), 
 });
 
 // PUT /api/sla/:tenantCode/business-hours/:id - Update profile
-router.put('/:tenantCode/business-hours/:id', verifyToken, requireRole(['admin']), async (req, res) => {
+router.put('/:tenantCode/business-hours/:id', requireRole(['admin']),async (req, res) => {
   let connection;
   try {
     const { tenantCode, id } = req.params;
@@ -210,7 +215,7 @@ router.put('/:tenantCode/business-hours/:id', verifyToken, requireRole(['admin']
 });
 
 // DELETE /api/sla/:tenantCode/business-hours/:id - Soft delete profile
-router.delete('/:tenantCode/business-hours/:id', verifyToken, requireRole(['admin']), async (req, res) => {
+router.delete('/:tenantCode/business-hours/:id', requireRole(['admin']),async (req, res) => {
   let connection;
   try {
     const { tenantCode, id } = req.params;
@@ -242,7 +247,7 @@ router.delete('/:tenantCode/business-hours/:id', verifyToken, requireRole(['admi
 // ============================================
 
 // GET /api/sla/:tenantCode/definitions - List all SLA definitions
-router.get('/:tenantCode/definitions', verifyToken, requireRole(['admin']), async (req, res) => {
+router.get('/:tenantCode/definitions', requireRole(['admin']),async (req, res) => {
   let connection;
   try {
     const { tenantCode } = req.params;
@@ -272,7 +277,7 @@ router.get('/:tenantCode/definitions', verifyToken, requireRole(['admin']), asyn
 });
 
 // GET /api/sla/:tenantCode/definitions/:id - Get single SLA definition
-router.get('/:tenantCode/definitions/:id', verifyToken, requireRole(['admin']), async (req, res) => {
+router.get('/:tenantCode/definitions/:id', requireRole(['admin']),async (req, res) => {
   let connection;
   try {
     const { tenantCode, id } = req.params;
@@ -305,7 +310,7 @@ router.get('/:tenantCode/definitions/:id', verifyToken, requireRole(['admin']), 
 });
 
 // POST /api/sla/:tenantCode/definitions - Create SLA definition
-router.post('/:tenantCode/definitions', verifyToken, requireRole(['admin']), async (req, res) => {
+router.post('/:tenantCode/definitions', requireRole(['admin']),async (req, res) => {
   let connection;
   try {
     const { tenantCode } = req.params;
@@ -377,7 +382,7 @@ router.post('/:tenantCode/definitions', verifyToken, requireRole(['admin']), asy
 });
 
 // PUT /api/sla/:tenantCode/definitions/:id - Update SLA definition
-router.put('/:tenantCode/definitions/:id', verifyToken, requireRole(['admin']), async (req, res) => {
+router.put('/:tenantCode/definitions/:id', requireRole(['admin']),async (req, res) => {
   let connection;
   try {
     const { tenantCode, id } = req.params;
@@ -454,7 +459,7 @@ router.put('/:tenantCode/definitions/:id', verifyToken, requireRole(['admin']), 
 });
 
 // DELETE /api/sla/:tenantCode/definitions/:id - Soft delete SLA definition
-router.delete('/:tenantCode/definitions/:id', verifyToken, requireRole(['admin']), async (req, res) => {
+router.delete('/:tenantCode/definitions/:id', requireRole(['admin']),async (req, res) => {
   let connection;
   try {
     const { tenantCode, id } = req.params;
@@ -480,7 +485,7 @@ router.delete('/:tenantCode/definitions/:id', verifyToken, requireRole(['admin']
 // ============================================
 
 // GET /api/sla/:tenantCode/category-mappings - List all category mappings
-router.get('/:tenantCode/category-mappings', verifyToken, requireRole(['admin']), async (req, res) => {
+router.get('/:tenantCode/category-mappings', requireRole(['admin']),async (req, res) => {
   let connection;
   try {
     const { tenantCode } = req.params;
@@ -504,7 +509,7 @@ router.get('/:tenantCode/category-mappings', verifyToken, requireRole(['admin'])
 });
 
 // GET /api/sla/:tenantCode/category-mappings/:id - Get single mapping
-router.get('/:tenantCode/category-mappings/:id', verifyToken, requireRole(['admin']), async (req, res) => {
+router.get('/:tenantCode/category-mappings/:id', requireRole(['admin']),async (req, res) => {
   let connection;
   try {
     const { tenantCode, id } = req.params;
@@ -532,7 +537,7 @@ router.get('/:tenantCode/category-mappings/:id', verifyToken, requireRole(['admi
 });
 
 // POST /api/sla/:tenantCode/category-mappings - Create category mapping
-router.post('/:tenantCode/category-mappings', verifyToken, requireRole(['admin']), async (req, res) => {
+router.post('/:tenantCode/category-mappings', requireRole(['admin']),async (req, res) => {
   let connection;
   try {
     const { tenantCode } = req.params;
@@ -578,7 +583,7 @@ router.post('/:tenantCode/category-mappings', verifyToken, requireRole(['admin']
 });
 
 // PUT /api/sla/:tenantCode/category-mappings/:id - Update category mapping
-router.put('/:tenantCode/category-mappings/:id', verifyToken, requireRole(['admin']), async (req, res) => {
+router.put('/:tenantCode/category-mappings/:id', requireRole(['admin']),async (req, res) => {
   let connection;
   try {
     const { tenantCode, id } = req.params;
@@ -636,7 +641,7 @@ router.put('/:tenantCode/category-mappings/:id', verifyToken, requireRole(['admi
 });
 
 // DELETE /api/sla/:tenantCode/category-mappings/:id - Hard delete category mapping
-router.delete('/:tenantCode/category-mappings/:id', verifyToken, requireRole(['admin']), async (req, res) => {
+router.delete('/:tenantCode/category-mappings/:id', requireRole(['admin']),async (req, res) => {
   let connection;
   try {
     const { tenantCode, id } = req.params;

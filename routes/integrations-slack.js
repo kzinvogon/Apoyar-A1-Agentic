@@ -12,6 +12,9 @@ const { getMasterConnection, getTenantConnection } = require('../config/database
 const { requireFeature } = require('../middleware/featureGuard');
 const { hasFeature } = require('../services/feature-flags');
 const { verifyToken, requireElevatedAdmin } = require('../middleware/auth');
+const { applyTenantMatch, requireTenantMatch } = require('../middleware/tenantMatch');
+
+applyTenantMatch(router);
 
 // Slack OAuth endpoints
 const SLACK_AUTH_URL = 'https://slack.com/oauth/v2/authorize';
@@ -96,7 +99,7 @@ router.get('/:tenantCode/slack/status', async (req, res) => {
  * GET /api/integrations/:tenantCode/slack/connect
  * Initiate Slack OAuth flow
  */
-router.get('/:tenantCode/slack/connect', verifyToken, requireElevatedAdmin, requireFeature('integrations.slack'), async (req, res) => {
+router.get('/:tenantCode/slack/connect', verifyToken, requireTenantMatch, requireElevatedAdmin, requireFeature('integrations.slack'), async (req, res) => {
   const { tenantCode } = req.params;
 
   if (!SLACK_CLIENT_ID) {
@@ -251,7 +254,7 @@ router.get('/slack/callback', async (req, res) => {
  * DELETE /api/integrations/:tenantCode/slack/disconnect
  * Remove Slack integration
  */
-router.delete('/:tenantCode/slack/disconnect', verifyToken, requireElevatedAdmin, requireFeature('integrations.slack'), async (req, res) => {
+router.delete('/:tenantCode/slack/disconnect', verifyToken, requireTenantMatch, requireElevatedAdmin, requireFeature('integrations.slack'), async (req, res) => {
   const { tenantCode } = req.params;
 
   try {
@@ -280,7 +283,7 @@ router.delete('/:tenantCode/slack/disconnect', verifyToken, requireElevatedAdmin
  * POST /api/integrations/:tenantCode/slack/email-domain
  * Add additional email domain mapping
  */
-router.post('/:tenantCode/slack/email-domain', verifyToken, requireElevatedAdmin, requireFeature('integrations.slack'), async (req, res) => {
+router.post('/:tenantCode/slack/email-domain', verifyToken, requireTenantMatch, requireElevatedAdmin, requireFeature('integrations.slack'), async (req, res) => {
   const { tenantCode } = req.params;
   const { email_domain } = req.body;
 
@@ -311,7 +314,7 @@ router.post('/:tenantCode/slack/email-domain', verifyToken, requireElevatedAdmin
  * DELETE /api/integrations/:tenantCode/slack/email-domain/:domain
  * Remove email domain mapping
  */
-router.delete('/:tenantCode/slack/email-domain/:domain', verifyToken, requireElevatedAdmin, requireFeature('integrations.slack'), async (req, res) => {
+router.delete('/:tenantCode/slack/email-domain/:domain', verifyToken, requireTenantMatch, requireElevatedAdmin, requireFeature('integrations.slack'), async (req, res) => {
   const { tenantCode, domain } = req.params;
 
   try {

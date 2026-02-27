@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { getTenantConnection } = require('../config/database');
 const { verifyToken, requireRole } = require('../middleware/auth');
+const { applyTenantMatch } = require('../middleware/tenantMatch');
 const multer = require('multer');
 const csv = require('csv-parser');
 const { Readable } = require('stream');
@@ -70,6 +71,7 @@ function getClientIP(req) {
 
 // Apply verifyToken middleware to ALL CMDB routes (including debug endpoints)
 router.use(verifyToken);
+applyTenantMatch(router);
 
 // CSV template (auth required)
 router.get('/:tenantCode/template/items', (req, res) => {

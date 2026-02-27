@@ -9,10 +9,12 @@ const express = require('express');
 const router = express.Router();
 const { getTenantConnection } = require('../config/database');
 const { verifyToken, requireRole } = require('../middleware/auth');
+const { applyTenantMatch } = require('../middleware/tenantMatch');
 const { body, param, validationResult } = require('express-validator');
 
 // Apply verifyToken middleware to all routes
 router.use(verifyToken);
+applyTenantMatch(router);
 
 /**
  * GET /:tenantId/settings

@@ -23,6 +23,7 @@
     "smoke:uat-parity": "node scripts/smoke-uat-parity.js uat",
     "smoke:uat-full": "node scripts/smoke-test.js https://web-uat-uat.up.railway.app && node scripts/smoke-uat-parity.js uat",
     "smoke:prod-parity": "node scripts/smoke-uat-parity.js prod",
+    "test": "node --test tests/",
     "precommit": "npm run lint",
     "cap:init": "npx cap init ServiFlow com.serviflow.app --web-dir .",
     "cap:add:ios": "npx cap add ios",

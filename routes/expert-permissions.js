@@ -2,9 +2,11 @@ const express = require('express');
 const router = express.Router();
 const { getTenantConnection } = require('../config/database');
 const { verifyToken, requireRole } = require('../middleware/auth');
+const { applyTenantMatch } = require('../middleware/tenantMatch');
 
 // Apply authentication to all routes
 router.use(verifyToken);
+applyTenantMatch(router);
 
 // Get available customers for assignment - MUST come before /:tenantId/:expertId
 router.get('/:tenantId/customers/available', requireRole(['admin']), async (req, res) => {

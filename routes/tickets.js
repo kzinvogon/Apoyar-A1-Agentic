@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { getTenantConnection, getMasterConnection } = require('../config/database');
 const { verifyToken, requireRole } = require('../middleware/auth');
+const { applyTenantMatch } = require('../middleware/tenantMatch');
 const { sendTicketNotificationEmail } = require('../config/email');
 const {
   validateTicketCreate,
@@ -448,6 +449,7 @@ router.get('/public/:tenantCode/feedback-scoreboard', async (req, res) => {
 // ========== PROTECTED ROUTES (AUTH REQUIRED) ==========
 // Apply verifyToken middleware to all routes below
 router.use(verifyToken);
+applyTenantMatch(router);
 
 // Get tenant settings (must come BEFORE /:tenantId to avoid route conflict)
 router.get('/settings/:tenantId', async (req, res) => {
