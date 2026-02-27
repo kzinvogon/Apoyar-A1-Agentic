@@ -13,9 +13,15 @@ struct MenuBarView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("ServiFlow Production")
                         .font(.headline)
-                    Text(monitor.overallStatus == .healthy ? "All systems operational" : "Issues detected")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    if monitor.overallStatus == .needsSetup {
+                        Text("Credentials required")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                    } else {
+                        Text(monitor.overallStatus == .healthy ? "All systems operational" : "Issues detected")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                 }
                 Spacer()
             }
@@ -23,147 +29,171 @@ struct MenuBarView: View {
 
             Divider()
 
-            // Health Checks
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Health Checks")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
+            if monitor.overallStatus == .needsSetup {
+                // Setup prompt
+                VStack(spacing: 12) {
+                    Image(systemName: "person.badge.key")
+                        .font(.largeTitle)
+                        .foregroundColor(.orange)
 
-                ForEach(monitor.checks) { check in
-                    HStack {
-                        Image(systemName: check.status.icon)
-                            .foregroundColor(check.status.color)
-                            .frame(width: 20)
-                        Text(check.name)
-                            .frame(width: 80, alignment: .leading)
-                        Spacer()
-                        if check.latency > 0 {
-                            Text("\(check.latency)ms")
+                    Text("Credentials Required")
+                        .font(.headline)
+
+                    Text("Enter your tenant code, username, and password in Settings to start monitoring.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+
+                    SettingsLink {
+                        Label("Open Settings", systemImage: "gear")
+                    }
+                    .buttonStyle(.bordered)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+            } else {
+                // Health Checks
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Health Checks")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+
+                    ForEach(monitor.checks) { check in
+                        HStack {
+                            Image(systemName: check.status.icon)
+                                .foregroundColor(check.status.color)
+                                .frame(width: 20)
+                            Text(check.name)
+                                .frame(width: 80, alignment: .leading)
+                            Spacer()
+                            if check.latency > 0 {
+                                Text("\(check.latency)ms")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            Text(check.status.rawValue)
                                 .font(.caption)
-                                .foregroundColor(.secondary)
+                                .foregroundColor(check.status.color)
                         }
-                        Text(check.status.rawValue)
-                            .font(.caption)
-                            .foregroundColor(check.status.color)
                     }
                 }
-            }
 
-            Divider()
-
-            // Stats
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text("Last Check:")
-                        .foregroundColor(.secondary)
-                    Spacer()
-                    if let lastCheck = monitor.lastCheckTime {
-                        Text(lastCheck, style: .time)
-                    } else {
-                        Text("Never")
-                    }
-                }
-                .font(.caption)
-
-                HStack {
-                    Text("Success Rate:")
-                        .foregroundColor(.secondary)
-                    Spacer()
-                    Text(monitor.successRate)
-                }
-                .font(.caption)
-
-                HStack {
-                    Text("Uptime:")
-                        .foregroundColor(.secondary)
-                    Spacer()
-                    Text(monitor.uptime)
-                }
-                .font(.caption)
-
-                if monitor.consecutiveFailures > 0 {
-                    HStack {
-                        Text("Consecutive Failures:")
-                            .foregroundColor(.secondary)
-                        Spacer()
-                        Text("\(monitor.consecutiveFailures)")
-                            .foregroundColor(.red)
-                    }
-                    .font(.caption)
-                }
-            }
-
-            // Auto-Diagnose Status (when enabled or active)
-            if monitor.autoDiagnoseEnabled || monitor.isDiagnosing {
                 Divider()
 
+                // Stats
                 VStack(alignment: .leading, spacing: 4) {
                     HStack {
-                        Image(systemName: "wand.and.stars")
-                            .foregroundColor(monitor.isDiagnosing ? .blue : .secondary)
-                        Text("Auto-Diagnose")
-                            .font(.subheadline)
+                        Text("Last Check:")
                             .foregroundColor(.secondary)
                         Spacer()
-                        if monitor.isDiagnosing {
-                            ProgressView()
-                                .scaleEffect(0.6)
+                        if let lastCheck = monitor.lastCheckTime {
+                            Text(lastCheck, style: .time)
                         } else {
-                            Text(monitor.autoDiagnoseEnabled ? "Enabled" : "Disabled")
-                                .font(.caption)
-                                .foregroundColor(monitor.autoDiagnoseEnabled ? .green : .secondary)
+                            Text("Never")
                         }
                     }
+                    .font(.caption)
 
-                    if monitor.isDiagnosing {
-                        Text(monitor.diagnoseStatus)
-                            .font(.caption)
-                            .foregroundColor(.blue)
-                    } else if let lastTime = monitor.lastDiagnoseTime {
+                    HStack {
+                        Text("Success Rate:")
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Text(monitor.successRate)
+                    }
+                    .font(.caption)
+
+                    HStack {
+                        Text("Uptime:")
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Text(monitor.uptime)
+                    }
+                    .font(.caption)
+
+                    if monitor.consecutiveFailures > 0 {
                         HStack {
-                            Text("Last run:")
+                            Text("Consecutive Failures:")
                                 .foregroundColor(.secondary)
                             Spacer()
-                            Text(lastTime, style: .relative)
+                            Text("\(monitor.consecutiveFailures)")
+                                .foregroundColor(.red)
                         }
                         .font(.caption)
                     }
                 }
-            }
 
-            Divider()
+                // Auto-Diagnose Status (when enabled or active)
+                if monitor.autoDiagnoseEnabled || monitor.isDiagnosing {
+                    Divider()
 
-            // Actions
-            HStack {
-                Button(action: {
-                    Task {
-                        await monitor.runHealthChecks()
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Image(systemName: "wand.and.stars")
+                                .foregroundColor(monitor.isDiagnosing ? .blue : .secondary)
+                            Text("Auto-Diagnose")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                            Spacer()
+                            if monitor.isDiagnosing {
+                                ProgressView()
+                                    .scaleEffect(0.6)
+                            } else {
+                                Text(monitor.autoDiagnoseEnabled ? "Enabled" : "Disabled")
+                                    .font(.caption)
+                                    .foregroundColor(monitor.autoDiagnoseEnabled ? .green : .secondary)
+                            }
+                        }
+
+                        if monitor.isDiagnosing {
+                            Text(monitor.diagnoseStatus)
+                                .font(.caption)
+                                .foregroundColor(.blue)
+                        } else if let lastTime = monitor.lastDiagnoseTime {
+                            HStack {
+                                Text("Last run:")
+                                    .foregroundColor(.secondary)
+                                Spacer()
+                                Text(lastTime, style: .relative)
+                            }
+                            .font(.caption)
+                        }
                     }
-                }) {
-                    Label("Check Now", systemImage: "arrow.clockwise")
                 }
-                .disabled(monitor.isChecking)
 
-                Spacer()
+                Divider()
 
-                Button(action: {
-                    monitor.manualDiagnose()
-                }) {
-                    Label("Diagnose", systemImage: "wand.and.stars")
-                }
-                .disabled(monitor.isDiagnosing)
-
-                Spacer()
-
-                Button(action: {
-                    if let url = URL(string: monitor.productionURL) {
-                        NSWorkspace.shared.open(url)
+                // Actions
+                HStack {
+                    Button(action: {
+                        Task {
+                            await monitor.runHealthChecks()
+                        }
+                    }) {
+                        Label("Check Now", systemImage: "arrow.clockwise")
                     }
-                }) {
-                    Label("Open", systemImage: "safari")
+                    .disabled(monitor.isChecking)
+
+                    Spacer()
+
+                    Button(action: {
+                        monitor.manualDiagnose()
+                    }) {
+                        Label("Diagnose", systemImage: "wand.and.stars")
+                    }
+                    .disabled(monitor.isDiagnosing)
+
+                    Spacer()
+
+                    Button(action: {
+                        if let url = URL(string: monitor.productionURL) {
+                            NSWorkspace.shared.open(url)
+                        }
+                    }) {
+                        Label("Open", systemImage: "safari")
+                    }
                 }
+                .buttonStyle(.bordered)
             }
-            .buttonStyle(.bordered)
 
             Divider()
 
