@@ -19990,18 +19990,21 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
       // Update local ticket object
       t.status=newStatus;
-      document.getElementById('td-status').value=newStatus;
+      if (document.getElementById('td-status')) document.getElementById('td-status').value=newStatus;
 
       // Reload ticket details to get updated activities from server
-      await renderTicketDetail();
-
-      renderList();
-      renderAdminDash();
-      renderExpertDash();
+      try {
+        await renderTicketDetail();
+        renderList();
+        renderAdminDash();
+        renderExpertDash();
+      } catch (renderErr) {
+        console.error('Error refreshing UI after status update (update was successful):', renderErr);
+      }
 
     } catch (error) {
       console.error('Error updating ticket status:', error);
-      alert('Failed to update ticket status. Please try again.');
+      alert('Failed to update ticket status: ' + error.message);
     }
   }
 
