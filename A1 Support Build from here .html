@@ -1597,7 +1597,6 @@ vNext-FULL-ActionsSLA:
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
         <a href="#" onclick="showForgotPassword(); return false;" style="color:var(--ink);text-decoration:none;font-size:12px;font-weight:500">Forgot password?</a>
         <a href="#" id="magic-link-toggle" onclick="toggleLoginMode('magic'); return false;" style="color:var(--muted);text-decoration:none;font-size:12px;display:none">Sign in with email link</a>
-        <a href="#" onclick="showDemoCredentials(); return false;" style="color:var(--muted);text-decoration:none;font-size:12px">Demo credentials</a>
       </div>
       </div>
 
@@ -7953,16 +7952,6 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     go('login');
   }
 
-  function showDemoCredentials() {
-    const credentials = [
-      'Demo Tenant:',
-      '  Admin: admin / password123 (tenant: apoyar)',
-      '  Expert: expert / password123 (tenant: apoyar)',
-      '  Customer: customer / password123 (tenant: apoyar)'
-    ].join('\n');
-
-    alert('Demo Credentials:\n\n' + credentials);
-  }
 
   // ── Magic Link + Multi-Role Auth ────────────────────────────────
 
