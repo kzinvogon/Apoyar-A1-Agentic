@@ -28,24 +28,24 @@ const validateEmailIngestSettings = [
     .optional()
     .isBoolean().withMessage('Enabled must be a boolean'),
   body('server_type')
-    .optional()
+    .optional({ checkFalsy: true })
     .isIn(['imap', 'pop3']).withMessage('Server type must be imap or pop3'),
   body('server_host')
-    .optional()
+    .optional({ checkFalsy: true })
     .trim()
     .isLength({ min: 3, max: 255 }).withMessage('Server host must be between 3 and 255 characters'),
   body('server_port')
-    .optional()
+    .optional({ checkFalsy: true })
     .isInt({ min: 1, max: 65535 }).withMessage('Server port must be between 1 and 65535'),
   body('use_ssl')
     .optional()
     .isBoolean().withMessage('Use SSL must be a boolean'),
   body('username')
-    .optional()
+    .optional({ checkFalsy: true })
     .trim()
     .isLength({ max: 255 }).withMessage('Username must not exceed 255 characters'),
   body('password')
-    .optional()
+    .optional({ checkFalsy: true })
     .trim()
     .isLength({ max: 255 }).withMessage('Password must not exceed 255 characters'),
   body('check_interval_minutes')
