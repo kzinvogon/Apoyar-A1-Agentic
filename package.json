@@ -76,6 +76,7 @@
     "imapflow": "^1.2.10",
     "jsonwebtoken": "^9.0.2",
     "mailparser": "^3.7.5",
+    "morgan": "^1.10.1",
     "multer": "^2.0.2",
     "mysql2": "^3.15.3",
     "node-fetch": "^2.7.0",

@@ -419,14 +419,11 @@ router.get('/public/:tenantCode/feedback-scoreboard', async (req, res) => {
 
       const averageRating = totalFeedback > 0 ? (totalRating / totalFeedback).toFixed(2) : 0;
 
-      // Get recent feedback (last 10)
+      // Get recent feedback (last 10) — strip PII for public endpoint
       const recentFeedback = feedbackTickets.slice(0, 10).map(ticket => ({
         ticketId: ticket.id,
-        title: ticket.title,
         rating: ticket.csat_rating,
         comment: ticket.csat_comment,
-        requesterName: ticket.requester_name,
-        resolvedByName: ticket.resolved_by_name,
         submittedAt: ticket.updated_at
       }));
 

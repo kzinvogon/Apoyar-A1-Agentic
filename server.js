@@ -169,6 +169,11 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false
 }));
 app.use(cors());
+
+// HTTP request logging (Apache combined format)
+const morgan = require('morgan');
+app.use(morgan('combined'));
+
 // Save raw body for Stripe webhook verification
 app.use(express.json({
   verify: (req, res, buf) => {
@@ -354,9 +359,10 @@ app.get('/health', (req, res) => {
 /**
  * GET /api/runtime-info
  * Returns runtime environment info for debugging environment confusion
- * Read-only, no authentication required
+ * Requires master admin authentication
  */
-app.get('/api/runtime-info', (req, res) => {
+const { verifyToken: verifyTokenMw, requireMasterAuth } = require('./middleware/auth');
+app.get('/api/runtime-info', verifyTokenMw, requireMasterAuth, (req, res) => {
   let gitCommit = 'unknown';
   try {
     gitCommit = execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim();
@@ -397,8 +403,8 @@ app.get('/api/version', (req, res) => {
   });
 });
 
-// Database status endpoint (enhanced with pool stats)
-app.get('/api/db/status', async (req, res) => {
+// Database status endpoint (enhanced with pool stats) - requires master admin auth
+app.get('/api/db/status', verifyTokenMw, requireMasterAuth, async (req, res) => {
   try {
     const { masterQuery, getPoolStats, healthCheck } = require('./config/database');
 

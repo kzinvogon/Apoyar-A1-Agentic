@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { getTenantConnection } = require('../config/database');
-const { verifyToken } = require('../middleware/auth');
+const { verifyToken, requireRole } = require('../middleware/auth');
 const multer = require('multer');
 const csv = require('csv-parser');
 const { Readable } = require('stream');
@@ -68,7 +68,10 @@ function getClientIP(req) {
          null;
 }
 
-// Public route - CSV template (no auth required)
+// Apply verifyToken middleware to ALL CMDB routes (including debug endpoints)
+router.use(verifyToken);
+
+// CSV template (auth required)
 router.get('/:tenantCode/template/items', (req, res) => {
   // Template matches the denormalized format from inventory exports
   // Multiple rows per asset with different field name/value pairs are supported
@@ -83,7 +86,7 @@ admin,Example Laptop,Hardware,Username,jsmith,Lenovo,ThinkPad X1,John Smith,Sale
   res.send(template);
 });
 
-// Test CSV parsing endpoint (public - for debugging)
+// Test CSV parsing endpoint (auth required)
 router.post('/:tenantCode/test-parse', upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
@@ -127,8 +130,8 @@ router.post('/:tenantCode/test-parse', upload.single('file'), async (req, res) =
   }
 });
 
-// Clear all CMDB data endpoint (public - for fixing import issues)
-router.delete('/:tenantCode/clear-all', async (req, res) => {
+// Clear all CMDB data endpoint (admin only)
+router.delete('/:tenantCode/clear-all', requireRole(['admin']), async (req, res) => {
   try {
     const { tenantCode } = req.params;
     const connection = await getTenantConnection(tenantCode);
@@ -151,7 +154,7 @@ router.delete('/:tenantCode/clear-all', async (req, res) => {
   }
 });
 
-// Diagnostic endpoint for CMDB data (public - no auth required)
+// Diagnostic endpoint for CMDB data (auth required)
 router.get('/:tenantCode/diagnostic', async (req, res) => {
   try {
     const { tenantCode } = req.params;
@@ -192,9 +195,6 @@ router.get('/:tenantCode/diagnostic', async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 });
-
-// Apply verifyToken middleware to all protected CMDB routes
-router.use(verifyToken);
 
 // ============================================================================
 // CMDB ITEMS ROUTES

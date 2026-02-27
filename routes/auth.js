@@ -271,66 +271,6 @@ router.post('/tenant/change-password', passwordChangeLimiter, validateTenantPass
   }
 });
 
-// Reset password (admin only)
-router.post('/reset-password', async (req, res) => {
-  try {
-    const { user_type, tenant_code, username, new_password } = req.body;
-
-    if (!user_type || !username || !new_password) {
-      return res.status(400).json({ success: false, message: 'User type, username and new password are required' });
-    }
-
-    if (new_password.length < 8) {
-      return res.status(400).json({ success: false, message: 'New password must be at least 8 characters long' });
-    }
-
-    const newPasswordHash = await hashPassword(new_password);
-
-    if (user_type === 'master') {
-      const connection = await getMasterConnection();
-      try {
-        const [result] = await connection.query(
-          'UPDATE master_users SET password_hash = ?, updated_at = NOW() WHERE username = ?',
-          [newPasswordHash, username]
-        );
-
-        if (result.affectedRows === 0) {
-          return res.status(404).json({ success: false, message: 'Master user not found' });
-        }
-
-        res.json({ success: true, message: 'Master user password reset successfully' });
-      } finally {
-        connection.release();
-      }
-    } else if (user_type === 'tenant') {
-      if (!tenant_code) {
-        return res.status(400).json({ success: false, message: 'Tenant code is required for tenant users' });
-      }
-
-      const connection = await getTenantConnection(tenant_code);
-      try {
-        const [result] = await connection.query(
-          'UPDATE users SET password_hash = ?, updated_at = NOW() WHERE username = ?',
-          [newPasswordHash, username]
-        );
-
-        if (result.affectedRows === 0) {
-          return res.status(404).json({ success: false, message: 'Tenant user not found' });
-        }
-
-        res.json({ success: true, message: 'Tenant user password reset successfully' });
-      } finally {
-        connection.release();
-      }
-    } else {
-      return res.status(400).json({ success: false, message: 'Invalid user type' });
-    }
-  } catch (error) {
-    console.error('Error resetting password:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
-  }
-});
-
 // Verify token validity
 router.get('/verify', async (req, res) => {
   try {

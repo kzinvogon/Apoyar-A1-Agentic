@@ -38,3 +38,7 @@ build/
 *.pem
 *.key
 credentials.json
+
+# Environment backups
+.env.bak
+.env.backup
