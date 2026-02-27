@@ -22,6 +22,80 @@ const PORT = process.env.PORT || 3000;
 // Trust proxy for Railway (needed for rate limiting behind reverse proxy)
 app.set('trust proxy', 1);
 
+// Maintenance mode — serves a holding page on MAINTENANCE_DOMAIN while
+// allowing normal access via the Railway-generated URL.
+// Set MAINTENANCE_MODE=true and MAINTENANCE_DOMAIN=app.serviflow.app
+if (process.env.MAINTENANCE_MODE === 'true' && process.env.MAINTENANCE_DOMAIN) {
+  const maintenanceDomain = process.env.MAINTENANCE_DOMAIN;
+  const maintenanceHeading = process.env.MAINTENANCE_HEADING || 'Under Maintenance';
+  app.use((req, res, next) => {
+    if (req.hostname === maintenanceDomain) {
+      return res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ServiFlow - Maintenance</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .card {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      padding: 60px 40px;
+      max-width: 520px;
+      text-align: center;
+    }
+    .logo svg { height: 48px; width: auto; margin-bottom: 24px; }
+    h1 { font-size: 28px; color: #1a202c; margin-bottom: 12px; }
+    p { font-size: 16px; color: #718096; line-height: 1.6; }
+    .badge {
+      display: inline-block; margin-top: 24px; padding: 8px 20px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white; border-radius: 20px; font-size: 13px; font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 50">
+        <defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:#2563eb"/><stop offset="100%" style="stop-color:#8b5cf6"/>
+        </linearGradient></defs>
+        <g transform="translate(5,5)">
+          <path d="M12 2 C20 2,26 8,26 14 C26 20,20 22,14 22 C8 22,2 28,2 34 C2 40,8 46,16 46"
+                stroke="url(#g)" stroke-width="4" fill="none" stroke-linecap="round"/>
+          <path d="M8 10 L22 10" stroke="url(#g)" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+          <path d="M6 22 L22 22" stroke="url(#g)" stroke-width="2" stroke-linecap="round" opacity="0.8"/>
+          <path d="M6 34 L20 34" stroke="url(#g)" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+          <circle cx="28" cy="14" r="3" fill="#10b981"/>
+        </g>
+        <text x="50" y="35" font-family="Inter,system-ui,sans-serif" font-size="26" font-weight="700" fill="#0f172a">
+          Servi<tspan fill="url(#g)">Flow</tspan>
+        </text>
+      </svg>
+    </div>
+    <h1>${maintenanceHeading}</h1>
+    <p>We're performing scheduled maintenance. We'll be back shortly.</p>
+    <span class="badge">Back Soon</span>
+  </div>
+</body>
+</html>`);
+    }
+    next();
+  });
+}
+
 // Track database status for health check
 let dbStatus = { initialized: false, error: null };
 
@@ -598,10 +672,7 @@ async function startServer() {
       console.log(`\n🏗️  Architecture:`);
       console.log(`   • Master DB: a1_master (system management)`);
       console.log(`   • Tenant DB: a1_tenant_apoyar (Demo company)`);
-      console.log(`\n🔐 Default Credentials:`);
-      console.log(`   Master Admin: admin / admin123`);
-      console.log(`   Tenant Users: admin / password123, expert / password123, customer / password123`);
-      console.log(`   Customer Users: othercompany / customer123`);
+      console.log(`\n🔐 Credentials set via environment variables`);
       console.log(`\n💡 Press Ctrl+C to stop the server`);
 
     } catch (error) {
