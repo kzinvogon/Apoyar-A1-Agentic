@@ -1279,7 +1279,7 @@ vNext-FULL-ActionsSLA:
         <ion-item button onclick="openCmdb('cmdb-section-management'); closeIonicMenu();">
           <ion-label style="font-size:14px">CMDB Management</ion-label>
         </ion-item>
-        <ion-item button onclick="openCmdb('cmdb-section-assetviewer'); closeIonicMenu();">
+        <ion-item button class="av-nav-item" onclick="openCmdb('cmdb-section-assetviewer'); closeIonicMenu();" style="display:none">
           <ion-label style="font-size:14px">Asset Viewer</ion-label>
         </ion-item>
       </div>
@@ -1689,7 +1689,7 @@ vNext-FULL-ActionsSLA:
                   <div class="nav-subitem" data-section="cmdb-section-items" onclick="openCmdb('cmdb-section-items')">CMDB Items</div>
                   <div class="nav-subitem" data-section="cmdb-section-types" onclick="openCmdb('cmdb-section-types')">CMDB Types</div>
                   <div class="nav-subitem" data-section="cmdb-section-management" onclick="openCmdb('cmdb-section-management')">CMDB Management</div>
-                  <div class="nav-subitem" data-section="cmdb-section-assetviewer" onclick="openCmdb('cmdb-section-assetviewer')">Asset Viewer</div>
+                  <div class="nav-subitem av-nav-item" data-section="cmdb-section-assetviewer" onclick="openCmdb('cmdb-section-assetviewer')" style="display:none">Asset Viewer</div>
                 </div>
               </div>
               <div class="navlink" data-target="knowledge-base" onclick="nav(this)">📚 Knowledge Base</div>
@@ -1755,7 +1755,7 @@ vNext-FULL-ActionsSLA:
               <div class="nav-subitem" data-section="cmdb-section-items" onclick="openCmdb('cmdb-section-items')">CMDB Items</div>
               <div class="nav-subitem" data-section="cmdb-section-types" onclick="openCmdb('cmdb-section-types')">CMDB Types</div>
               <div class="nav-subitem" data-section="cmdb-section-management" onclick="openCmdb('cmdb-section-management')">CMDB Management</div>
-              <div class="nav-subitem" data-section="cmdb-section-assetviewer" onclick="openCmdb('cmdb-section-assetviewer')">👁️ Asset Viewer</div>
+              <div class="nav-subitem av-nav-item" data-section="cmdb-section-assetviewer" onclick="openCmdb('cmdb-section-assetviewer')" style="display:none">👁️ Asset Viewer</div>
             </div>
           </div>
           <div class="navlink" data-target="analytics" onclick="nav(this)">📈 Analytics</div>
@@ -4480,6 +4480,26 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             <div class="row" style="gap:8px;justify-content:flex-end">
               <button class="btn ghost" onclick="closeReauthModal()">Cancel</button>
               <button class="btn primary" onclick="submitReauth()">Continue</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Asset Viewer Password Modal -->
+        <div id="av-password-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:1000;overflow-y:auto;align-items:flex-start;justify-content:center;padding:40px 16px">
+          <div style="max-width:400px;width:100%;background:var(--card);border-radius:12px;padding:24px;box-shadow:0 20px 40px rgba(0,0,0,0.2)">
+            <div class="row space mb-16">
+              <h3 style="margin:0">Asset Viewer Access</h3>
+              <button class="btn ghost small" onclick="closeAvPasswordModal()">&#x2715;</button>
+            </div>
+            <p class="subtitle mb-16">Asset Viewer requires an elevated access password to continue.</p>
+            <div class="mb-16">
+              <label class="subtitle">Access Password</label>
+              <input type="password" id="av-password-input" class="input" placeholder="Enter access password" onkeydown="if(event.key==='Enter')submitAvPassword()">
+            </div>
+            <div id="av-password-error" style="display:none;color:var(--error);font-size:13px;margin-bottom:12px"></div>
+            <div class="row" style="gap:8px;justify-content:flex-end">
+              <button class="btn ghost" onclick="closeAvPasswordModal()">Cancel</button>
+              <button class="btn primary" onclick="submitAvPassword()">Continue</button>
             </div>
           </div>
         </div>
@@ -8786,6 +8806,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     document.getElementById('app-title').textContent = currentRole==='customer' ? 'My Dashboard' : (currentRole==='expert' ? 'Expert Dashboard' : (currentRole==='super_admin' ? 'Master Admin Dashboard' : 'Admin Dashboard'));
     document.getElementById('app-subtitle').textContent = currentRole==='customer' ? 'Welcome to your ServiFlow portal' : (currentRole==='expert' ? 'SLA focus & queue' : (currentRole==='super_admin' ? 'System-wide management & tenant oversight' : 'Platform health & governance'));
 
+    // Show/hide Asset Viewer nav items (apoyar tenant only, not demo)
+    updateAssetViewerNav();
+
     // Simplify title bar for customers
     const appSubtitle = document.getElementById('app-subtitle');
     if (appSubtitle) appSubtitle.style.display = (currentRole === 'customer') ? 'none' : '';
@@ -12657,6 +12680,14 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   }
 
   function openCmdb(sectionId) {
+    // Asset Viewer requires elevated password and is tenant-specific
+    if (sectionId === 'cmdb-section-assetviewer') {
+      if (!isAssetViewerAvailable()) return;
+      if (!sessionStorage.getItem('serviflow.avAuth')) {
+        showAvPasswordModal();
+        return;
+      }
+    }
     // Switch to CMDB hub view
     switchView('cmdb-hub');
     // Show requested section
@@ -12674,6 +12705,49 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     });
     // Clear active state from regular navlinks
     document.querySelectorAll('.navlink').forEach(n => n.classList.remove('active'));
+  }
+
+  // Asset Viewer: tenant-specific feature (apoyar only, not on demo)
+  function isAssetViewerAvailable() {
+    const h = window.location.hostname;
+    if (h.includes('demo.serviflow') || h.includes('web-demo')) return false;
+    const tc = (localStorage.getItem('tenantCode') || '').toLowerCase();
+    return tc === 'apoyar';
+  }
+
+  function updateAssetViewerNav() {
+    const show = isAssetViewerAvailable();
+    document.querySelectorAll('.av-nav-item').forEach(el => {
+      el.style.display = show ? '' : 'none';
+    });
+  }
+
+  function showAvPasswordModal() {
+    const modal = document.getElementById('av-password-modal');
+    if (modal) { modal.style.display = 'flex'; }
+    const input = document.getElementById('av-password-input');
+    if (input) { input.value = ''; input.focus(); }
+    const err = document.getElementById('av-password-error');
+    if (err) err.style.display = 'none';
+  }
+
+  function closeAvPasswordModal() {
+    const modal = document.getElementById('av-password-modal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  function submitAvPassword() {
+    const input = document.getElementById('av-password-input');
+    const err = document.getElementById('av-password-error');
+    const pw = input ? input.value : '';
+    if (pw === 'S3rv1Fl0w') {
+      sessionStorage.setItem('serviflow.avAuth', '1');
+      closeAvPasswordModal();
+      openCmdb('cmdb-section-assetviewer');
+    } else {
+      if (err) { err.textContent = 'Invalid access password'; err.style.display = 'block'; }
+      if (input) input.value = '';
+    }
   }
 
   function openAdminSettings(sectionId) {
