@@ -139,7 +139,7 @@ UAT_DB_PASSWORD=xxx
 
 ```bash
 SMOKE_USERNAME=expert
-SMOKE_PASSWORD=password123
+SMOKE_PASSWORD=<SET_VIA_ENV>
 PROD_URL=https://app.serviflow.app
 UAT_URL=https://web-uat-uat.up.railway.app
 ```

@@ -67,10 +67,7 @@ Complete REST API for customer management:
 
 ### Accessing Customer Management
 
-1. **Login** to the dashboard as an admin:
-   - Username: `admin`
-   - Password: `password123`
-   - Tenant: `apoyar`
+1. **Login** to the dashboard as an admin user (tenant: `apoyar`)
 
 2. Navigate to **Manage Customers** from the dashboard menu
 

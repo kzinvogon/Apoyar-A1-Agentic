@@ -38,17 +38,10 @@ Navigate to: `http://localhost:3000`
 
 ---
 
-## 🔐 **Default Login Credentials**
+## 🔐 **Login Credentials**
 
-### **Master Admin (System Management)**
-- **Username**: `admin`
-- **Password**: `admin123`
-- **Access**: `http://localhost:3000/api/master/*`
-
-### **Tenant Users (Company Access)**
-- **Admin**: `admin` / `password123`
-- **Expert**: `expert` / `password123`  
-- **Customer**: `customer` / `password123`
+Default passwords are set via environment variables (`DEFAULT_MASTER_PASSWORD`, `DEFAULT_TENANT_PASSWORD`).
+See your `.env` file or ask the team lead for current credentials.
 
 ---
 

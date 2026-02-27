@@ -429,12 +429,12 @@ git push
 
 ### Master Admin
 - **Endpoint**: `/api/master/*`
-- **Credentials**: `admin` / `admin123`
+- **Username**: `admin` (password set via env var)
 
 ### Tenant Users
 - **Endpoint**: `/api/auth/login` with `tenantCode`
 - **Roles**: admin, expert, customer
-- **Default (apoyar)**: `admin` / `password123`, `expert` / `password123`
+- Passwords set via environment variables. See `.env` or team lead.
 
 ---
 

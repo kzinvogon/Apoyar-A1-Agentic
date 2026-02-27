@@ -69,20 +69,9 @@
 - `POST /api/master/email-settings/test` - Test email processing
 - `GET /api/master/audit-logs` - Get audit logs
 
-## 🔑 Default Credentials
+## 🔑 Credentials
 
-### Master Admin
-- Username: `admin`
-- Password: `admin123`
-
-### Tenant Users (Apoyar)
-- Admin: `admin` / `password123`
-- Expert: `expert` / `password123`
-- Customer: `customer` / `password123`
-
-### Customer Users
-- Bleckmann: `bleckmann` / `customer123`
-- Other Company: `othercompany` / `customer123`
+Passwords are set via environment variables. See `.env` or ask the team lead.
 
 ## 📝 Configuration
 

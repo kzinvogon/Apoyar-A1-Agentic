@@ -63,15 +63,11 @@ source railway-env.sh status   # Show current environment
 
 ## Login Credentials
 
-### Railway
+Credentials are stored securely — do NOT hardcode passwords in any committed files.
 - **Tenant Code:** `apoyar`
-- **Admin:** `admin` / `password123`
-- **Master Admin:** `admin` / `admin123` (role: Master Admin)
-
-### Localhost
-- **Tenant Code:** `apoyar`
-- **Admin:** `admin` / `password123`
-- **Master Admin:** `admin` / `admin123`
+- **Usernames:** `admin`, `expert` (tenant); `admin` (master)
+- Passwords are set via `DEFAULT_MASTER_PASSWORD` and `DEFAULT_TENANT_PASSWORD` env vars on Railway.
+- For localhost dev, check your local `.env` file or ask the team lead.
 
 ## Database Schema Notes
 
