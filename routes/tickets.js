@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getTenantConnection } = require('../config/database');
+const { getTenantConnection, getMasterConnection } = require('../config/database');
 const { verifyToken, requireRole } = require('../middleware/auth');
 const { sendTicketNotificationEmail } = require('../config/email');
 const {
@@ -134,7 +134,26 @@ router.get('/public/:token/details', async (req, res) => {
         return res.status(404).json({ success: false, message: 'Ticket not found' });
       }
 
-      res.json({ success: true, ticket: tickets[0] });
+      // Fetch tenant display name from master DB
+      let tenantName = tenantCode;
+      try {
+        const masterConn = await getMasterConnection();
+        try {
+          const [tenantRows] = await masterConn.query(
+            'SELECT company_name FROM tenants WHERE tenant_code = ?',
+            [tenantCode]
+          );
+          if (tenantRows.length > 0 && tenantRows[0].company_name) {
+            tenantName = tenantRows[0].company_name;
+          }
+        } finally {
+          masterConn.release();
+        }
+      } catch (e) {
+        // Fall back to tenant code if master DB lookup fails
+      }
+
+      res.json({ success: true, ticket: tickets[0], tenantName });
     } finally {
       connection.release();
     }
