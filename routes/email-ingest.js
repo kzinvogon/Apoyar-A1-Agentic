@@ -159,18 +159,18 @@ router.put('/:tenantId/settings', requireElevatedAdmin, writeOperationsLimiter, 
           WHERE id = ?
         `, [
           enabled !== undefined ? enabled : existingSettings[0].enabled,
-          server_type || null,
-          server_host || null,
-          server_port || null,
+          server_type || 'imap',
+          server_host || '',
+          server_port || 993,
           use_ssl !== undefined ? use_ssl : false,
-          username || null,
+          username || '',
           actualPassword || existingSettings[0].password,
           check_interval_minutes || 5,
           auth_method || 'basic',
-          oauth2_email || null,
+          oauth2_email || '',
           use_for_outbound !== undefined ? use_for_outbound : 0,
-          smtp_host || null,
-          smtp_port || null,
+          smtp_host || '',
+          smtp_port || 587,
           existingSettings[0].id
         ]);
       }
