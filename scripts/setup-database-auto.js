@@ -60,9 +60,7 @@ async function setupDatabase() {
     console.log('\n📋 Summary:');
     console.log('   • Master database: a1_master');
     console.log('   • Tenant database: a1_tenant_apoyar');
-    console.log('   • Master admin: admin / admin123');
-    console.log('   • Tenant users: admin / password123, expert / password123, customer / password123');
-    console.log('   • Customer users: othercompany / customer123');
+    console.log('   • Credentials set via DEFAULT_MASTER_PASSWORD and DEFAULT_TENANT_PASSWORD env vars');
     console.log('\n🚀 You can now run: npm start');
 
   } catch (error) {
@@ -142,7 +140,7 @@ async function createMasterTables(connection) {
 async function createSampleTenant(connection) {
   // Create master admin
   const bcrypt = require('bcrypt');
-  const adminPasswordHash = await bcrypt.hash('admin123', 10);
+  const adminPasswordHash = await bcrypt.hash(process.env.DEFAULT_MASTER_PASSWORD || 'changeme', 10);
   
   await connection.query(`
     INSERT IGNORE INTO master_users (username, password_hash, role, email, full_name)
@@ -158,7 +156,7 @@ async function createSampleTenant(connection) {
   `);
 
   // Create tenant admin for Apoyar
-  const tenantAdminPasswordHash = await bcrypt.hash('password123', 10);
+  const tenantAdminPasswordHash = await bcrypt.hash(process.env.DEFAULT_TENANT_PASSWORD || 'changeme', 10);
   await connection.query(`
     INSERT IGNORE INTO tenant_admins (tenant_id, username, password_hash, email, full_name)
     VALUES (1, 'admin', '${tenantAdminPasswordHash}', 'admin@apoyar.com', 'Apoyar Administrator')
@@ -331,8 +329,8 @@ async function createTenantTables(host, port, dbUser, dbPass) {
 
   // Insert default tenant users
   const bcrypt = require('bcrypt');
-  const defaultPasswordHash = await bcrypt.hash('password123', 10);
-  const customerPasswordHash = await bcrypt.hash('customer123', 10);
+  const defaultPasswordHash = await bcrypt.hash(process.env.DEFAULT_TENANT_PASSWORD || 'changeme', 10);
+  const customerPasswordHash = await bcrypt.hash(process.env.DEFAULT_TENANT_PASSWORD || 'changeme', 10);
 
   const users = [
     ['admin', defaultPasswordHash, 'admin', 'admin@apoyar.com', 'Apoyar Admin'],
@@ -384,7 +382,7 @@ PORT=3000
 NODE_ENV=development
 
 # JWT Configuration
-JWT_SECRET=a1_support_dashboard_secret_key_2024
+JWT_SECRET=CHANGE_ME_generate_with_node_crypto_randomBytes_32_hex
 JWT_EXPIRES_IN=24h
 
 # Master Database Configuration

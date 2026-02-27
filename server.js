@@ -2,9 +2,6 @@
 if (process.env.APP_MODE === 'teams') {
   console.log('APP_MODE=teams detected, starting Teams Connector...');
   require('./teams-connector/server.js');
-} else if (process.env.APP_MODE === 'sms') {
-  console.log('APP_MODE=sms detected, starting SMS Connector...');
-  require('./sms-connector/server.js');
 } else {
 // Main ServiFlow app starts here
 const express = require('express');
@@ -131,7 +128,6 @@ const knowledgeBaseRoutes = require('./routes/knowledge-base');
 const rawVariablesRoutes = require('./routes/raw-variables');
 const integrationsTeamsRoutes = require('./routes/integrations-teams');
 const integrationsSlackRoutes = require('./routes/integrations-slack');
-const integrationsSmsRoutes = require('./routes/integrations-sms');
 const slaRoutes = require('./routes/sla');
 const adminRoutes = require('./routes/admin');
 const notificationsRoutes = require('./routes/notifications');
@@ -245,7 +241,6 @@ app.use('/api/kb', knowledgeBaseRoutes);
 app.use('/api/raw-variables', rawVariablesRoutes);
 app.use('/api/integrations', integrationsTeamsRoutes);
 app.use('/api/integrations', integrationsSlackRoutes);
-app.use('/api/integrations', integrationsSmsRoutes);
 app.use('/api/sla', slaRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', notificationsRoutes);

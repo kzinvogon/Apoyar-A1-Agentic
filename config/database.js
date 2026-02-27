@@ -284,18 +284,6 @@ async function createMasterTables() {
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       INDEX idx_tenant_id (tenant_id)
     )`,
-    `CREATE TABLE IF NOT EXISTS sms_phone_tenant_mappings (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      twilio_phone_number VARCHAR(20) NOT NULL,
-      tenant_code VARCHAR(50) NOT NULL,
-      twilio_account_sid VARCHAR(100),
-      twilio_auth_token_encrypted TEXT,
-      is_active BOOLEAN DEFAULT TRUE,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      UNIQUE KEY unique_phone (twilio_phone_number),
-      INDEX idx_tenant_code (tenant_code)
-    )`,
   ];
 
   for (const sql of statements) {
@@ -306,7 +294,11 @@ async function createMasterTables() {
   const existingAdmin = await hardenedPool.masterQuery('SELECT id FROM master_users WHERE username = ?', ['admin']);
   if (existingAdmin.length === 0) {
     const bcrypt = require('bcrypt');
-    const defaultPassword = process.env.DEFAULT_MASTER_PASSWORD || 'admin123';
+    const defaultPassword = process.env.DEFAULT_MASTER_PASSWORD;
+    if (!defaultPassword) {
+      console.error('⚠️ DEFAULT_MASTER_PASSWORD env var not set — skipping master admin creation');
+      return;
+    }
     const hashedPassword = await bcrypt.hash(defaultPassword, 10);
     await hardenedPool.masterQuery(
       'INSERT INTO master_users (username, email, password_hash, full_name, role) VALUES (?, ?, ?, ?, ?)',
@@ -577,7 +569,11 @@ async function createTenantTables(connection, tenantCode) {
   const [existingUsers] = await connection.query('SELECT COUNT(*) as count FROM users');
   if (existingUsers[0].count === 0) {
     const bcrypt = require('bcrypt');
-    const defaultPassword = process.env.DEFAULT_TENANT_PASSWORD || 'password123';
+    const defaultPassword = process.env.DEFAULT_TENANT_PASSWORD;
+    if (!defaultPassword) {
+      console.error('⚠️ DEFAULT_TENANT_PASSWORD env var not set — skipping default tenant user creation');
+      return;
+    }
     const hashedPassword = await bcrypt.hash(defaultPassword, 10);
 
     await connection.query(

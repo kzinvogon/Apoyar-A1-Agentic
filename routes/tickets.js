@@ -14,7 +14,6 @@ const {
   readOperationsLimiter
 } = require('../middleware/rateLimiter');
 const { triggerTeamsNotificationAsync } = require('../services/teams-notification');
-const { triggerSmsNotificationAsync } = require('../services/sms-notification');
 
 // AI-powered CMDB auto-linking (fire-and-forget)
 const { triggerAutoLink } = require('../scripts/auto-link-cmdb');
@@ -1558,9 +1557,6 @@ router.post('/:tenantId', writeOperationsLimiter, validateTicketCreate, async (r
       // Send Teams notification (fire-and-forget)
       triggerTeamsNotificationAsync('created', tickets[0], tenantCode);
 
-      // Send SMS notification (fire-and-forget)
-      triggerSmsNotificationAsync('created', tickets[0], tenantCode);
-
       // Trigger AI-powered CMDB auto-linking (fire-and-forget)
       if (description && description.trim().length > 10) {
         triggerAutoLink(tenantCode, ticketId, req.user.userId);
@@ -2764,9 +2760,6 @@ router.put('/:tenantId/:ticketId', writeOperationsLimiter, validateTicketUpdate,
           // Send Teams notification for resolved ticket
           triggerTeamsNotificationAsync('resolved', tickets[0], tenantCode, { resolutionComment: comment });
 
-          // Send SMS notification for resolved ticket
-          triggerSmsNotificationAsync('resolved', tickets[0], tenantCode, { resolutionComment: comment });
-
           // Queue-limited KB article auto-generation (never stampedes pool)
           enqueueKB(tenantCode, () => autoGenerateKBArticle(tenantCode, parseInt(ticketId), { userId: req.user.userId }), { ticketId });
         } else if (status && status !== oldStatus) {
@@ -2783,8 +2776,6 @@ router.put('/:tenantId/:ticketId', writeOperationsLimiter, validateTicketUpdate,
           // Send Teams notification for status change
           triggerTeamsNotificationAsync('status_changed', tickets[0], tenantCode, { previous_status: oldStatus });
 
-          // Send SMS notification for status change
-          triggerSmsNotificationAsync('status_changed', tickets[0], tenantCode, { previous_status: oldStatus });
         }
 
         // Send email notification if ticket was assigned
@@ -2805,8 +2796,6 @@ router.put('/:tenantId/:ticketId', writeOperationsLimiter, validateTicketUpdate,
           // Send Teams notification for assignment
           triggerTeamsNotificationAsync('assigned', tickets[0], tenantCode, { assignedTo: tickets[0].assignee_name });
 
-          // Send SMS notification for assignment
-          triggerSmsNotificationAsync('assigned', tickets[0], tenantCode, { assignedTo: tickets[0].assignee_name });
         }
       } catch (notifyErr) {
         // Log but don't fail the response - the ticket update already succeeded
