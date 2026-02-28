@@ -637,6 +637,40 @@ async function startServer() {
           } finally { mc.release(); }
         } catch (e) { console.warn('⚠️ m365 toggle migration:', e.message); }
 
+        // One-time seed: SEED_USER_EMAIL=tenant:username:email
+        if (process.env.SEED_USER_EMAIL) {
+          for (const entry of process.env.SEED_USER_EMAIL.split(',')) {
+            const [tc, username, email] = entry.trim().split(':');
+            if (!tc || !username || !email) continue;
+            try {
+              const { tenantQuery: tq } = require('./config/database');
+              await tq(tc, 'UPDATE users SET email = ? WHERE username = ?', [email, username]);
+              console.log(`✅ User email seeded: ${username}@${tc} → ${email}`);
+            } catch (e) { console.warn(`⚠️ User email seed failed for ${username}:`, e.message); }
+          }
+        }
+
+        // One-time seed: SEED_USER_ROLES=tenant:username:role1+role2+role3
+        if (process.env.SEED_USER_ROLES) {
+          for (const entry of process.env.SEED_USER_ROLES.split(',')) {
+            const [tc, username, rolesStr] = entry.trim().split(':');
+            if (!tc || !username || !rolesStr) continue;
+            try {
+              const { tenantQuery: tq } = require('./config/database');
+              const users = await tq(tc, 'SELECT id FROM users WHERE username = ?', [username]);
+              if (users.length) {
+                const uid = users[0].id;
+                for (const role of rolesStr.split('+')) {
+                  await tq(tc, 'INSERT IGNORE INTO tenant_user_roles (tenant_user_id, role_key) VALUES (?, ?)', [uid, role.trim()]);
+                }
+                console.log(`✅ User roles seeded: ${username}@${tc} → ${rolesStr}`);
+              } else {
+                console.warn(`⚠️ User not found for role seed: ${username}@${tc}`);
+              }
+            } catch (e) { console.warn(`⚠️ User role seed failed for ${username}:`, e.message); }
+          }
+        }
+
         // Run migrations only if explicitly enabled
         if (shouldRunMigrations) {
           await runAllMigrations('apoyar');

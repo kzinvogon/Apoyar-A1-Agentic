@@ -51,7 +51,7 @@ source railway-env.sh status   # Show current environment
 - **This is the DEFAULT environment**
 
 ### Railway Production
-- **App URL:** https://app.serviflow.app
+- **App URL:** https://web-production-11114.up.railway.app
 - **Service:** web
 - **MySQL Host:** tramway.proxy.rlwy.net:19355
 - **Only deploy here AFTER UAT approval**
