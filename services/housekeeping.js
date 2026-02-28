@@ -270,6 +270,33 @@ async function pruneMasterLogs() {
     [FIXED_RETENTION.signupSessionsDays, BATCH_LIMIT]
   );
 
+  // Magic link token cleanup: expire stale pending tokens
+  try {
+    const expireResult = await masterQuery(
+      `UPDATE auth_magic_links SET status = 'expired' WHERE status = 'pending' AND expires_at < NOW() LIMIT ?`,
+      [BATCH_LIMIT]
+    );
+    summary['auth_magic_links_expired'] = expireResult.affectedRows || 0;
+  } catch (err) {
+    if (err.code === 'ER_NO_SUCH_TABLE' || (err.message && err.message.includes("doesn't exist"))) {
+      summary['auth_magic_links_expired'] = 'table_not_found';
+    } else {
+      throw err;
+    }
+  }
+
+  // Delete old consumed/expired/revoked magic link tokens (30-day retention)
+  await safePrune('auth_magic_links',
+    `DELETE FROM auth_magic_links WHERE status IN ('consumed','expired','revoked') AND created_at < DATE_SUB(NOW(), INTERVAL ? DAY) LIMIT ?`,
+    [FIXED_RETENTION.expiredTokensDays, BATCH_LIMIT]
+  );
+
+  // Delete old auth events (90-day retention)
+  await safePrune('auth_events',
+    `DELETE FROM auth_events WHERE created_at < DATE_SUB(NOW(), INTERVAL ? DAY) LIMIT ?`,
+    [FIXED_RETENTION.masterAuditDays, BATCH_LIMIT]
+  );
+
   return summary;
 }
 

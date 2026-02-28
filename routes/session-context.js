@@ -11,7 +11,7 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const router = express.Router();
 const { verifyToken } = require('../middleware/auth');
-const { getUserContext, issueMultiRoleJWT } = require('../services/magic-link-service');
+const { getUserContext, issueMultiRoleJWT, logAuthEvent } = require('../services/magic-link-service');
 const { tenantQuery, masterQuery } = require('../config/database');
 
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -100,6 +100,8 @@ router.post('/select-role', async (req, res) => {
       personaKey: req.user.personaKey || null
     });
 
+    await logAuthEvent('session.context_switched', req.user.username, null, { tenantCode, userId, type: 'role', newRole: role });
+
     res.json({
       success: true,
       token,
@@ -149,6 +151,8 @@ router.post('/select-company', async (req, res) => {
       requires_context: false,
       personaKey: req.user.personaKey || null
     });
+
+    await logAuthEvent('session.context_switched', req.user.username, null, { tenantCode, userId, type: 'company', newCompanyId: parseInt(company_id) });
 
     res.json({
       success: true,

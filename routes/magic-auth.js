@@ -87,7 +87,7 @@ router.post('/consume', async (req, res) => {
     }
 
     const host = req.get('host') || req.hostname;
-    const result = await consumeMagicLink(token, host);
+    const result = await consumeMagicLink(token, host, ip);
 
     if (!result.success) {
       return res.status(401).json(result);

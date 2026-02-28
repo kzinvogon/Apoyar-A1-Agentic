@@ -46,7 +46,7 @@ async function resolveTenant(email, host) {
     `SELECT ted.tenant_id, t.tenant_code
      FROM tenant_email_domains ted
      JOIN tenants t ON t.id = ted.tenant_id
-     WHERE ted.domain = ? AND t.status = ?`,
+     WHERE ted.domain = ? AND ted.is_verified = 1 AND t.status = ?`,
     [domain, 'active']
   );
   if (rows.length === 0) return null;
@@ -67,7 +67,7 @@ async function requestMagicLink(email, host, ip, userAgent) {
 
   // Log event regardless of resolution (anti-enumeration — always return ok)
   const ipHash = ip ? crypto.createHash('sha256').update(ip).digest('hex').substring(0, 16) : null;
-  await logAuthEvent('magic_link_requested', email, tenant?.tenantId || null, { host }, ipHash);
+  await logAuthEvent('magic_link.request', email, tenant?.tenantId || null, { host, userAgent }, ipHash);
 
   if (!tenant) {
     // Don't reveal that the tenant wasn't found
@@ -115,8 +115,9 @@ async function requestMagicLink(email, host, ip, userAgent) {
 /**
  * Consume a magic link token. Returns JWT + user context or error.
  */
-async function consumeMagicLink(tokenPlain, host) {
+async function consumeMagicLink(tokenPlain, host, ip) {
   const tokenHash = crypto.createHash('sha256').update(tokenPlain).digest('hex');
+  const ipHash = ip ? crypto.createHash('sha256').update(ip).digest('hex').substring(0, 16) : null;
 
   // Fetch token row
   const rows = await masterQuery(
@@ -125,6 +126,7 @@ async function consumeMagicLink(tokenPlain, host) {
   );
 
   if (rows.length === 0) {
+    await logAuthEvent('magic_link.consume.fail', null, null, { reason: 'invalid_token' }, ipHash);
     return { success: false, message: 'Invalid or expired link' };
   }
 
@@ -132,6 +134,7 @@ async function consumeMagicLink(tokenPlain, host) {
 
   // Check status
   if (link.status !== 'pending') {
+    await logAuthEvent('magic_link.consume.fail', link.email, link.tenant_id, { reason: 'already_used', status: link.status }, ipHash);
     return { success: false, message: 'This link has already been used' };
   }
 
@@ -141,6 +144,7 @@ async function consumeMagicLink(tokenPlain, host) {
       `UPDATE auth_magic_links SET status = 'expired' WHERE id = ?`,
       [link.id]
     );
+    await logAuthEvent('magic_link.consume.fail', link.email, link.tenant_id, { reason: 'expired' }, ipHash);
     return { success: false, message: 'This link has expired' };
   }
 
@@ -150,6 +154,7 @@ async function consumeMagicLink(tokenPlain, host) {
       `UPDATE auth_magic_links SET status = 'revoked' WHERE id = ?`,
       [link.id]
     );
+    await logAuthEvent('magic_link.consume.fail', link.email, link.tenant_id, { reason: 'too_many_attempts' }, ipHash);
     return { success: false, message: 'Too many attempts — please request a new link' };
   }
 
@@ -162,6 +167,7 @@ async function consumeMagicLink(tokenPlain, host) {
   const requestedOnDemo = DEMO_HOSTS.some(h => link.requested_host && link.requested_host.includes(h));
   const consumedOnDemo = DEMO_HOSTS.some(h => host && host.includes(h));
   if (requestedOnDemo !== consumedOnDemo) {
+    await logAuthEvent('magic_link.consume.fail', link.email, link.tenant_id, { reason: 'host_mismatch', requestedHost: link.requested_host, consumeHost: host }, ipHash);
     return { success: false, message: 'This link cannot be used on this domain' };
   }
 
@@ -177,6 +183,7 @@ async function consumeMagicLink(tokenPlain, host) {
     [link.tenant_id]
   );
   if (tenantRows.length === 0) {
+    await logAuthEvent('magic_link.consume.fail', link.email, link.tenant_id, { reason: 'tenant_not_found' }, ipHash);
     return { success: false, message: 'Tenant not found' };
   }
 
@@ -184,8 +191,15 @@ async function consumeMagicLink(tokenPlain, host) {
   const isDemo = tenantRows[0].is_demo === 1;
 
   // Find or create user — only demo hosts auto-provision with any email
-  const user = await findOrCreateUser(tenantCode, link.email, isDemo);
+  let user;
+  try {
+    user = await findOrCreateUser(tenantCode, link.email, isDemo);
+  } catch (provisionErr) {
+    await logAuthEvent('magic_link.consume.fail', link.email, link.tenant_id, { reason: 'user_provision_failed', error: provisionErr.message }, ipHash);
+    return { success: false, message: 'Unable to provision user account' };
+  }
   if (!user) {
+    await logAuthEvent('magic_link.consume.fail', link.email, link.tenant_id, { reason: 'user_provision_failed' }, ipHash);
     return { success: false, message: 'Unable to provision user account' };
   }
 
@@ -221,7 +235,7 @@ async function consumeMagicLink(tokenPlain, host) {
     requires_context: requiresContext
   });
 
-  await logAuthEvent('magic_link_consumed', link.email, link.tenant_id, { userId: user.id }, null);
+  await logAuthEvent('magic_link.consume.success', link.email, link.tenant_id, { userId: user.id }, ipHash);
 
   return {
     success: true,
@@ -298,6 +312,10 @@ async function findOrCreateUser(tenantCode, email, isDemo) {
     }
 
     const [newUser] = await conn.query('SELECT * FROM users WHERE id = ?', [userId]);
+
+    // Log auto-provisioning event
+    await logAuthEvent('magic_link.autoprovision', email, null, { tenantCode, userId, email });
+
     return newUser[0] || null;
   } finally {
     conn.release();

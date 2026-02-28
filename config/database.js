@@ -284,6 +284,46 @@ async function createMasterTables() {
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       INDEX idx_tenant_id (tenant_id)
     )`,
+    // Magic link auth tables (must exist on fresh environments)
+    `CREATE TABLE IF NOT EXISTS tenant_email_domains (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      tenant_id INT NOT NULL,
+      domain VARCHAR(255) NOT NULL,
+      is_verified TINYINT(1) DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY unique_domain (domain),
+      INDEX idx_tenant_id (tenant_id)
+    )`,
+    `CREATE TABLE IF NOT EXISTS auth_magic_links (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      email VARCHAR(255) NOT NULL,
+      token_hash VARCHAR(64) NOT NULL,
+      tenant_id INT NOT NULL,
+      purpose ENUM('login','signup') DEFAULT 'login',
+      requested_host VARCHAR(255),
+      expires_at DATETIME NOT NULL,
+      consumed_at DATETIME NULL,
+      status ENUM('pending','consumed','expired','revoked') DEFAULT 'pending',
+      attempts_count INT DEFAULT 0,
+      ip_hash VARCHAR(64),
+      user_agent VARCHAR(512),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY unique_token (token_hash),
+      INDEX idx_email (email),
+      INDEX idx_status_expires (status, expires_at)
+    )`,
+    `CREATE TABLE IF NOT EXISTS auth_events (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      event_type VARCHAR(50) NOT NULL,
+      email VARCHAR(255),
+      tenant_id INT,
+      metadata JSON,
+      ip_hash VARCHAR(64),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_event_type (event_type),
+      INDEX idx_email (email),
+      INDEX idx_created_at (created_at)
+    )`,
   ];
 
   for (const sql of statements) {

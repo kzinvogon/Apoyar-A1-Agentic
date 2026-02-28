@@ -252,6 +252,8 @@ app.use('/api/signup', signupRoutes);
 app.use('/api/billing', billingRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/reports', reportsRoutes);
+// Session-context routes are always-on (not gated by MAGIC_LINK_AUTH_ENABLED)
+// because they work with both auth methods — they just read JWT claims and require a valid token.
 app.use('/api/me', sessionContextRoutes);
 
 // Public routes (no authentication required) - Must be before authenticated routes
