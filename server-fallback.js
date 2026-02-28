@@ -67,7 +67,7 @@ app.post('/api/master/login', (req, res) => {
 app.post('/api/tenant/login', (req, res) => {
   const { username, password, tenant } = req.body;
   
-  if (username === 'admin' && password === 'admin123' && tenant === 'apoyar') {
+  if (username === 'admin' && password === (process.env.DEFAULT_TENANT_PASSWORD || 'changeme') && tenant === 'apoyar') {
     res.json({
       success: true,
       message: 'Login successful (Fallback Mode)',
@@ -100,7 +100,6 @@ app.listen(PORT, () => {
   console.log('   • Static file serving');
   console.log('   • Mock authentication');
   console.log('🔐 Test Credentials:');
-  console.log('   Master: master / master123');
-  console.log('   Tenant: admin / admin123 (tenant: apoyar)');
+  console.log('   Credentials set via env vars');
   console.log('💡 Press Ctrl+C to stop the server');
 });

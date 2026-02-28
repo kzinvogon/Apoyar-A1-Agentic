@@ -38,7 +38,7 @@ async function test() {
   console.log('1️⃣  Logging in...');
   const loginRes = await makeRequest('POST', '/api/auth/tenant/login', null, {
     username: 'admin',
-    password: 'password123',
+    password: process.env.SMOKE_PASS || 'changeme',
     tenant_code: 'apoyar'
   });
 

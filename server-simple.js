@@ -471,7 +471,7 @@ async function initializeMasterDatabase() {
           status: 'active',
           created_at: new Date().toISOString(),
           admin_user: 'admin',
-          admin_password: 'admin123'
+          admin_password: process.env.DEFAULT_MASTER_PASSWORD || 'changeme'
         }
       ],
       master_users: [
@@ -507,23 +507,23 @@ async function initializeTenantDatabase(tenantId) {
         { 
           id: 1, 
           username: 'admin', 
-          password: await bcrypt.hash('admin123', 10), 
-          role: 'admin', 
-          name: `${tenantId} Admin` 
+          password: await bcrypt.hash(process.env.DEFAULT_TENANT_PASSWORD || 'changeme', 10),
+          role: 'admin',
+          name: `${tenantId} Admin`
         },
-        { 
-          id: 2, 
-          username: 'expert', 
-          password: await bcrypt.hash('password123', 10), 
-          role: 'expert', 
-          name: 'Support Expert' 
+        {
+          id: 2,
+          username: 'expert',
+          password: await bcrypt.hash(process.env.DEFAULT_TENANT_PASSWORD || 'changeme', 10),
+          role: 'expert',
+          name: 'Support Expert'
         },
-        { 
-          id: 3, 
-          username: 'customer', 
-          password: await bcrypt.hash('password123', 10), 
-          role: 'customer', 
-          name: 'Customer User' 
+        {
+          id: 3,
+          username: 'customer',
+          password: await bcrypt.hash(process.env.DEFAULT_TENANT_PASSWORD || 'changeme', 10),
+          role: 'customer',
+          name: 'Customer User'
         }
       ],
       tickets: [],
@@ -819,7 +819,7 @@ app.post('/api/master/tenants', async (req, res) => {
         {
           id: 1,
           username: adminUsername,
-          password: await bcrypt.hash('admin123', 10), // Default password
+          password: await bcrypt.hash(process.env.DEFAULT_TENANT_PASSWORD || 'changeme', 10),
           role: 'admin',
           name: 'Admin User',
           email: adminEmail
@@ -1637,12 +1637,7 @@ async function startServer() {
       console.log('   • Ticket management');
       console.log('   • CMDB management');
       console.log('   • Email processing');
-      console.log('🔐 Master Admin Credentials:');
-      console.log('   Master: master / master123');
-      console.log('🔐 Tenant Credentials (Apoyar):');
-      console.log('   Admin: admin / admin123');
-      console.log('   Expert: expert / password123');
-      console.log('   Customer: customer / password123');
+      console.log('🔐 Credentials set via env vars');
       console.log('💡 Press Ctrl+C to stop the server');
       
       // Start email processing

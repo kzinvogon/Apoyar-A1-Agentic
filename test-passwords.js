@@ -19,8 +19,9 @@ async function testPasswords() {
 
     for (const user of masterUsers) {
       console.log(`\nUser: ${user.username}`);
-      const matches = await bcrypt.compare('admin123', user.password_hash);
-      console.log(`  Password 'admin123' matches: ${matches ? '✅ YES' : '❌ NO'}`);
+      const testPw = process.env.TEST_PASSWORD || 'changeme';
+      const matches = await bcrypt.compare(testPw, user.password_hash);
+      console.log(`  Password matches: ${matches ? '✅ YES' : '❌ NO'}`);
     }
 
     await masterConn.end();
@@ -40,13 +41,9 @@ async function testPasswords() {
     for (const user of tenantUsers) {
       console.log(`\nUser: ${user.username}`);
 
-      // Test with password123
-      const matchesPassword123 = await bcrypt.compare('password123', user.password_hash);
-      console.log(`  Password 'password123' matches: ${matchesPassword123 ? '✅ YES' : '❌ NO'}`);
-
-      // Test with customer123
-      const matchesCustomer123 = await bcrypt.compare('customer123', user.password_hash);
-      console.log(`  Password 'customer123' matches: ${matchesCustomer123 ? '✅ YES' : '❌ NO'}`);
+      const testPw = process.env.TEST_PASSWORD || 'changeme';
+      const matchesPw = await bcrypt.compare(testPw, user.password_hash);
+      console.log(`  Password matches: ${matchesPw ? '✅ YES' : '❌ NO'}`);
     }
 
     await tenantConn.end();

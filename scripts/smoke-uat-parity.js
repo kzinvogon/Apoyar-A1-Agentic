@@ -10,7 +10,7 @@
  * Environment variables:
  *   SMOKE_TENANT     - Tenant code (default: apoyar)
  *   SMOKE_USER       - Admin username (default: admin)
- *   SMOKE_PASS       - Admin password (default: password123)
+ *   SMOKE_PASS       - Admin password (required)
  */
 
 const http = require('http');
@@ -33,7 +33,8 @@ const READONLY = IS_PROD;
 
 const TENANT = process.env.SMOKE_TENANT || 'apoyar';
 const ADMIN_USER = process.env.SMOKE_USER || 'admin';
-const ADMIN_PASS = process.env.SMOKE_PASS || 'password123';
+const ADMIN_PASS = process.env.SMOKE_PASS;
+if (!ADMIN_PASS) { console.error('ERROR: SMOKE_PASS env var is required'); process.exit(1); }
 
 let token = null;
 let passed = 0;

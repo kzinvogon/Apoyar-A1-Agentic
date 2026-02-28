@@ -9,6 +9,7 @@ set -e
 
 BASE_URL="${1:-http://localhost:3000}"
 TENANT="apoyar"
+SMOKE_PASSWORD="${SMOKE_PASSWORD:?SMOKE_PASSWORD env var required}"
 
 echo "=== Email Reply Threading Test ==="
 echo "Base URL: $BASE_URL"
@@ -18,7 +19,7 @@ echo ""
 echo "1. Getting auth token..."
 LOGIN_RESPONSE=$(curl -s -X POST "$BASE_URL/api/auth/tenant/login" \
   -H "Content-Type: application/json" \
-  -d "{\"tenant_code\":\"$TENANT\",\"username\":\"admin\",\"password\":\"password123\"}")
+  -d "{\"tenant_code\":\"$TENANT\",\"username\":\"admin\",\\"password\\":\\"$SMOKE_PASSWORD\\"}")
 
 TOKEN=$(echo "$LOGIN_RESPONSE" | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
 if [ -z "$TOKEN" ]; then

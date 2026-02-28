@@ -228,7 +228,7 @@ async function main() {
     }
 
     // Insert master admin
-    const masterPwHash = await hash('admin123');
+    const masterPwHash = await hash(process.env.DEFAULT_MASTER_PASSWORD || 'changeme');
     await rootConn.query(`
       INSERT IGNORE INTO master_users (username, email, password_hash, full_name, role)
       VALUES ('admin', 'admin@serviflow.app', ?, 'Master Admin', 'super_admin')
@@ -385,7 +385,7 @@ async function main() {
 
       // ── 3. Seed Users ──────────────────────────────────────────────────
       console.log('👥 Seeding users...');
-      const pwHash = await hash('Demo123!');
+      const pwHash = await hash(process.env.DEFAULT_TENANT_PASSWORD || 'changeme');
 
       const users = [
         { username: 'demo_admin', email: 'demo@serviflow.app', full_name: 'Demo Admin', role: 'admin' },
@@ -1516,7 +1516,7 @@ async function main() {
     console.log(`   Audit log: ${auditActions.length} entries`);
 
     console.log('\n✅ Demo seeding complete!');
-    console.log('   Login: demo@serviflow.app / Demo123!');
+    console.log('   Login: demo@serviflow.app (password set via DEFAULT_TENANT_PASSWORD env var)');
     console.log('   Tenant code: demo\n');
 
   } finally {
