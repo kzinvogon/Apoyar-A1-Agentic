@@ -44,7 +44,6 @@ router.get('/tenants', requireMasterAuth, async (req, res) => {
         LEFT JOIN master_users mu ON t.created_by = mu.id
         LEFT JOIN tenant_subscriptions ts ON t.id = ts.tenant_id
         LEFT JOIN subscription_plans sp ON ts.plan_id = sp.id
-        WHERE t.status = 'active'
         GROUP BY t.id, ts.id, ts.plan_id, ts.status, ts.billing_cycle, ts.trial_start, ts.trial_end,
                  ts.current_period_start, ts.current_period_end, sp.name, sp.slug, sp.price_monthly, sp.price_yearly
         ORDER BY t.created_at DESC
@@ -239,6 +238,97 @@ router.delete('/tenants/:id', requireMasterAuth, requireRole(['super_admin']), a
     }
   } catch (error) {
     console.error('Error deleting tenant:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// Restore a soft-deleted tenant
+router.post('/tenants/:id/restore', requireMasterAuth, requireRole(['super_admin']), async (req, res) => {
+  try {
+    const connection = await getMasterConnection();
+    try {
+      const [existing] = await connection.query(
+        'SELECT id, company_name, tenant_code, status FROM tenants WHERE id = ?',
+        [req.params.id]
+      );
+
+      if (existing.length === 0) {
+        return res.status(404).json({ success: false, message: 'Tenant not found' });
+      }
+
+      if (existing[0].status !== 'inactive') {
+        return res.status(400).json({ success: false, message: 'Only inactive tenants can be restored' });
+      }
+
+      await connection.query(
+        "UPDATE tenants SET status = 'active', updated_at = NOW() WHERE id = ?",
+        [req.params.id]
+      );
+
+      await connection.query(`
+        INSERT INTO master_audit_log (user_id, user_type, action, details, ip_address)
+        VALUES (?, 'master_user', 'tenant_restored', ?, ?)
+      `, [req.user.userId, JSON.stringify({ message: `Restored tenant: ${existing[0].company_name}`, tenant_id: req.params.id, tenant_code: existing[0].tenant_code }), req.ip]);
+
+      res.json({ success: true, message: 'Tenant restored successfully' });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error restoring tenant:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// Permanently delete a tenant and drop its database
+router.delete('/tenants/:id/permanent', requireMasterAuth, requireRole(['super_admin']), async (req, res) => {
+  try {
+    const { confirm_code } = req.body;
+
+    if (!confirm_code) {
+      return res.status(400).json({ success: false, message: 'confirm_code is required' });
+    }
+
+    const connection = await getMasterConnection();
+    try {
+      const [existing] = await connection.query(
+        'SELECT id, company_name, tenant_code, status FROM tenants WHERE id = ?',
+        [req.params.id]
+      );
+
+      if (existing.length === 0) {
+        return res.status(404).json({ success: false, message: 'Tenant not found' });
+      }
+
+      if (existing[0].status !== 'inactive') {
+        return res.status(400).json({ success: false, message: 'Tenant must be deactivated before permanent deletion' });
+      }
+
+      if (confirm_code !== existing[0].tenant_code) {
+        return res.status(400).json({ success: false, message: 'Confirmation code does not match tenant code' });
+      }
+
+      // Drop the tenant database
+      const dbName = `a1_tenant_${existing[0].tenant_code}`;
+      await connection.query(`DROP DATABASE IF EXISTS ??`, [dbName]);
+
+      // Remove subscription records
+      await connection.query('DELETE FROM tenant_subscriptions WHERE tenant_id = ?', [req.params.id]);
+
+      // Remove the tenant record
+      await connection.query('DELETE FROM tenants WHERE id = ?', [req.params.id]);
+
+      await connection.query(`
+        INSERT INTO master_audit_log (user_id, user_type, action, details, ip_address)
+        VALUES (?, 'master_user', 'tenant_permanently_deleted', ?, ?)
+      `, [req.user.userId, JSON.stringify({ message: `Permanently deleted tenant: ${existing[0].company_name}`, tenant_code: existing[0].tenant_code }), req.ip]);
+
+      res.json({ success: true, message: 'Tenant permanently deleted' });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error permanently deleting tenant:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
