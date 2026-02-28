@@ -23,7 +23,7 @@ Those settings are for:
 
 ## 🧪 How to Test
 1. Go to http://localhost:3000
-2. Login as Master Admin (admin / admin123)
+2. Login as Master Admin
 3. Navigate to "Email Processing" 
 4. Click "Test Email" button
 5. Enter an email address and click Send

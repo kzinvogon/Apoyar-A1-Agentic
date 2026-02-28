@@ -98,15 +98,15 @@ ORDER BY ci.created_at DESC;
 ## Testing
 
 ### As Expert
-1. Login as expert (expert / password123)
+1. Login as an expert user
 2. Click "📝 Raise Request"
 3. You should see "Select Customer" dropdown
-4. Select "customer (david.hamilton@sustentus.com)"
+4. Select a customer
 5. CMDB items shown should be filtered to that customer only
 6. Submit request
 
 ### As Customer
-1. Login as customer (customer / password123)
+1. Login as a customer user
 2. Click "📝 Raise Request"
 3. Customer field should **NOT** be visible
 4. Submit request (automatically for yourself)

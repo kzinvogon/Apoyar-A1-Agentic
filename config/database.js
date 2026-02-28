@@ -156,46 +156,10 @@ async function initializeMasterDatabase() {
     }
   }
 
-  // Now check if tables exist
-  const rows = await hardenedPool.masterQuery('SHOW TABLES');
-  if (rows.length === 0) {
-    console.log('📋 Creating master database tables...');
-    await createMasterTables();
-    console.log('✅ Master database tables created');
-  } else {
-    console.log('✅ Master database tables already exist');
-    // Ensure audit_log table exists (added later, may be missing on older deployments)
-    await hardenedPool.masterQuery(`
-      CREATE TABLE IF NOT EXISTS audit_log (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        tenant_code VARCHAR(50) NOT NULL,
-        user_id INT NULL,
-        username VARCHAR(100) NULL,
-        action VARCHAR(50) NOT NULL,
-        entity_type VARCHAR(50) NOT NULL,
-        entity_id VARCHAR(100) NULL,
-        details_json JSON NULL,
-        ip VARCHAR(64) NULL,
-        user_agent VARCHAR(255) NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        INDEX idx_tenant_code (tenant_code),
-        INDEX idx_action (action),
-        INDEX idx_created_at (created_at)
-      )
-    `);
-    // Ensure default admin exists
-    const existingAdmin = await hardenedPool.masterQuery('SELECT id FROM master_users WHERE username = ?', ['admin']);
-    if (existingAdmin.length === 0) {
-      const bcrypt = require('bcrypt');
-      const defaultPassword = process.env.DEFAULT_MASTER_PASSWORD || 'admin123';
-      const hashedPassword = await bcrypt.hash(defaultPassword, 10);
-      await hardenedPool.masterQuery(
-        'INSERT INTO master_users (username, password_hash, role, email, full_name) VALUES (?, ?, ?, ?, ?)',
-        ['admin', hashedPassword, 'super_admin', 'admin@a1support.com', 'Master Administrator']
-      );
-      console.log('👑 Default master admin created (username: admin)');
-    }
-  }
+  // Always ensure all master tables exist (IF NOT EXISTS is safe to re-run)
+  console.log('📋 Ensuring master database tables...');
+  await createMasterTables();
+  console.log('✅ Master database tables ready');
 }
 
 /**
@@ -226,6 +190,7 @@ async function createMasterTables() {
       database_user VARCHAR(50) NOT NULL,
       database_password VARCHAR(255) NOT NULL,
       status ENUM('active', 'inactive', 'suspended') DEFAULT 'active',
+      is_demo TINYINT(1) NOT NULL DEFAULT 0,
       max_users INT DEFAULT 100,
       max_tickets INT DEFAULT 1000,
       subscription_plan ENUM('basic', 'professional', 'enterprise') DEFAULT 'basic',
@@ -277,6 +242,88 @@ async function createMasterTables() {
       INDEX idx_action (action),
       INDEX idx_created_at (created_at)
     )`,
+    `CREATE TABLE IF NOT EXISTS subscription_plans (
+      id INT PRIMARY KEY AUTO_INCREMENT,
+      slug VARCHAR(50) NOT NULL UNIQUE,
+      name VARCHAR(100),
+      display_name VARCHAR(100) NOT NULL,
+      tagline VARCHAR(255),
+      description TEXT,
+      price_monthly DECIMAL(10,2) NOT NULL DEFAULT 0,
+      price_yearly DECIMAL(10,2) NOT NULL DEFAULT 0,
+      price_per_user DECIMAL(10,2) DEFAULT 0,
+      features JSON,
+      feature_limits JSON,
+      is_active TINYINT(1) DEFAULT 1,
+      is_featured TINYINT(1) DEFAULT 0,
+      badge_text VARCHAR(50),
+      display_order INT DEFAULT 0,
+      stripe_product_id VARCHAR(255),
+      stripe_price_monthly VARCHAR(255),
+      stripe_price_yearly VARCHAR(255),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS tenant_subscriptions (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      tenant_id INT NOT NULL,
+      plan_id INT NOT NULL,
+      status ENUM('trial', 'active', 'past_due', 'cancelled', 'expired') DEFAULT 'trial',
+      billing_cycle ENUM('monthly', 'yearly') DEFAULT 'monthly',
+      current_period_start DATE,
+      current_period_end DATE,
+      trial_start DATE,
+      trial_end DATE,
+      user_count INT DEFAULT 0,
+      ticket_count_this_period INT DEFAULT 0,
+      storage_used_gb DECIMAL(10,2) DEFAULT 0,
+      stripe_subscription_id VARCHAR(255),
+      stripe_customer_id VARCHAR(255),
+      previous_plan_id INT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_tenant_id (tenant_id)
+    )`,
+    // Magic link auth tables (must exist on fresh environments)
+    `CREATE TABLE IF NOT EXISTS tenant_email_domains (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      tenant_id INT NOT NULL,
+      domain VARCHAR(255) NOT NULL,
+      is_verified TINYINT(1) DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY unique_domain (domain),
+      INDEX idx_tenant_id (tenant_id)
+    )`,
+    `CREATE TABLE IF NOT EXISTS auth_magic_links (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      email VARCHAR(255) NOT NULL,
+      token_hash VARCHAR(64) NOT NULL,
+      tenant_id INT NOT NULL,
+      purpose ENUM('login','signup') DEFAULT 'login',
+      requested_host VARCHAR(255),
+      expires_at DATETIME NOT NULL,
+      consumed_at DATETIME NULL,
+      status ENUM('pending','consumed','expired','revoked') DEFAULT 'pending',
+      attempts_count INT DEFAULT 0,
+      ip_hash VARCHAR(64),
+      user_agent VARCHAR(512),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY unique_token (token_hash),
+      INDEX idx_email (email),
+      INDEX idx_status_expires (status, expires_at)
+    )`,
+    `CREATE TABLE IF NOT EXISTS auth_events (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      event_type VARCHAR(50) NOT NULL,
+      email VARCHAR(255),
+      tenant_id INT,
+      metadata JSON,
+      ip_hash VARCHAR(64),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_event_type (event_type),
+      INDEX idx_email (email),
+      INDEX idx_created_at (created_at)
+    )`,
   ];
 
   for (const sql of statements) {
@@ -287,7 +334,11 @@ async function createMasterTables() {
   const existingAdmin = await hardenedPool.masterQuery('SELECT id FROM master_users WHERE username = ?', ['admin']);
   if (existingAdmin.length === 0) {
     const bcrypt = require('bcrypt');
-    const defaultPassword = process.env.DEFAULT_MASTER_PASSWORD || 'admin123';
+    const defaultPassword = process.env.DEFAULT_MASTER_PASSWORD;
+    if (!defaultPassword) {
+      console.error('⚠️ DEFAULT_MASTER_PASSWORD env var not set — skipping master admin creation');
+      return;
+    }
     const hashedPassword = await bcrypt.hash(defaultPassword, 10);
     await hardenedPool.masterQuery(
       'INSERT INTO master_users (username, email, password_hash, full_name, role) VALUES (?, ?, ?, ?, ?)',
@@ -366,9 +417,10 @@ async function createTenantTables(connection, tenantCode) {
       id INT PRIMARY KEY AUTO_INCREMENT,
       username VARCHAR(50) UNIQUE NOT NULL,
       email VARCHAR(100) UNIQUE NOT NULL,
-      password_hash VARCHAR(255) NOT NULL,
+      password_hash VARCHAR(255) NULL,
       full_name VARCHAR(100) NOT NULL,
       role ENUM('admin', 'expert', 'customer') NOT NULL,
+      auth_method ENUM('password','magic_link','both') DEFAULT 'password',
       is_active BOOLEAN DEFAULT TRUE,
       last_login DATETIME,
       phone VARCHAR(50),
@@ -528,6 +580,25 @@ async function createTenantTables(connection, tenantCode) {
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       INDEX idx_setting_key (setting_key)
     )`,
+    `CREATE TABLE IF NOT EXISTS tenant_user_roles (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      tenant_user_id INT NOT NULL,
+      role_key ENUM('admin','expert','customer') NOT NULL,
+      granted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      granted_by INT NULL,
+      UNIQUE KEY unique_user_role (tenant_user_id, role_key),
+      FOREIGN KEY (tenant_user_id) REFERENCES users(id) ON DELETE CASCADE
+    )`,
+    `CREATE TABLE IF NOT EXISTS tenant_user_company_memberships (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      tenant_user_id INT NOT NULL,
+      company_id INT NOT NULL,
+      membership_role ENUM('member','admin') DEFAULT 'member',
+      joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY unique_user_company (tenant_user_id, company_id),
+      FOREIGN KEY (tenant_user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (company_id) REFERENCES customer_companies(id) ON DELETE CASCADE
+    )`,
   ];
 
   for (const sql of statements) {
@@ -538,7 +609,11 @@ async function createTenantTables(connection, tenantCode) {
   const [existingUsers] = await connection.query('SELECT COUNT(*) as count FROM users');
   if (existingUsers[0].count === 0) {
     const bcrypt = require('bcrypt');
-    const defaultPassword = process.env.DEFAULT_TENANT_PASSWORD || 'password123';
+    const defaultPassword = process.env.DEFAULT_TENANT_PASSWORD;
+    if (!defaultPassword) {
+      console.error('⚠️ DEFAULT_TENANT_PASSWORD env var not set — skipping default tenant user creation');
+      return;
+    }
     const hashedPassword = await bcrypt.hash(defaultPassword, 10);
 
     await connection.query(

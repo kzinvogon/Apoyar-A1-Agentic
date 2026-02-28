@@ -5,10 +5,12 @@ const path = require('path');
 const fs = require('fs');
 const { getTenantConnection } = require('../config/database');
 const { verifyToken } = require('../middleware/auth');
+const { applyTenantMatch } = require('../middleware/tenantMatch');
 const { getOnlineExperts } = require('../services/chat-socket');
 const { ChatQualificationEngine } = require('../services/chat-qualification');
 
 router.use(verifyToken);
+applyTenantMatch(router);
 
 // Configure multer for chat file uploads (max 10MB)
 const chatUploadDir = path.join(__dirname, '..', 'uploads', 'chat');

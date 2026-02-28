@@ -16,12 +16,12 @@ The CMDB management interface is in the main dashboard navigation:
 ## How to View CMDB Items
 
 ### As Customer
-- Login as customer (customer / password123)
+- Login as a customer user
 - Click "My CMDB" in navigation
 - You'll only see your own CMDB items (isolated view)
 
 ### As Admin or Expert
-- Login as admin/expert (admin / password123)
+- Login as an admin or expert user
 - Click "My CMDB" in navigation
 - You'll see all CMDB items from all customers
 

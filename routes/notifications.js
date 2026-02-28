@@ -7,6 +7,11 @@ const express = require('express');
 const router = express.Router();
 const { getTenantConnection } = require('../config/database');
 const { verifyToken, requireRole } = require('../middleware/auth');
+const { applyTenantMatch } = require('../middleware/tenantMatch');
+
+// Apply authentication and tenant isolation to all routes
+router.use(verifyToken);
+applyTenantMatch(router);
 
 /**
  * GET /api/notifications/:tenantCode
@@ -22,7 +27,7 @@ const { verifyToken, requireRole } = require('../middleware/auth');
  * - to (optional ISO date)
  * - ticket_id (optional)
  */
-router.get('/:tenantCode', verifyToken, requireRole(['admin', 'expert']), async (req, res) => {
+router.get('/:tenantCode', requireRole(['admin', 'expert']),async (req, res) => {
   const { tenantCode } = req.params;
   const {
     limit = 50,
@@ -123,7 +128,7 @@ router.get('/:tenantCode', verifyToken, requireRole(['admin', 'expert']), async 
  * PATCH /api/notifications/:tenantCode/:id/deliver
  * Mark a single notification as delivered
  */
-router.patch('/:tenantCode/:id/deliver', verifyToken, requireRole(['admin', 'expert']), async (req, res) => {
+router.patch('/:tenantCode/:id/deliver', requireRole(['admin', 'expert']),async (req, res) => {
   const { tenantCode, id } = req.params;
   const notificationId = parseInt(id, 10);
 
@@ -186,7 +191,7 @@ router.patch('/:tenantCode/:id/deliver', verifyToken, requireRole(['admin', 'exp
  * Mark multiple notifications as delivered by IDs
  * Body: { ids: [1, 2, 3] }
  */
-router.patch('/:tenantCode/deliver-bulk', verifyToken, requireRole(['admin', 'expert']), async (req, res) => {
+router.patch('/:tenantCode/deliver-bulk', requireRole(['admin', 'expert']),async (req, res) => {
   const { tenantCode } = req.params;
   const { ids } = req.body;
 

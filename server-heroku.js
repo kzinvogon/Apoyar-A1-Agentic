@@ -60,7 +60,7 @@ let tenantUsers = [
     id: 1,
     tenantId: 'apoyar',
     username: 'admin',
-    password: '$2b$10$JGkYNAmoP8W7J4Yzj/jGF.wvg4r0lL1bu1xwLuDEUC/VbvuBRNd66', // admin123
+    password: '$2b$10$placeholder', // set via env var
     name: 'Administrator',
     email: 'admin@apoyar.com',
     role: 'admin',
@@ -70,7 +70,7 @@ let tenantUsers = [
     id: 2,
     tenantId: 'apoyar',
     username: 'expert',
-    password: '$2b$10$JGkYNAmoP8W7J4Yzj/jGF.wvg4r0lL1bu1xwLuDEUC/VbvuBRNd66', // password123
+    password: '$2b$10$placeholder', // set via env var
     name: 'Expert User',
     email: 'expert@apoyar.com',
     role: 'expert',
@@ -80,7 +80,7 @@ let tenantUsers = [
     id: 3,
     tenantId: 'apoyar',
     username: 'customer',
-    password: '$2b$10$JGkYNAmoP8W7J4Yzj/jGF.wvg4r0lL1bu1xwLuDEUC/VbvuBRNd66', // password123
+    password: '$2b$10$placeholder', // set via env var
     name: 'Customer User',
     email: 'customer@apoyar.com',
     role: 'customer',
@@ -258,7 +258,7 @@ app.post('/api/master/tenants', authenticateToken, async (req, res) => {
     tenants.push(newTenant);
 
     // Create default admin user
-    const hashedPassword = await bcrypt.hash('admin123', 10);
+    const hashedPassword = await bcrypt.hash(process.env.DEFAULT_TENANT_PASSWORD || 'changeme', 10);
     const newUser = {
       id: tenantUsers.length + 1,
       tenantId,
@@ -430,11 +430,6 @@ app.listen(PORT, () => {
   console.log('   • In-memory data storage');
   console.log('   • User authentication');
   console.log('   • Ticket management');
-  console.log('🔐 Master Admin Credentials:');
-  console.log('   Master: master / master123');
-  console.log('🔐 Tenant Credentials (Apoyar):');
-  console.log('   Admin: admin / admin123');
-  console.log('   Expert: expert / password123');
-  console.log('   Customer: customer / password123');
+  console.log('🔐 Credentials set via env vars');
   console.log('💡 Press Ctrl+C to stop the server');
 });

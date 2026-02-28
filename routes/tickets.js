@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const { getTenantConnection } = require('../config/database');
+const { getTenantConnection, getMasterConnection } = require('../config/database');
 const { verifyToken, requireRole } = require('../middleware/auth');
+const { applyTenantMatch } = require('../middleware/tenantMatch');
 const { sendTicketNotificationEmail } = require('../config/email');
 const {
   validateTicketCreate,
@@ -13,7 +14,6 @@ const {
   readOperationsLimiter
 } = require('../middleware/rateLimiter');
 const { triggerTeamsNotificationAsync } = require('../services/teams-notification');
-const { triggerSmsNotificationAsync } = require('../services/sms-notification');
 
 // AI-powered CMDB auto-linking (fire-and-forget)
 const { triggerAutoLink } = require('../scripts/auto-link-cmdb');
@@ -134,7 +134,26 @@ router.get('/public/:token/details', async (req, res) => {
         return res.status(404).json({ success: false, message: 'Ticket not found' });
       }
 
-      res.json({ success: true, ticket: tickets[0] });
+      // Fetch tenant display name from master DB
+      let tenantName = tenantCode;
+      try {
+        const masterConn = await getMasterConnection();
+        try {
+          const [tenantRows] = await masterConn.query(
+            'SELECT company_name FROM tenants WHERE tenant_code = ?',
+            [tenantCode]
+          );
+          if (tenantRows.length > 0 && tenantRows[0].company_name) {
+            tenantName = tenantRows[0].company_name;
+          }
+        } finally {
+          masterConn.release();
+        }
+      } catch (e) {
+        // Fall back to tenant code if master DB lookup fails
+      }
+
+      res.json({ success: true, ticket: tickets[0], tenantName });
     } finally {
       connection.release();
     }
@@ -400,14 +419,11 @@ router.get('/public/:tenantCode/feedback-scoreboard', async (req, res) => {
 
       const averageRating = totalFeedback > 0 ? (totalRating / totalFeedback).toFixed(2) : 0;
 
-      // Get recent feedback (last 10)
+      // Get recent feedback (last 10) — strip PII for public endpoint
       const recentFeedback = feedbackTickets.slice(0, 10).map(ticket => ({
         ticketId: ticket.id,
-        title: ticket.title,
         rating: ticket.csat_rating,
         comment: ticket.csat_comment,
-        requesterName: ticket.requester_name,
-        resolvedByName: ticket.resolved_by_name,
         submittedAt: ticket.updated_at
       }));
 
@@ -432,6 +448,7 @@ router.get('/public/:tenantCode/feedback-scoreboard', async (req, res) => {
 // ========== PROTECTED ROUTES (AUTH REQUIRED) ==========
 // Apply verifyToken middleware to all routes below
 router.use(verifyToken);
+applyTenantMatch(router);
 
 // Get tenant settings (must come BEFORE /:tenantId to avoid route conflict)
 router.get('/settings/:tenantId', async (req, res) => {
@@ -542,8 +559,14 @@ router.get('/:tenantId', readOperationsLimiter, validateTicketGet, async (req, r
 
       // ========== ROLE-BASED ACCESS CONTROL ==========
       if (req.user.role === 'customer') {
-        whereConditions.push('t.requester_id = ?');
-        params.push(req.user.userId);
+        // Multi-role: use active_company_id if available, else fallback to requester_id
+        if (req.user.active_company_id) {
+          whereConditions.push('t.requester_id IN (SELECT c.user_id FROM customers c WHERE c.customer_company_id = ?)');
+          params.push(req.user.active_company_id);
+        } else {
+          whereConditions.push('t.requester_id = ?');
+          params.push(req.user.userId);
+        }
       } else if (req.user.role === 'expert') {
         const [permissions] = await connection.query(
           `SELECT permission_type, customer_id, title_pattern
@@ -1185,19 +1208,22 @@ router.get('/:tenantId/:ticketId', readOperationsLimiter, validateTicketGet, asy
 
       // Customer permission check - customers can only see their own tickets or company tickets
       if (req.user.role === 'customer') {
-        // Use == for type coercion (userId might be string from JWT, requester_id is number from DB)
         const isOwnTicket = ticket.requester_id == req.user.userId;
 
-        // If not own ticket, check company membership
+        // Multi-role: use active_company_id from JWT if available
         let isSameCompany = false;
         if (!isOwnTicket && ticket.requester_company_id) {
-          // Look up customer's company from database
-          const [customerInfo] = await connection.query(
-            `SELECT c.customer_company_id FROM customers c WHERE c.user_id = ?`,
-            [req.user.userId]
-          );
-          if (customerInfo.length > 0 && customerInfo[0].customer_company_id) {
-            isSameCompany = ticket.requester_company_id == customerInfo[0].customer_company_id;
+          if (req.user.active_company_id) {
+            isSameCompany = ticket.requester_company_id == req.user.active_company_id;
+          } else {
+            // Fallback: look up customer's company from database
+            const [customerInfo] = await connection.query(
+              `SELECT c.customer_company_id FROM customers c WHERE c.user_id = ?`,
+              [req.user.userId]
+            );
+            if (customerInfo.length > 0 && customerInfo[0].customer_company_id) {
+              isSameCompany = ticket.requester_company_id == customerInfo[0].customer_company_id;
+            }
           }
         }
 
@@ -1531,9 +1557,6 @@ router.post('/:tenantId', writeOperationsLimiter, validateTicketCreate, async (r
       // Send Teams notification (fire-and-forget)
       triggerTeamsNotificationAsync('created', tickets[0], tenantCode);
 
-      // Send SMS notification (fire-and-forget)
-      triggerSmsNotificationAsync('created', tickets[0], tenantCode);
-
       // Trigger AI-powered CMDB auto-linking (fire-and-forget)
       if (description && description.trim().length > 10) {
         triggerAutoLink(tenantCode, ticketId, req.user.userId);
@@ -1672,15 +1695,16 @@ router.post('/:tenantId/:ticketId/self-assign', writeOperationsLimiter, requireR
         [ticketId]
       );
 
-      // Send notification email to customer
+      // Notify customer that their ticket is now being worked on
       await sendTicketNotificationEmail({
         ticket: tickets[0],
         customer_email: tickets[0].requester_email,
         customer_name: tickets[0].requester_name,
-        tenantCode: tenantCode
-      }, 'assigned', {
-        assignee_email: tickets[0].assignee_email,
-        assignee_username: req.user.username
+        tenantCode: tenantCode,
+        emailType: 'customers'
+      }, 'status_changed', {
+        oldStatus: currentTicket.status,
+        newStatus: 'In Progress'
       });
 
       res.json({
@@ -2484,9 +2508,12 @@ router.put('/:tenantId/:ticketId', writeOperationsLimiter, validateTicketUpdate,
     const connection = await getTenantConnection(tenantCode);
     
     try {
-      // Get current ticket
+      // Get current ticket (JOIN assignee to capture old expert name for reassignment emails)
       const [currentTickets] = await connection.query(
-        'SELECT * FROM tickets WHERE id = ?',
+        `SELECT t.*, u.full_name as old_assignee_name
+         FROM tickets t
+         LEFT JOIN users u ON t.assignee_id = u.id
+         WHERE t.id = ?`,
         [ticketId]
       );
 
@@ -2497,6 +2524,7 @@ router.put('/:tenantId/:ticketId', writeOperationsLimiter, validateTicketUpdate,
       const currentTicket = currentTickets[0];
       const oldStatus = currentTicket.status;
       const oldAssigneeId = currentTicket.assignee_id;
+      const oldAssigneeName = currentTicket.old_assignee_name;
 
       // Update ticket
       const updates = [];
@@ -2732,9 +2760,6 @@ router.put('/:tenantId/:ticketId', writeOperationsLimiter, validateTicketUpdate,
           // Send Teams notification for resolved ticket
           triggerTeamsNotificationAsync('resolved', tickets[0], tenantCode, { resolutionComment: comment });
 
-          // Send SMS notification for resolved ticket
-          triggerSmsNotificationAsync('resolved', tickets[0], tenantCode, { resolutionComment: comment });
-
           // Queue-limited KB article auto-generation (never stampedes pool)
           enqueueKB(tenantCode, () => autoGenerateKBArticle(tenantCode, parseInt(ticketId), { userId: req.user.userId }), { ticketId });
         } else if (status && status !== oldStatus) {
@@ -2751,8 +2776,6 @@ router.put('/:tenantId/:ticketId', writeOperationsLimiter, validateTicketUpdate,
           // Send Teams notification for status change
           triggerTeamsNotificationAsync('status_changed', tickets[0], tenantCode, { previous_status: oldStatus });
 
-          // Send SMS notification for status change
-          triggerSmsNotificationAsync('status_changed', tickets[0], tenantCode, { previous_status: oldStatus });
         }
 
         // Send email notification if ticket was assigned
@@ -2766,14 +2789,13 @@ router.put('/:tenantId/:ticketId', writeOperationsLimiter, validateTicketUpdate,
             assignee_email: tickets[0].assignee_email,
             assignee_username: tickets[0].assignee_username,
             assignee_role: tickets[0].assignee_role,
-            comment
+            comment,
+            oldAssigneeName: oldAssigneeName
           });
 
           // Send Teams notification for assignment
           triggerTeamsNotificationAsync('assigned', tickets[0], tenantCode, { assignedTo: tickets[0].assignee_name });
 
-          // Send SMS notification for assignment
-          triggerSmsNotificationAsync('assigned', tickets[0], tenantCode, { assignedTo: tickets[0].assignee_name });
         }
       } catch (notifyErr) {
         // Log but don't fail the response - the ticket update already succeeded

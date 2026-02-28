@@ -4,8 +4,8 @@ const { simpleParser } = require('mailparser');
 // Test script to check Gmail Spam folder
 async function checkSpamFolder() {
   const imap = new Imap({
-    user: 'kzinvogon@gmail.com',
-    password: 'utgcyuskajsfmhvf',
+    user: process.env.GMAIL_USER || 'kzinvogon@gmail.com',
+    password: process.env.GMAIL_APP_PASSWORD,
     host: 'imap.gmail.com',
     port: 993,
     tls: true,

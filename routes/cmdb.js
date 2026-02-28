@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { getTenantConnection } = require('../config/database');
-const { verifyToken } = require('../middleware/auth');
+const { verifyToken, requireRole } = require('../middleware/auth');
+const { applyTenantMatch } = require('../middleware/tenantMatch');
 const multer = require('multer');
 const csv = require('csv-parser');
 const { Readable } = require('stream');
@@ -68,7 +69,11 @@ function getClientIP(req) {
          null;
 }
 
-// Public route - CSV template (no auth required)
+// Apply verifyToken middleware to ALL CMDB routes (including debug endpoints)
+router.use(verifyToken);
+applyTenantMatch(router);
+
+// CSV template (auth required)
 router.get('/:tenantCode/template/items', (req, res) => {
   // Template matches the denormalized format from inventory exports
   // Multiple rows per asset with different field name/value pairs are supported
@@ -83,7 +88,7 @@ admin,Example Laptop,Hardware,Username,jsmith,Lenovo,ThinkPad X1,John Smith,Sale
   res.send(template);
 });
 
-// Test CSV parsing endpoint (public - for debugging)
+// Test CSV parsing endpoint (auth required)
 router.post('/:tenantCode/test-parse', upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
@@ -127,8 +132,8 @@ router.post('/:tenantCode/test-parse', upload.single('file'), async (req, res) =
   }
 });
 
-// Clear all CMDB data endpoint (public - for fixing import issues)
-router.delete('/:tenantCode/clear-all', async (req, res) => {
+// Clear all CMDB data endpoint (admin only)
+router.delete('/:tenantCode/clear-all', requireRole(['admin']), async (req, res) => {
   try {
     const { tenantCode } = req.params;
     const connection = await getTenantConnection(tenantCode);
@@ -151,7 +156,7 @@ router.delete('/:tenantCode/clear-all', async (req, res) => {
   }
 });
 
-// Diagnostic endpoint for CMDB data (public - no auth required)
+// Diagnostic endpoint for CMDB data (auth required)
 router.get('/:tenantCode/diagnostic', async (req, res) => {
   try {
     const { tenantCode } = req.params;
@@ -193,9 +198,6 @@ router.get('/:tenantCode/diagnostic', async (req, res) => {
   }
 });
 
-// Apply verifyToken middleware to all protected CMDB routes
-router.use(verifyToken);
-
 // ============================================================================
 // CMDB ITEMS ROUTES
 // ============================================================================
@@ -216,7 +218,7 @@ router.get('/:tenantCode/items', async (req, res) => {
           (SELECT COUNT(*) FROM ticket_cmdb_items tci WHERE tci.cmdb_item_id = ci.id) as ticket_count,
           (SELECT COUNT(*) FROM ticket_cmdb_items tci
            JOIN tickets t ON tci.ticket_id = t.id
-           WHERE tci.cmdb_item_id = ci.id AND t.status NOT IN ('closed', 'resolved')) as open_ticket_count
+           WHERE tci.cmdb_item_id = ci.id AND t.status NOT IN ('Closed', 'Resolved')) as open_ticket_count
         FROM cmdb_items ci
         LEFT JOIN users u ON ci.created_by = u.id
       `;
@@ -226,21 +228,34 @@ router.get('/:tenantCode/items', async (req, res) => {
 
       // Customer role filtering - customers can only see their own company's CMDB items
       if (req.user.role === 'customer') {
-        // Get customer's company name
-        const [customerInfo] = await connection.query(
-          `SELECT cc.company_name
-           FROM customers c
-           JOIN customer_companies cc ON c.customer_company_id = cc.id
-           WHERE c.user_id = ?`,
-          [req.user.userId]
-        );
-
-        if (customerInfo.length > 0 && customerInfo[0].company_name) {
-          conditions.push('ci.customer_name = ?');
-          params.push(customerInfo[0].company_name);
+        // Multi-role: use active_company_id from JWT if available
+        if (req.user.active_company_id) {
+          const [companyInfo] = await connection.query(
+            'SELECT company_name FROM customer_companies WHERE id = ?',
+            [req.user.active_company_id]
+          );
+          if (companyInfo.length > 0) {
+            conditions.push('ci.customer_name = ?');
+            params.push(companyInfo[0].company_name);
+          } else {
+            return res.json({ success: true, items: [] });
+          }
         } else {
-          // Customer has no company - return empty results
-          return res.json({ success: true, items: [] });
+          // Fallback: look up customer's company from database
+          const [customerInfo] = await connection.query(
+            `SELECT cc.company_name
+             FROM customers c
+             JOIN customer_companies cc ON c.customer_company_id = cc.id
+             WHERE c.user_id = ?`,
+            [req.user.userId]
+          );
+
+          if (customerInfo.length > 0 && customerInfo[0].company_name) {
+            conditions.push('ci.customer_name = ?');
+            params.push(customerInfo[0].company_name);
+          } else {
+            return res.json({ success: true, items: [] });
+          }
         }
       }
 
@@ -303,13 +318,13 @@ router.get('/:tenantCode/items/:cmdbId', async (req, res) => {
 
       const item = items[0];
 
-      // Get associated Configuration Items
+      // Get associated Configuration Items (aliased for frontend compatibility)
       const [cis] = await connection.query(
-        `SELECT ci.*, u.full_name as created_by_name
+        `SELECT ci.id AS ci_id, ci.cmdb_item_id, ci.key_name AS ci_name,
+                ci.value AS category_field_value, ci.data_type, ci.created_at, ci.updated_at
          FROM configuration_items ci
-         LEFT JOIN users u ON ci.created_by = u.id
          WHERE ci.cmdb_item_id = ?
-         ORDER BY ci.created_at DESC`,
+         ORDER BY ci.key_name ASC`,
         [item.id]
       );
 
@@ -353,6 +368,20 @@ router.post('/:tenantCode/items', async (req, res) => {
     const connection = await getTenantConnection(tenantCode);
 
     try {
+      // Demo mode: enforce CMDB item cap
+      if (req.demoTenant) {
+        const maxItems = parseInt(process.env.DEMO_MAX_CMDB_ITEMS) || 30;
+        const [countResult] = await connection.query('SELECT COUNT(*) as cnt FROM cmdb_items');
+        if (countResult[0].cnt >= maxItems) {
+          connection.release();
+          return res.status(400).json({
+            success: false,
+            message: `DEMO MODE: Limited to ${maxItems} CMDB items.`,
+            demo_limit_reached: true
+          });
+        }
+      }
+
       // Generate unique CMDB ID
       const cmdb_id = `CMDB-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
@@ -577,11 +606,11 @@ router.get('/:tenantCode/items/:cmdbId/cis', async (req, res) => {
       }
 
       const [cis] = await connection.query(
-        `SELECT ci.*, u.full_name as created_by_name
+        `SELECT ci.id AS ci_id, ci.cmdb_item_id, ci.key_name AS ci_name,
+                ci.value AS category_field_value, ci.data_type, ci.created_at, ci.updated_at
          FROM configuration_items ci
-         LEFT JOIN users u ON ci.created_by = u.id
          WHERE ci.cmdb_item_id = ?
-         ORDER BY ci.created_at DESC`,
+         ORDER BY ci.key_name ASC`,
         [cmdbItems[0].id]
       );
 
@@ -751,6 +780,24 @@ router.post('/:tenantCode/import/items', upload.single('file'), async (req, res)
     const connection = await getTenantConnection(tenantCode);
     const errors = [];
     let lineNumber = 1;
+
+    // Demo mode: enforce CMDB item cap on import
+    if (req.demoTenant) {
+      const maxItems = parseInt(process.env.DEMO_MAX_CMDB_ITEMS) || 30;
+      try {
+        const [countResult] = await connection.query('SELECT COUNT(*) as cnt FROM cmdb_items');
+        if (countResult[0].cnt >= maxItems) {
+          connection.release();
+          return res.status(400).json({
+            success: false,
+            message: `DEMO MODE: Limited to ${maxItems} CMDB items. Cannot import more.`,
+            demo_limit_reached: true
+          });
+        }
+      } catch (e) {
+        // ignore cap check errors, let import proceed
+      }
+    }
 
     // Map to consolidate rows by asset name
     // Key: AssetName, Value: { asset info, fields: [{field_name, field_value}] }

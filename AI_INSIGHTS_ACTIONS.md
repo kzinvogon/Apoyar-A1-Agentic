@@ -556,7 +556,7 @@ async function testInsightActions() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       username: 'admin',
-      password: 'password123',
+      password: '<YOUR_PASSWORD>',
       tenant_code: 'apoyar'
     })
   });

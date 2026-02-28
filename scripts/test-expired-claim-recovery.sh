@@ -9,6 +9,7 @@ set -e
 
 BASE_URL="${1:-http://localhost:3000}"
 TENANT="apoyar"
+SMOKE_PASSWORD="${SMOKE_PASSWORD:?SMOKE_PASSWORD env var required}"
 
 echo "=== Expired Claim Recovery Smoke Test ==="
 echo "Base URL: $BASE_URL"
@@ -20,7 +21,7 @@ echo "1. Getting auth tokens for two experts..."
 # Login as admin (expert A)
 EXPERT_A_RESPONSE=$(curl -s -X POST "$BASE_URL/api/auth/$TENANT/login" \
   -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"password123"}')
+  -d '{"username":"admin","password":"'$SMOKE_PASSWORD'"}')
 
 EXPERT_A_TOKEN=$(echo "$EXPERT_A_RESPONSE" | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
 EXPERT_A_USER_ID=$(echo "$EXPERT_A_RESPONSE" | grep -o '"userId":[0-9]*' | cut -d':' -f2)

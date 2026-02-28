@@ -41,6 +41,7 @@ enum OverallStatus {
     case unhealthy
     case checking
     case unknown
+    case needsSetup
 
     var icon: String {
         switch self {
@@ -48,6 +49,7 @@ enum OverallStatus {
         case .unhealthy: return "exclamationmark.triangle.fill"
         case .checking: return "arrow.clockwise"
         case .unknown: return "questionmark.circle"
+        case .needsSetup: return "person.badge.key"
         }
     }
 
@@ -57,6 +59,7 @@ enum OverallStatus {
         case .unhealthy: return .red
         case .checking: return .blue
         case .unknown: return .gray
+        case .needsSetup: return .orange
         }
     }
 
@@ -66,6 +69,7 @@ enum OverallStatus {
         case .unhealthy: return "Down"
         case .checking: return "..."
         case .unknown: return "?"
+        case .needsSetup: return "Setup"
         }
     }
 }
@@ -75,9 +79,9 @@ class ProductionMonitor: ObservableObject {
     // Configuration
     @AppStorage("productionURL") var productionURL = "https://app.serviflow.app"
     @AppStorage("checkIntervalSeconds") var checkIntervalSeconds = 60
-    @AppStorage("tenantCode") var tenantCode = "apoyar"
-    @AppStorage("testUsername") var testUsername = "admin"
-    @AppStorage("testPassword") var testPassword = "password123"
+    @AppStorage("tenantCode") var tenantCode = ""
+    @AppStorage("testUsername") var testUsername = ""
+    @AppStorage("testPassword") var testPassword = ""
     @AppStorage("notificationsEnabled") var notificationsEnabled = true
     @AppStorage("consecutiveFailuresBeforeAlert") var consecutiveFailuresBeforeAlert = 2
 
@@ -99,6 +103,9 @@ class ProductionMonitor: ObservableObject {
     @Published var totalChecks = 0
     @Published var totalFailures = 0
 
+    // Credentials state
+    @Published var needsCredentials = false
+
     // Auto-diagnose state
     @Published var lastDiagnoseTime: Date?
     @Published var isDiagnosing = false
@@ -112,6 +119,10 @@ class ProductionMonitor: ObservableObject {
     var statusIcon: String { overallStatus.icon }
     var statusColor: Color { overallStatus.color }
     var statusText: String { overallStatus.text }
+
+    var credentialsConfigured: Bool {
+        !tenantCode.isEmpty && !testUsername.isEmpty && !testPassword.isEmpty
+    }
 
     var uptime: String {
         let seconds = Int(Date().timeIntervalSince(startTime))
@@ -129,7 +140,12 @@ class ProductionMonitor: ObservableObject {
     init() {
         setupNotifications()
         initializeChecks()
-        startMonitoring()
+        if credentialsConfigured {
+            startMonitoring()
+        } else {
+            needsCredentials = true
+            overallStatus = .needsSetup
+        }
     }
 
     private func initializeChecks() {
@@ -149,6 +165,12 @@ class ProductionMonitor: ObservableObject {
     }
 
     func startMonitoring() {
+        guard credentialsConfigured else {
+            needsCredentials = true
+            overallStatus = .needsSetup
+            return
+        }
+        needsCredentials = false
         stopMonitoring()
         Task {
             await runHealthChecks()
@@ -157,6 +179,17 @@ class ProductionMonitor: ObservableObject {
             Task { @MainActor [weak self] in
                 await self?.runHealthChecks()
             }
+        }
+    }
+
+    func checkAndStartMonitoring() {
+        if credentialsConfigured {
+            needsCredentials = false
+            startMonitoring()
+        } else {
+            stopMonitoring()
+            needsCredentials = true
+            overallStatus = .needsSetup
         }
     }
 

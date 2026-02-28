@@ -159,8 +159,8 @@ vNext-FULL-ActionsSLA:
   .fullscreen-toggle-btn{padding:8px 14px;border-radius:6px;border:2px solid var(--primary);background:var(--card);cursor:pointer;font-size:13px;font-weight:600;color:var(--primary);transition:all .15s;display:inline-flex;align-items:center;gap:6px}
   .fullscreen-toggle-btn:hover{background:var(--primary);color:var(--bg)}
   .fullscreen-toggle-btn:hover svg{stroke:var(--bg)}
-  .leftnav .subtitle{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:0 0 8px 12px;font-weight:500}
-  .navlink{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;margin-bottom:2px;cursor:pointer;font-size:14px;font-weight:400;color:var(--muted);transition:all .15s ease}
+  .leftnav .subtitle{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:0 0 2px 10px;font-weight:500}
+  .navlink{display:flex;align-items:center;gap:6px;padding:2px 10px;border-radius:6px;margin-bottom:0;cursor:pointer;font-size:13px;font-weight:400;color:var(--muted);transition:all .15s ease}
   .navlink svg{flex-shrink:0;opacity:.7;transition:opacity .15s}
   .navlink:hover svg{opacity:1}
   .navlink.active svg{opacity:1;stroke:var(--bg)}
@@ -172,25 +172,18 @@ vNext-FULL-ActionsSLA:
   .navlink:focus,.navlink:active:not(.active){background:transparent;color:var(--muted);outline:none;-webkit-tap-highlight-color:transparent}
   .navlink:hover:active:not(.active){background:var(--card-hover);color:var(--ink)}
   /* Collapsible Nav Group */
-  .nav-group{margin-bottom:2px}
+  .nav-group{margin-bottom:0}
   .nav-group .navlink{display:flex;justify-content:space-between;align-items:center}
   .nav-group .chev{font-size:10px;transition:transform .15s}
-  .nav-group.open .chev{transform:rotate(90deg)}
-  .nav-subitems{display:none;padding-left:12px}
-  .nav-group.open .nav-subitems{display:block}
-  .nav-subitem{display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:6px;margin-bottom:2px;cursor:pointer;font-size:13px;color:var(--muted);transition:all .15s ease}
+  .nav-group.open > .navlink > .chev,
+  .nav-group.open > .subtitle > .chev{transform:rotate(90deg)}
+  .nav-subitems{display:none;padding-left:10px}
+  .nav-group.open > .nav-subitems{display:block}
+  .nav-subitem{display:flex;align-items:center;gap:6px;padding:2px 10px;border-radius:6px;margin-bottom:0;cursor:pointer;font-size:12px;color:var(--muted);transition:all .15s ease}
   .nav-subitem:hover{background:var(--card-hover);color:var(--ink)}
   .nav-subitem.active{background:var(--primary);color:var(--bg)}
   .nav-subitem:focus,.nav-subitem:active:not(.active){background:transparent;color:var(--muted);outline:none;-webkit-tap-highlight-color:transparent}
   .nav-subitem:hover:active:not(.active){background:var(--card-hover);color:var(--ink)}
-  /* Admin Mode Toggle */
-  .admin-mode-toggle{display:flex;align-items:center;gap:8px;padding:8px 12px;margin-bottom:8px;border-radius:8px;background:var(--card);border:1px solid var(--border);font-size:12px;color:var(--muted)}
-  .admin-mode-toggle .switch{position:relative;width:32px;height:18px;flex-shrink:0}
-  .admin-mode-toggle .switch input{opacity:0;width:0;height:0}
-  .admin-mode-toggle .slider{position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:18px;transition:.2s}
-  .admin-mode-toggle .slider:before{content:"";position:absolute;height:14px;width:14px;left:2px;bottom:2px;background:#fff;border-radius:50%;transition:.2s}
-  .admin-mode-toggle .switch input:checked+.slider{background:var(--primary)}
-  .admin-mode-toggle .switch input:checked+.slider:before{transform:translateX(14px)}
   /* Admin-only sections in ticket detail */
   .admin-section{position:relative;background:var(--card-hover);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:12px}
   .admin-section::before{content:'Admin';position:absolute;top:-8px;left:12px;background:var(--card);padding:0 6px;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:500}
@@ -565,7 +558,8 @@ vNext-FULL-ActionsSLA:
     .sla{font-size:11px;padding:4px 8px}
 
     /* Navigation links */
-    .navlink{padding:12px;font-size:15px;min-height:44px}
+    .navlink{padding:3px 10px;font-size:13px;min-height:auto}
+    .nav-subitem{padding:2px 10px;font-size:12px}
 
     /* Filter panel - collapsible */
     #ticket-filters-card .row.wrap{display:none !important}
@@ -1239,6 +1233,10 @@ vNext-FULL-ActionsSLA:
 </style>
 </head>
 <body>
+<!-- Demo Mode Banner -->
+<div id="demo-banner" style="display:none;background:#6366f1;color:white;text-align:center;padding:8px;font-size:13px;position:relative;z-index:10000">
+  Demo Mode — Data resets nightly. <span id="demo-persona-label"></span>
+</div>
 <ion-app>
 
 <!-- Ionic Side Menu for Mobile Navigation -->
@@ -1281,7 +1279,7 @@ vNext-FULL-ActionsSLA:
         <ion-item button onclick="openCmdb('cmdb-section-management'); closeIonicMenu();">
           <ion-label style="font-size:14px">CMDB Management</ion-label>
         </ion-item>
-        <ion-item button onclick="openCmdb('cmdb-section-assetviewer'); closeIonicMenu();">
+        <ion-item button class="av-nav-item" onclick="openCmdb('cmdb-section-assetviewer'); closeIonicMenu();" style="display:none">
           <ion-label style="font-size:14px">Asset Viewer</ion-label>
         </ion-item>
       </div>
@@ -1299,32 +1297,56 @@ vNext-FULL-ActionsSLA:
         <ion-icon name="chevron-forward-outline" slot="end" id="ionic-admin-settings-chev" style="font-size:14px;transition:transform .15s"></ion-icon>
       </ion-item>
       <div id="ionic-admin-settings-subitems" style="display:none;padding-left:32px;background:var(--card-hover)">
-        <ion-item button onclick="openAdminSettings('admin-section-profile'); closeIonicMenu();">
-          <ion-label style="font-size:14px">Company Profile</ion-label>
-        </ion-item>
-        <ion-item button onclick="openAdminSettings('admin-section-email-ingest'); closeIonicMenu();">
-          <ion-label style="font-size:14px">Email Ingest</ion-label>
-        </ion-item>
-        <ion-item button onclick="openAdminSettings('admin-section-expert-reg'); closeIonicMenu();">
-          <ion-label style="font-size:14px">Expert Registration</ion-label>
-        </ion-item>
         <ion-item button onclick="openAdminSettings('admin-section-support'); closeIonicMenu();">
           <ion-label style="font-size:14px">Support Settings</ion-label>
-        </ion-item>
-        <ion-item button onclick="openAdminSettings('admin-section-integrations'); closeIonicMenu();">
-          <ion-label style="font-size:14px">Integrations</ion-label>
         </ion-item>
         <ion-item button onclick="openAdminSettings('admin-section-sla'); closeIonicMenu();">
           <ion-label style="font-size:14px">SLA Management</ion-label>
         </ion-item>
+        <ion-item button onclick="openAdminSettings('admin-section-profile'); closeIonicMenu();">
+          <ion-label style="font-size:14px">Company Profile</ion-label>
+        </ion-item>
         <ion-item button onclick="openAdminSettings('admin-section-cmdb-fields'); closeIonicMenu();">
           <ion-label style="font-size:14px">CMDB Custom Fields</ion-label>
         </ion-item>
+        <ion-item button onclick="openAdminSettings('admin-section-expert-reg'); closeIonicMenu();">
+          <ion-label style="font-size:14px">Expert Registration</ion-label>
+        </ion-item>
         <ion-item button onclick="openAdminSettings('admin-section-chat'); closeIonicMenu();">
-          <ion-label>💬 Chat Settings</ion-label>
+          <ion-label style="font-size:14px">Chat Settings</ion-label>
+        </ion-item>
+        <ion-item button onclick="openAdminSettings('admin-section-reports'); closeIonicMenu();">
+          <ion-label style="font-size:14px">Monthly Reports</ion-label>
         </ion-item>
         <ion-item button onclick="openAdminSettings('admin-section-billing'); closeIonicMenu();">
           <ion-label style="font-size:14px">Billing & Subscription</ion-label>
+        </ion-item>
+      </div>
+      <div id="ionic-system-admin-tools" style="display:none">
+        <ion-item-divider><ion-label>System Admin Tools</ion-label></ion-item-divider>
+        <ion-item button onclick="openAdminSettings('admin-section-email-ingest'); closeIonicMenu();">
+          <ion-icon name="mail-outline" slot="start"></ion-icon>
+          <ion-label style="font-size:14px">Email Ingest</ion-label>
+        </ion-item>
+        <ion-item button onclick="openAdminSettings('admin-section-integrations'); closeIonicMenu();">
+          <ion-icon name="link-outline" slot="start"></ion-icon>
+          <ion-label style="font-size:14px">Integrations</ion-label>
+        </ion-item>
+        <ion-item button onclick="ionicNav('audit-log'); closeIonicMenu();">
+          <ion-icon name="list-outline" slot="start"></ion-icon>
+          <ion-label style="font-size:14px">Audit Log</ion-label>
+        </ion-item>
+        <ion-item button onclick="ionicNav('system-control'); closeIonicMenu();">
+          <ion-icon name="construct-outline" slot="start"></ion-icon>
+          <ion-label style="font-size:14px">System Control</ion-label>
+        </ion-item>
+        <ion-item button onclick="openAdminSettings('admin-section-housekeeping'); closeIonicMenu();">
+          <ion-icon name="trash-outline" slot="start"></ion-icon>
+          <ion-label style="font-size:14px">Housekeeping</ion-label>
+        </ion-item>
+        <ion-item button onclick="ionicNav('raw-variables'); closeIonicMenu();">
+          <ion-icon name="code-outline" slot="start"></ion-icon>
+          <ion-label style="font-size:14px">Raw Variables</ion-label>
         </ion-item>
       </div>
       <ion-item button onclick="ionicNav('raise'); closeIonicMenu();">
@@ -1444,6 +1466,20 @@ vNext-FULL-ActionsSLA:
         <span id="topnav-impersonation-name">—</span>
         <button onclick="clearImpersonation()" style="background:none;border:none;cursor:pointer;color:#92400e;font-weight:bold;padding:0 2px;font-size:14px;line-height:1;" title="Exit impersonation">×</button>
       </div>
+      <div id="elevation-badge" style="display:none;padding:4px 12px;border-radius:999px;background:#dcfce7;color:#166534;font-size:11px;font-weight:500;border:1px solid #22c55e;align-items:center;gap:4px;white-space:nowrap;margin-right:8px;cursor:default;" title="Elevated System Admin session active (30 min)">
+        <span>System Admin</span>
+      </div>
+      <div id="mode-switcher" style="display:none;margin-right:8px;">
+        <button onclick="showContextChooser()" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--card-bg);color:var(--ink);font-size:12px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:4px;">
+          <span id="mode-switcher-label">Admin</span>
+          <span style="font-size:10px;opacity:.6">&#9662;</span>
+        </button>
+      </div>
+      <div id="persona-switcher" style="display:none;margin-right:8px;">
+        <select id="persona-select" onchange="switchPersona(this.value)" style="padding:4px 8px;border-radius:6px;border:1px solid #6366f1;background:#eef2ff;color:#4338ca;font-size:12px;font-weight:500;cursor:pointer;max-width:180px;">
+          <option value="">Switch Persona...</option>
+        </select>
+      </div>
       <div class="topnav-actions">
         <div style="position:relative;display:inline-block;">
           <button id="wt-help-btn" class="topnav-btn ghost" onclick="toggleHelpMenu(event)" title="Help">? Help</button>
@@ -1502,7 +1538,33 @@ vNext-FULL-ActionsSLA:
         <h1 class="title" style="margin-bottom:4px">Sign in</h1>
         <p class="subtitle" style="margin:0">Welcome back to ServiFlow</p>
       </div>
-      
+
+      <!-- Magic Link Login Form (shown on demo/magic-link-enabled hosts) -->
+      <div id="magic-link-form" style="display:none">
+        <div id="magic-link-request" >
+          <div class="mb-16">
+            <label for="magic-email" style="display:block;margin-bottom:6px;font-weight:500;font-size:14px;color:var(--ink)">Email address</label>
+            <input type="email" id="magic-email" class="input" placeholder="you@company.com">
+          </div>
+          <div style="margin-bottom:16px">
+            <button class="btn primary" onclick="requestMagicLink()" style="width:100%;padding:10px;font-size:14px">Email me a sign-in link</button>
+          </div>
+          <div style="text-align:center;margin-bottom:16px">
+            <a href="#" onclick="toggleLoginMode('password'); return false;" style="color:var(--primary);text-decoration:none;font-size:13px">Or sign in with password</a>
+          </div>
+        </div>
+        <div id="magic-link-sent" style="display:none;text-align:center;padding:16px 0;">
+          <div style="width:48px;height:48px;margin:0 auto 12px;border-radius:50%;background:#ecfdf5;display:flex;align-items:center;justify-content:center;">
+            <span style="font-size:24px;">&#x2709;</span>
+          </div>
+          <h3 style="margin:0 0 8px;color:var(--ink)">Check your inbox</h3>
+          <p style="color:var(--muted);font-size:13px;margin:0 0 16px;">We sent a sign-in link to <strong id="magic-link-email-display"></strong> — check your email to sign in.</p>
+          <a href="#" onclick="resetMagicLinkForm(); return false;" style="color:var(--primary);text-decoration:none;font-size:13px">Use a different email</a>
+        </div>
+      </div>
+
+      <!-- Password Login Form (default) -->
+      <div id="password-form">
       <div class="mb-16">
         <label for="username" style="display:block;margin-bottom:6px;font-weight:500;font-size:14px;color:var(--ink)">Username or Email</label>
         <input type="text" id="username" class="input" placeholder="Enter your username or email">
@@ -1512,7 +1574,7 @@ vNext-FULL-ActionsSLA:
         <label for="password" style="display:block;margin-bottom:6px;font-weight:500;font-size:14px;color:var(--ink)">Password</label>
         <input type="password" id="password" class="input" placeholder="Enter your password">
       </div>
-      
+
       <div class="mb-16">
         <label for="role" style="display:block;margin-bottom:6px;font-weight:500;font-size:14px;color:var(--ink)">Role</label>
         <select id="role" class="input" onchange="toggleTenantField()" style="cursor:pointer">
@@ -1525,16 +1587,17 @@ vNext-FULL-ActionsSLA:
 
       <div class="mb-16" id="tenant-field">
         <label for="tenant" style="display:block;margin-bottom:6px;font-weight:500;font-size:14px;color:var(--ink)">Tenant Code</label>
-        <input type="text" id="tenant" class="input" placeholder="Enter tenant code (e.g., apoyar)">
+        <input type="text" id="tenant" class="input" placeholder="Enter Tenant Code">
         </div>
-      
+
       <div style="margin-bottom:16px">
         <button class="btn primary" onclick="login()" style="width:100%;padding:10px;font-size:14px">Sign in</button>
       </div>
 
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
         <a href="#" onclick="showForgotPassword(); return false;" style="color:var(--ink);text-decoration:none;font-size:12px;font-weight:500">Forgot password?</a>
-        <a href="#" onclick="showDemoCredentials(); return false;" style="color:var(--muted);text-decoration:none;font-size:12px">Demo credentials</a>
+        <a href="#" id="magic-link-toggle" onclick="toggleLoginMode('magic'); return false;" style="color:var(--muted);text-decoration:none;font-size:12px;display:none">Sign in with email link</a>
+      </div>
       </div>
 
       <div id="login-error" style="display:none;color:#dc2626;background:#fef2f2;padding:10px;border-radius:8px;margin-bottom:12px;border:1px solid #fecaca;font-size:13px"></div>
@@ -1545,6 +1608,21 @@ vNext-FULL-ActionsSLA:
     </div>
   </section>
 
+  <!-- Context Chooser Modal (role/company picker) -->
+  <div id="context-chooser-modal" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.5);align-items:center;justify-content:center;">
+    <div class="card p-24" style="max-width:420px;width:90%;margin:auto;position:relative;">
+      <div style="text-align:center;margin-bottom:20px;">
+        <h2 style="margin:0 0 4px;color:var(--ink)">Choose your view</h2>
+        <p style="color:var(--muted);font-size:13px;margin:0" id="context-chooser-subtitle">Select a role to continue</p>
+      </div>
+      <div id="context-role-picker" style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-bottom:16px;"></div>
+      <div id="context-company-picker" style="display:none;margin-bottom:16px;">
+        <p style="font-weight:500;font-size:14px;margin:0 0 8px;color:var(--ink)">Select company</p>
+        <div id="context-company-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- FORGOT PASSWORD -->
   <section id="scr-forgot-password" class="screen">
     <div class="card p-24" style="max-width:760px;margin:20px auto;">
@@ -1553,7 +1631,7 @@ vNext-FULL-ActionsSLA:
 
       <div class="mb-16">
         <label for="forgot-tenant" style="display:block;margin-bottom:8px;font-weight:600;">Tenant Code:</label>
-        <input type="text" id="forgot-tenant" class="input" placeholder="Enter tenant code (e.g., apoyar)">
+        <input type="text" id="forgot-tenant" class="input" placeholder="Enter Tenant Code">
       </div>
 
       <div class="mb-16">
@@ -1600,53 +1678,69 @@ vNext-FULL-ActionsSLA:
         </div>
         
         <div id="nav-admin">
-          <div class="subtitle">Admin Navigation</div>
-          <div class="navlink" data-target="dash" onclick="nav(this)">🏠 Dashboard</div>
-          <div class="admin-mode-toggle">
-            <label class="switch"><input type="checkbox" id="adminModeToggle" onchange="setAdminMode(this.checked)"><span class="slider"></span></label>
-            <span>Admin Mode</span>
-          </div>
-          <div id="adminMenuInsertPoint"></div>
-          <div class="navlink" data-target="tickets" onclick="nav(this)">🎫 Tickets</div>
-          <div class="navlink" data-target="knowledge-base" onclick="nav(this)">📚 Knowledge Base</div>
-          <div class="navlink" data-target="experts" onclick="nav(this)">👩‍🔧 Manage Experts</div>
-          <div class="navlink" data-target="customers" onclick="nav(this)">🧑‍💼 Manage Customers</div>
-          <div class="nav-group" id="nav-cmdb-group">
-            <div class="navlink" onclick="toggleNavGroup('nav-cmdb-group')">🗃️ CMDB <span class="chev">▸</span></div>
+          <div class="nav-group" id="nav-section-operations">
+            <div class="subtitle" style="margin-top:4px;cursor:pointer" onclick="toggleNavGroup('nav-section-operations')">Operations <span class="chev">▸</span></div>
             <div class="nav-subitems">
-              <div class="nav-subitem" data-section="cmdb-section-items" onclick="openCmdb('cmdb-section-items')">CMDB Items</div>
-              <div class="nav-subitem" data-section="cmdb-section-types" onclick="openCmdb('cmdb-section-types')">CMDB Types</div>
-              <div class="nav-subitem" data-section="cmdb-section-management" onclick="openCmdb('cmdb-section-management')">CMDB Management</div>
-              <div class="nav-subitem" data-section="cmdb-section-assetviewer" onclick="openCmdb('cmdb-section-assetviewer')">👁️ Asset Viewer</div>
+              <div class="navlink" data-target="dash" onclick="nav(this)">🏠 Dashboard</div>
+              <div class="navlink" data-target="tickets" onclick="nav(this)">🎫 Tickets</div>
+              <div class="nav-group" id="nav-cmdb-group">
+                <div class="navlink" onclick="toggleNavGroup('nav-cmdb-group')">🗃️ CMDB <span class="chev">▸</span></div>
+                <div class="nav-subitems">
+                  <div class="nav-subitem" data-section="cmdb-section-items" onclick="openCmdb('cmdb-section-items')">CMDB Items</div>
+                  <div class="nav-subitem" data-section="cmdb-section-types" onclick="openCmdb('cmdb-section-types')">CMDB Types</div>
+                  <div class="nav-subitem" data-section="cmdb-section-management" onclick="openCmdb('cmdb-section-management')">CMDB Management</div>
+                  <div class="nav-subitem av-nav-item" data-section="cmdb-section-assetviewer" onclick="openCmdb('cmdb-section-assetviewer')" style="display:none">Asset Viewer</div>
+                </div>
+              </div>
+              <div class="navlink" data-target="knowledge-base" onclick="nav(this)">📚 Knowledge Base</div>
+              <div class="navlink" data-target="experts" onclick="nav(this)">👩‍🔧 Manage Experts</div>
+              <div class="navlink" data-target="customers" onclick="nav(this)">🧑‍💼 Manage Customers</div>
+              <div class="navlink" data-target="raise" onclick="nav(this)">📝 Raise Request</div>
+              <div class="navlink" data-target="notifications" onclick="nav(this)">🔔 Notifications <span id="notif-badge-admin" style="display:none;background:#ef4444;color:white;padding:1px 6px;border-radius:10px;font-size:11px;margin-left:4px"></span></div>
             </div>
           </div>
-          <div class="navlink" data-target="analytics" onclick="nav(this)">📈 Analytics</div>
-          <div class="navlink" data-target="ai-insights" onclick="nav(this)">🤖 AI Insights</div>
-          <div class="navlink" data-target="usage" onclick="nav(this)">📊 Usage & Limits</div>
-          <div class="navlink" data-target="raise" onclick="nav(this)">📝 Raise Request</div>
-          <div class="navlink" data-target="notifications" onclick="nav(this)">🔔 Notifications <span id="notif-badge-admin" style="display:none;background:#ef4444;color:white;padding:1px 6px;border-radius:10px;font-size:11px;margin-left:4px"></span></div>
-          <div id="adminMenuOriginalPoint"></div>
-          <div id="adminMenuGroup" style="display:none">
-            <div class="navlink" data-target="ticket-rules" onclick="nav(this)">⚙️ Automated Actions</div>
-            <div class="nav-group" id="nav-admin-settings-group">
-              <div class="navlink" onclick="toggleNavGroup('nav-admin-settings-group')">🪄 Admin Settings <span class="chev">▸</span></div>
-              <div class="nav-subitems">
-                <div class="nav-subitem" data-section="admin-section-profile" onclick="openAdminSettings('admin-section-profile')">🏢 Company Profile</div>
-                <div class="nav-subitem" data-section="admin-section-email-ingest" onclick="openAdminSettings('admin-section-email-ingest')">📧 Email Ingest</div>
-                <div class="nav-subitem" data-section="admin-section-expert-reg" onclick="openAdminSettings('admin-section-expert-reg')">👤 Expert Registration</div>
-                <div class="nav-subitem" data-section="admin-section-support" onclick="openAdminSettings('admin-section-support')">🎫 Support Settings</div>
-                <div class="nav-subitem" data-section="admin-section-integrations" onclick="openAdminSettings('admin-section-integrations')">🔗 Integrations</div>
-                <div class="nav-subitem" data-section="admin-section-sla" onclick="openAdminSettings('admin-section-sla')">⏱️ SLA Management</div>
-                <div class="nav-subitem" data-section="admin-section-cmdb-fields" onclick="openAdminSettings('admin-section-cmdb-fields')">🗃️ CMDB Custom Fields</div>
-                <div class="nav-subitem" data-section="admin-section-billing" onclick="openAdminSettings('admin-section-billing')">💳 Billing & Subscription</div>
-                <div class="nav-subitem" data-section="admin-section-housekeeping" onclick="openAdminSettings('admin-section-housekeeping')">🧹 Housekeeping</div>
-                <div class="nav-subitem" data-section="admin-section-chat" onclick="openAdminSettings('admin-section-chat')">💬 Chat Settings</div>
-                <div class="nav-subitem" data-section="admin-section-reports" onclick="openAdminSettings('admin-section-reports')">📊 Monthly Reports</div>
+
+          <div class="nav-group" id="nav-section-insights">
+            <div class="subtitle" style="margin-top:4px;cursor:pointer" onclick="toggleNavGroup('nav-section-insights')">Insights <span class="chev">▸</span></div>
+            <div class="nav-subitems">
+              <div class="navlink" data-target="ai-insights" onclick="nav(this)">🤖 AI Insights</div>
+              <div class="navlink" data-target="analytics" onclick="nav(this)">📈 Analytics</div>
+              <div class="navlink" data-target="usage" onclick="nav(this)">📊 Usage & Limits</div>
+            </div>
+          </div>
+
+          <div class="nav-group" id="nav-section-config">
+            <div class="subtitle" style="margin-top:4px;cursor:pointer" onclick="toggleNavGroup('nav-section-config')">Config <span class="chev">▸</span></div>
+            <div class="nav-subitems">
+              <div class="navlink" data-target="ticket-rules" onclick="nav(this)">⚙️ Automated Actions</div>
+              <div class="nav-group" id="nav-admin-settings-group">
+                <div class="navlink" onclick="toggleNavGroup('nav-admin-settings-group')">🪄 Admin Settings <span class="chev">▸</span></div>
+                <div class="nav-subitems">
+                  <div class="nav-subitem" data-section="admin-section-support" onclick="openAdminSettings('admin-section-support')">🎫 Support Settings</div>
+                  <div class="nav-subitem" data-section="admin-section-sla" onclick="openAdminSettings('admin-section-sla')">⏱️ SLA Management</div>
+                  <div class="nav-subitem" data-section="admin-section-profile" onclick="openAdminSettings('admin-section-profile')">🏢 Company Profile</div>
+                  <div class="nav-subitem" data-section="admin-section-cmdb-fields" onclick="openAdminSettings('admin-section-cmdb-fields')">🗃️ CMDB Custom Fields</div>
+                  <div class="nav-subitem" data-section="admin-section-expert-reg" onclick="openAdminSettings('admin-section-expert-reg')">👤 Expert Registration</div>
+                  <div class="nav-subitem" data-section="admin-section-chat" onclick="openAdminSettings('admin-section-chat')">💬 Chat Settings</div>
+                  <div class="nav-subitem" data-section="admin-section-reports" onclick="openAdminSettings('admin-section-reports')">📊 Monthly Reports</div>
+                  <div class="nav-subitem" data-section="admin-section-billing" onclick="openAdminSettings('admin-section-billing')">💳 Billing & Subscription</div>
+                </div>
               </div>
             </div>
-            <div class="navlink" data-target="system-control" onclick="nav(this)">🔧 System Control</div>
-            <div class="navlink" data-target="audit-log" onclick="nav(this)">📋 Audit Log</div>
-            <div class="navlink" data-target="raw-variables" onclick="openRawVariablesSecure(this)">⚙️ Raw Variables</div>
+          </div>
+
+          <div id="nav-system-admin-tools" style="display:none">
+            <div class="nav-group" id="nav-system-tools-group">
+              <div class="subtitle" style="margin-top:4px;cursor:pointer" onclick="openSystemAdminTools()">System Admin Tools <span class="chev">▸</span></div>
+              <div class="nav-subitems">
+                <div class="nav-subitem" data-section="admin-section-email-ingest" onclick="openAdminSettings('admin-section-email-ingest')">📧 Email Ingest</div>
+                <div class="nav-subitem" data-section="admin-section-integrations" onclick="openAdminSettings('admin-section-integrations')">🔗 Integrations</div>
+                <div class="nav-subitem" data-target="audit-log" onclick="nav(this)">📋 Audit Log</div>
+                <div class="nav-subitem" data-target="system-control" onclick="nav(this)">🔧 System Control</div>
+                <div class="nav-subitem" data-section="admin-section-housekeeping" onclick="openAdminSettings('admin-section-housekeeping')">🧹 Housekeeping</div>
+                <div class="nav-subitem" data-target="raw-variables" onclick="nav(this)">⚙️ Raw Variables</div>
+              </div>
+            </div>
           </div>
         </div>
         <div id="nav-expert" style="display:none">
@@ -1661,7 +1755,7 @@ vNext-FULL-ActionsSLA:
               <div class="nav-subitem" data-section="cmdb-section-items" onclick="openCmdb('cmdb-section-items')">CMDB Items</div>
               <div class="nav-subitem" data-section="cmdb-section-types" onclick="openCmdb('cmdb-section-types')">CMDB Types</div>
               <div class="nav-subitem" data-section="cmdb-section-management" onclick="openCmdb('cmdb-section-management')">CMDB Management</div>
-              <div class="nav-subitem" data-section="cmdb-section-assetviewer" onclick="openCmdb('cmdb-section-assetviewer')">👁️ Asset Viewer</div>
+              <div class="nav-subitem av-nav-item" data-section="cmdb-section-assetviewer" onclick="openCmdb('cmdb-section-assetviewer')" style="display:none">👁️ Asset Viewer</div>
             </div>
           </div>
           <div class="navlink" data-target="analytics" onclick="nav(this)">📈 Analytics</div>
@@ -2293,14 +2387,26 @@ vNext-FULL-ActionsSLA:
             </div>
           </div>
 
-          <!-- Delete Tenant Confirmation Modal -->
-          <div id="delete-tenant-modal" class="card p-16" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1000;max-width:400px;box-shadow:0 4px 20px rgba(0,0,0,0.3)">
-            <h4 style="color:var(--danger)">⚠️ Delete Tenant</h4>
-            <p class="mb-12">Are you sure you want to delete this tenant?</p>
-            <p class="subtitle mb-16">This will deactivate the tenant and they will no longer be able to access the system.</p>
+          <!-- Deactivate Tenant Confirmation Modal -->
+          <div id="delete-tenant-modal" class="card p-16" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1000;max-width:420px;box-shadow:0 4px 20px rgba(0,0,0,0.3)">
+            <h4 style="color:var(--danger)">Deactivate Tenant</h4>
+            <p class="mb-12">Are you sure you want to deactivate <strong id="delete-tenant-name"></strong> (<code id="delete-tenant-code"></code>)?</p>
+            <p class="subtitle mb-16">The tenant will be deactivated but all data is preserved. You can restore it later.</p>
             <div class="row">
-              <button class="btn danger" onclick="confirmDeleteTenant()">Yes, Delete</button>
+              <button class="btn danger" onclick="confirmDeleteTenant()">Yes, Deactivate</button>
               <button class="btn ghost" onclick="cancelDeleteTenant()">Cancel</button>
+            </div>
+          </div>
+
+          <!-- Permanent Delete Tenant Modal -->
+          <div id="permanent-delete-tenant-modal" class="card p-16" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1000;max-width:420px;box-shadow:0 4px 20px rgba(0,0,0,0.3)">
+            <h4 style="color:var(--danger)">PERMANENT DELETION</h4>
+            <p class="mb-8">This will permanently destroy ALL data for <strong id="perm-delete-tenant-name"></strong>. This cannot be undone.</p>
+            <p class="mb-8">Type <code id="perm-delete-tenant-code-display"></code> to confirm:</p>
+            <input id="perm-delete-confirm-input" class="mb-12" oninput="checkPermDeleteInput()" placeholder="Type tenant code..." style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-family:monospace">
+            <div class="row">
+              <button id="perm-delete-btn" class="btn danger" onclick="confirmPermanentDelete()" disabled>Permanently Delete</button>
+              <button class="btn ghost" onclick="cancelPermanentDelete()">Cancel</button>
             </div>
           </div>
 
@@ -4178,6 +4284,16 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
                 </select>
               </div>
 
+              <div class="mb-12" style="display:flex;align-items:center;gap:8px">
+                <input type="checkbox" id="customer-admin-emails" checked/>
+                <label class="subtitle" for="customer-admin-emails" style="margin:0">Admin receives member ticket emails</label>
+              </div>
+
+              <div class="mb-12" style="display:flex;align-items:center;gap:8px">
+                <input type="checkbox" id="customer-members-emails" checked/>
+                <label class="subtitle" for="customer-members-emails" style="margin:0">Members receive email notifications</label>
+              </div>
+
               <div id="customer-form-message" class="subtitle" style="color:#16a34a;display:none;margin-top:8px"></div>
               <div id="customer-form-error" class="subtitle" style="color:#b91c1c;display:none;margin-top:8px"></div>
 
@@ -4348,14 +4464,14 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           </div>
         </div>
 
-        <!-- Reauth Modal for Raw Variables -->
+        <!-- Elevation / Reauth Modal (System Admin Tools) -->
         <div id="reauth-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:1000;overflow-y:auto;align-items:flex-start;justify-content:center;padding:40px 16px">
           <div style="max-width:400px;width:100%;background:var(--card);border-radius:12px;padding:24px;box-shadow:0 20px 40px rgba(0,0,0,0.2)">
             <div class="row space mb-16">
-              <h3 style="margin:0">🔐 Confirm Identity</h3>
-              <button class="btn ghost small" onclick="closeReauthModal()">✕</button>
+              <h3 style="margin:0">System Admin Authentication</h3>
+              <button class="btn ghost small" onclick="closeReauthModal()">&#x2715;</button>
             </div>
-            <p class="subtitle mb-16">Raw Variables contains sensitive configuration. Please re-enter your password to continue.</p>
+            <p class="subtitle mb-16">System Admin Tools contain sensitive configuration. Please re-enter your password to continue.</p>
             <div class="mb-16">
               <label class="subtitle">Password</label>
               <input type="password" id="reauth-password" class="input" placeholder="Enter your password" onkeydown="if(event.key==='Enter')submitReauth()">
@@ -4364,6 +4480,26 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             <div class="row" style="gap:8px;justify-content:flex-end">
               <button class="btn ghost" onclick="closeReauthModal()">Cancel</button>
               <button class="btn primary" onclick="submitReauth()">Continue</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Asset Viewer Password Modal -->
+        <div id="av-password-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:1000;overflow-y:auto;align-items:flex-start;justify-content:center;padding:40px 16px">
+          <div style="max-width:400px;width:100%;background:var(--card);border-radius:12px;padding:24px;box-shadow:0 20px 40px rgba(0,0,0,0.2)">
+            <div class="row space mb-16">
+              <h3 style="margin:0">Asset Viewer Access</h3>
+              <button class="btn ghost small" onclick="closeAvPasswordModal()">&#x2715;</button>
+            </div>
+            <p class="subtitle mb-16">Asset Viewer requires an elevated access password to continue.</p>
+            <div class="mb-16">
+              <label class="subtitle">Access Password</label>
+              <input type="password" id="av-password-input" class="input" placeholder="Enter access password" onkeydown="if(event.key==='Enter')submitAvPassword()">
+            </div>
+            <div id="av-password-error" style="display:none;color:var(--error);font-size:13px;margin-bottom:12px"></div>
+            <div class="row" style="gap:8px;justify-content:flex-end">
+              <button class="btn ghost" onclick="closeAvPasswordModal()">Cancel</button>
+              <button class="btn primary" onclick="submitAvPassword()">Continue</button>
             </div>
           </div>
         </div>
@@ -4754,8 +4890,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           <div id="admin-section-email-ingest" class="wizard-section card p-16 mb-12" style="display:none">
             <div class="row space mb-12">
               <h4 class="subtitle" style="margin:0;font-weight:600">Email Ingest Rules</h4>
-              <div class="row">
+              <div class="row" style="gap:6px">
                 <button class="btn" onclick="testEmailConnection()">Test Connection</button>
+                <button class="btn" style="color:#b91c1c;border-color:#fca5a5" onclick="clearEmailIngestSettings()">Clear All</button>
                 <button class="btn primary" onclick="saveEmailIngestSettings()">Save Settings</button>
               </div>
             </div>
@@ -4836,8 +4973,44 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
                   <button class="btn" onclick="disconnectMicrosoft365()" style="margin-left:auto;font-size:12px;padding:4px 12px">Disconnect</button>
                 </div>
               </div>
+            </div>
 
-              <div class="mb-12" style="background:#eff6ff;padding:14px;border-radius:6px;border-left:4px solid #3b82f6;font-size:13px">
+            <div class="mb-12">
+              <label class="subtitle">Check Interval (minutes)</label>
+              <input id="email-check-interval" class="input" type="number" min="1" max="60" placeholder="e.g., 5"/>
+            </div>
+
+            <!-- Outbound Email Section (per-provider) -->
+            <div style="margin-top:16px;padding-top:16px;border-top:1px solid #e5e7eb">
+              <label class="subtitle" style="display:flex;align-items:center;cursor:pointer">
+                <input type="checkbox" id="email-use-for-outbound" style="margin-right:8px" onchange="toggleOutboundSmtpFields()"/>
+                <span id="email-outbound-label">Also use this IMAP account for outbound notifications</span>
+              </label>
+              <div class="subtitle" style="color:#6b7280;font-size:12px;margin-top:4px">
+                When enabled, ticket notifications and system emails will be sent from this mailbox
+                instead of the default system email.
+              </div>
+            </div>
+
+            <!-- SMTP fields (only for IMAP/basic when outbound enabled) -->
+            <div id="email-smtp-outbound-fields" style="display:none;margin-top:12px">
+              <div class="mb-12">
+                <label class="subtitle">SMTP Server Host</label>
+                <input id="email-smtp-host" class="input" placeholder="e.g., smtp.gmail.com"/>
+              </div>
+              <div class="mb-12">
+                <label class="subtitle">SMTP Server Port</label>
+                <input id="email-smtp-port" class="input" type="number" placeholder="587" value="587"/>
+              </div>
+            </div>
+
+            <div id="email-last-checked" class="subtitle" style="color:#666;margin-top:8px"></div>
+            <div id="email-ingest-message" class="subtitle" style="color:#16a34a;display:none;margin-top:8px"></div>
+            <div id="email-ingest-error" class="subtitle" style="color:#b91c1c;display:none;margin-top:8px"></div>
+
+            <!-- M365 setup note — shown last so it doesn't break the settings flow -->
+            <div id="email-m365-setup-note" style="display:none;margin-top:16px">
+              <div style="background:#eff6ff;padding:14px;border-radius:6px;border-left:4px solid #3b82f6;font-size:13px">
                 <strong>One-time setup required by your M365 admin:</strong>
                 <ol style="margin:8px 0 0;padding-left:20px;line-height:1.7">
                   <li>Create a mail-enabled security group in Exchange Admin and add the target mailbox</li>
@@ -4848,15 +5021,6 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
                 </ol>
               </div>
             </div>
-
-            <div class="mb-12">
-              <label class="subtitle">Check Interval (minutes)</label>
-              <input id="email-check-interval" class="input" type="number" min="1" max="60" placeholder="e.g., 5"/>
-            </div>
-
-            <div id="email-last-checked" class="subtitle" style="color:#666;margin-top:8px"></div>
-            <div id="email-ingest-message" class="subtitle" style="color:#16a34a;display:none;margin-top:8px"></div>
-            <div id="email-ingest-error" class="subtitle" style="color:#b91c1c;display:none;margin-top:8px"></div>
 
             <!-- System Senders Section -->
             <div style="margin-top:24px;padding-top:24px;border-top:1px solid #e5e7eb">
@@ -7175,7 +7339,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   // API Base URL - use current origin for deployed version, localhost for development
   const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'http://localhost:3000'
+    ? window.location.origin
     : window.location.origin;
 
   // Error banner
@@ -7212,6 +7376,28 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     loginScreen.classList.add('active');
     loginScreen.style.display = 'block';
     document.getElementById('topnav-right').style.display = 'none';
+
+    // Initialize login mode (magic link vs password) based on host
+    initLoginMode();
+
+    // Handle /auth/magic?token=XXX callback
+    if (window.location.pathname === '/auth/magic') {
+      const magicParams = new URLSearchParams(window.location.search);
+      const magicToken = magicParams.get('token');
+      if (magicToken) {
+        handleMagicLinkToken(magicToken);
+        return; // Stop here — handleMagicLinkToken will complete the flow
+      }
+    }
+
+    // Handle /choose-context route — show context chooser for existing session
+    if (window.location.pathname === '/choose-context') {
+      const existingToken = localStorage.getItem('token');
+      if (existingToken) {
+        showContextChooser();
+      }
+      window.history.replaceState({}, '', '/');
+    }
 
     // Check for existing valid session
     const token = localStorage.getItem('token');
@@ -7261,6 +7447,12 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           // Check for OAuth callbacks
           checkTeamsOAuthCallback();
           checkSlackOAuthCallback();
+
+          // Check demo mode and load personas if applicable
+          checkDemoMode();
+
+          // Update mode switcher for multi-role users
+          updateModeSwitcher();
 
           // Load data (skip for master admin - they don't have tenant data)
           const currentRole = window.role || localStorage.getItem('role');
@@ -7730,42 +7922,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       
       if (data.success) {
         console.log('Login successful');
-        // Store session data in localStorage for API calls and session restoration
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('role', data.user.role);
-        localStorage.setItem('tenantCode', data.user.tenantCode || (role === 'customer' ? 'apoyar' : 'apoyar'));
-        localStorage.setItem('currentUser', JSON.stringify(data.user));
-        localStorage.setItem('username', data.user.username);
-        localStorage.setItem('loginRole', data.user.role); // Store original login role for switch permissions
 
-        // Set global variables
-        window.currentUser = data.user;
-        window.role = data.user.role;
-        window.loginRole = data.user.role; // Track original login role
-        window.tenant = data.user.tenantCode || (data.user.role === 'customer' ? 'apoyar' : null);
-        window.isMasterAdmin = data.user.role === 'super_admin';
-        // Also set local tenant variable for functions that use it directly
-        tenant = window.tenant;
-        
-        // Update UI
-        document.getElementById('chip-role').textContent = data.user.role === 'super_admin' ? 'Master Admin' : data.user.role;
-        document.getElementById('tenant-chip').style.display = (role === 'customer' || role === 'super_admin') ? 'block' : 'none';
-        document.getElementById('chip-tenant').textContent = window.tenant || '—';
-        
-        // Configure role and show app
-        configureRole();
-        switchView('dash');
-        go('app');
-        if (!localStorage.getItem('walkthrough_done')) setTimeout(startWalkthrough, 800);
-
-        // Load tickets from API before rendering
-        await fetchTicketsFromAPI();
-        
-        renderAllDashboards();
-        loadRaiseFormOptions();
-        renderList();
-        startSLAInterval();
-        updateRefreshIntervalUI();
+        // Use shared completeLogin for both password and magic link
+        completeLogin(data);
       } else {
         console.log('Login failed:', data.message);
         errorDiv.textContent = data.message || 'Login failed';
@@ -7787,20 +7946,13 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     localStorage.removeItem('currentUser');
     localStorage.removeItem('username');
     localStorage.removeItem('loginRole');
+    localStorage.removeItem('roles');
+    localStorage.removeItem('active_role');
+    localStorage.removeItem('active_company_id');
 
-    // Clear admin mode and step-up reauth
-    localStorage.setItem('serviflow.adminMode', '0');
+    // Clear elevation token and reauth state
+    localStorage.removeItem('token_base');
     sessionStorage.removeItem('serviflow.reauthUntil');
-
-    // Reset admin mode UI
-    const grp = document.getElementById('adminMenuGroup');
-    const orig = document.getElementById('adminMenuOriginalPoint');
-    if (grp && orig) {
-      grp.style.display = 'none';
-      orig.parentNode.insertBefore(grp, orig.nextSibling);
-    }
-    const cb = document.getElementById('adminModeToggle');
-    if (cb) cb.checked = false;
 
     // Clear global variables
     window.currentUser = null;
@@ -7820,17 +7972,385 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     go('login');
   }
 
-  function showDemoCredentials() {
-    const credentials = [
-      'Demo Tenant:',
-      '  Admin: admin / password123 (tenant: apoyar)',
-      '  Expert: expert / password123 (tenant: apoyar)',
-      '  Customer: customer / password123 (tenant: apoyar)'
-    ].join('\n');
 
-    alert('Demo Credentials:\n\n' + credentials);
+  // ── Magic Link + Multi-Role Auth ────────────────────────────────
+
+  /** Detect if current host supports magic link login */
+  function isMagicLinkHost() {
+    const h = window.location.hostname;
+    return h.includes('demo.serviflow') || h.includes('web-demo');
   }
-  
+
+  /** Toggle between magic-link and password login modes */
+  function toggleLoginMode(mode) {
+    const magicForm = document.getElementById('magic-link-form');
+    const pwdForm = document.getElementById('password-form');
+    const errorDiv = document.getElementById('login-error');
+    if (errorDiv) errorDiv.style.display = 'none';
+
+    if (mode === 'magic') {
+      if (magicForm) magicForm.style.display = 'block';
+      if (pwdForm) pwdForm.style.display = 'none';
+    } else {
+      if (magicForm) magicForm.style.display = 'none';
+      if (pwdForm) pwdForm.style.display = 'block';
+    }
+  }
+
+  /** Initialize login form mode based on host */
+  function initLoginMode() {
+    const toggle = document.getElementById('magic-link-toggle');
+    const params = new URLSearchParams(window.location.search);
+    // ?admin forces password mode (for master admin access on demo)
+    const forcePassword = params.has('admin') || params.get('mode') === 'password';
+
+    if (isMagicLinkHost() && !forcePassword) {
+      toggleLoginMode('magic');
+      if (toggle) toggle.style.display = 'inline';
+    } else {
+      toggleLoginMode('password');
+      if (toggle) toggle.style.display = isMagicLinkHost() ? 'inline' : 'none';
+      // Pre-select master_admin role if ?admin param
+      if (forcePassword && params.has('admin')) {
+        const roleSelect = document.getElementById('role');
+        if (roleSelect) { roleSelect.value = 'master_admin'; toggleTenantField(); }
+      }
+    }
+  }
+
+  /** Request magic link email */
+  async function requestMagicLink() {
+    const emailInput = document.getElementById('magic-email');
+    const email = emailInput ? emailInput.value.trim() : '';
+    const errorDiv = document.getElementById('login-error');
+    if (errorDiv) errorDiv.style.display = 'none';
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+    if (!email || !emailRegex.test(email)) {
+      if (errorDiv) {
+        errorDiv.textContent = 'Please enter a valid email address (e.g. name@company.com)';
+        errorDiv.style.display = 'block';
+      }
+      return;
+    }
+
+    try {
+      await fetch(`${API_BASE}/api/public/auth/magic/request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+
+      // Always show "check inbox" (anti-enumeration)
+      const reqDiv = document.getElementById('magic-link-request');
+      const sentDiv = document.getElementById('magic-link-sent');
+      const emailDisplay = document.getElementById('magic-link-email-display');
+      if (reqDiv) reqDiv.style.display = 'none';
+      if (sentDiv) sentDiv.style.display = 'block';
+      if (emailDisplay) emailDisplay.textContent = email;
+    } catch (err) {
+      console.error('Magic link request failed:', err);
+      if (errorDiv) {
+        errorDiv.textContent = 'Connection error. Please try again.';
+        errorDiv.style.display = 'block';
+      }
+    }
+  }
+
+  /** Reset magic link form to request state */
+  function resetMagicLinkForm() {
+    const reqDiv = document.getElementById('magic-link-request');
+    const sentDiv = document.getElementById('magic-link-sent');
+    const emailInput = document.getElementById('magic-email');
+    if (reqDiv) reqDiv.style.display = 'block';
+    if (sentDiv) sentDiv.style.display = 'none';
+    if (emailInput) emailInput.value = '';
+  }
+
+  /** Handle /auth/magic?token=XXX callback */
+  async function handleMagicLinkToken(token) {
+    const errorDiv = document.getElementById('login-error');
+    if (errorDiv) errorDiv.style.display = 'none';
+
+    try {
+      const response = await fetch(`${API_BASE}/api/public/auth/magic/consume`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token })
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        if (errorDiv) {
+          errorDiv.textContent = data.message || 'Invalid or expired link';
+          errorDiv.style.display = 'block';
+        }
+        // Clean URL
+        window.history.replaceState({}, '', '/');
+        return;
+      }
+
+      // Clean URL
+      window.history.replaceState({}, '', '/');
+
+      // Complete login with the response
+      completeLogin(data);
+
+    } catch (err) {
+      console.error('Magic link consume failed:', err);
+      if (errorDiv) {
+        errorDiv.textContent = 'Authentication error. Please try again.';
+        errorDiv.style.display = 'block';
+      }
+      window.history.replaceState({}, '', '/');
+    }
+  }
+
+  /**
+   * Shared login completion — works for both password and magic link login.
+   * Handles requires_context by showing the context chooser.
+   */
+  function completeLogin(data) {
+    // Store session data
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('role', data.user.role);
+    localStorage.setItem('tenantCode', data.user.tenantCode || 'apoyar');
+    localStorage.setItem('currentUser', JSON.stringify(data.user));
+    localStorage.setItem('username', data.user.username);
+    localStorage.setItem('loginRole', data.user.role);
+
+    // Store multi-role data
+    if (data.user.roles) localStorage.setItem('roles', JSON.stringify(data.user.roles));
+    if (data.user.role) localStorage.setItem('active_role', data.user.role);
+
+    // Set global variables
+    window.currentUser = data.user;
+    window.role = data.user.role;
+    window.loginRole = data.user.role;
+    window.tenant = data.user.tenantCode || 'apoyar';
+    window.isMasterAdmin = data.user.role === 'super_admin';
+    tenant = window.tenant;
+
+    // If context selection is required, show chooser
+    if (data.requires_context) {
+      showContextChooser();
+      return;
+    }
+
+    // Full app entry
+    enterApp();
+  }
+
+  /** Enter the app after login + context selection is complete */
+  async function enterApp() {
+    const currentRole = window.role || localStorage.getItem('role');
+
+    // Update UI
+    const chipRole = document.getElementById('chip-role');
+    if (chipRole) chipRole.textContent = currentRole === 'super_admin' ? 'Master Admin' : currentRole;
+    const tenantChip = document.getElementById('tenant-chip');
+    if (tenantChip) tenantChip.style.display = (currentRole === 'customer' || currentRole === 'super_admin') ? 'block' : 'none';
+    const chipTenant = document.getElementById('chip-tenant');
+    if (chipTenant) chipTenant.textContent = window.tenant || '-';
+
+    // Configure role and show app
+    configureRole();
+    switchView('dash');
+    go('app');
+    if (!localStorage.getItem('walkthrough_done')) setTimeout(startWalkthrough, 800);
+
+    // Update mode switcher
+    updateModeSwitcher();
+
+    // Check demo mode and load personas if applicable
+    checkDemoMode();
+
+    // Load data (skip for master admin)
+    if (currentRole !== 'super_admin') {
+      await fetchTicketsFromAPI();
+      loadRaiseFormOptions();
+    }
+    renderAllDashboards();
+    renderList();
+    startSLAInterval();
+    updateRefreshIntervalUI();
+  }
+
+  /** Show the context chooser modal (role + company picker) */
+  async function showContextChooser() {
+    const modal = document.getElementById('context-chooser-modal');
+    if (!modal) return;
+
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    // Fetch context from API
+    let ctx;
+    try {
+      const resp = await fetch(`${API_BASE}/api/me/context`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      ctx = await resp.json();
+    } catch (err) {
+      console.error('Failed to load context:', err);
+      // Fall through to app entry
+      enterApp();
+      return;
+    }
+
+    if (!ctx.success) {
+      enterApp();
+      return;
+    }
+
+    const rolePicker = document.getElementById('context-role-picker');
+    const companyPicker = document.getElementById('context-company-picker');
+    const companyList = document.getElementById('context-company-list');
+    const subtitle = document.getElementById('context-chooser-subtitle');
+
+    // Build role tiles
+    const roleIcons = { admin: '&#x1F6E0;', expert: '&#x1F527;', customer: '&#x1F464;' };
+    const roleLabels = { admin: 'Admin', expert: 'Expert', customer: 'Customer' };
+    if (rolePicker) {
+      rolePicker.innerHTML = ctx.roles.map(r => `
+        <button onclick="selectContextRole('${r}')" style="flex:1;min-width:100px;padding:16px 12px;border-radius:10px;border:2px solid var(--border);background:var(--card-bg);cursor:pointer;text-align:center;transition:border-color .15s,box-shadow .15s;" onmouseenter="this.style.borderColor='var(--primary)';this.style.boxShadow='0 0 0 3px rgba(67,97,238,.15)'" onmouseleave="this.style.borderColor='var(--border)';this.style.boxShadow='none'">
+          <div style="font-size:24px;margin-bottom:6px;">${roleIcons[r] || '&#x1F465;'}</div>
+          <div style="font-weight:600;font-size:14px;color:var(--ink)">${roleLabels[r] || r}</div>
+        </button>
+      `).join('');
+    }
+
+    // Hide company picker initially
+    if (companyPicker) companyPicker.style.display = 'none';
+    if (subtitle) subtitle.textContent = 'Select a role to continue';
+
+    // Store context for later use
+    window._contextData = ctx;
+
+    // Show modal
+    modal.style.display = 'flex';
+  }
+
+  /** Handle role selection in context chooser */
+  async function selectContextRole(role) {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    try {
+      const resp = await fetch(`${API_BASE}/api/me/select-role`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role })
+      });
+      const data = await resp.json();
+
+      if (!data.success) {
+        alert(data.message || 'Failed to select role');
+        return;
+      }
+
+      // Update stored token + role
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('role', data.active_role);
+      localStorage.setItem('active_role', data.active_role);
+      window.role = data.active_role;
+
+      if (data.active_company_id) {
+        localStorage.setItem('active_company_id', String(data.active_company_id));
+      }
+
+      // If customer needs to pick company, show company picker
+      if (data.requires_context && data.companies && data.companies.length > 0) {
+        const companyPicker = document.getElementById('context-company-picker');
+        const companyList = document.getElementById('context-company-list');
+        const subtitle = document.getElementById('context-chooser-subtitle');
+        if (subtitle) subtitle.textContent = 'Now select your company';
+        if (companyList) {
+          companyList.innerHTML = data.companies.map(c => `
+            <button onclick="selectContextCompany(${c.id})" style="padding:12px 16px;border-radius:8px;border:1px solid var(--border);background:var(--card-bg);cursor:pointer;text-align:left;font-size:14px;font-weight:500;color:var(--ink);transition:border-color .15s;" onmouseenter="this.style.borderColor='var(--primary)'" onmouseleave="this.style.borderColor='var(--border)'">${c.company_name}</button>
+          `).join('');
+        }
+        if (companyPicker) companyPicker.style.display = 'block';
+        // Hide role picker
+        const rolePicker = document.getElementById('context-role-picker');
+        if (rolePicker) rolePicker.style.display = 'none';
+        return;
+      }
+
+      // Done — close modal and enter app
+      closeContextChooser();
+      enterApp();
+
+    } catch (err) {
+      console.error('Error selecting role:', err);
+      alert('Failed to select role. Please try again.');
+    }
+  }
+
+  /** Handle company selection in context chooser */
+  async function selectContextCompany(companyId) {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    try {
+      const resp = await fetch(`${API_BASE}/api/me/select-company`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ company_id: companyId })
+      });
+      const data = await resp.json();
+
+      if (!data.success) {
+        alert(data.message || 'Failed to select company');
+        return;
+      }
+
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('active_company_id', String(data.active_company_id));
+
+      closeContextChooser();
+      enterApp();
+
+    } catch (err) {
+      console.error('Error selecting company:', err);
+      alert('Failed to select company. Please try again.');
+    }
+  }
+
+  /** Close context chooser modal */
+  function closeContextChooser() {
+    const modal = document.getElementById('context-chooser-modal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  /** Update mode switcher button in top nav */
+  function updateModeSwitcher() {
+    const switcher = document.getElementById('mode-switcher');
+    const label = document.getElementById('mode-switcher-label');
+    const storedRoles = localStorage.getItem('roles');
+
+    let roles = [];
+    try { roles = storedRoles ? JSON.parse(storedRoles) : []; } catch(e) {}
+
+    // Only show if user has multiple roles
+    if (roles.length > 1 && switcher && label) {
+      const currentRole = window.role || localStorage.getItem('role') || '';
+      const roleLabels = { admin: 'Admin', expert: 'Expert', customer: 'Customer' };
+      const companyId = localStorage.getItem('active_company_id');
+      let text = roleLabels[currentRole] || currentRole;
+      // If customer with company, show company name if available
+      if (currentRole === 'customer' && window.currentUser && window._contextData) {
+        const company = (window._contextData.companies || []).find(c => c.id == companyId);
+        if (company) text += ' / ' + company.company_name;
+      }
+      label.textContent = text;
+      switcher.style.display = 'flex';
+    } else if (switcher) {
+      switcher.style.display = 'none';
+    }
+  }
+
   function toggleTenantField() {
     const role = document.getElementById('role').value;
     const tenantField = document.getElementById('tenant-field');
@@ -7944,7 +8464,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     openRoleSwitcherModal();
   }
 
-  function openRoleSwitcherModal() {
+  async function openRoleSwitcherModal() {
     const loginRole = window.loginRole || window.role || role;
     const modal = document.getElementById('role-switcher-modal');
     if (!modal) return;
@@ -7970,7 +8490,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     if (window.impersonatedUser) {
       const impRole = window.impersonatedUser.role;
       radios.forEach(r => r.checked = (r.value === impRole));
-      onImpersonateRoleChange();
+      await onImpersonateRoleChange();
 
       if (impRole === 'expert') {
         document.getElementById('impersonate-expert-select').value = window.impersonatedUser.id;
@@ -7979,7 +8499,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       }
     } else {
       // Trigger to show/hide dropdown based on current role
-      onImpersonateRoleChange();
+      await onImpersonateRoleChange();
     }
 
     modal.style.display = 'flex';
@@ -7990,7 +8510,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     if (modal) modal.style.display = 'none';
   }
 
-  function onImpersonateRoleChange() {
+  async function onImpersonateRoleChange() {
     const selectedRole = document.querySelector('input[name="impersonate-role"]:checked')?.value;
     const expertSection = document.getElementById('impersonate-expert-section');
     const customerSection = document.getElementById('impersonate-customer-section');
@@ -7999,10 +8519,10 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     customerSection.style.display = 'none';
 
     if (selectedRole === 'expert') {
-      loadImpersonateExpertsDropdown();
+      await loadImpersonateExpertsDropdown();
       expertSection.style.display = 'block';
     } else if (selectedRole === 'customer') {
-      loadImpersonateCustomersDropdown();
+      await loadImpersonateCustomersDropdown();
       customerSection.style.display = 'block';
     }
   }
@@ -8286,6 +8806,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     document.getElementById('app-title').textContent = currentRole==='customer' ? 'My Dashboard' : (currentRole==='expert' ? 'Expert Dashboard' : (currentRole==='super_admin' ? 'Master Admin Dashboard' : 'Admin Dashboard'));
     document.getElementById('app-subtitle').textContent = currentRole==='customer' ? 'Welcome to your ServiFlow portal' : (currentRole==='expert' ? 'SLA focus & queue' : (currentRole==='super_admin' ? 'System-wide management & tenant oversight' : 'Platform health & governance'));
 
+    // Show/hide Asset Viewer nav items (apoyar tenant only, not demo)
+    updateAssetViewerNav();
+
     // Simplify title bar for customers
     const appSubtitle = document.getElementById('app-subtitle');
     if (appSubtitle) appSubtitle.style.display = (currentRole === 'customer') ? 'none' : '';
@@ -8330,11 +8853,17 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       updateIonicMenu(); // eslint-disable-line no-undef -- function defined later, guarded by typeof
     }
 
+    // Show System Admin Tools section for all admins (requires elevation to open)
+    const sysAdminTools = document.getElementById('nav-system-admin-tools');
+    if (sysAdminTools) sysAdminTools.style.display = isAdmin ? 'block' : 'none';
+    const ionicSysAdmin = document.getElementById('ionic-system-admin-tools');
+    if (ionicSysAdmin) ionicSysAdmin.style.display = isAdmin ? 'block' : 'none';
+
+    // Update elevation badge visibility
+    if (typeof updateElevationBadge === 'function') updateElevationBadge();
+
     // Initialize collapsible nav groups
     initNavGroups();
-
-    // Initialize Admin Mode
-    initAdminMode();
 
     // Load notification badge for admin/expert roles
     if (currentRole === 'admin' || currentRole === 'expert') {
@@ -10646,10 +11175,13 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       const data = await response.json();
       
       if (data.success) {
-        const tenantCount = data.tenants.length;
-        document.getElementById('ma-tenants').textContent = tenantCount;
-        document.getElementById('ma-active').textContent = tenantCount;
-        
+        const totalCount = data.tenants.length;
+        const activeCount = data.tenants.filter(t => t.status === 'active').length;
+        const el1 = document.getElementById('ma-tenants');
+        if (el1) el1.textContent = totalCount;
+        const el2 = document.getElementById('ma-active');
+        if (el2) el2.textContent = activeCount;
+
         // Update tenant list if on tenants view
         if (currentView === 'tenants') {
           const tbody = document.getElementById('tenant-list-body');
@@ -10657,7 +11189,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             tbody.innerHTML = '';
             data.tenants.forEach(tenant => {
               const tr = document.createElement('tr');
-              const statusBadge = tenant.status === 'active' ? 'Active' : (tenant.status === 'suspended' ? 'Suspended' : 'Inactive');
+              const isActive = tenant.status === 'active';
+              const statusBadge = isActive ? 'Active' : (tenant.status === 'suspended' ? 'Suspended' : 'Inactive');
+              const statusClass = isActive ? 'success' : 'danger';
               const createdDate = new Date(tenant.created_at).toLocaleDateString();
 
               // Plan and subscription info
@@ -10679,18 +11213,33 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
                 subDisplay += ` (${daysLeft}d left)`;
               }
 
+              const escapedName = (tenant.company_name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+              const escapedCode = (tenant.tenant_code || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
+              let actionBtns = '';
+              if (isActive) {
+                actionBtns = `
+                  <button type="button" class="btn btn-sm" onclick="event.preventDefault();event.stopPropagation();editTenant(${tenant.id})">Edit</button>
+                  <button type="button" class="btn btn-sm" onclick="event.preventDefault();event.stopPropagation();manageTenantSubscription(${tenant.id})">Subscription</button>
+                  <button type="button" class="btn btn-sm btn-danger" onclick="event.preventDefault();event.stopPropagation();deleteTenant(${tenant.id},'${escapedName}','${escapedCode}')">Deactivate</button>
+                `;
+              } else {
+                actionBtns = `
+                  <button type="button" class="btn btn-sm" style="background:var(--success);color:#fff" onclick="event.preventDefault();event.stopPropagation();restoreTenant(${tenant.id})">Restore</button>
+                  <button type="button" class="btn btn-sm btn-danger" onclick="event.preventDefault();event.stopPropagation();permanentDeleteTenant(${tenant.id},'${escapedName}','${escapedCode}')">Permanently Delete</button>
+                `;
+              }
+
+              if (!isActive) tr.style.opacity = '0.7';
+
               tr.innerHTML = `
                 <td>${tenant.company_name}</td>
                 <td>${tenant.tenant_code}</td>
-                <td><span class="badge ${tenant.status === 'active' ? 'success' : 'danger'}">${statusBadge}</span></td>
+                <td><span class="badge ${statusClass}">${statusBadge}</span></td>
                 <td>${planName}</td>
                 <td><span class="badge ${subBadgeClass}">${subDisplay}</span></td>
                 <td>${createdDate}</td>
-                <td>
-                  <button type="button" class="btn btn-sm" onclick="event.preventDefault();event.stopPropagation();editTenant(${tenant.id})">Edit</button>
-                  <button type="button" class="btn btn-sm" onclick="event.preventDefault();event.stopPropagation();manageTenantSubscription(${tenant.id})">Subscription</button>
-                  <button type="button" class="btn btn-sm btn-danger" onclick="event.preventDefault();event.stopPropagation();deleteTenant(${tenant.id})">Delete</button>
-                </td>
+                <td>${actionBtns}</td>
               `;
               tbody.appendChild(tr);
             });
@@ -12003,6 +12552,16 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   }
 
   function initNavGroups() {
+    // Section groups (Operations defaults open, others respect localStorage)
+    const sectionGroups = ['nav-section-operations', 'nav-section-insights', 'nav-section-config'];
+    sectionGroups.forEach(id => {
+      let saved = null;
+      try { saved = localStorage.getItem(`serviflow.nav.${id}.open`); } catch(e) {}
+      const defaultOpen = (id === 'nav-section-operations') ? '1' : '0';
+      const isOpen = (saved !== null) ? saved === '1' : defaultOpen === '1';
+      const el = document.getElementById(id);
+      if (el) el.classList.toggle('open', isOpen);
+    });
     // CMDB groups
     let cmdbOpen = '0';
     try { cmdbOpen = localStorage.getItem('serviflow.nav.nav-cmdb-group.open') || '0'; } catch(e) {}
@@ -12015,78 +12574,67 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     try { adminOpen = localStorage.getItem('serviflow.nav.nav-admin-settings-group.open') || '0'; } catch(e) {}
     const adminGroup = document.getElementById('nav-admin-settings-group');
     if (adminGroup) adminGroup.classList.toggle('open', adminOpen === '1');
+    // System Admin Tools group (only opened via elevation, never auto-open)
+    const sysGroup = document.getElementById('nav-system-tools-group');
+    if (sysGroup) sysGroup.classList.remove('open');
   }
 
-  // Admin Mode Functions
-  function applyAdminMode(on) {
-    const grp = document.getElementById('adminMenuGroup');
-    const ins = document.getElementById('adminMenuInsertPoint');
-    const orig = document.getElementById('adminMenuOriginalPoint');
-    if (!grp || !ins || !orig) return;
-
-    if (on) {
-      grp.style.display = '';
-      ins.parentNode.insertBefore(grp, ins.nextSibling);
-    } else {
-      grp.style.display = 'none';
-      orig.parentNode.insertBefore(grp, orig.nextSibling);
-    }
-  }
-
-  function setAdminMode(on) {
-    applyAdminMode(on);
-    try { localStorage.setItem('serviflow.adminMode', on ? '1' : '0'); } catch(e) {}
-  }
-
-  function initAdminMode() {
-    let on = '0';
-    try { on = localStorage.getItem('serviflow.adminMode') || '0'; } catch(e) {}
-    const enabled = on === '1';
-    const cb = document.getElementById('adminModeToggle');
-    if (cb) cb.checked = enabled;
-    applyAdminMode(enabled);
-  }
-
-  // Reauth functions for Raw Variables security
+  // --- System Admin Elevation ---
   let pendingReauthCallback = null;
 
-  function hasReauth() {
+  function isElevated() {
+    const token = localStorage.getItem('token');
+    if (!token) return false;
     try {
-      const until = sessionStorage.getItem('serviflow.reauthUntil');
-      if (!until) return false;
-      return Date.now() < parseInt(until, 10);
-    } catch(e) { return false; }
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.is_elevated_admin === true && payload.exp * 1000 > Date.now();
+    } catch { return false; }
+  }
+
+  function updateElevationBadge() {
+    const badge = document.getElementById('elevation-badge');
+    if (badge) badge.style.display = isElevated() ? 'flex' : 'none';
+  }
+
+  // Check elevation badge periodically (every 30s)
+  setInterval(updateElevationBadge, 30000);
+
+  function openSystemAdminTools() {
+    if (isElevated()) {
+      toggleNavGroup('nav-system-tools-group');
+    } else {
+      pendingReauthCallback = () => {
+        const grp = document.getElementById('nav-system-tools-group');
+        if (grp && !grp.classList.contains('open')) grp.classList.add('open');
+      };
+      showElevationModal();
+    }
   }
 
   function ensureReauthThen(cb) {
-    if (hasReauth()) {
+    if (isElevated()) {
       cb();
     } else {
       pendingReauthCallback = cb;
-      showReauthModal();
+      showElevationModal();
     }
   }
 
-  function openRawVariablesSecure(el) {
-    if (hasReauth()) {
-      nav(el);
-    } else {
-      pendingReauthCallback = () => nav(el);
-      showReauthModal();
-    }
-  }
-
-  function showReauthModal() {
+  function showElevationModal() {
     const modal = document.getElementById('reauth-modal');
-    modal.style.display = 'flex';
-    modal.scrollTop = 0;
-    document.getElementById('reauth-password').value = '';
-    document.getElementById('reauth-error').style.display = 'none';
-    document.getElementById('reauth-password').focus();
+    if (modal) {
+      modal.style.display = 'flex';
+      modal.scrollTop = 0;
+    }
+    const pwd = document.getElementById('reauth-password');
+    if (pwd) { pwd.value = ''; pwd.focus(); }
+    const err = document.getElementById('reauth-error');
+    if (err) err.style.display = 'none';
   }
 
   function closeReauthModal() {
-    document.getElementById('reauth-modal').style.display = 'none';
+    const modal = document.getElementById('reauth-modal');
+    if (modal) modal.style.display = 'none';
     pendingReauthCallback = null;
   }
 
@@ -12100,7 +12648,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     }
     try {
       const tenantCode = window.tenant || 'apoyar';
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('token_base') || localStorage.getItem('token');
       const res = await fetch(`/api/auth/${tenantCode}/reauth`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
@@ -12109,8 +12657,15 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       const data = await res.json();
       if (data.success) {
         sessionStorage.setItem('serviflow.reauthUntil', data.reauth_until);
+        if (data.elevated_token) {
+          const currentToken = localStorage.getItem('token');
+          if (!localStorage.getItem('token_base')) {
+            localStorage.setItem('token_base', currentToken);
+          }
+          localStorage.setItem('token', data.elevated_token);
+        }
+        updateElevationBadge();
         closeReauthModal();
-        // Run pending callback if any
         const cb = pendingReauthCallback;
         pendingReauthCallback = null;
         if (cb) cb();
@@ -12125,6 +12680,14 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   }
 
   function openCmdb(sectionId) {
+    // Asset Viewer requires elevated password and is tenant-specific
+    if (sectionId === 'cmdb-section-assetviewer') {
+      if (!isAssetViewerAvailable()) return;
+      if (!sessionStorage.getItem('serviflow.avAuth')) {
+        showAvPasswordModal();
+        return;
+      }
+    }
     // Switch to CMDB hub view
     switchView('cmdb-hub');
     // Show requested section
@@ -12142,6 +12705,49 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     });
     // Clear active state from regular navlinks
     document.querySelectorAll('.navlink').forEach(n => n.classList.remove('active'));
+  }
+
+  // Asset Viewer: tenant-specific feature (apoyar only, not on demo)
+  function isAssetViewerAvailable() {
+    const h = window.location.hostname;
+    if (h.includes('demo.serviflow') || h.includes('web-demo')) return false;
+    const tc = (localStorage.getItem('tenantCode') || '').toLowerCase();
+    return tc === 'apoyar';
+  }
+
+  function updateAssetViewerNav() {
+    const show = isAssetViewerAvailable();
+    document.querySelectorAll('.av-nav-item').forEach(el => {
+      el.style.display = show ? '' : 'none';
+    });
+  }
+
+  function showAvPasswordModal() {
+    const modal = document.getElementById('av-password-modal');
+    if (modal) { modal.style.display = 'flex'; }
+    const input = document.getElementById('av-password-input');
+    if (input) { input.value = ''; input.focus(); }
+    const err = document.getElementById('av-password-error');
+    if (err) err.style.display = 'none';
+  }
+
+  function closeAvPasswordModal() {
+    const modal = document.getElementById('av-password-modal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  function submitAvPassword() {
+    const input = document.getElementById('av-password-input');
+    const err = document.getElementById('av-password-error');
+    const pw = input ? input.value : '';
+    if (pw === 'S3rv1Fl0w') {
+      sessionStorage.setItem('serviflow.avAuth', '1');
+      closeAvPasswordModal();
+      openCmdb('cmdb-section-assetviewer');
+    } else {
+      if (err) { err.textContent = 'Invalid access password'; err.style.display = 'block'; }
+      if (input) input.value = '';
+    }
   }
 
   function openAdminSettings(sectionId) {
@@ -14832,25 +15438,68 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   // Email Ingest Functions
   let currentEmailProvider = 'imap'; // 'imap' or 'm365'
+  // Per-provider toggle state
+  let imapEnabled = false, imapOutbound = false;
+  let m365Enabled = false, m365Outbound = false;
 
-  function selectEmailProvider(provider) {
+  function selectEmailProvider(provider, skipSave) {
+    const enabledEl = document.getElementById('email-ingest-enabled');
+    const outboundEl = document.getElementById('email-use-for-outbound');
+
+    // Save current checkbox values to old provider's state (skip when loading from DB)
+    if (!skipSave) {
+      if (currentEmailProvider === 'imap') {
+        if (enabledEl) imapEnabled = enabledEl.checked;
+        if (outboundEl) imapOutbound = outboundEl.checked;
+      } else {
+        if (enabledEl) m365Enabled = enabledEl.checked;
+        if (outboundEl) m365Outbound = outboundEl.checked;
+      }
+    }
+
     currentEmailProvider = provider;
+
+    // Restore new provider's values into the checkboxes
+    if (provider === 'imap') {
+      if (enabledEl) enabledEl.checked = imapEnabled;
+      if (outboundEl) outboundEl.checked = imapOutbound;
+    } else {
+      if (enabledEl) enabledEl.checked = m365Enabled;
+      if (outboundEl) outboundEl.checked = m365Outbound;
+    }
     const imapBtn = document.getElementById('email-provider-imap');
     const m365Btn = document.getElementById('email-provider-m365');
     const imapFields = document.getElementById('email-imap-fields');
     const m365Fields = document.getElementById('email-m365-fields');
+    const m365Note = document.getElementById('email-m365-setup-note');
 
+    // Update outbound label per provider
+    const outboundLabel = document.getElementById('email-outbound-label');
     if (provider === 'imap') {
       if (imapBtn) { imapBtn.className = 'btn primary'; }
       if (m365Btn) { m365Btn.className = 'btn'; }
       if (imapFields) { imapFields.style.display = 'block'; }
       if (m365Fields) { m365Fields.style.display = 'none'; }
+      if (m365Note) { m365Note.style.display = 'none'; }
+      if (outboundLabel) outboundLabel.textContent = 'Also use this IMAP account for outbound notifications';
     } else {
       if (imapBtn) { imapBtn.className = 'btn'; }
       if (m365Btn) { m365Btn.className = 'btn primary'; }
       if (imapFields) { imapFields.style.display = 'none'; }
       if (m365Fields) { m365Fields.style.display = 'block'; }
+      if (m365Note) { m365Note.style.display = 'block'; }
+      if (outboundLabel) outboundLabel.textContent = 'Also use this Microsoft 365 account for outbound notifications';
       loadOAuth2Status();
+    }
+    toggleOutboundSmtpFields();
+  }
+
+  function toggleOutboundSmtpFields() {
+    const outboundChecked = document.getElementById('email-use-for-outbound')?.checked;
+    const smtpFields = document.getElementById('email-smtp-outbound-fields');
+    if (smtpFields) {
+      // Show SMTP fields only when outbound is enabled AND provider is IMAP (not O365)
+      smtpFields.style.display = (outboundChecked && currentEmailProvider === 'imap') ? 'block' : 'none';
     }
   }
 
@@ -14917,8 +15566,14 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
       if (data.success && data.settings) {
         const settings = data.settings;
-        const enabledEl = document.getElementById('email-ingest-enabled');
-        if (enabledEl) enabledEl.checked = settings.enabled;
+
+        // Store per-provider state from DB
+        imapEnabled = !!settings.enabled;
+        imapOutbound = !!settings.use_for_outbound;
+        m365Enabled = !!settings.m365_enabled;
+        m365Outbound = !!settings.m365_use_for_outbound;
+
+        // Load IMAP-specific fields
         const serverTypeEl = document.getElementById('email-server-type');
         if (serverTypeEl) serverTypeEl.value = settings.server_type;
         const serverHostEl = document.getElementById('email-server-host');
@@ -14940,14 +15595,22 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           if (el) el.textContent = 'Last checked: ' + lastChecked.toLocaleString();
         }
 
+        // Load SMTP outbound fields
+        const smtpHostEl = document.getElementById('email-smtp-host');
+        if (smtpHostEl && settings.smtp_host) smtpHostEl.value = settings.smtp_host;
+        const smtpPortEl = document.getElementById('email-smtp-port');
+        if (smtpPortEl && settings.smtp_port) smtpPortEl.value = settings.smtp_port;
+
         // Select the correct provider tab based on auth_method
+        // skipSave=true to avoid overwriting the just-loaded state vars
         if (settings.auth_method === 'oauth2') {
-          selectEmailProvider('m365');
+          selectEmailProvider('m365', true);
           const emailInput = document.getElementById('email-m365-address');
           if (emailInput && settings.oauth2_email) emailInput.value = settings.oauth2_email;
         } else {
-          selectEmailProvider('imap');
+          selectEmailProvider('imap', true);
         }
+        toggleOutboundSmtpFields();
       }
     } catch (error) {
       console.error('Error loading email ingest settings:', error);
@@ -14956,6 +15619,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   async function saveEmailIngestSettings() {
     const enabled = document.getElementById('email-ingest-enabled')?.checked || false;
+    const outbound = document.getElementById('email-use-for-outbound')?.checked ? 1 : 0;
     const checkInterval = parseInt(document.getElementById('email-check-interval')?.value) || 5;
 
     if (enabled && checkInterval < 1 || checkInterval > 60) {
@@ -14964,7 +15628,6 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     }
 
     const payload = {
-      enabled,
       check_interval_minutes: checkInterval
     };
 
@@ -14987,12 +15650,18 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       }
 
       payload.auth_method = 'basic';
+      payload.enabled = enabled;
+      payload.use_for_outbound = outbound;
       payload.server_type = document.getElementById('email-server-type')?.value || 'imap';
       payload.server_host = serverHost;
       payload.server_port = serverPort;
       payload.use_ssl = useSsl;
       payload.username = username;
-      payload.password = password || undefined;
+      payload.password = password || '';
+      if (outbound) {
+        payload.smtp_host = document.getElementById('email-smtp-host')?.value || null;
+        payload.smtp_port = parseInt(document.getElementById('email-smtp-port')?.value) || 587;
+      }
     } else {
       // Microsoft 365 - save email address + auth_method
       const m365Email = document.getElementById('email-m365-address')?.value || '';
@@ -15001,6 +15670,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         return;
       }
       payload.auth_method = 'oauth2';
+      payload.m365_enabled = enabled;
+      payload.m365_use_for_outbound = outbound;
       payload.oauth2_email = m365Email;
     }
 
@@ -15033,13 +15704,51 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       if (data.success) {
         showEmailIngestMessage('Email ingest settings saved successfully!');
         setTimeout(() => hideEmailIngestMessages(), 3000);
-        if (currentEmailProvider === 'm365') loadOAuth2Status();
+        // Reload settings from DB to ensure UI reflects actual saved state
+        await loadEmailIngestSettings();
       } else {
         showEmailIngestError(data.message || 'Error saving email ingest settings');
       }
     } catch (error) {
       console.error('Error saving email ingest settings:', error);
       showEmailIngestError('Error saving email ingest settings');
+    }
+  }
+
+  async function clearEmailIngestSettings() {
+    if (!confirm('Clear all email settings? This will disable email ingest and outbound email. No emails will be sent until new settings are configured.')) return;
+    try {
+      const tenantCode = window.currentUser?.tenantCode || 'apoyar';
+      const response = await fetch(`${API_BASE}/api/email-ingest/${tenantCode}/settings`, {
+        method: 'DELETE',
+        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+      });
+      const data = await response.json();
+      if (data.success) {
+        // Reset all form fields
+        const fields = {
+          'email-ingest-enabled': false,
+          'email-server-host': '', 'email-server-port': '993',
+          'email-use-ssl': true, 'email-username': '', 'email-password': '',
+          'email-check-interval': '5', 'email-use-for-outbound': false,
+          'email-smtp-host': '', 'email-smtp-port': '587',
+          'email-m365-address': ''
+        };
+        for (const [id, val] of Object.entries(fields)) {
+          const el = document.getElementById(id);
+          if (!el) continue;
+          if (el.type === 'checkbox') el.checked = val;
+          else el.value = val;
+        }
+        toggleOutboundSmtpFields();
+        showEmailIngestMessage('All email settings cleared. No emails will be sent.');
+        setTimeout(() => hideEmailIngestMessages(), 4000);
+      } else {
+        showEmailIngestError(data.message || 'Error clearing settings');
+      }
+    } catch (error) {
+      console.error('Error clearing email settings:', error);
+      showEmailIngestError('Error clearing email settings');
     }
   }
 
@@ -16368,13 +17077,19 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     }
   }
   
-  // Store tenant ID for delete confirmation
+  // Store tenant info for delete/restore confirmation
   let pendingDeleteTenantId = null;
+  let pendingPermDeleteTenantId = null;
+  let pendingPermDeleteTenantCode = null;
 
-  function deleteTenant(tenantId) {
-    console.log('Delete tenant clicked:', tenantId);
+  function deleteTenant(tenantId, name, code) {
+    console.log('Deactivate tenant clicked:', tenantId);
     pendingDeleteTenantId = tenantId;
     const modal = document.getElementById('delete-tenant-modal');
+    const nameEl = document.getElementById('delete-tenant-name');
+    const codeEl = document.getElementById('delete-tenant-code');
+    if (nameEl) nameEl.textContent = name || 'Unknown';
+    if (codeEl) codeEl.textContent = code || '';
     if (modal) modal.style.display = 'block';
   }
 
@@ -16402,16 +17117,101 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       const data = await response.json();
 
       if (data.success) {
-        alert('Tenant deleted successfully');
-        loadTenants(); // Refresh the tenant list
+        alert('Tenant deactivated successfully');
+        loadTenants();
       } else {
-        alert('Error deleting tenant: ' + (data.message || 'Unknown error'));
+        alert('Error deactivating tenant: ' + (data.message || 'Unknown error'));
       }
     } catch (error) {
-      console.error('Error deleting tenant:', error);
-      alert('Error deleting tenant: ' + error.message);
+      console.error('Error deactivating tenant:', error);
+      alert('Error deactivating tenant: ' + error.message);
     } finally {
       pendingDeleteTenantId = null;
+    }
+  }
+
+  async function restoreTenant(tenantId) {
+    if (!confirm('Restore this tenant to active status?')) return;
+    try {
+      const response = await fetch(`${window.location.protocol}//${window.location.host}/api/master/tenants/${tenantId}/restore`, {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + localStorage.getItem('token')
+        }
+      });
+      const data = await response.json();
+      if (data.success) {
+        alert('Tenant restored successfully');
+        loadTenants();
+      } else {
+        alert('Error restoring tenant: ' + (data.message || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error restoring tenant:', error);
+      alert('Error restoring tenant: ' + error.message);
+    }
+  }
+
+  function permanentDeleteTenant(tenantId, name, code) {
+    pendingPermDeleteTenantId = tenantId;
+    pendingPermDeleteTenantCode = code;
+    const nameEl = document.getElementById('perm-delete-tenant-name');
+    const codeEl = document.getElementById('perm-delete-tenant-code-display');
+    const input = document.getElementById('perm-delete-confirm-input');
+    const btn = document.getElementById('perm-delete-btn');
+    if (nameEl) nameEl.textContent = name || 'Unknown';
+    if (codeEl) codeEl.textContent = code || '';
+    if (input) input.value = '';
+    if (btn) btn.disabled = true;
+    const modal = document.getElementById('permanent-delete-tenant-modal');
+    if (modal) modal.style.display = 'block';
+  }
+
+  function checkPermDeleteInput() {
+    const input = document.getElementById('perm-delete-confirm-input');
+    const btn = document.getElementById('perm-delete-btn');
+    if (input && btn) {
+      btn.disabled = input.value !== pendingPermDeleteTenantCode;
+    }
+  }
+
+  function cancelPermanentDelete() {
+    pendingPermDeleteTenantId = null;
+    pendingPermDeleteTenantCode = null;
+    const modal = document.getElementById('permanent-delete-tenant-modal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  async function confirmPermanentDelete() {
+    if (!pendingPermDeleteTenantId || !pendingPermDeleteTenantCode) return;
+
+    const tenantId = pendingPermDeleteTenantId;
+    const code = pendingPermDeleteTenantCode;
+    const modal = document.getElementById('permanent-delete-tenant-modal');
+    if (modal) modal.style.display = 'none';
+
+    try {
+      const response = await fetch(`${window.location.protocol}//${window.location.host}/api/master/tenants/${tenantId}/permanent`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': 'Bearer ' + localStorage.getItem('token'),
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ confirm_code: code })
+      });
+      const data = await response.json();
+      if (data.success) {
+        alert('Tenant permanently deleted');
+        loadTenants();
+      } else {
+        alert('Error: ' + (data.message || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error permanently deleting tenant:', error);
+      alert('Error: ' + error.message);
+    } finally {
+      pendingPermDeleteTenantId = null;
+      pendingPermDeleteTenantCode = null;
     }
   }
   
@@ -16421,6 +17221,11 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   window.manageTenantSubscription = manageTenantSubscription;
   window.confirmDeleteTenant = confirmDeleteTenant;
   window.cancelDeleteTenant = cancelDeleteTenant;
+  window.restoreTenant = restoreTenant;
+  window.permanentDeleteTenant = permanentDeleteTenant;
+  window.checkPermDeleteInput = checkPermDeleteInput;
+  window.confirmPermanentDelete = confirmPermanentDelete;
+  window.cancelPermanentDelete = cancelPermanentDelete;
   window.showEditTenantForm = showEditTenantForm;
   window.hideEditTenantForm = hideEditTenantForm;
   window.updateTenant = updateTenant;
@@ -19222,18 +20027,21 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
       // Update local ticket object
       t.status=newStatus;
-      document.getElementById('td-status').value=newStatus;
+      if (document.getElementById('td-status')) document.getElementById('td-status').value=newStatus;
 
       // Reload ticket details to get updated activities from server
-      await renderTicketDetail();
-
-      renderList();
-      renderAdminDash();
-      renderExpertDash();
+      try {
+        await renderTicketDetail();
+        renderList();
+        renderAdminDash();
+        renderExpertDash();
+      } catch (renderErr) {
+        console.error('Error refreshing UI after status update (update was successful):', renderErr);
+      }
 
     } catch (error) {
       console.error('Error updating ticket status:', error);
-      alert('Failed to update ticket status. Please try again.');
+      alert('Failed to update ticket status: ' + error.message);
     }
   }
 
@@ -20710,6 +21518,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       const data = await response.json();
 
       if (data.success) {
+        cachedExperts = [];
         alert('Expert restored successfully!');
         await renderDeletedExperts();
       } else {
@@ -21497,6 +22306,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       const data = await response.json();
 
       if (data.success) {
+        cachedExperts = []; // Clear cache so dropdowns reload fresh
         closeExpertModal();
         renderExperts();
         alert(currentExpertId ? 'Expert updated successfully' : 'Expert created successfully');
@@ -21536,6 +22346,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       const data = await response.json();
 
       if (data.success) {
+        cachedExperts = [];
         alert('Expert deleted successfully');
         if (currentView === 'expert-detail') {
           switchView('experts');
@@ -22437,6 +23248,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         document.getElementById('customer-phone').value = c.contact_phone || '';
         document.getElementById('customer-address').value = c.address || '';
         document.getElementById('customer-sla').value = c.sla_level || 'basic';
+        document.getElementById('customer-admin-emails').checked = c.admin_receive_emails !== 0;
+        document.getElementById('customer-members-emails').checked = c.members_receive_emails !== 0;
         document.getElementById('customer-form-message').style.display = 'none';
         document.getElementById('customer-form-error').style.display = 'none';
         const modal = document.getElementById('customer-modal');
@@ -22683,7 +23496,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       company_domain: document.getElementById('customer-domain').value.toLowerCase(),
       contact_phone: document.getElementById('customer-phone').value,
       address: document.getElementById('customer-address').value,
-      sla_level: document.getElementById('customer-sla').value
+      sla_level: document.getElementById('customer-sla').value,
+      admin_receive_emails: document.getElementById('customer-admin-emails').checked,
+      members_receive_emails: document.getElementById('customer-members-emails').checked
     };
 
     try {
@@ -22893,21 +23708,26 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       }
     }
 
-    // Populate customer dropdown
+    // Populate customer dropdown (hide for customer role — backend already filters)
     const sel=document.getElementById('cmdb-customer');
-    const current=sel.value;
-    sel.innerHTML='<option value="">All customers</option>';
-    [...new Set(CMDB_ITEMS.map(i=>i.customer_name||i.customer||''))].filter(c=>c).sort().forEach(c=>{
-      const o=document.createElement('option');
-      o.value=c;
-      o.textContent = c;
-      if(c===current) o.selected=true;
-      sel.appendChild(o);
-    });
+    const isCustomerRole = (window.role || role) === 'customer';
+    if (sel) {
+      sel.style.display = isCustomerRole ? 'none' : '';
+      if (!isCustomerRole) {
+        const current=sel.value;
+        sel.innerHTML='<option value="">All customers</option>';
+        [...new Set(CMDB_ITEMS.map(i=>i.customer_name||i.customer||''))].filter(c=>c).sort().forEach(c=>{
+          const o=document.createElement('option');
+          o.value=c;
+          o.textContent = c;
+          if(c===current) o.selected=true;
+          sel.appendChild(o);
+        });
+      }
+    }
 
     const q=(document.getElementById('cmdb-search').value||'').toLowerCase();
-    const isCustomerRole = (window.role || role) === 'customer';
-    const custFilter = isCustomerRole ? '' : sel.value;
+    const custFilter = isCustomerRole ? '' : (sel ? sel.value : '');
     const body=document.getElementById('cmdb-body');
     body.innerHTML='';
 
@@ -25765,11 +26585,11 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         updateSystemSettingStatus('process_sla', true);
       }
 
-      // Update Process Emails toggle from email_ingest_settings.enabled (kill switch)
+      // Update Process Emails toggle from email_ingest_settings (either provider enabled)
       const processEmailsCheckbox = document.getElementById('sc-process-emails');
-      // enabled=1 means ON, enabled=0 or missing means OFF
-      const processEmailsEnabled = emailIngestData.success && emailIngestData.settings && !!emailIngestData.settings.enabled;
-      console.log('process_emails (email_ingest_settings.enabled):', emailIngestData.settings?.enabled, 'enabled:', processEmailsEnabled);
+      const eis = emailIngestData.success && emailIngestData.settings ? emailIngestData.settings : {};
+      const processEmailsEnabled = !!eis.enabled || !!eis.m365_enabled;
+      console.log('process_emails: imap_enabled=', eis.enabled, 'm365_enabled=', eis.m365_enabled, 'any_enabled:', processEmailsEnabled);
       if (processEmailsCheckbox) {
         processEmailsCheckbox.checked = processEmailsEnabled;
       }
@@ -26071,7 +26891,7 @@ async function displayAIInsights(data) {
     document.getElementById('ai-avg-confidence').textContent = !isNaN(avgConf) ? avgConf.toFixed(1) + '%' : '--';
 
     const avgTime = parseFloat(data.performance.avg_processing_time);
-    document.getElementById('ai-avg-time').textContent = !isNaN(avgTime) ? avgTime.toFixed(0) + 'ms' : '--';
+    document.getElementById('ai-avg-time').textContent = !isNaN(avgTime) ? (avgTime / 1000).toFixed(2) + 's' : '--';
   }
 
   // Load AI CMDB suggestions count
@@ -27499,6 +28319,110 @@ function showToast(message, type = 'info', duration = 3000) {
     setTimeout(() => toast.remove(), 300);
   }, duration);
 }
+
+// ============================================
+// DEMO MODE FUNCTIONS
+// ============================================
+window.isDemoMode = false;
+window.demoPersonas = [];
+
+async function checkDemoMode() {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    const resp = await fetch(API_BASE + '/api/demo/status', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (!resp.ok) { window.isDemoMode = false; return; }
+    const data = await resp.json();
+    window.isDemoMode = data.demo === true;
+    if (window.isDemoMode) {
+      var banner = document.getElementById('demo-banner');
+      if (banner) banner.style.display = 'block';
+      await loadPersonas();
+      if (data.personaKey) {
+        var p = window.demoPersonas.find(function(x) { return x.persona_key === data.personaKey; });
+        if (p) {
+          var label = document.getElementById('demo-persona-label');
+          if (label) label.textContent = 'Viewing as: ' + p.display_name;
+        }
+      }
+    }
+  } catch (e) { window.isDemoMode = false; }
+}
+
+async function loadPersonas() {
+  try {
+    var token = localStorage.getItem('token');
+    var resp = await fetch(API_BASE + '/api/demo/personas', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (!resp.ok) return;
+    var data = await resp.json();
+    if (!data.success || !data.personas) return;
+    window.demoPersonas = data.personas;
+    var sel = document.getElementById('persona-select');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">Switch Persona...</option>';
+    data.personas.forEach(function(p) {
+      var opt = document.createElement('option');
+      opt.value = p.persona_key;
+      opt.textContent = p.display_name;
+      if (p.description) opt.title = p.description;
+      sel.appendChild(opt);
+    });
+    var switcher = document.getElementById('persona-switcher');
+    if (switcher) switcher.style.display = 'block';
+  } catch (e) { console.warn('Failed to load personas:', e); }
+}
+
+async function switchPersona(personaKey) {
+  if (!personaKey) return;
+  try {
+    var token = localStorage.getItem('token');
+    var resp = await fetch(API_BASE + '/api/demo/switch-persona', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ persona_key: personaKey })
+    });
+    var data = await resp.json();
+    if (!data.success) { showToast(data.message || 'Failed to switch persona', 'error'); return; }
+    localStorage.setItem('token', data.token);
+    var persona = data.persona;
+    localStorage.setItem('role', persona.role);
+    localStorage.setItem('currentUser', JSON.stringify({
+      username: persona.username, email: persona.email,
+      fullName: persona.full_name, role: persona.role, tenantCode: 'demo'
+    }));
+    localStorage.setItem('username', persona.username);
+    localStorage.setItem('loginRole', persona.role);
+    var label = document.getElementById('demo-persona-label');
+    if (label) label.textContent = 'Viewing as: ' + persona.display_name;
+    showToast('Switched to ' + persona.display_name, 'success', 2000);
+    setTimeout(function() { location.reload(); }, 500);
+  } catch (e) { showToast('Failed to switch persona', 'error'); }
+}
+
+// Intercept fetch for demo simulated write toasts
+(function() {
+  var origFetch = window.fetch;
+  window.fetch = function() {
+    return origFetch.apply(this, arguments).then(function(response) {
+      if (window.isDemoMode) {
+        var cloned = response.clone();
+        cloned.json().then(function(body) {
+          if (body && body.demo_simulated === true) {
+            showToast('DEMO MODE: Changes simulated. Updates will not take place.', 'warning', 4000);
+          }
+          if (body && body.demo_limit_reached === true) {
+            showToast(body.message || 'DEMO MODE: Limit reached.', 'warning', 4000);
+          }
+        }).catch(function() {});
+      }
+      return response;
+    });
+  };
+})();
 
 // ============================================
 // KNOWLEDGE BASE FUNCTIONS

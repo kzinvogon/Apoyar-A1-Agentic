@@ -72,7 +72,7 @@ ORDER BY name ASC;
 ```
 
 ## How to Access
-1. Login as Admin (admin / password123) or Expert (expert / password123)
+1. Login as Admin or Expert
 2. Click "⚙️ Manage CMDB Types" in the left navigation
 3. View the list of Item Types
 4. Click "View CI Types" on any Item Type to see the one-to-many relationship

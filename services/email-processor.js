@@ -7,7 +7,7 @@ function getSharedTenantConnection(tenantCode) {
   return _sharedGetTenantConnection(tenantCode);
 }
 
-const { sendNotificationEmail } = require('../config/email');
+const { sendNotificationEmail, getTenantDisplayName } = require('../config/email');
 const { createTicketAccessToken } = require('../utils/tokenGenerator');
 const { resolveApplicableSLA } = require('./sla-selector');
 const { computeInitialDeadlines } = require('./sla-calculator');
@@ -201,15 +201,16 @@ class EmailProcessor {
       const connection = await this.getConnection();
       try {
         const [settings] = await connection.query(
-          'SELECT id, enabled FROM email_ingest_settings WHERE enabled = 1 ORDER BY id ASC LIMIT 1'
+          'SELECT id, enabled, m365_enabled, auth_method FROM email_ingest_settings ORDER BY id ASC LIMIT 1'
         );
         // No settings row = not configured = disabled
         if (settings.length === 0) {
           return { enabled: false, reason: 'no_config' };
         }
-        // Check enabled column (0 = disabled, 1 = enabled)
-        const isEnabled = !!settings[0].enabled;
-        const settingsId = settings[0].id;
+        // Check per-provider enabled flag
+        const row = settings[0];
+        const isEnabled = row.auth_method === 'oauth2' ? !!row.m365_enabled : !!row.enabled;
+        const settingsId = row.id;
         return {
           enabled: isEnabled,
           reason: isEnabled ? 'enabled' : 'kill_switch_off',
@@ -249,7 +250,7 @@ class EmailProcessor {
       try {
         // Get email ingest settings (already confirmed enabled by kill switch check)
         const [settings] = await connection.query(
-          'SELECT * FROM email_ingest_settings WHERE enabled = 1 ORDER BY id ASC LIMIT 1'
+          'SELECT * FROM email_ingest_settings ORDER BY id ASC LIMIT 1'
         );
 
         if (settings.length === 0) {
@@ -258,6 +259,13 @@ class EmailProcessor {
         }
 
         const config = settings[0];
+
+        // Per-provider enabled check
+        const providerEnabled = config.auth_method === 'oauth2' ? !!config.m365_enabled : !!config.enabled;
+        if (!providerEnabled) {
+          console.log(`Email ingest disabled for tenant: ${this.tenantCode} (provider: ${config.auth_method})`);
+          return;
+        }
 
         console.log(`📬 [${this.tenantCode}] Selected mailbox config:`, {
           id: config.id,
@@ -1163,10 +1171,11 @@ class EmailProcessor {
               })]
             );
 
-            const loginUrl = process.env.BASE_URL || 'https://serviflow.app';
+            const loginUrl = process.env.BASE_URL || 'https://app.serviflow.app';
+            const tenantName = await getTenantDisplayName(this.tenantCode);
             sendNotificationEmail(
               fromEmail,
-              'Your Expert Account Has Been Reactivated - A1 Support',
+              `Your Expert Account Has Been Reactivated - ${tenantName} ServiFlow Support`,
               `
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                   <h2 style="color: #2563eb;">Account Reactivated!</h2>
@@ -1175,7 +1184,7 @@ class EmailProcessor {
                   <p><a href="${loginUrl}" style="background-color:#2563eb;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;display:inline-block">Login to Dashboard</a></p>
                   <p>Use your existing login credentials to access your account.</p>
                   <hr>
-                  <p style="color:#666;font-size:12px">This is an automated message from A1 Support.</p>
+                  <p style="color:#666;font-size:12px">This is an automated message from ${tenantName} ServiFlow Support.</p>
                 </div>
               `,
               this.tenantCode,
@@ -1188,16 +1197,17 @@ class EmailProcessor {
 
           // Already active expert/admin
           console.log(`User ${fromEmail} is already an active expert/admin`);
+          const tenantName2 = await getTenantDisplayName(this.tenantCode);
           sendNotificationEmail(
             fromEmail,
-            'You Already Have Expert Access - A1 Support',
+            `You Already Have Expert Access - ${tenantName2} ServiFlow Support`,
             `
               <h2>Expert Access Confirmed</h2>
               <p>Hello,</p>
               <p>You already have <strong>${existingUser.role}</strong> access in our system.</p>
               <p>Please use the login page to access your account. If you've forgotten your password, use the "Forgot Password" feature.</p>
               <hr>
-              <p style="color:#666;font-size:12px">This is an automated message from A1 Support.</p>
+              <p style="color:#666;font-size:12px">This is an automated message from ${tenantName2} ServiFlow Support.</p>
             `,
             this.tenantCode,
             'experts'
@@ -1225,10 +1235,11 @@ class EmailProcessor {
         console.log(`✅ Upgraded ${fromEmail} to expert role`);
 
         // Send upgrade confirmation email (non-blocking)
-        const loginUrl = process.env.BASE_URL || 'https://serviflow.app';
+        const loginUrl = process.env.BASE_URL || 'https://app.serviflow.app';
+        const tenantName3 = await getTenantDisplayName(this.tenantCode);
         sendNotificationEmail(
           fromEmail,
-          'Your Account Has Been Upgraded to Expert - A1 Support',
+          `Your Account Has Been Upgraded to Expert - ${tenantName3} ServiFlow Support`,
           `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
               <h2 style="color: #2563eb;">Account Upgraded!</h2>
@@ -1243,7 +1254,7 @@ class EmailProcessor {
               <p><a href="${loginUrl}" style="background-color:#2563eb;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;display:inline-block">Login to Dashboard</a></p>
               <p>Use your existing login credentials to access your upgraded account.</p>
               <hr>
-              <p style="color:#666;font-size:12px">This is an automated message from A1 Support.</p>
+              <p style="color:#666;font-size:12px">This is an automated message from ${tenantName3} ServiFlow Support.</p>
             </div>
           `,
           this.tenantCode,
@@ -1280,13 +1291,14 @@ class EmailProcessor {
       console.log(`✅ Created expert account for ${fromEmail} (userId=${userId})`);
 
       // Send welcome email with credentials (non-blocking)
-      const loginUrl = process.env.BASE_URL || 'https://serviflow.app';
+      const loginUrl = process.env.BASE_URL || 'https://app.serviflow.app';
+      const tenantName4 = await getTenantDisplayName(this.tenantCode);
       sendNotificationEmail(
         fromEmail,
-        'Welcome to A1 Support - Your Expert Account is Ready',
+        `Welcome to ${tenantName4} ServiFlow Support - Your Expert Account is Ready`,
         `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #2563eb;">Welcome to A1 Support!</h2>
+            <h2 style="color: #2563eb;">Welcome to ${tenantName4} ServiFlow Support!</h2>
             <p>Hello ${fullName},</p>
             <p>Your expert account has been created successfully. You can now log in to the support dashboard.</p>
 
@@ -1312,7 +1324,7 @@ class EmailProcessor {
             <p>If you have any questions, please contact your administrator.</p>
 
             <hr style="border: 1px solid #e5e7eb; margin: 20px 0;">
-            <p style="color:#666;font-size:12px">This is an automated message from A1 Support. Please do not reply to this email.</p>
+            <p style="color:#666;font-size:12px">This is an automated message from ${tenantName4} ServiFlow Support. Please do not reply to this email.</p>
           </div>
         `,
         this.tenantCode,
@@ -1947,8 +1959,8 @@ class EmailProcessor {
     const emailPrefix = email.split('@')[0];
     const fullName = emailPrefix.replace(/[._-]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 
-    // Generate username from email
-    let username = emailPrefix.replace(/[^a-z0-9]/g, '_');
+    // Use full email address as username
+    let username = email.toLowerCase();
 
     // Generate random password
     const bcrypt = require('bcrypt');
@@ -1985,13 +1997,14 @@ class EmailProcessor {
     console.log(`Created new customer: ${username} (${email}) for domain: ${domain}`);
 
     // Send welcome email with credentials (non-blocking)
-    const loginUrl = process.env.BASE_URL || 'https://serviflow.app';
+    const loginUrl = process.env.BASE_URL || 'https://app.serviflow.app';
+    const tenantName5 = await getTenantDisplayName(this.tenantCode);
     sendNotificationEmail(
       email,
-      'Welcome to A1 Support - Your Account is Ready',
+      `Welcome to ${tenantName5} ServiFlow Support - Your Account is Ready`,
       `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #2563eb;">Welcome to A1 Support!</h2>
+          <h2 style="color: #2563eb;">Welcome to ${tenantName5} ServiFlow Support!</h2>
           <p>Hello ${username},</p>
           <p>Your customer account has been created. You can now submit and track support requests.</p>
 
@@ -2214,7 +2227,7 @@ class EmailProcessor {
 
     // Generate secure access token for the ticket
     const token = await createTicketAccessToken(this.tenantCode, ticketId, 30);
-    const ticketUrl = `${process.env.BASE_URL || 'https://serviflow.app'}/ticket/view/${token}`;
+    const ticketUrl = `${process.env.BASE_URL || 'https://app.serviflow.app'}/ticket/view/${token}`;
     console.log(`🔐 Generated access token for ticket #${ticketId}`);
 
     // Build email subject with ticket token for reply threading

@@ -10,7 +10,7 @@ async function testEmailConnection() {
     const loginResponse = await axios.post(`${BASE_URL}/api/auth/login`, {
       tenant: 'apoyar',
       username: 'admin',
-      password: 'password123'
+      password: process.env.SMOKE_PASS || 'changeme'
     });
 
     if (!loginResponse.data.success) {

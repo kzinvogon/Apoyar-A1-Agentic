@@ -9,6 +9,7 @@ set -e
 
 BASE_URL="${1:-http://localhost:3000}"
 TENANT="apoyar"
+SMOKE_PASSWORD="${SMOKE_PASSWORD:?SMOKE_PASSWORD env var required}"
 
 echo "=== Concurrent Accept Race Condition Test ==="
 echo "Base URL: $BASE_URL"
@@ -19,7 +20,7 @@ echo "1. Getting auth token..."
 
 LOGIN_RESPONSE=$(curl -s -X POST "$BASE_URL/api/auth/$TENANT/login" \
   -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"password123"}')
+  -d '{"username":"admin","password":"'$SMOKE_PASSWORD'"}')
 
 TOKEN=$(echo "$LOGIN_RESPONSE" | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
 

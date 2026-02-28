@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <title>Ticket Resolution - A1 Support</title>
+  <title>Ticket Resolution - ServiFlow</title>
   <!-- Mobile Responsive CSS -->
   <link rel="stylesheet" href="/public/css/responsive.css">
   <style>
@@ -162,6 +162,25 @@
       border: 1px solid #fecaca;
     }
 
+    .brand-header {
+      text-align: center;
+      margin-bottom: 24px;
+      padding-top: 10px;
+    }
+
+    .brand-header svg {
+      height: 44px;
+      width: auto;
+      margin-bottom: 8px;
+    }
+
+    .brand-tenant-name {
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 15px;
+      font-weight: 500;
+      letter-spacing: 0.3px;
+    }
+
     .hidden {
       display: none;
     }
@@ -228,6 +247,32 @@
 </head>
 <body>
   <div class="container">
+    <!-- Brand Header -->
+    <div class="brand-header">
+      <div>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 50">
+          <defs>
+            <linearGradient id="brandGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#ffffff"/>
+              <stop offset="100%" style="stop-color:#e0e7ff"/>
+            </linearGradient>
+          </defs>
+          <g transform="translate(5, 5)">
+            <path d="M12 2 C20 2, 26 8, 26 14 C26 20, 20 22, 14 22 C8 22, 2 28, 2 34 C2 40, 8 46, 16 46"
+                  stroke="url(#brandGradient)" stroke-width="4" fill="none" stroke-linecap="round"/>
+            <path d="M8 10 L22 10" stroke="url(#brandGradient)" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+            <path d="M6 22 L22 22" stroke="url(#brandGradient)" stroke-width="2" stroke-linecap="round" opacity="0.8"/>
+            <path d="M6 34 L20 34" stroke="url(#brandGradient)" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+            <circle cx="28" cy="14" r="3" fill="#10b981"/>
+          </g>
+          <text x="50" y="35" font-family="Inter, system-ui, sans-serif" font-size="26" font-weight="700" fill="#ffffff">
+            Servi<tspan fill="#e0e7ff">Flow</tspan>
+          </text>
+        </svg>
+      </div>
+      <div class="brand-tenant-name" id="brand-tenant-name"></div>
+    </div>
+
     <!-- Loading State -->
     <div id="loading" class="card">
       <h1 class="title">Loading...</h1>
@@ -236,7 +281,7 @@
 
     <!-- Ticket Resolution View -->
     <div id="resolution-view" class="card hidden">
-      <h1 class="title">Ticket Resolution Review</h1>
+      <h1 class="title">Support Ticket</h1>
       <p class="subtitle">Please review the resolution and let us know if it meets your expectations.</p>
 
       <div id="message" class="message"></div>
@@ -368,6 +413,11 @@
           const data = await response.json();
           if (data.success && data.ticket) {
             const ticket = data.ticket;
+
+            // Set tenant branding
+            const displayName = data.tenantName || tenantCode;
+            document.getElementById('brand-tenant-name').textContent = `ServiFlow - by ${displayName}`;
+
             document.getElementById('ticket-id').textContent = `#${ticket.id}`;
             document.getElementById('ticket-title').textContent = ticket.title || 'No title';
             document.getElementById('ticket-status').textContent = ticket.status || 'Unknown';

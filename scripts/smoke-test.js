@@ -9,7 +9,7 @@
  * Environment variables:
  *   SMOKE_TENANT     - Tenant code (default: apoyar)
  *   SMOKE_USER       - Test username (default: expert)
- *   SMOKE_PASS       - Test password (default: password123)
+ *   SMOKE_PASS       - Test password (required)
  *   SMOKE_TICKET_ID  - Specific ticket ID for claim/accept tests (UAT only)
  *   SMOKE_READONLY   - Set to "true" to skip mutating tests
  *
@@ -35,7 +35,8 @@ const CLI_READONLY = args.includes('--readonly');
 // Configuration from env vars with defaults
 const TENANT = process.env.SMOKE_TENANT || 'apoyar';
 const TEST_USER = process.env.SMOKE_USER || 'expert';
-const TEST_PASS = process.env.SMOKE_PASS || 'password123';
+const TEST_PASS = process.env.SMOKE_PASS;
+if (!TEST_PASS) { console.error('ERROR: SMOKE_PASS env var is required'); process.exit(1); }
 const SMOKE_TICKET_ID = process.env.SMOKE_TICKET_ID || null;
 
 // PRODUCTION SAFETY LATCH - mandatory readonly, no exceptions

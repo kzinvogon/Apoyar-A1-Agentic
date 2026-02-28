@@ -9,7 +9,7 @@ async function testAIEndpoint() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         username: 'admin',
-        password: 'password123',
+        password: process.env.SMOKE_PASS || 'changeme',
         tenant_code: 'apoyar'
       })
     });

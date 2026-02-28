@@ -68,17 +68,17 @@ app.use('/api/cmdb', cmdbRoutes);
 ## Testing
 
 1. **As Customer:**
-   - Login with: customer / password123
+   - Login as a customer user
    - You should only see your own tickets
    - You should only see your own CMDB items
 
 2. **As Admin:**
-   - Login with: admin / password123
+   - Login as an admin user
    - You should see all tickets from all customers
    - You should see all CMDB items from all customers
 
 3. **As Expert:**
-   - Login with: expert / password123
+   - Login as an expert user
    - You should see all tickets from all customers
    - You should see all CMDB items from all customers
 

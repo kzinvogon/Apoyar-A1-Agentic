@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { authenticateMasterUser, authenticateTenantUser, hashPassword, comparePassword, verifyToken, JWT_SECRET } = require('../middleware/auth');
+const { authenticateMasterUser, authenticateTenantUser, hashPassword, comparePassword, verifyToken, generateElevatedToken, JWT_SECRET } = require('../middleware/auth');
 const { getMasterConnection, getTenantConnection } = require('../config/database');
 const {
   validateLogin,
@@ -15,8 +15,11 @@ const {
   accountEnumerationLimiter
 } = require('../middleware/rateLimiter');
 const crypto = require('crypto');
-const { sendEmail } = require('../config/email');
+const { sendEmail, getTenantDisplayName } = require('../config/email');
 const { logAudit, AUDIT_ACTIONS } = require('../utils/auditLog');
+const { applyTenantMatch, requireTenantMatch } = require('../middleware/tenantMatch');
+
+applyTenantMatch(router);
 
 // Master user login
 router.post('/master/login', loginLimiter, validateLogin, async (req, res) => {
@@ -70,7 +73,8 @@ router.post('/tenant/login', loginLimiter, validateTenantLogin, async (req, res)
       success: true,
       message: 'Login successful',
       user: result.user,
-      token: result.token
+      token: result.token,
+      requires_context: result.requires_context || false
     });
   } catch (error) {
     console.error('Error in tenant login:', error);
@@ -266,66 +270,6 @@ router.post('/tenant/change-password', passwordChangeLimiter, validateTenantPass
     }
   } catch (error) {
     console.error('Error changing tenant password:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
-  }
-});
-
-// Reset password (admin only)
-router.post('/reset-password', async (req, res) => {
-  try {
-    const { user_type, tenant_code, username, new_password } = req.body;
-
-    if (!user_type || !username || !new_password) {
-      return res.status(400).json({ success: false, message: 'User type, username and new password are required' });
-    }
-
-    if (new_password.length < 8) {
-      return res.status(400).json({ success: false, message: 'New password must be at least 8 characters long' });
-    }
-
-    const newPasswordHash = await hashPassword(new_password);
-
-    if (user_type === 'master') {
-      const connection = await getMasterConnection();
-      try {
-        const [result] = await connection.query(
-          'UPDATE master_users SET password_hash = ?, updated_at = NOW() WHERE username = ?',
-          [newPasswordHash, username]
-        );
-
-        if (result.affectedRows === 0) {
-          return res.status(404).json({ success: false, message: 'Master user not found' });
-        }
-
-        res.json({ success: true, message: 'Master user password reset successfully' });
-      } finally {
-        connection.release();
-      }
-    } else if (user_type === 'tenant') {
-      if (!tenant_code) {
-        return res.status(400).json({ success: false, message: 'Tenant code is required for tenant users' });
-      }
-
-      const connection = await getTenantConnection(tenant_code);
-      try {
-        const [result] = await connection.query(
-          'UPDATE users SET password_hash = ?, updated_at = NOW() WHERE username = ?',
-          [newPasswordHash, username]
-        );
-
-        if (result.affectedRows === 0) {
-          return res.status(404).json({ success: false, message: 'Tenant user not found' });
-        }
-
-        res.json({ success: true, message: 'Tenant user password reset successfully' });
-      } finally {
-        connection.release();
-      }
-    } else {
-      return res.status(400).json({ success: false, message: 'Invalid user type' });
-    }
-  } catch (error) {
-    console.error('Error resetting password:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
@@ -736,10 +680,11 @@ router.post('/tenant/forgot-password', passwordChangeLimiter, async (req, res) =
       try {
         // Determine email type based on user role (customers vs experts)
         const emailType = user.role === 'customer' ? 'customers' : 'experts';
+        const tenantDisplayName = await getTenantDisplayName(tenant_code);
 
         await sendEmail(tenant_code, {
           to: email,
-          subject: 'Password Reset Request - A1 Support',
+          subject: `Password Reset Request - ${tenantDisplayName} ServiFlow Support`,
           html: `
             <h2>Password Reset Request</h2>
             <p>Hello ${user.full_name || user.username},</p>
@@ -748,7 +693,7 @@ router.post('/tenant/forgot-password', passwordChangeLimiter, async (req, res) =
             <p>This link will expire in 1 hour.</p>
             <p>If you didn't request this, please ignore this email.</p>
             <br>
-            <p>Best regards,<br>A1 Support Team</p>
+            <p>Best regards,<br>${tenantDisplayName} ServiFlow Support Team</p>
           `,
           emailType: emailType,
           skipUserCheck: true, // User explicitly requested password reset
@@ -840,16 +785,17 @@ router.post('/tenant/reset-password-with-token', passwordChangeLimiter, async (r
 
       // Send confirmation email
       try {
+        const tenantDisplayName = await getTenantDisplayName(tenant_code);
         await sendEmail(tenant_code, {
           to: user.email,
-          subject: 'Password Successfully Reset - A1 Support',
+          subject: `Password Successfully Reset - ${tenantDisplayName} ServiFlow Support`,
           html: `
             <h2>Password Reset Successful</h2>
             <p>Hello ${user.username},</p>
             <p>Your password has been successfully reset.</p>
             <p>If you didn't make this change, please contact support immediately.</p>
             <br>
-            <p>Best regards,<br>A1 Support Team</p>
+            <p>Best regards,<br>${tenantDisplayName} ServiFlow Support Team</p>
           `,
           skipKillSwitch: true // Security-critical: confirmation must always be sent
         });
@@ -1222,7 +1168,7 @@ router.post('/invitation/accept', async (req, res) => {
 });
 
 // Re-authentication for sensitive operations (e.g., Raw Variables)
-router.post('/:tenantCode/reauth', verifyToken, async (req, res) => {
+router.post('/:tenantCode/reauth', verifyToken, requireTenantMatch, async (req, res) => {
   const { tenantCode } = req.params;
   const { password } = req.body;
 
@@ -1255,7 +1201,14 @@ router.post('/:tenantCode/reauth', verifyToken, async (req, res) => {
 
     // Return success with 10-minute window
     const reauthUntil = Date.now() + (10 * 60 * 1000);
-    res.json({ success: true, reauth_until: reauthUntil });
+
+    // If admin, generate an elevated token (30-min JWT with is_elevated_admin)
+    let elevated_token = undefined;
+    if (user.role === 'admin') {
+      elevated_token = generateElevatedToken(req.user);
+    }
+
+    res.json({ success: true, reauth_until: reauthUntil, elevated_token });
 
   } catch (error) {
     console.error('[Reauth] Error:', error.message);
@@ -1266,7 +1219,7 @@ router.post('/:tenantCode/reauth', verifyToken, async (req, res) => {
 });
 
 // Admin password reset endpoint (admin only)
-router.post('/admin/reset-password/:tenantCode', verifyToken, async (req, res) => {
+router.post('/admin/reset-password/:tenantCode', verifyToken, requireTenantMatch, async (req, res) => {
   try {
     const { tenantCode } = req.params;
     const { username, newPassword } = req.body;

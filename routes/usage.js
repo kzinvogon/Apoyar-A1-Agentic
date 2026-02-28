@@ -2,9 +2,11 @@ const express = require('express');
 const router = express.Router();
 const { getTenantConnection } = require('../config/database');
 const { verifyToken } = require('../middleware/auth');
+const { applyTenantMatch } = require('../middleware/tenantMatch');
 
 // Apply verifyToken middleware to all usage routes
 router.use(verifyToken);
+applyTenantMatch(router);
 
 // Get usage statistics for a tenant
 router.get('/:tenantId', async (req, res) => {

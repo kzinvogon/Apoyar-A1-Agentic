@@ -7,10 +7,12 @@ const express = require('express');
 const router = express.Router();
 const { getTenantConnection } = require('../config/database');
 const { verifyToken } = require('../middleware/auth');
+const { applyTenantMatch } = require('../middleware/tenantMatch');
 const { requireAdmin } = require('../utils/cmdb-helpers');
 
 // Apply authentication to all routes
 router.use(verifyToken);
+applyTenantMatch(router);
 
 // Change type labels for display
 const CHANGE_TYPE_LABELS = {

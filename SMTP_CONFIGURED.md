@@ -12,7 +12,7 @@ The server is now configured and running with email capabilities.
 
 ### To Test Email Sending:
 1. Go to http://localhost:3000
-2. Login as Master Admin (admin / admin123)
+2. Login as Master Admin
 3. Navigate to "Email Processing" settings
 4. Click "Test Email" button
 5. You should receive a test email at the address you specify

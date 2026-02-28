@@ -91,9 +91,15 @@ struct CredentialsSettingsView: View {
             Section {
                 TextField("Tenant Code", text: $monitor.tenantCode)
                     .textFieldStyle(.roundedBorder)
+                    .onChange(of: monitor.tenantCode) { _, _ in
+                        monitor.checkAndStartMonitoring()
+                    }
 
                 TextField("Username", text: $monitor.testUsername)
                     .textFieldStyle(.roundedBorder)
+                    .onChange(of: monitor.testUsername) { _, _ in
+                        monitor.checkAndStartMonitoring()
+                    }
 
                 HStack {
                     if showingPassword {
@@ -108,12 +114,24 @@ struct CredentialsSettingsView: View {
                     }
                     .buttonStyle(.borderless)
                 }
+                .onChange(of: monitor.testPassword) { _, _ in
+                    monitor.checkAndStartMonitoring()
+                }
             } header: {
                 Text("Test Credentials")
             } footer: {
                 Text("These credentials are used to test the login API endpoint.")
                     .font(.caption)
                     .foregroundColor(.secondary)
+            }
+
+            Section {
+                HStack {
+                    Image(systemName: monitor.credentialsConfigured ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                        .foregroundColor(monitor.credentialsConfigured ? .green : .red)
+                    Text(monitor.credentialsConfigured ? "Credentials configured" : "Please fill in all credential fields")
+                        .foregroundColor(monitor.credentialsConfigured ? .primary : .red)
+                }
             }
         }
         .formStyle(.grouped)

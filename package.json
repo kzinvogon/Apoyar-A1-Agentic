@@ -23,6 +23,7 @@
     "smoke:uat-parity": "node scripts/smoke-uat-parity.js uat",
     "smoke:uat-full": "node scripts/smoke-test.js https://web-uat-uat.up.railway.app && node scripts/smoke-uat-parity.js uat",
     "smoke:prod-parity": "node scripts/smoke-uat-parity.js prod",
+    "test": "node --test tests/",
     "precommit": "npm run lint",
     "cap:init": "npx cap init ServiFlow com.serviflow.app --web-dir .",
     "cap:add:ios": "npx cap add ios",
@@ -76,12 +77,14 @@
     "imapflow": "^1.2.10",
     "jsonwebtoken": "^9.0.2",
     "mailparser": "^3.7.5",
+    "morgan": "^1.10.1",
     "multer": "^2.0.2",
     "mysql2": "^3.15.3",
     "node-fetch": "^2.7.0",
     "nodemailer": "^7.0.10",
     "socket.io": "^4.8.3",
-    "stripe": "^20.1.2"
+    "stripe": "^20.1.2",
+    "twilio": "^5.12.2"
   },
   "engines": {
     "node": ">=18.0.0"

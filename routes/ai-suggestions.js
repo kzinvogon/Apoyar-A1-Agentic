@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { verifyToken } = require('../middleware/auth');
+const { applyTenantMatch } = require('../middleware/tenantMatch');
 const { AIAnalysisService } = require('../services/ai-analysis-service');
 
 /**
@@ -10,16 +11,13 @@ const { AIAnalysisService } = require('../services/ai-analysis-service');
 
 // Apply verifyToken middleware to all AI routes
 router.use(verifyToken);
+applyTenantMatch(router);
 
 // Get AI suggestions for a specific ticket
 router.get('/:tenantCode/tickets/:ticketId/suggestions', async (req, res) => {
   try {
     const { tenantCode, ticketId } = req.params;
 
-    // Verify user has access to this tenant
-    if (req.user.tenantCode !== tenantCode && req.user.role !== 'super_admin') {
-      return res.status(403).json({ error: 'Access denied to this tenant' });
-    }
 
     // Only experts and admins can get AI suggestions
     if (!['admin', 'expert'].includes(req.user.role)) {
@@ -56,10 +54,6 @@ router.post('/:tenantCode/tickets/:ticketId/execute-action', async (req, res) =>
     const { tenantCode, ticketId } = req.params;
     const { action } = req.body;
 
-    // Verify user has access
-    if (req.user.tenantCode !== tenantCode && req.user.role !== 'super_admin') {
-      return res.status(403).json({ error: 'Access denied to this tenant' });
-    }
 
     if (!['admin', 'expert'].includes(req.user.role)) {
       return res.status(403).json({ error: 'Only experts and admins can execute AI actions' });
@@ -102,10 +96,6 @@ router.post('/:tenantCode/tickets/:ticketId/execute-actions', async (req, res) =
     const { tenantCode, ticketId } = req.params;
     const { actions } = req.body;
 
-    // Verify user has access
-    if (req.user.tenantCode !== tenantCode && req.user.role !== 'super_admin') {
-      return res.status(403).json({ error: 'Access denied to this tenant' });
-    }
 
     if (!['admin', 'expert'].includes(req.user.role)) {
       return res.status(403).json({ error: 'Only experts and admins can execute AI actions' });
@@ -151,10 +141,6 @@ router.post('/:tenantCode/tickets/:ticketId/analyze', async (req, res) => {
   try {
     const { tenantCode, ticketId } = req.params;
 
-    // Verify user has access
-    if (req.user.tenantCode !== tenantCode && req.user.role !== 'super_admin') {
-      return res.status(403).json({ error: 'Access denied to this tenant' });
-    }
 
     if (!['admin', 'expert'].includes(req.user.role)) {
       return res.status(403).json({ error: 'Only experts and admins can trigger AI analysis' });
@@ -220,10 +206,6 @@ router.get('/:tenantCode/insights', async (req, res) => {
     const { tenantCode } = req.params;
     const { period = 7 } = req.query;
 
-    // Verify user has access
-    if (req.user.tenantCode !== tenantCode && req.user.role !== 'super_admin') {
-      return res.status(403).json({ error: 'Access denied to this tenant' });
-    }
 
     if (!['admin', 'expert'].includes(req.user.role)) {
       return res.status(403).json({ error: 'Only experts and admins can view AI insights' });
@@ -257,10 +239,6 @@ router.post('/:tenantCode/detect-trends', async (req, res) => {
     const { tenantCode } = req.params;
     const { hours = 24 } = req.body;
 
-    // Verify user has access
-    if (req.user.tenantCode !== tenantCode && req.user.role !== 'super_admin') {
-      return res.status(403).json({ error: 'Access denied to this tenant' });
-    }
 
     if (req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Only admins can trigger trend detection' });
@@ -298,10 +276,6 @@ router.get('/:tenantCode/tickets/:ticketId/cmdb-matches', async (req, res) => {
   try {
     const { tenantCode, ticketId } = req.params;
 
-    // Verify user has access
-    if (req.user.tenantCode !== tenantCode && req.user.role !== 'super_admin') {
-      return res.status(403).json({ error: 'Access denied to this tenant' });
-    }
 
     if (!['admin', 'expert'].includes(req.user.role)) {
       return res.status(403).json({ error: 'Only experts and admins can access CMDB matching' });
@@ -331,10 +305,6 @@ router.get('/:tenantCode/tickets/:ticketId/cmdb-items', async (req, res) => {
   try {
     const { tenantCode, ticketId } = req.params;
 
-    // Verify user has access
-    if (req.user.tenantCode !== tenantCode && req.user.role !== 'super_admin') {
-      return res.status(403).json({ error: 'Access denied to this tenant' });
-    }
 
     const aiService = new AIAnalysisService(tenantCode);
     const items = await aiService.getTicketCMDBItems(parseInt(ticketId));
@@ -361,10 +331,6 @@ router.post('/:tenantCode/tickets/:ticketId/cmdb-items', async (req, res) => {
     const { tenantCode, ticketId } = req.params;
     const { cmdbItemIds = [], ciIds = [], matchedBy = 'manual' } = req.body;
 
-    // Verify user has access
-    if (req.user.tenantCode !== tenantCode && req.user.role !== 'super_admin') {
-      return res.status(403).json({ error: 'Access denied to this tenant' });
-    }
 
     if (!['admin', 'expert'].includes(req.user.role)) {
       return res.status(403).json({ error: 'Only experts and admins can link CMDB items' });
@@ -405,10 +371,6 @@ router.post('/:tenantCode/tickets/:ticketId/apply-cmdb-matches', async (req, res
     const { tenantCode, ticketId } = req.params;
     const { cmdbItemIds = [], ciIds = [] } = req.body;
 
-    // Verify user has access
-    if (req.user.tenantCode !== tenantCode && req.user.role !== 'super_admin') {
-      return res.status(403).json({ error: 'Access denied to this tenant' });
-    }
 
     if (!['admin', 'expert'].includes(req.user.role)) {
       return res.status(403).json({ error: 'Only experts and admins can apply CMDB matches' });
@@ -445,10 +407,6 @@ router.delete('/:tenantCode/tickets/:ticketId/cmdb-items/:cmdbItemId', async (re
   try {
     const { tenantCode, ticketId, cmdbItemId } = req.params;
 
-    // Verify user has access
-    if (req.user.tenantCode !== tenantCode && req.user.role !== 'super_admin') {
-      return res.status(403).json({ error: 'Access denied to this tenant' });
-    }
 
     if (!['admin', 'expert'].includes(req.user.role)) {
       return res.status(403).json({ error: 'Only experts and admins can unlink CMDB items' });
@@ -477,10 +435,6 @@ router.delete('/:tenantCode/tickets/:ticketId/cis/:ciId', async (req, res) => {
   try {
     const { tenantCode, ticketId, ciId } = req.params;
 
-    // Verify user has access
-    if (req.user.tenantCode !== tenantCode && req.user.role !== 'super_admin') {
-      return res.status(403).json({ error: 'Access denied to this tenant' });
-    }
 
     if (!['admin', 'expert'].includes(req.user.role)) {
       return res.status(403).json({ error: 'Only experts and admins can unlink CIs' });
@@ -514,10 +468,6 @@ router.get('/:tenantCode/cmdb-suggestions', async (req, res) => {
     const { tenantCode } = req.params;
     const { limit = 50, ticket_id } = req.query;
 
-    // Verify user has access
-    if (req.user.tenantCode !== tenantCode && req.user.role !== 'super_admin') {
-      return res.status(403).json({ error: 'Access denied to this tenant' });
-    }
 
     if (!['admin', 'expert'].includes(req.user.role)) {
       return res.status(403).json({ error: 'Only experts and admins can view AI suggestions' });
@@ -608,10 +558,6 @@ router.post('/:tenantCode/cmdb-suggestions/:suggestionId/approve', async (req, r
   try {
     const { tenantCode, suggestionId } = req.params;
 
-    // Verify user has access
-    if (req.user.tenantCode !== tenantCode && req.user.role !== 'super_admin') {
-      return res.status(403).json({ error: 'Access denied to this tenant' });
-    }
 
     if (!['admin', 'expert'].includes(req.user.role)) {
       return res.status(403).json({ error: 'Only experts and admins can approve suggestions' });
@@ -716,10 +662,6 @@ router.delete('/:tenantCode/cmdb-suggestions/:suggestionId', async (req, res) =>
   try {
     const { tenantCode, suggestionId } = req.params;
 
-    // Verify user has access
-    if (req.user.tenantCode !== tenantCode && req.user.role !== 'super_admin') {
-      return res.status(403).json({ error: 'Access denied to this tenant' });
-    }
 
     if (!['admin', 'expert'].includes(req.user.role)) {
       return res.status(403).json({ error: 'Only experts and admins can reject suggestions' });
@@ -765,10 +707,6 @@ router.post('/:tenantCode/tickets/:ticketId/auto-link-cmdb', async (req, res) =>
   try {
     const { tenantCode, ticketId } = req.params;
 
-    // Verify user has access
-    if (req.user.tenantCode !== tenantCode && req.user.role !== 'super_admin') {
-      return res.status(403).json({ error: 'Access denied to this tenant' });
-    }
 
     if (!['admin', 'expert'].includes(req.user.role)) {
       return res.status(403).json({ error: 'Only experts and admins can trigger CMDB auto-linking' });

@@ -11,6 +11,10 @@ const crypto = require('crypto');
 const { getMasterConnection, getTenantConnection } = require('../config/database');
 const { requireFeature } = require('../middleware/featureGuard');
 const { hasFeature } = require('../services/feature-flags');
+const { verifyToken, requireElevatedAdmin } = require('../middleware/auth');
+const { applyTenantMatch, requireTenantMatch } = require('../middleware/tenantMatch');
+
+applyTenantMatch(router);
 
 // Microsoft OAuth endpoints
 const MICROSOFT_AUTH_URL = 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize';
@@ -95,7 +99,7 @@ router.get('/:tenantCode/teams/status', async (req, res) => {
  * Initiate Microsoft OAuth flow
  * Requires: integrations.teams feature (Professional+ plan)
  */
-router.get('/:tenantCode/teams/connect', requireFeature('integrations.teams'), async (req, res) => {
+router.get('/:tenantCode/teams/connect', verifyToken, requireTenantMatch, requireElevatedAdmin, requireFeature('integrations.teams'), async (req, res) => {
   const { tenantCode } = req.params;
 
   if (!MS_CLIENT_ID) {
@@ -306,7 +310,7 @@ router.get('/teams/callback', async (req, res) => {
  * Remove Teams integration
  * Requires: integrations.teams feature (Professional+ plan)
  */
-router.delete('/:tenantCode/teams/disconnect', requireFeature('integrations.teams'), async (req, res) => {
+router.delete('/:tenantCode/teams/disconnect', verifyToken, requireTenantMatch, requireElevatedAdmin, requireFeature('integrations.teams'), async (req, res) => {
   const { tenantCode } = req.params;
   let masterConn;
 
@@ -339,7 +343,7 @@ router.delete('/:tenantCode/teams/disconnect', requireFeature('integrations.team
  * Add additional email domain mapping
  * Requires: integrations.teams feature (Professional+ plan)
  */
-router.post('/:tenantCode/teams/email-domain', requireFeature('integrations.teams'), async (req, res) => {
+router.post('/:tenantCode/teams/email-domain', verifyToken, requireTenantMatch, requireElevatedAdmin, requireFeature('integrations.teams'), async (req, res) => {
   const { tenantCode } = req.params;
   const { email_domain } = req.body;
 
@@ -374,7 +378,7 @@ router.post('/:tenantCode/teams/email-domain', requireFeature('integrations.team
  * Remove email domain mapping
  * Requires: integrations.teams feature (Professional+ plan)
  */
-router.delete('/:tenantCode/teams/email-domain/:domain', requireFeature('integrations.teams'), async (req, res) => {
+router.delete('/:tenantCode/teams/email-domain/:domain', verifyToken, requireTenantMatch, requireElevatedAdmin, requireFeature('integrations.teams'), async (req, res) => {
   const { tenantCode, domain } = req.params;
   let masterConn;
 
@@ -400,7 +404,7 @@ router.delete('/:tenantCode/teams/email-domain/:domain', requireFeature('integra
  * Download Teams app manifest
  * Requires: integrations.teams feature (Professional+ plan)
  */
-router.get('/:tenantCode/teams/manifest', requireFeature('integrations.teams'), async (req, res) => {
+router.get('/:tenantCode/teams/manifest', verifyToken, requireTenantMatch, requireElevatedAdmin, requireFeature('integrations.teams'), async (req, res) => {
   const { tenantCode } = req.params;
   let masterConn;
 

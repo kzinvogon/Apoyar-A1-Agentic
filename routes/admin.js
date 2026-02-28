@@ -6,7 +6,7 @@
 const express = require('express');
 const router = express.Router();
 const { masterQuery } = require('../config/database');
-const { verifyToken, requireRole } = require('../middleware/auth');
+const { verifyToken, requireRole, requireElevatedAdmin } = require('../middleware/auth');
 const { runHousekeepingForTenant, getRetentionConfig } = require('../services/housekeeping');
 const { getTenantConnection } = require('../config/database');
 
@@ -57,14 +57,14 @@ router.get('/audit-log', async (req, res) => {
     }
 
     // Get total count
-    const [countResult] = await masterQuery(
+    const countResult = await masterQuery(
       `SELECT COUNT(*) as total FROM audit_log ${whereClause}`,
       params
     );
     const total = countResult[0].total;
 
     // Get paginated results
-    const [rows] = await masterQuery(
+    const rows = await masterQuery(
       `SELECT id, tenant_code, user_id, username, action, entity_type, entity_id,
               details_json, ip, created_at
        FROM audit_log
@@ -106,7 +106,7 @@ router.get('/audit-log/actions', async (req, res) => {
   try {
     const tenantCode = req.user.tenantCode;
 
-    const [rows] = await masterQuery(
+    const rows = await masterQuery(
       `SELECT DISTINCT action FROM audit_log WHERE tenant_code = ? ORDER BY action`,
       [tenantCode]
     );
@@ -126,7 +126,7 @@ router.get('/audit-log/actions', async (req, res) => {
  * POST /api/admin/housekeeping/run
  * Manually trigger housekeeping for the current tenant
  */
-router.post('/housekeeping/run', async (req, res) => {
+router.post('/housekeeping/run', requireElevatedAdmin, async (req, res) => {
   try {
     const tenantCode = req.user.tenantCode;
 
@@ -154,7 +154,7 @@ router.post('/housekeeping/run', async (req, res) => {
  * GET /api/admin/housekeeping/info
  * Return plan name, retention config, and tenant override
  */
-router.get('/housekeeping/info', async (req, res) => {
+router.get('/housekeeping/info', requireElevatedAdmin, async (req, res) => {
   try {
     const tenantCode = req.user.tenantCode;
 
@@ -201,7 +201,7 @@ router.get('/housekeeping/info', async (req, res) => {
  * POST /api/admin/housekeeping/override
  * Save or clear the data_retention_days override
  */
-router.post('/housekeeping/override', async (req, res) => {
+router.post('/housekeeping/override', requireElevatedAdmin, async (req, res) => {
   try {
     const tenantCode = req.user.tenantCode;
     const { days } = req.body;

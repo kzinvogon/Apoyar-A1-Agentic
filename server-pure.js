@@ -88,7 +88,7 @@ let tenantUsers = [
     id: 1,
     tenantId: 'apoyar',
     username: 'admin',
-    password: hashPassword('admin123'),
+    password: hashPassword(process.env.DEFAULT_TENANT_PASSWORD || 'changeme'),
     name: 'Administrator',
     email: 'admin@apoyar.com',
     role: 'admin',
@@ -98,7 +98,7 @@ let tenantUsers = [
     id: 2,
     tenantId: 'apoyar',
     username: 'expert',
-    password: hashPassword('password123'),
+    password: hashPassword(process.env.DEFAULT_TENANT_PASSWORD || 'changeme'),
     name: 'Expert User',
     email: 'expert@apoyar.com',
     role: 'expert',
@@ -108,7 +108,7 @@ let tenantUsers = [
     id: 3,
     tenantId: 'apoyar',
     username: 'customer',
-    password: hashPassword('password123'),
+    password: hashPassword(process.env.DEFAULT_TENANT_PASSWORD || 'changeme'),
     name: 'Customer User',
     email: 'customer@apoyar.com',
     role: 'customer',
@@ -292,7 +292,7 @@ app.post('/api/master/tenants', authenticateToken, async (req, res) => {
       id: tenantUsers.length + 1,
       tenantId,
       username: 'admin',
-      password: hashPassword('admin123'),
+      password: hashPassword(process.env.DEFAULT_TENANT_PASSWORD || 'changeme'),
       name: 'Administrator',
       email: contactEmail || `${tenantId}@example.com`,
       role: 'admin',
@@ -462,11 +462,6 @@ app.listen(PORT, () => {
   console.log('   • In-memory data storage');
   console.log('   • User authentication (no native dependencies)');
   console.log('   • Ticket management');
-  console.log('🔐 Master Admin Credentials:');
-  console.log('   Master: master / master123');
-  console.log('🔐 Tenant Credentials (Apoyar):');
-  console.log('   Admin: admin / admin123');
-  console.log('   Expert: expert / password123');
-  console.log('   Customer: customer / password123');
+  console.log('🔐 Credentials set via env vars');
   console.log('💡 Press Ctrl+C to stop the server');
 });

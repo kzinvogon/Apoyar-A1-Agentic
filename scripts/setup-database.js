@@ -77,8 +77,7 @@ async function setupDatabase() {
     console.log('   • Master database: a1_master');
     console.log('   • Tenant database: a1_tenant_apoyar (Apoyar company)');
     console.log('   • Customer: Bleckmann (within Apoyar tenant)');
-    console.log('   • Default master admin: admin / admin123');
-    console.log('   • Default tenant users: admin / password123, expert / password123, customer / password123');
+    console.log('   • Credentials set via DEFAULT_MASTER_PASSWORD and DEFAULT_TENANT_PASSWORD env vars');
 
     console.log('\n🚀 Next steps:');
     console.log('   1. Copy env.example to .env and update if needed');
@@ -175,7 +174,7 @@ async function createMasterTables(connection) {
 async function createSampleTenant(connection) {
   // Insert default master admin
   const bcrypt = require('bcrypt');
-  const hashedPassword = await bcrypt.hash('admin123', 10);
+  const hashedPassword = await bcrypt.hash(process.env.DEFAULT_MASTER_PASSWORD || 'changeme', 10);
   
   await connection.execute(
     'INSERT IGNORE INTO master_users (username, email, password_hash, full_name, role) VALUES (?, ?, ?, ?, ?)',
@@ -191,7 +190,7 @@ async function createSampleTenant(connection) {
   `, ['apoyar', 'Apoyar', 'Apoyar', 'a1_tenant_apoyar', 'apoyar_user', 'apoyar_pass_123']);
 
   // Create tenant admin
-  const adminPassword = await bcrypt.hash('password123', 10);
+  const adminPassword = await bcrypt.hash(process.env.DEFAULT_TENANT_PASSWORD || 'changeme', 10);
   const tenantId = await getTenantId(connection, 'apoyar');
   
   await connection.execute(`
@@ -371,7 +370,7 @@ async function createTenantTables(host, port, dbUser, dbPass) {
 
     // Insert default tenant users
     const bcrypt = require('bcrypt');
-    const hashedPassword = await bcrypt.hash('password123', 10);
+    const hashedPassword = await bcrypt.hash(process.env.DEFAULT_TENANT_PASSWORD || 'changeme', 10);
     
     const defaultUsers = [
       ['admin', 'admin@apoyar.com', 'Apoyar Administrator', 'admin'],
@@ -394,7 +393,7 @@ async function createTenantTables(host, port, dbUser, dbPass) {
 
     for (const [company, companyName, email, phone, address] of customers) {
       // Create customer user
-      const customerPassword = await bcrypt.hash('customer123', 10);
+      const customerPassword = await bcrypt.hash(process.env.DEFAULT_TENANT_PASSWORD || 'changeme', 10);
       const [userResult] = await tenantConnection.execute(`
         INSERT INTO users (username, email, password_hash, full_name, role) 
         VALUES (?, ?, ?, ?, ?)

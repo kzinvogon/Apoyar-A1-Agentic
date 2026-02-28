@@ -1,6 +1,7 @@
 const nodemailer = require('nodemailer');
 const { createTicketAccessToken } = require('../utils/tokenGenerator');
-const { getTenantConnection } = require('./database');
+const { getTenantConnection, getMasterConnection } = require('./database');
+const { sendMailViaGraph } = require('../services/oauth2-helper');
 
 // Only create transporter if credentials are configured
 let transporter = null;
@@ -91,6 +92,26 @@ async function isUserEmailNotificationsEnabled(tenantCode, userEmail) {
   }
 }
 
+// Cache tenant display names to avoid repeated master DB lookups
+const tenantNameCache = new Map();
+
+async function getTenantDisplayName(tenantCode) {
+  if (!tenantCode) return 'ServiFlow';
+  if (tenantNameCache.has(tenantCode)) return tenantNameCache.get(tenantCode);
+  try {
+    const masterConn = await getMasterConnection();
+    const [rows] = await masterConn.query(
+      'SELECT company_name FROM tenants WHERE tenant_code = ?',
+      [tenantCode]
+    );
+    const name = (rows.length > 0 && rows[0].company_name) ? rows[0].company_name : tenantCode;
+    tenantNameCache.set(tenantCode, name);
+    return name;
+  } catch (e) {
+    return tenantCode;
+  }
+}
+
 if (smtpEmail && smtpPassword && smtpEmail !== 'your-email@gmail.com' && smtpPassword !== 'your-app-password') {
   transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
@@ -127,23 +148,126 @@ if (smtpEmail && smtpPassword && smtpEmail !== 'your-email@gmail.com' && smtpPas
   if (!smtpPassword) console.log('   SMTP_PASSWORD is NOT set');
 }
 
+// Tenant-specific SMTP transporter cache (key: tenantCode, value: { transporter, from, expiresAt })
+const tenantTransporterCache = new Map();
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Get an email sender for a tenant.
+ * Returns { send(to, subject, html), from } — uses O365 Graph, tenant SMTP, or global Gmail.
+ */
+async function getTenantEmailSender(tenantCode) {
+  if (!tenantCode) return null;
+
+  // Check cache first
+  const cached = tenantTransporterCache.get(tenantCode);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.sender;
+  }
+
+  let connection;
+  try {
+    connection = await getTenantConnection(tenantCode);
+    const [rows] = await connection.query(
+      'SELECT auth_method, oauth2_email, use_for_outbound, m365_use_for_outbound, smtp_host, smtp_port, username, password FROM email_ingest_settings ORDER BY id ASC LIMIT 1'
+    );
+
+    if (rows.length === 0) {
+      return null; // No email config at all — fallback to global Gmail
+    }
+
+    const settings = rows[0];
+
+    // Per-provider outbound: either provider can be outbound independently
+    const useM365Outbound = !!settings.m365_use_for_outbound;
+    const useImapOutbound = !!settings.use_for_outbound;
+
+    if (!useM365Outbound && !useImapOutbound) {
+      // Neither provider has outbound enabled — do NOT fallback to Gmail
+      return { disabled: true };
+    }
+
+    // Get company name for "From" display name
+    let companyName = 'Support';
+    try {
+      const [profile] = await connection.query(
+        'SELECT company_name, mail_from_email FROM company_profile LIMIT 1'
+      );
+      if (profile.length > 0 && profile[0].company_name) {
+        companyName = profile[0].company_name;
+      }
+    } catch (_) { /* table may not exist */ }
+
+    let sender = null;
+
+    if (useM365Outbound && settings.oauth2_email) {
+      // O365 via Graph API (preferred if both are enabled)
+      const fromEmail = settings.oauth2_email;
+      const fromAddr = `"${companyName}" <${fromEmail}>`;
+      sender = {
+        from: fromAddr,
+        send: async (to, subject, html) => {
+          const conn = await getTenantConnection(tenantCode);
+          try {
+            await sendMailViaGraph(conn, tenantCode, fromEmail, to, subject, html);
+          } finally {
+            conn.release();
+          }
+          return { messageId: `graph-${Date.now()}@${fromEmail}` };
+        }
+      };
+    } else if (useImapOutbound && settings.smtp_host && settings.username) {
+      // Tenant-specific SMTP
+      const fromEmail = settings.username;
+      const fromAddr = `"${companyName}" <${fromEmail}>`;
+      const tenantSmtp = nodemailer.createTransport({
+        host: settings.smtp_host,
+        port: settings.smtp_port || 587,
+        secure: (settings.smtp_port || 587) === 465,
+        auth: {
+          user: settings.username,
+          pass: settings.password
+        },
+        connectionTimeout: 30000,
+        greetingTimeout: 30000,
+        socketTimeout: 30000,
+        tls: { rejectUnauthorized: false }
+      });
+      sender = {
+        from: fromAddr,
+        send: async (to, subject, html) => {
+          const info = await tenantSmtp.sendMail({ from: fromAddr, to, subject, html });
+          return { messageId: info.messageId };
+        }
+      };
+    }
+
+    if (sender) {
+      tenantTransporterCache.set(tenantCode, {
+        sender,
+        expiresAt: Date.now() + CACHE_TTL_MS
+      });
+    }
+
+    return sender;
+  } catch (error) {
+    console.error(`[Email] Failed to get tenant sender for ${tenantCode}:`, error.message);
+    return null; // Fallback to global
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
 // Function to send ticket notification email
 async function sendTicketNotificationEmail(ticketData, action, details = {}) {
   try {
-    // Check if transporter is configured
-    if (!transporter) {
-      console.log('⚠️  Skipping email notification - SMTP not configured');
-      console.log('📧 Would have sent email for:', action, 'to:', ticketData.customer_email);
-      return { success: false, message: 'SMTP not configured' };
-    }
-
     const { ticket, customer_email, customer_name, tenantCode } = ticketData;
+    const tenantDisplayName = await getTenantDisplayName(tenantCode);
 
     // Check if email sending is enabled (kill switch)
-    // Determine email type based on action:
-    // - 'assigned' action sends to experts/assignees
-    // - All other actions (created, resolved, status_changed) send to customers
-    const emailType = action === 'assigned' ? 'experts' : 'customers';
+    // Determine email type: explicit override in ticketData.emailType takes precedence,
+    // otherwise infer from action ('assigned' → experts, everything else → customers).
+    const emailType = ticketData.emailType || (action === 'assigned' ? 'experts' : 'customers');
     if (tenantCode) {
       const emailEnabled = await isEmailSendingEnabled(tenantCode, emailType);
       if (!emailEnabled) {
@@ -181,9 +305,18 @@ async function sendTicketNotificationEmail(ticketData, action, details = {}) {
     }
 
     // Build ticket URL - use token if available, otherwise use ticket ID
-    const ticketUrl = token
-      ? `${process.env.BASE_URL || 'https://serviflow.app'}/ticket/view/${token}`
-      : `${process.env.BASE_URL || 'https://serviflow.app'}/ticket/${ticket.id}`;
+    // Append action context so the splash page can show a relevant banner
+    let ticketUrl = token
+      ? `${process.env.BASE_URL || 'https://app.serviflow.app'}/ticket/view/${token}`
+      : `${process.env.BASE_URL || 'https://app.serviflow.app'}/ticket/${ticket.id}`;
+
+    if (action) {
+      ticketUrl += `?action=${encodeURIComponent(action)}`;
+      // For reassignments, include the previous expert's name
+      if (action === 'assigned' && details.oldAssigneeName) {
+        ticketUrl += `&from=${encodeURIComponent(details.oldAssigneeName)}`;
+      }
+    }
 
     // Build email subject
     const subject = `[Ticket #${ticket.id}] ${ticket.title} - ${action}`;
@@ -193,7 +326,7 @@ async function sendTicketNotificationEmail(ticketData, action, details = {}) {
     let actionDescription = '';
 
     if (action === 'resolved') {
-      const loginUrl = `${process.env.BASE_URL || 'https://serviflow.app'}/?username=${encodeURIComponent(ticket.requester_username || ticket.requester_email)}&role=${ticket.requester_role || 'customer'}`;
+      const loginUrl = `${process.env.BASE_URL || 'https://app.serviflow.app'}/?username=${encodeURIComponent(ticket.requester_username || ticket.requester_email)}&role=${ticket.requester_role || 'customer'}`;
 
       emailBody = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -224,7 +357,7 @@ async function sendTicketNotificationEmail(ticketData, action, details = {}) {
         </div>
       `;
     } else if (action === 'status_changed') {
-      const loginUrl = `${process.env.BASE_URL || 'https://serviflow.app'}/?username=${encodeURIComponent(ticket.requester_username || ticket.requester_email)}&role=${ticket.requester_role || 'customer'}`;
+      const loginUrl = `${process.env.BASE_URL || 'https://app.serviflow.app'}/?username=${encodeURIComponent(ticket.requester_username || ticket.requester_email)}&role=${ticket.requester_role || 'customer'}`;
 
       emailBody = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -254,7 +387,7 @@ async function sendTicketNotificationEmail(ticketData, action, details = {}) {
         </div>
       `;
     } else if (action === 'created') {
-      const loginUrl = `${process.env.BASE_URL || 'https://serviflow.app'}/?username=${encodeURIComponent(ticket.requester_username || ticket.requester_email)}&role=${ticket.requester_role || 'customer'}`;
+      const loginUrl = `${process.env.BASE_URL || 'https://app.serviflow.app'}/?username=${encodeURIComponent(ticket.requester_username || ticket.requester_email)}&role=${ticket.requester_role || 'customer'}`;
 
       emailBody = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -285,7 +418,7 @@ async function sendTicketNotificationEmail(ticketData, action, details = {}) {
         </div>
       `;
     } else if (action === 'assigned') {
-      const loginUrl = `${process.env.BASE_URL || 'https://serviflow.app'}/?username=${encodeURIComponent(details.assignee_username || details.assignee_email)}&role=${details.assignee_role || 'expert'}`;
+      const loginUrl = `${process.env.BASE_URL || 'https://app.serviflow.app'}/?username=${encodeURIComponent(details.assignee_username || details.assignee_email)}&role=${details.assignee_role || 'expert'}`;
 
       emailBody = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -320,17 +453,42 @@ async function sendTicketNotificationEmail(ticketData, action, details = {}) {
       `;
     }
 
-    // Send email
+    // Try tenant-specific sender first, fall back to global
+    let tenantSender = null;
+    if (tenantCode) {
+      try {
+        tenantSender = await getTenantEmailSender(tenantCode);
+      } catch (err) {
+        console.warn(`[Email] Tenant sender failed for ${tenantCode}, using global:`, err.message);
+      }
+    }
+
+    if (tenantSender && tenantSender.disabled) {
+      console.log(`🚫 Outbound email disabled for tenant ${tenantCode} — not sending to ${customer_email}`);
+      return { success: false, message: 'Tenant outbound email disabled' };
+    }
+
+    if (tenantSender) {
+      const result = await tenantSender.send(customer_email, subject, emailBody);
+      console.log(`📧 Email sent via tenant sender to ${customer_email} - Message ID: ${result.messageId}`);
+      return { success: true, messageId: result.messageId };
+    }
+
+    if (!transporter) {
+      console.log('⚠️  Skipping email notification - SMTP not configured');
+      return { success: false, message: 'SMTP not configured' };
+    }
+
     const info = await transporter.sendMail({
-      from: `"A1 Support" <${process.env.SMTP_EMAIL || 'support@a1support.com'}>`,
+      from: `"${tenantDisplayName} ServiFlow Support" <${process.env.SMTP_EMAIL || 'support@a1support.com'}>`,
       to: customer_email,
       subject: subject,
       html: emailBody
     });
-    
+
     console.log(`📧 Email sent successfully to ${customer_email} - Message ID: ${info.messageId}`);
     return { success: true, messageId: info.messageId };
-    
+
   } catch (error) {
     console.error('❌ Error sending email:', error);
     return { success: false, error: error.message };
@@ -341,12 +499,7 @@ async function sendTicketNotificationEmail(ticketData, action, details = {}) {
 // tenantCode and emailType are optional - if provided, checks kill switch
 async function sendNotificationEmail(to, subject, htmlContent, tenantCode = null, emailType = 'customers') {
   try {
-    // Check if transporter is configured
-    if (!transporter) {
-      console.log('⚠️  Skipping notification email - SMTP not configured');
-      console.log('📧 Would have sent to:', to, 'Subject:', subject);
-      return { success: false, message: 'SMTP not configured' };
-    }
+    const tenantDisplayName = await getTenantDisplayName(tenantCode);
 
     // Check kill switch if tenantCode provided
     if (tenantCode) {
@@ -359,8 +512,35 @@ async function sendNotificationEmail(to, subject, htmlContent, tenantCode = null
       }
     }
 
+    // Try tenant-specific sender first
+    let tenantSender = null;
+    if (tenantCode) {
+      try {
+        tenantSender = await getTenantEmailSender(tenantCode);
+      } catch (err) {
+        console.warn(`[Email] Tenant sender failed for ${tenantCode}, using global:`, err.message);
+      }
+    }
+
+    if (tenantSender && tenantSender.disabled) {
+      console.log(`🚫 Outbound email disabled for tenant ${tenantCode} — not sending to ${to}`);
+      return { success: false, message: 'Tenant outbound email disabled' };
+    }
+
+    if (tenantSender) {
+      const result = await tenantSender.send(to, subject, htmlContent);
+      console.log(`📧 Notification email sent via tenant sender to ${to}`);
+      return { success: true, messageId: result.messageId };
+    }
+
+    if (!transporter) {
+      console.log('⚠️  Skipping notification email - SMTP not configured');
+      console.log('📧 Would have sent to:', to, 'Subject:', subject);
+      return { success: false, message: 'SMTP not configured' };
+    }
+
     const info = await transporter.sendMail({
-      from: `"A1 Support" <${process.env.SMTP_EMAIL || 'support@a1support.com'}>`,
+      from: `"${tenantDisplayName} ServiFlow Support" <${process.env.SMTP_EMAIL || 'support@a1support.com'}>`,
       to: to,
       subject: subject,
       html: htmlContent
@@ -380,14 +560,9 @@ async function sendNotificationEmail(to, subject, htmlContent, tenantCode = null
 // options.skipKillSwitch - if true, bypasses kill switch (for security-critical emails like password reset)
 async function sendEmail(tenantCode, options) {
   try {
-    // Check if transporter is configured
-    if (!transporter) {
-      console.log('⚠️  Skipping email - SMTP not configured');
-      return { success: false, message: 'SMTP not configured' };
-    }
+    const tenantDisplayName = await getTenantDisplayName(tenantCode);
 
     // Check if email sending is enabled (kill switch)
-    // Use emailType to check granular settings (send_emails_experts, send_emails_customers)
     // Skip this check for security-critical emails (password reset, etc.)
     if (tenantCode && !options.skipKillSwitch) {
       const emailType = options.emailType || null;
@@ -416,8 +591,34 @@ async function sendEmail(tenantCode, options) {
       throw new Error('Missing required email parameters: to, subject, html');
     }
 
+    // Try tenant-specific sender first
+    let tenantSender = null;
+    if (tenantCode) {
+      try {
+        tenantSender = await getTenantEmailSender(tenantCode);
+      } catch (err) {
+        console.warn(`[Email] Tenant sender failed for ${tenantCode}, using global:`, err.message);
+      }
+    }
+
+    if (tenantSender && tenantSender.disabled && !options.skipKillSwitch) {
+      console.log(`🚫 Outbound email disabled for tenant ${tenantCode} — not sending to ${to}`);
+      return { success: false, message: 'Tenant outbound email disabled' };
+    }
+
+    if (tenantSender && !tenantSender.disabled) {
+      const result = await tenantSender.send(to, subject, html);
+      console.log(`📧 Email sent via tenant sender to ${to} - Message ID: ${result.messageId}`);
+      return { success: true, messageId: result.messageId };
+    }
+
+    if (!transporter) {
+      console.log('⚠️  Skipping email - SMTP not configured');
+      return { success: false, message: 'SMTP not configured' };
+    }
+
     const info = await transporter.sendMail({
-      from: `"A1 Support" <${process.env.SMTP_EMAIL || 'support@a1support.com'}>`,
+      from: `"${tenantDisplayName} ServiFlow Support" <${process.env.SMTP_EMAIL || 'support@a1support.com'}>`,
       to: to,
       subject: subject,
       html: html
@@ -453,7 +654,7 @@ async function testEmailConnection(testEmail) {
       const testEmailHtml = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
           <h2 style="color: #28a745;">Email Connection Test Successful!</h2>
-          <p>This is a test email from the A1 Support Dashboard.</p>
+          <p>This is a test email from the ServiFlow Support Dashboard.</p>
           <p><strong>SMTP Configuration:</strong></p>
           <ul>
             <li><strong>Service:</strong> Gmail</li>
@@ -468,9 +669,9 @@ async function testEmailConnection(testEmail) {
       `;
 
       const info = await transporter.sendMail({
-        from: `"A1 Support" <${process.env.SMTP_EMAIL}>`,
+        from: `"ServiFlow Support" <${process.env.SMTP_EMAIL}>`,
         to: testEmail,
-        subject: 'A1 Support - Email Connection Test',
+        subject: 'ServiFlow Support - Email Connection Test',
         html: testEmailHtml
       });
 
@@ -509,6 +710,7 @@ module.exports = {
   sendTicketNotificationEmail,
   sendNotificationEmail,
   sendEmail,
-  testEmailConnection
+  testEmailConnection,
+  getTenantDisplayName
 };
 

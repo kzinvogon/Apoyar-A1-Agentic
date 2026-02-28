@@ -7,10 +7,12 @@ const express = require('express');
 const router = express.Router();
 const { getTenantConnection } = require('../config/database');
 const { verifyToken } = require('../middleware/auth');
+const { applyTenantMatch } = require('../middleware/tenantMatch');
 const { logCMDBChange, getClientIP } = require('../utils/cmdb-helpers');
 
 // Apply authentication to all routes
 router.use(verifyToken);
+applyTenantMatch(router);
 
 // Relationship type labels for display
 const RELATIONSHIP_LABELS = {

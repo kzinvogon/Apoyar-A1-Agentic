@@ -13,6 +13,7 @@
 const express = require('express');
 const router = express.Router();
 const { verifyToken, requireRole } = require('../middleware/auth');
+const { applyTenantMatch } = require('../middleware/tenantMatch');
 const {
   getTenantFeatures,
   hasFeature,
@@ -24,18 +25,18 @@ const {
 } = require('../services/feature-flags');
 const { getMinimumPlanForFeature, PLAN_NAMES } = require('../plans');
 
+// Apply authentication and tenant isolation to all routes
+router.use(verifyToken);
+applyTenantMatch(router);
+
 /**
  * GET /:tenantId/features
  * List all features for tenant
  */
-router.get('/:tenantId/features', verifyToken, async (req, res) => {
+router.get('/:tenantId/features', async (req, res) => {
   try {
     const { tenantId } = req.params;
 
-    // Verify user has access to this tenant
-    if (req.user.userType === 'tenant' && req.user.tenantCode !== tenantId) {
-      return res.status(403).json({ error: 'Access denied to this tenant' });
-    }
 
     const features = await getTenantFeatures(tenantId, false);
 
@@ -65,13 +66,10 @@ router.get('/:tenantId/features', verifyToken, async (req, res) => {
  * GET /:tenantId/features/categories
  * Get features grouped by category (for UI)
  */
-router.get('/:tenantId/features/categories', verifyToken, async (req, res) => {
+router.get('/:tenantId/features/categories', async (req, res) => {
   try {
     const { tenantId } = req.params;
 
-    if (req.user.userType === 'tenant' && req.user.tenantCode !== tenantId) {
-      return res.status(403).json({ error: 'Access denied to this tenant' });
-    }
 
     const categories = await getFeaturesByCategory(tenantId);
 
@@ -90,13 +88,10 @@ router.get('/:tenantId/features/categories', verifyToken, async (req, res) => {
  * GET /:tenantId/features/:key
  * Get single feature details
  */
-router.get('/:tenantId/features/:key(*)', verifyToken, async (req, res) => {
+router.get('/:tenantId/features/:key(*)', async (req, res) => {
   try {
     const { tenantId, key } = req.params;
 
-    if (req.user.userType === 'tenant' && req.user.tenantCode !== tenantId) {
-      return res.status(403).json({ error: 'Access denied to this tenant' });
-    }
 
     const details = await getFeatureDetails(tenantId, key);
 
@@ -133,7 +128,7 @@ router.get('/:tenantId/features/:key(*)', verifyToken, async (req, res) => {
  *   "expires_at": "2025-12-31T23:59:59Z" (optional, for trials)
  * }
  */
-router.put('/:tenantId/features/:key(*)', verifyToken, requireRole(['admin']), async (req, res) => {
+router.put('/:tenantId/features/:key(*)', requireRole(['admin']),async (req, res) => {
   try {
     const { tenantId, key } = req.params;
     const { enabled, source = 'override', expires_at } = req.body;
@@ -184,7 +179,7 @@ router.put('/:tenantId/features/:key(*)', verifyToken, requireRole(['admin']), a
  * DELETE /:tenantId/features/:key
  * Remove override (revert to plan default)
  */
-router.delete('/:tenantId/features/:key(*)', verifyToken, requireRole(['admin']), async (req, res) => {
+router.delete('/:tenantId/features/:key(*)', requireRole(['admin']),async (req, res) => {
   try {
     const { tenantId, key } = req.params;
 
@@ -210,14 +205,11 @@ router.delete('/:tenantId/features/:key(*)', verifyToken, requireRole(['admin'])
  *   "features": ["integrations.teams", "integrations.slack"]
  * }
  */
-router.post('/:tenantId/features/check', verifyToken, async (req, res) => {
+router.post('/:tenantId/features/check', async (req, res) => {
   try {
     const { tenantId } = req.params;
     const { features: featureKeys } = req.body;
 
-    if (req.user.userType === 'tenant' && req.user.tenantCode !== tenantId) {
-      return res.status(403).json({ error: 'Access denied to this tenant' });
-    }
 
     if (!Array.isArray(featureKeys)) {
       return res.status(400).json({
@@ -251,7 +243,7 @@ router.post('/:tenantId/features/check', verifyToken, async (req, res) => {
  * GET /:tenantId/features/plans/compare
  * Compare current features against all plans (for upgrade UI)
  */
-router.get('/:tenantId/features/plans/compare', verifyToken, async (req, res) => {
+router.get('/:tenantId/features/plans/compare', async (req, res) => {
   try {
     const { tenantId } = req.params;
 
@@ -294,7 +286,7 @@ router.get('/:tenantId/features/plans/compare', verifyToken, async (req, res) =>
  * POST /:tenantId/features/cache/clear
  * Clear feature cache (admin only)
  */
-router.post('/:tenantId/features/cache/clear', verifyToken, requireRole(['admin']), async (req, res) => {
+router.post('/:tenantId/features/cache/clear', requireRole(['admin']),async (req, res) => {
   try {
     const { tenantId } = req.params;
 
