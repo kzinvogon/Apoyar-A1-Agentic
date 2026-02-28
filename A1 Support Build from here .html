@@ -15668,7 +15668,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       if (data.success) {
         showEmailIngestMessage('Email ingest settings saved successfully!');
         setTimeout(() => hideEmailIngestMessages(), 3000);
-        if (currentEmailProvider === 'm365') loadOAuth2Status();
+        // Reload settings from DB to ensure UI reflects actual saved state
+        await loadEmailIngestSettings();
       } else {
         showEmailIngestError(data.message || 'Error saving email ingest settings');
       }

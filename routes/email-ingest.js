@@ -123,13 +123,14 @@ router.put('/:tenantId/settings', requireElevatedAdmin, writeOperationsLimiter, 
     const connection = await getTenantConnection(tenantCode);
 
     try {
-      // Check if settings exist
-      const [existingSettings] = await connection.query('SELECT id, password FROM email_ingest_settings ORDER BY id ASC LIMIT 1');
+      // Check if settings exist — fetch all fields so we can preserve unset ones
+      const [existingSettings] = await connection.query('SELECT * FROM email_ingest_settings ORDER BY id ASC LIMIT 1');
+      const existing = existingSettings[0] || {};
 
       // If password is '******', keep existing password
       let actualPassword = password;
       if (password === '******' && existingSettings.length > 0) {
-        actualPassword = existingSettings[0].password;
+        actualPassword = existing.password;
       }
 
       if (existingSettings.length === 0) {
@@ -139,7 +140,7 @@ router.put('/:tenantId/settings', requireElevatedAdmin, writeOperationsLimiter, 
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [enabled, server_type, server_host, server_port, use_ssl, username, actualPassword, check_interval_minutes, auth_method || 'basic', oauth2_email || null, use_for_outbound || 0, smtp_host || null, smtp_port || 587]);
       } else {
-        // Update existing settings — use explicit values (allow clearing fields to null/empty)
+        // Update existing settings — only overwrite fields that were explicitly sent
         await connection.query(`
           UPDATE email_ingest_settings SET
             enabled = ?,
@@ -158,20 +159,20 @@ router.put('/:tenantId/settings', requireElevatedAdmin, writeOperationsLimiter, 
             updated_at = NOW()
           WHERE id = ?
         `, [
-          enabled !== undefined ? enabled : existingSettings[0].enabled,
-          server_type || 'imap',
-          server_host || '',
-          server_port || 993,
-          use_ssl !== undefined ? use_ssl : false,
-          username || '',
-          actualPassword || existingSettings[0].password,
-          check_interval_minutes || 5,
-          auth_method || 'basic',
-          oauth2_email || '',
-          use_for_outbound !== undefined ? use_for_outbound : 0,
-          smtp_host || '',
-          smtp_port || 587,
-          existingSettings[0].id
+          enabled !== undefined ? enabled : existing.enabled,
+          server_type !== undefined ? server_type : existing.server_type,
+          server_host !== undefined ? server_host : existing.server_host,
+          server_port !== undefined ? server_port : existing.server_port,
+          use_ssl !== undefined ? use_ssl : existing.use_ssl,
+          username !== undefined ? username : existing.username,
+          actualPassword !== undefined ? actualPassword : existing.password,
+          check_interval_minutes !== undefined ? check_interval_minutes : existing.check_interval_minutes,
+          auth_method !== undefined ? auth_method : existing.auth_method,
+          oauth2_email !== undefined ? oauth2_email : existing.oauth2_email,
+          use_for_outbound !== undefined ? use_for_outbound : existing.use_for_outbound,
+          smtp_host !== undefined ? smtp_host : existing.smtp_host,
+          smtp_port !== undefined ? smtp_port : existing.smtp_port,
+          existing.id
         ]);
       }
 
