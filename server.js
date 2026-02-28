@@ -597,10 +597,43 @@ async function startServer() {
       console.log('✅ Master database initialized');
       dbStatus.initialized = true;
 
+      // One-time seed: SEED_VERIFIED_DOMAINS=tenant:domain,tenant:domain
+      if (process.env.SEED_VERIFIED_DOMAINS) {
+        const { masterQuery: mq } = require('./config/database');
+        for (const pair of process.env.SEED_VERIFIED_DOMAINS.split(',')) {
+          const [tc, domain] = pair.trim().split(':');
+          if (!tc || !domain) continue;
+          try {
+            const tenants = await mq('SELECT id FROM tenants WHERE tenant_code = ?', [tc]);
+            if (tenants.length) {
+              await mq('INSERT IGNORE INTO tenant_email_domains (tenant_id, domain, is_verified) VALUES (?, ?, 1)', [tenants[0].id, domain]);
+              console.log(`✅ Verified domain seeded: ${domain} → ${tc}`);
+            }
+          } catch (e) { console.warn(`⚠️ Domain seed failed for ${domain}:`, e.message); }
+        }
+      }
+
       // Initialize default tenant database
       try {
         await initializeTenantDatabase('apoyar');
         console.log('✅ Tenant database "apoyar" initialized');
+
+        // Inline migration: add m365 per-provider toggle columns (idempotent)
+        try {
+          const { getTenantConnection } = require('./config/database');
+          const mc = await getTenantConnection('apoyar');
+          try {
+            const [cols] = await mc.query(
+              "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'email_ingest_settings' AND COLUMN_NAME = 'm365_enabled'"
+            );
+            if (cols.length === 0) {
+              await mc.query('ALTER TABLE email_ingest_settings ADD COLUMN m365_enabled TINYINT(1) DEFAULT 0, ADD COLUMN m365_use_for_outbound TINYINT(1) DEFAULT 0');
+              // Migrate existing oauth2 rows
+              await mc.query("UPDATE email_ingest_settings SET m365_enabled = enabled, m365_use_for_outbound = use_for_outbound, enabled = 0, use_for_outbound = 0 WHERE auth_method = 'oauth2'");
+              console.log('✅ Added m365_enabled, m365_use_for_outbound columns');
+            }
+          } finally { mc.release(); }
+        } catch (e) { console.warn('⚠️ m365 toggle migration:', e.message); }
 
         // Run migrations only if explicitly enabled
         if (shouldRunMigrations) {
