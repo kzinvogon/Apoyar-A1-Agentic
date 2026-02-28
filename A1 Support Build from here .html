@@ -4980,11 +4980,11 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               <input id="email-check-interval" class="input" type="number" min="1" max="60" placeholder="e.g., 5"/>
             </div>
 
-            <!-- Outbound Email Section -->
+            <!-- Outbound Email Section (per-provider) -->
             <div style="margin-top:16px;padding-top:16px;border-top:1px solid #e5e7eb">
               <label class="subtitle" style="display:flex;align-items:center;cursor:pointer">
                 <input type="checkbox" id="email-use-for-outbound" style="margin-right:8px" onchange="toggleOutboundSmtpFields()"/>
-                Also use this email account for outbound notifications
+                <span id="email-outbound-label">Also use this IMAP account for outbound notifications</span>
               </label>
               <div class="subtitle" style="color:#6b7280;font-size:12px;margin-top:4px">
                 When enabled, ticket notifications and system emails will be sent from this mailbox
@@ -15473,18 +15473,22 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const m365Fields = document.getElementById('email-m365-fields');
     const m365Note = document.getElementById('email-m365-setup-note');
 
+    // Update outbound label per provider
+    const outboundLabel = document.getElementById('email-outbound-label');
     if (provider === 'imap') {
       if (imapBtn) { imapBtn.className = 'btn primary'; }
       if (m365Btn) { m365Btn.className = 'btn'; }
       if (imapFields) { imapFields.style.display = 'block'; }
       if (m365Fields) { m365Fields.style.display = 'none'; }
       if (m365Note) { m365Note.style.display = 'none'; }
+      if (outboundLabel) outboundLabel.textContent = 'Also use this IMAP account for outbound notifications';
     } else {
       if (imapBtn) { imapBtn.className = 'btn'; }
       if (m365Btn) { m365Btn.className = 'btn primary'; }
       if (imapFields) { imapFields.style.display = 'none'; }
       if (m365Fields) { m365Fields.style.display = 'block'; }
       if (m365Note) { m365Note.style.display = 'block'; }
+      if (outboundLabel) outboundLabel.textContent = 'Also use this Microsoft 365 account for outbound notifications';
       loadOAuth2Status();
     }
     toggleOutboundSmtpFields();
