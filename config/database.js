@@ -333,7 +333,7 @@ async function createMasterTables() {
   // Insert default master admin
   const existingAdmin = await hardenedPool.masterQuery('SELECT id FROM master_users WHERE username = ?', ['admin']);
   if (existingAdmin.length === 0) {
-    const bcrypt = require('bcrypt');
+    const bcrypt = require('bcryptjs');
     const defaultPassword = process.env.DEFAULT_MASTER_PASSWORD;
     if (!defaultPassword) {
       console.error('⚠️ DEFAULT_MASTER_PASSWORD env var not set — skipping master admin creation');
@@ -608,7 +608,7 @@ async function createTenantTables(connection, tenantCode) {
   // Insert default tenant users if they don't exist
   const [existingUsers] = await connection.query('SELECT COUNT(*) as count FROM users');
   if (existingUsers[0].count === 0) {
-    const bcrypt = require('bcrypt');
+    const bcrypt = require('bcryptjs');
     const defaultPassword = process.env.DEFAULT_TENANT_PASSWORD;
     if (!defaultPassword) {
       console.error('⚠️ DEFAULT_TENANT_PASSWORD env var not set — skipping default tenant user creation');

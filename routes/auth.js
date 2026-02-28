@@ -207,7 +207,7 @@ router.post('/master/change-password', passwordChangeLimiter, validatePasswordCh
       }
 
       const user = rows[0];
-      const bcrypt = require('bcrypt');
+      const bcrypt = require('bcryptjs');
       const isValidPassword = await bcrypt.compare(current_password, user.password_hash);
 
       if (!isValidPassword) {
@@ -249,7 +249,7 @@ router.post('/tenant/change-password', passwordChangeLimiter, validateTenantPass
       }
 
       const user = rows[0];
-      const bcrypt = require('bcrypt');
+      const bcrypt = require('bcryptjs');
       const isValidPassword = await bcrypt.compare(current_password, user.password_hash);
 
       if (!isValidPassword) {

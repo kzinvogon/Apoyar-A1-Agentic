@@ -2,7 +2,7 @@
 
 const fs = require('fs').promises;
 const path = require('path');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const { query, testConnection, initializeDatabase } = require('../config/database');
 
 async function migrateData() {

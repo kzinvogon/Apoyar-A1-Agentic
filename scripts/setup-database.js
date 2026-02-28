@@ -173,7 +173,7 @@ async function createMasterTables(connection) {
 
 async function createSampleTenant(connection) {
   // Insert default master admin
-  const bcrypt = require('bcrypt');
+  const bcrypt = require('bcryptjs');
   const hashedPassword = await bcrypt.hash(process.env.DEFAULT_MASTER_PASSWORD || 'changeme', 10);
   
   await connection.execute(
@@ -369,7 +369,7 @@ async function createTenantTables(host, port, dbUser, dbPass) {
     }
 
     // Insert default tenant users
-    const bcrypt = require('bcrypt');
+    const bcrypt = require('bcryptjs');
     const hashedPassword = await bcrypt.hash(process.env.DEFAULT_TENANT_PASSWORD || 'changeme', 10);
     
     const defaultUsers = [

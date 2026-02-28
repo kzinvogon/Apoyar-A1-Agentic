@@ -11,7 +11,7 @@
  */
 
 const mysql = require('mysql2/promise');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { getMasterConnection } = require('../config/database');

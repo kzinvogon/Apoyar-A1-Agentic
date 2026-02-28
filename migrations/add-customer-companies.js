@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 const mysql = require('mysql2/promise');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 require('dotenv').config();
 
 async function applyMigration() {

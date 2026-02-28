@@ -147,7 +147,7 @@ async function auditFakeCustomers() {
       let systemUserId;
       if (systemUser.length === 0) {
         // Create System user
-        const bcrypt = require('bcrypt');
+        const bcrypt = require('bcryptjs');
         const crypto = require('crypto');
         const randomPassword = crypto.randomBytes(32).toString('hex');
         const passwordHash = await bcrypt.hash(randomPassword, 10);

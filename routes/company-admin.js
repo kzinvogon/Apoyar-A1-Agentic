@@ -12,7 +12,7 @@ const { getTenantConnection } = require('../config/database');
 const { verifyToken } = require('../middleware/auth');
 const { applyTenantMatch } = require('../middleware/tenantMatch');
 const { body, param, validationResult } = require('express-validator');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 
 // Apply verifyToken middleware to all routes

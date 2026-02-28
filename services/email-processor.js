@@ -14,7 +14,7 @@ const { computeInitialDeadlines } = require('./sla-calculator');
 const { logTicketActivity } = require('./activityLogger');
 const { ImapFlow } = require('imapflow');
 const { simpleParser } = require('mailparser');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const os = require('os');
 const fetch = require('node-fetch');
@@ -1963,7 +1963,7 @@ class EmailProcessor {
     let username = email.toLowerCase();
 
     // Generate random password
-    const bcrypt = require('bcrypt');
+    const bcrypt = require('bcryptjs');
     const tempPassword = Math.random().toString(36).slice(-10);
     const passwordHash = await bcrypt.hash(tempPassword, 10);
 
