@@ -169,19 +169,23 @@ async function getTenantEmailSender(tenantCode) {
   try {
     connection = await getTenantConnection(tenantCode);
     const [rows] = await connection.query(
-      'SELECT auth_method, oauth2_email, use_for_outbound, smtp_host, smtp_port, username, password FROM email_ingest_settings ORDER BY id ASC LIMIT 1'
+      'SELECT auth_method, oauth2_email, use_for_outbound, m365_use_for_outbound, smtp_host, smtp_port, username, password FROM email_ingest_settings ORDER BY id ASC LIMIT 1'
     );
 
     if (rows.length === 0) {
       return null; // No email config at all — fallback to global Gmail
     }
 
-    if (!rows[0].use_for_outbound) {
-      // Tenant has email settings but explicitly disabled outbound — do NOT fallback to Gmail
+    const settings = rows[0];
+
+    // Per-provider outbound: either provider can be outbound independently
+    const useM365Outbound = !!settings.m365_use_for_outbound;
+    const useImapOutbound = !!settings.use_for_outbound;
+
+    if (!useM365Outbound && !useImapOutbound) {
+      // Neither provider has outbound enabled — do NOT fallback to Gmail
       return { disabled: true };
     }
-
-    const settings = rows[0];
 
     // Get company name for "From" display name
     let companyName = 'Support';
@@ -196,8 +200,8 @@ async function getTenantEmailSender(tenantCode) {
 
     let sender = null;
 
-    if (settings.auth_method === 'oauth2' && settings.oauth2_email) {
-      // O365 via Graph API
+    if (useM365Outbound && settings.oauth2_email) {
+      // O365 via Graph API (preferred if both are enabled)
       const fromEmail = settings.oauth2_email;
       const fromAddr = `"${companyName}" <${fromEmail}>`;
       sender = {
@@ -212,7 +216,7 @@ async function getTenantEmailSender(tenantCode) {
           return { messageId: `graph-${Date.now()}@${fromEmail}` };
         }
       };
-    } else if (settings.auth_method === 'basic' && settings.smtp_host && settings.username) {
+    } else if (useImapOutbound && settings.smtp_host && settings.username) {
       // Tenant-specific SMTP
       const fromEmail = settings.username;
       const fromAddr = `"${companyName}" <${fromEmail}>`;

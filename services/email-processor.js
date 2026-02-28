@@ -201,15 +201,16 @@ class EmailProcessor {
       const connection = await this.getConnection();
       try {
         const [settings] = await connection.query(
-          'SELECT id, enabled FROM email_ingest_settings WHERE enabled = 1 ORDER BY id ASC LIMIT 1'
+          'SELECT id, enabled, m365_enabled, auth_method FROM email_ingest_settings ORDER BY id ASC LIMIT 1'
         );
         // No settings row = not configured = disabled
         if (settings.length === 0) {
           return { enabled: false, reason: 'no_config' };
         }
-        // Check enabled column (0 = disabled, 1 = enabled)
-        const isEnabled = !!settings[0].enabled;
-        const settingsId = settings[0].id;
+        // Check per-provider enabled flag
+        const row = settings[0];
+        const isEnabled = row.auth_method === 'oauth2' ? !!row.m365_enabled : !!row.enabled;
+        const settingsId = row.id;
         return {
           enabled: isEnabled,
           reason: isEnabled ? 'enabled' : 'kill_switch_off',
@@ -249,7 +250,7 @@ class EmailProcessor {
       try {
         // Get email ingest settings (already confirmed enabled by kill switch check)
         const [settings] = await connection.query(
-          'SELECT * FROM email_ingest_settings WHERE enabled = 1 ORDER BY id ASC LIMIT 1'
+          'SELECT * FROM email_ingest_settings ORDER BY id ASC LIMIT 1'
         );
 
         if (settings.length === 0) {
@@ -258,6 +259,13 @@ class EmailProcessor {
         }
 
         const config = settings[0];
+
+        // Per-provider enabled check
+        const providerEnabled = config.auth_method === 'oauth2' ? !!config.m365_enabled : !!config.enabled;
+        if (!providerEnabled) {
+          console.log(`Email ingest disabled for tenant: ${this.tenantCode} (provider: ${config.auth_method})`);
+          return;
+        }
 
         console.log(`📬 [${this.tenantCode}] Selected mailbox config:`, {
           id: config.id,

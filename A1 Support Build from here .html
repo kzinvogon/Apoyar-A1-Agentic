@@ -15438,9 +15438,35 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   // Email Ingest Functions
   let currentEmailProvider = 'imap'; // 'imap' or 'm365'
+  // Per-provider toggle state
+  let imapEnabled = false, imapOutbound = false;
+  let m365Enabled = false, m365Outbound = false;
 
-  function selectEmailProvider(provider) {
+  function selectEmailProvider(provider, skipSave) {
+    const enabledEl = document.getElementById('email-ingest-enabled');
+    const outboundEl = document.getElementById('email-use-for-outbound');
+
+    // Save current checkbox values to old provider's state (skip when loading from DB)
+    if (!skipSave) {
+      if (currentEmailProvider === 'imap') {
+        if (enabledEl) imapEnabled = enabledEl.checked;
+        if (outboundEl) imapOutbound = outboundEl.checked;
+      } else {
+        if (enabledEl) m365Enabled = enabledEl.checked;
+        if (outboundEl) m365Outbound = outboundEl.checked;
+      }
+    }
+
     currentEmailProvider = provider;
+
+    // Restore new provider's values into the checkboxes
+    if (provider === 'imap') {
+      if (enabledEl) enabledEl.checked = imapEnabled;
+      if (outboundEl) outboundEl.checked = imapOutbound;
+    } else {
+      if (enabledEl) enabledEl.checked = m365Enabled;
+      if (outboundEl) outboundEl.checked = m365Outbound;
+    }
     const imapBtn = document.getElementById('email-provider-imap');
     const m365Btn = document.getElementById('email-provider-m365');
     const imapFields = document.getElementById('email-imap-fields');
@@ -15536,8 +15562,14 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
       if (data.success && data.settings) {
         const settings = data.settings;
-        const enabledEl = document.getElementById('email-ingest-enabled');
-        if (enabledEl) enabledEl.checked = settings.enabled;
+
+        // Store per-provider state from DB
+        imapEnabled = !!settings.enabled;
+        imapOutbound = !!settings.use_for_outbound;
+        m365Enabled = !!settings.m365_enabled;
+        m365Outbound = !!settings.m365_use_for_outbound;
+
+        // Load IMAP-specific fields
         const serverTypeEl = document.getElementById('email-server-type');
         if (serverTypeEl) serverTypeEl.value = settings.server_type;
         const serverHostEl = document.getElementById('email-server-host');
@@ -15559,21 +15591,20 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           if (el) el.textContent = 'Last checked: ' + lastChecked.toLocaleString();
         }
 
-        // Load outbound settings
-        const outboundEl = document.getElementById('email-use-for-outbound');
-        if (outboundEl) outboundEl.checked = !!settings.use_for_outbound;
+        // Load SMTP outbound fields
         const smtpHostEl = document.getElementById('email-smtp-host');
         if (smtpHostEl && settings.smtp_host) smtpHostEl.value = settings.smtp_host;
         const smtpPortEl = document.getElementById('email-smtp-port');
         if (smtpPortEl && settings.smtp_port) smtpPortEl.value = settings.smtp_port;
 
         // Select the correct provider tab based on auth_method
+        // skipSave=true to avoid overwriting the just-loaded state vars
         if (settings.auth_method === 'oauth2') {
-          selectEmailProvider('m365');
+          selectEmailProvider('m365', true);
           const emailInput = document.getElementById('email-m365-address');
           if (emailInput && settings.oauth2_email) emailInput.value = settings.oauth2_email;
         } else {
-          selectEmailProvider('imap');
+          selectEmailProvider('imap', true);
         }
         toggleOutboundSmtpFields();
       }
@@ -15584,6 +15615,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   async function saveEmailIngestSettings() {
     const enabled = document.getElementById('email-ingest-enabled')?.checked || false;
+    const outbound = document.getElementById('email-use-for-outbound')?.checked ? 1 : 0;
     const checkInterval = parseInt(document.getElementById('email-check-interval')?.value) || 5;
 
     if (enabled && checkInterval < 1 || checkInterval > 60) {
@@ -15592,7 +15624,6 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     }
 
     const payload = {
-      enabled,
       check_interval_minutes: checkInterval
     };
 
@@ -15615,12 +15646,18 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       }
 
       payload.auth_method = 'basic';
+      payload.enabled = enabled;
+      payload.use_for_outbound = outbound;
       payload.server_type = document.getElementById('email-server-type')?.value || 'imap';
       payload.server_host = serverHost;
       payload.server_port = serverPort;
       payload.use_ssl = useSsl;
       payload.username = username;
       payload.password = password || '';
+      if (outbound) {
+        payload.smtp_host = document.getElementById('email-smtp-host')?.value || null;
+        payload.smtp_port = parseInt(document.getElementById('email-smtp-port')?.value) || 587;
+      }
     } else {
       // Microsoft 365 - save email address + auth_method
       const m365Email = document.getElementById('email-m365-address')?.value || '';
@@ -15629,14 +15666,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         return;
       }
       payload.auth_method = 'oauth2';
+      payload.m365_enabled = enabled;
+      payload.m365_use_for_outbound = outbound;
       payload.oauth2_email = m365Email;
-    }
-
-    // Outbound email settings (applies to both providers)
-    payload.use_for_outbound = document.getElementById('email-use-for-outbound')?.checked ? 1 : 0;
-    if (currentEmailProvider === 'imap' && payload.use_for_outbound) {
-      payload.smtp_host = document.getElementById('email-smtp-host')?.value || null;
-      payload.smtp_port = parseInt(document.getElementById('email-smtp-port')?.value) || 587;
     }
 
     try {
@@ -26549,11 +26581,11 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         updateSystemSettingStatus('process_sla', true);
       }
 
-      // Update Process Emails toggle from email_ingest_settings.enabled (kill switch)
+      // Update Process Emails toggle from email_ingest_settings (either provider enabled)
       const processEmailsCheckbox = document.getElementById('sc-process-emails');
-      // enabled=1 means ON, enabled=0 or missing means OFF
-      const processEmailsEnabled = emailIngestData.success && emailIngestData.settings && !!emailIngestData.settings.enabled;
-      console.log('process_emails (email_ingest_settings.enabled):', emailIngestData.settings?.enabled, 'enabled:', processEmailsEnabled);
+      const eis = emailIngestData.success && emailIngestData.settings ? emailIngestData.settings : {};
+      const processEmailsEnabled = !!eis.enabled || !!eis.m365_enabled;
+      console.log('process_emails: imap_enabled=', eis.enabled, 'm365_enabled=', eis.m365_enabled, 'any_enabled:', processEmailsEnabled);
       if (processEmailsCheckbox) {
         processEmailsCheckbox.checked = processEmailsEnabled;
       }

@@ -685,6 +685,8 @@ async function createTenantTables(connection) {
       imap_lock_expires TIMESTAMP NULL,
       graph_delta_link TEXT DEFAULT NULL,
       use_for_outbound TINYINT(1) DEFAULT 0,
+      m365_enabled TINYINT(1) DEFAULT 0,
+      m365_use_for_outbound TINYINT(1) DEFAULT 0,
       smtp_host VARCHAR(255) DEFAULT NULL,
       smtp_port INT DEFAULT 587,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

@@ -51,6 +51,12 @@ const validateEmailIngestSettings = [
   body('check_interval_minutes')
     .optional()
     .isInt({ min: 1, max: 60 }).withMessage('Check interval must be between 1 and 60 minutes'),
+  body('m365_enabled')
+    .optional()
+    .isBoolean().withMessage('m365_enabled must be a boolean'),
+  body('m365_use_for_outbound')
+    .optional()
+    .isBoolean().withMessage('m365_use_for_outbound must be a boolean'),
   handleValidationErrors
 ];
 
@@ -115,6 +121,8 @@ router.put('/:tenantId/settings', requireElevatedAdmin, writeOperationsLimiter, 
       auth_method,
       oauth2_email,
       use_for_outbound,
+      m365_enabled,
+      m365_use_for_outbound,
       smtp_host,
       smtp_port
     } = req.body;
@@ -136,10 +144,24 @@ router.put('/:tenantId/settings', requireElevatedAdmin, writeOperationsLimiter, 
       if (existingSettings.length === 0) {
         // Insert new settings
         await connection.query(`
-          INSERT INTO email_ingest_settings (enabled, server_type, server_host, server_port, use_ssl, username, password, check_interval_minutes, auth_method, oauth2_email, use_for_outbound, smtp_host, smtp_port)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, [enabled, server_type, server_host, server_port, use_ssl, username, actualPassword, check_interval_minutes, auth_method || 'basic', oauth2_email || null, use_for_outbound || 0, smtp_host || null, smtp_port || 587]);
+          INSERT INTO email_ingest_settings (enabled, server_type, server_host, server_port, use_ssl, username, password, check_interval_minutes, auth_method, oauth2_email, use_for_outbound, m365_enabled, m365_use_for_outbound, smtp_host, smtp_port)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [enabled, server_type, server_host, server_port, use_ssl, username, actualPassword, check_interval_minutes, auth_method || 'basic', oauth2_email || null, use_for_outbound || 0, m365_enabled || 0, m365_use_for_outbound || 0, smtp_host || null, smtp_port || 587]);
       } else {
+        // System Settings "Process Emails" toggle sends only {enabled} without auth_method.
+        // Detect this and update the correct per-provider flag.
+        let effectiveEnabled = enabled;
+        let effectiveM365Enabled = m365_enabled;
+
+        if (enabled !== undefined && auth_method === undefined) {
+          // System Settings toggle — route to the correct provider flag
+          if (existing.auth_method === 'oauth2') {
+            effectiveM365Enabled = enabled;
+            effectiveEnabled = undefined; // don't touch IMAP enabled
+          }
+          // else: existing is basic/imap, effectiveEnabled already has the value
+        }
+
         // Update existing settings — only overwrite fields that were explicitly sent
         await connection.query(`
           UPDATE email_ingest_settings SET
@@ -154,12 +176,14 @@ router.put('/:tenantId/settings', requireElevatedAdmin, writeOperationsLimiter, 
             auth_method = ?,
             oauth2_email = ?,
             use_for_outbound = ?,
+            m365_enabled = ?,
+            m365_use_for_outbound = ?,
             smtp_host = ?,
             smtp_port = ?,
             updated_at = NOW()
           WHERE id = ?
         `, [
-          enabled !== undefined ? enabled : existing.enabled,
+          effectiveEnabled !== undefined ? effectiveEnabled : existing.enabled,
           server_type !== undefined ? server_type : existing.server_type,
           server_host !== undefined ? server_host : existing.server_host,
           server_port !== undefined ? server_port : existing.server_port,
@@ -170,6 +194,8 @@ router.put('/:tenantId/settings', requireElevatedAdmin, writeOperationsLimiter, 
           auth_method !== undefined ? auth_method : existing.auth_method,
           oauth2_email !== undefined ? oauth2_email : existing.oauth2_email,
           use_for_outbound !== undefined ? use_for_outbound : existing.use_for_outbound,
+          effectiveM365Enabled !== undefined ? effectiveM365Enabled : existing.m365_enabled,
+          m365_use_for_outbound !== undefined ? m365_use_for_outbound : existing.m365_use_for_outbound,
           smtp_host !== undefined ? smtp_host : existing.smtp_host,
           smtp_port !== undefined ? smtp_port : existing.smtp_port,
           existing.id
@@ -177,8 +203,9 @@ router.put('/:tenantId/settings', requireElevatedAdmin, writeOperationsLimiter, 
       }
 
       // Fetch updated settings to return current state
-      const [updatedSettings] = await connection.query('SELECT enabled FROM email_ingest_settings ORDER BY id ASC LIMIT 1');
-      const currentEnabled = updatedSettings.length > 0 ? !!updatedSettings[0].enabled : false;
+      const [updatedSettings] = await connection.query('SELECT enabled, m365_enabled FROM email_ingest_settings ORDER BY id ASC LIMIT 1');
+      const row = updatedSettings.length > 0 ? updatedSettings[0] : {};
+      const currentEnabled = !!row.enabled || !!row.m365_enabled;
 
       res.json({
         success: true,
