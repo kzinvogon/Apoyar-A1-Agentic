@@ -27,8 +27,7 @@ router.get('/:tenantId', requireRole(['admin', 'expert']), async (req, res) => {
     console.error('Error fetching rules:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to fetch rules',
-      message: error.message
+      error: 'Failed to fetch rules'
     });
   }
 });
@@ -49,8 +48,7 @@ router.get('/:tenantId/statistics', requireRole(['admin', 'expert']), async (req
     console.error('Error fetching statistics:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to fetch statistics',
-      message: error.message
+      error: 'Failed to fetch statistics'
     });
   }
 });
@@ -69,10 +67,10 @@ router.get('/:tenantId/:ruleId', requireRole(['admin', 'expert']), async (req, r
     });
   } catch (error) {
     console.error('Error fetching rule:', error);
-    res.status(error.message === 'Rule not found' ? 404 : 500).json({
+    const isNotFound = error.message === 'Rule not found';
+    res.status(isNotFound ? 404 : 500).json({
       success: false,
-      error: 'Failed to fetch rule',
-      message: error.message
+      error: isNotFound ? 'Rule not found' : 'Failed to fetch rule'
     });
   }
 });
@@ -134,8 +132,7 @@ router.post('/:tenantId/interpret', requireRole(['admin', 'expert']), async (req
     console.error('Error interpreting rule instruction:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to interpret instruction',
-      message: error.message
+      error: 'Failed to interpret instruction'
     });
   }
 });
@@ -180,8 +177,7 @@ router.post('/:tenantId', requireRole(['admin', 'expert']), async (req, res) => 
     console.error('Error creating rule:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to create rule',
-      message: error.message
+      error: 'Failed to create rule'
     });
   }
 });
@@ -203,10 +199,10 @@ router.put('/:tenantId/:ruleId', requireRole(['admin', 'expert']), async (req, r
     });
   } catch (error) {
     console.error('Error updating rule:', error);
-    res.status(error.message === 'Rule not found' ? 404 : 500).json({
+    const isNotFound = error.message === 'Rule not found';
+    res.status(isNotFound ? 404 : 500).json({
       success: false,
-      error: 'Failed to update rule',
-      message: error.message
+      error: isNotFound ? 'Rule not found' : 'Failed to update rule'
     });
   }
 });
@@ -225,10 +221,10 @@ router.delete('/:tenantId/:ruleId', requireRole(['admin', 'expert']), async (req
     });
   } catch (error) {
     console.error('Error deleting rule:', error);
-    res.status(error.message === 'Rule not found' ? 404 : 500).json({
+    const isNotFound = error.message === 'Rule not found';
+    res.status(isNotFound ? 404 : 500).json({
       success: false,
-      error: 'Failed to delete rule',
-      message: error.message
+      error: isNotFound ? 'Rule not found' : 'Failed to delete rule'
     });
   }
 });
@@ -248,10 +244,10 @@ router.post('/:tenantId/:ruleId/test', requireRole(['admin', 'expert']), async (
     });
   } catch (error) {
     console.error('Error testing rule:', error);
-    res.status(error.message === 'Rule not found' ? 404 : 500).json({
+    const isNotFound = error.message === 'Rule not found';
+    res.status(isNotFound ? 404 : 500).json({
       success: false,
-      error: 'Failed to test rule',
-      message: error.message
+      error: isNotFound ? 'Rule not found' : 'Failed to test rule'
     });
   }
 });
@@ -271,10 +267,10 @@ router.post('/:tenantId/:ruleId/run', requireRole(['admin', 'expert']), async (r
     });
   } catch (error) {
     console.error('Error starting rule execution:', error);
-    res.status(error.message === 'Rule not found' ? 404 : 500).json({
+    const isNotFound = error.message === 'Rule not found';
+    res.status(isNotFound ? 404 : 500).json({
       success: false,
-      error: 'Failed to start rule execution',
-      message: error.message
+      error: isNotFound ? 'Rule not found' : 'Failed to start rule execution'
     });
   }
 });
@@ -296,8 +292,7 @@ router.post('/:tenantId/:ruleId/execute/:ticketId', requireRole(['admin', 'exper
     console.error('Error executing rule:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to execute rule',
-      message: error.message
+      error: 'Failed to execute rule'
     });
   }
 });
@@ -319,8 +314,7 @@ router.post('/:tenantId/execute-all/:ticketId', requireRole(['admin', 'expert'])
     console.error('Error executing rules:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to execute rules',
-      message: error.message
+      error: 'Failed to execute rules'
     });
   }
 });
@@ -343,8 +337,7 @@ router.get('/:tenantId/:ruleId/history', requireRole(['admin', 'expert']), async
     console.error('Error fetching execution history:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to fetch execution history',
-      message: error.message
+      error: 'Failed to fetch execution history'
     });
   }
 });

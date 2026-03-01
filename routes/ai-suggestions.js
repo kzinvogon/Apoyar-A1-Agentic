@@ -42,8 +42,7 @@ router.get('/:tenantCode/tickets/:ticketId/suggestions', async (req, res) => {
   } catch (error) {
     console.error('Error getting AI suggestions:', error);
     res.status(500).json({
-      error: 'Failed to get AI suggestions',
-      message: error.message
+      error: 'Failed to get AI suggestions'
     });
   }
 });
@@ -84,8 +83,7 @@ router.post('/:tenantCode/tickets/:ticketId/execute-action', async (req, res) =>
   } catch (error) {
     console.error('Error executing AI action:', error);
     res.status(500).json({
-      error: 'Failed to execute AI action',
-      message: error.message
+      error: 'Failed to execute AI action'
     });
   }
 });
@@ -130,8 +128,7 @@ router.post('/:tenantCode/tickets/:ticketId/execute-actions', async (req, res) =
   } catch (error) {
     console.error('Error executing AI actions:', error);
     res.status(500).json({
-      error: 'Failed to execute AI actions',
-      message: error.message
+      error: 'Failed to execute AI actions'
     });
   }
 });
@@ -194,8 +191,7 @@ router.post('/:tenantCode/tickets/:ticketId/analyze', async (req, res) => {
   } catch (error) {
     console.error('Error analyzing ticket:', error);
     res.status(500).json({
-      error: 'Failed to analyze ticket',
-      message: error.message
+      error: 'Failed to analyze ticket'
     });
   }
 });
@@ -227,8 +223,7 @@ router.get('/:tenantCode/insights', async (req, res) => {
   } catch (error) {
     console.error('Error getting AI insights:', error);
     res.status(500).json({
-      error: 'Failed to get AI insights',
-      message: error.message
+      error: 'Failed to get AI insights'
     });
   }
 });
@@ -261,8 +256,7 @@ router.post('/:tenantCode/detect-trends', async (req, res) => {
   } catch (error) {
     console.error('Error detecting trends:', error);
     res.status(500).json({
-      error: 'Failed to detect trends',
-      message: error.message
+      error: 'Failed to detect trends'
     });
   }
 });
@@ -294,8 +288,7 @@ router.get('/:tenantCode/tickets/:ticketId/cmdb-matches', async (req, res) => {
     console.error('Error matching ticket to CMDB:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to match ticket to CMDB',
-      message: error.message
+      error: 'Failed to match ticket to CMDB'
     });
   }
 });
@@ -319,8 +312,7 @@ router.get('/:tenantCode/tickets/:ticketId/cmdb-items', async (req, res) => {
     console.error('Error getting ticket CMDB items:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to get ticket CMDB items',
-      message: error.message
+      error: 'Failed to get ticket CMDB items'
     });
   }
 });
@@ -359,8 +351,7 @@ router.post('/:tenantCode/tickets/:ticketId/cmdb-items', async (req, res) => {
     console.error('Error linking CMDB items:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to link CMDB items',
-      message: error.message
+      error: 'Failed to link CMDB items'
     });
   }
 });
@@ -396,8 +387,7 @@ router.post('/:tenantCode/tickets/:ticketId/apply-cmdb-matches', async (req, res
     console.error('Error applying CMDB matches:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to apply CMDB matches',
-      message: error.message
+      error: 'Failed to apply CMDB matches'
     });
   }
 });
@@ -424,8 +414,7 @@ router.delete('/:tenantCode/tickets/:ticketId/cmdb-items/:cmdbItemId', async (re
     console.error('Error unlinking CMDB item:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to unlink CMDB item',
-      message: error.message
+      error: 'Failed to unlink CMDB item'
     });
   }
 });
@@ -452,8 +441,7 @@ router.delete('/:tenantCode/tickets/:ticketId/cis/:ciId', async (req, res) => {
     console.error('Error unlinking CI:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to unlink CI',
-      message: error.message
+      error: 'Failed to unlink CI'
     });
   }
 });
@@ -533,8 +521,7 @@ router.get('/:tenantCode/cmdb-suggestions', async (req, res) => {
     console.error('Error getting AI suggestions:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to get AI suggestions',
-      message: error.message
+      error: 'Failed to get AI suggestions'
     });
   }
 });
@@ -651,8 +638,7 @@ router.post('/:tenantCode/cmdb-suggestions/:suggestionId/approve', async (req, r
     console.error('Error approving suggestion:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to approve suggestion',
-      message: error.message
+      error: 'Failed to approve suggestion'
     });
   }
 });
@@ -696,8 +682,7 @@ router.delete('/:tenantCode/cmdb-suggestions/:suggestionId', async (req, res) =>
     console.error('Error rejecting suggestion:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to reject suggestion',
-      message: error.message
+      error: 'Failed to reject suggestion'
     });
   }
 });
@@ -726,8 +711,7 @@ router.post('/:tenantCode/tickets/:ticketId/auto-link-cmdb', async (req, res) =>
     console.error('Error triggering CMDB auto-link:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to trigger CMDB auto-linking',
-      message: error.message
+      error: 'Failed to trigger CMDB auto-linking'
     });
   }
 });

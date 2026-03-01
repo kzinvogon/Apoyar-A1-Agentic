@@ -143,7 +143,7 @@ router.post('/tenants', requireMasterAuth, requireRole(['super_admin']), masterA
     console.error('Error creating tenant:', error);
     res.status(500).json({
       success: false,
-      message: error.message || 'Internal server error'
+      message: 'Internal server error'
     });
   }
 });
@@ -1607,8 +1607,7 @@ router.get('/email-settings/status', requireMasterAuth, async (req, res) => {
     res.status(500).json({
       success: false,
       configured: false,
-      message: 'Internal server error',
-      error: error.message
+      message: 'Internal server error'
     });
   }
 });
@@ -1634,8 +1633,7 @@ router.post('/email-settings/test', requireMasterAuth, emailLimiter, validateEma
     console.error('Error testing email connection:', error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error',
-      error: error.message
+      message: 'Internal server error'
     });
   }
 });

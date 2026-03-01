@@ -124,7 +124,13 @@ async function createNotification(connection, ticketId, type, message, payload) 
 /**
  * Mark ticket as notified for a specific threshold
  */
+const ALLOWED_NOTIF_COLUMNS = [
+  'notified_response_near_at', 'notified_response_breached_at', 'notified_response_past_at',
+  'notified_resolve_near_at', 'notified_resolve_breached_at', 'notified_resolve_past_at'
+];
+
 async function markNotified(connection, ticketId, column) {
+  if (!ALLOWED_NOTIF_COLUMNS.includes(column)) throw new Error('Invalid notification column');
   await connection.query(`UPDATE tickets SET ${column} = NOW() WHERE id = ?`, [ticketId]);
 }
 

@@ -179,7 +179,13 @@ async function createNotification(connection, ticketId, notifDef, message, paylo
 /**
  * Update the notified_* timestamp on the ticket
  */
+const ALLOWED_NOTIF_COLUMNS = [
+  'notified_response_near_at', 'notified_response_breached_at', 'notified_response_past_at',
+  'notified_resolve_near_at', 'notified_resolve_breached_at', 'notified_resolve_past_at'
+];
+
 async function markNotified(connection, ticketId, field) {
+  if (!ALLOWED_NOTIF_COLUMNS.includes(field)) throw new Error('Invalid notification field');
   await connection.query(`UPDATE tickets SET ${field} = NOW() WHERE id = ?`, [ticketId]);
 }
 

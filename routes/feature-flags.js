@@ -58,7 +58,7 @@ router.get('/:tenantId/features', async (req, res) => {
 
   } catch (error) {
     console.error('Error fetching features:', error);
-    res.status(500).json({ error: 'Failed to fetch features', message: error.message });
+    res.status(500).json({ error: 'Failed to fetch features' });
   }
 });
 
@@ -80,7 +80,7 @@ router.get('/:tenantId/features/categories', async (req, res) => {
 
   } catch (error) {
     console.error('Error fetching feature categories:', error);
-    res.status(500).json({ error: 'Failed to fetch features', message: error.message });
+    res.status(500).json({ error: 'Failed to fetch features' });
   }
 });
 
@@ -113,7 +113,7 @@ router.get('/:tenantId/features/:key(*)', async (req, res) => {
 
   } catch (error) {
     console.error('Error fetching feature:', error);
-    res.status(500).json({ error: 'Failed to fetch feature', message: error.message });
+    res.status(500).json({ error: 'Failed to fetch feature' });
   }
 });
 
@@ -171,7 +171,7 @@ router.put('/:tenantId/features/:key(*)', requireRole(['admin']),async (req, res
 
   } catch (error) {
     console.error('Error setting feature override:', error);
-    res.status(500).json({ error: 'Failed to set feature', message: error.message });
+    res.status(500).json({ error: 'Failed to set feature' });
   }
 });
 
@@ -192,7 +192,7 @@ router.delete('/:tenantId/features/:key(*)', requireRole(['admin']),async (req, 
 
   } catch (error) {
     console.error('Error removing feature override:', error);
-    res.status(500).json({ error: 'Failed to remove override', message: error.message });
+    res.status(500).json({ error: 'Failed to remove override' });
   }
 });
 
@@ -235,7 +235,7 @@ router.post('/:tenantId/features/check', async (req, res) => {
 
   } catch (error) {
     console.error('Error checking features:', error);
-    res.status(500).json({ error: 'Failed to check features', message: error.message });
+    res.status(500).json({ error: 'Failed to check features' });
   }
 });
 
@@ -278,7 +278,7 @@ router.get('/:tenantId/features/plans/compare', async (req, res) => {
 
   } catch (error) {
     console.error('Error comparing plans:', error);
-    res.status(500).json({ error: 'Failed to compare plans', message: error.message });
+    res.status(500).json({ error: 'Failed to compare plans' });
   }
 });
 
@@ -299,7 +299,7 @@ router.post('/:tenantId/features/cache/clear', requireRole(['admin']),async (req
 
   } catch (error) {
     console.error('Error clearing cache:', error);
-    res.status(500).json({ error: 'Failed to clear cache', message: error.message });
+    res.status(500).json({ error: 'Failed to clear cache' });
   }
 });
 

@@ -128,7 +128,7 @@ router.post('/:tenantCode/test-parse', upload.single('file'), async (req, res) =
       parsedRows: results
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
 
@@ -152,7 +152,7 @@ router.delete('/:tenantCode/clear-all', requireRole(['admin']), async (req, res)
     }
   } catch (error) {
     console.error('Error clearing CMDB:', error);
-    res.status(500).json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
 
@@ -194,7 +194,7 @@ router.get('/:tenantCode/diagnostic', async (req, res) => {
     }
   } catch (error) {
     console.error('CMDB diagnostic error:', error);
-    res.status(500).json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
 
@@ -1013,7 +1013,7 @@ router.post('/:tenantCode/import/items', upload.single('file'), async (req, res)
         } catch (err) {
           errors.push({
             asset: asset.asset_name,
-            error: err.message
+            error: 'Failed to import asset'
           });
         }
       }
@@ -1033,7 +1033,7 @@ router.post('/:tenantCode/import/items', upload.single('file'), async (req, res)
     }
   } catch (error) {
     console.error('Error importing CSV:', error);
-    res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
 

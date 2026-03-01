@@ -701,7 +701,7 @@ router.post('/webhook', async (req, res) => {
     event = stripeService.constructWebhookEvent(req.rawBody || req.body, sig);
   } catch (err) {
     console.error('[Webhook] Signature verification failed:', err.message);
-    return res.status(400).send(`Webhook Error: ${err.message}`);
+    return res.status(400).send('Webhook signature verification failed');
   }
 
   const connection = await getMasterConnection();

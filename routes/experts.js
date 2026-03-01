@@ -37,7 +37,7 @@ router.get('/:tenantId', async (req, res) => {
     }
   } catch (error) {
     console.error('Error fetching experts:', error);
-    res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
 
@@ -64,7 +64,7 @@ router.get('/:tenantId/deleted', async (req, res) => {
     }
   } catch (error) {
     console.error('Error fetching deleted experts:', error);
-    res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
 
@@ -100,7 +100,7 @@ router.get('/:tenantId/invited', async (req, res) => {
     }
   } catch (error) {
     console.error('Error fetching invited experts:', error);
-    res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
 
@@ -139,7 +139,7 @@ router.get('/:tenantId/:expertId', async (req, res) => {
     }
   } catch (error) {
     console.error('Error fetching expert:', error);
-    res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
 
@@ -204,7 +204,7 @@ router.post('/:tenantId', async (req, res) => {
     }
   } catch (error) {
     console.error('Error creating expert:', error);
-    res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
 
@@ -304,7 +304,7 @@ router.put('/:tenantId/:expertId', async (req, res) => {
     }
   } catch (error) {
     console.error('Error updating expert:', error);
-    res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
 
@@ -338,7 +338,7 @@ router.post('/:tenantId/:expertId/restore', async (req, res) => {
     }
   } catch (error) {
     console.error('Error restoring expert:', error);
-    res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
 
@@ -372,7 +372,7 @@ router.delete('/:tenantId/:expertId', async (req, res) => {
     }
   } catch (error) {
     console.error('Error deleting expert:', error);
-    res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
 
@@ -545,7 +545,7 @@ router.post('/:tenantId/invite', async (req, res) => {
     }
   } catch (error) {
     console.error('Error inviting expert:', error);
-    res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
 
@@ -697,7 +697,7 @@ router.post('/:tenantId/bulk-invite', async (req, res) => {
     }
   } catch (error) {
     console.error('Error bulk inviting experts:', error);
-    res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
 
@@ -804,7 +804,7 @@ router.post('/:tenantId/:expertId/resend-invite', async (req, res) => {
     }
   } catch (error) {
     console.error('Error resending invitation:', error);
-    res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
 
@@ -860,7 +860,7 @@ router.delete('/:tenantId/:expertId/revoke-invite', async (req, res) => {
     }
   } catch (error) {
     console.error('Error revoking invitation:', error);
-    res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
 
@@ -974,7 +974,7 @@ router.delete('/:tenantId/:expertId/erase', async (req, res) => {
     }
   } catch (error) {
     console.error('Error permanently erasing expert:', error);
-    res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
 

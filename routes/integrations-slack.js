@@ -246,7 +246,7 @@ router.get('/slack/callback', async (req, res) => {
 
   } catch (error) {
     console.error('[Slack Integration] Callback error:', error);
-    res.redirect(`${APP_BASE_URL}/settings/integrations?slack_error=${encodeURIComponent(error.message)}`);
+    res.redirect(`${APP_BASE_URL}/settings/integrations?slack_error=${encodeURIComponent('Failed to connect Slack integration')}`);
   }
 });
 

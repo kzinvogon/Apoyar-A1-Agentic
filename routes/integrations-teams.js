@@ -301,7 +301,7 @@ router.get('/teams/callback', async (req, res) => {
 
   } catch (error) {
     console.error('[Teams Integration] Callback error:', error);
-    res.redirect(`${APP_BASE_URL}/settings/integrations?teams_error=${encodeURIComponent(error.message)}`);
+    res.redirect(`${APP_BASE_URL}/settings/integrations?teams_error=${encodeURIComponent('Failed to connect Teams integration')}`);
   }
 });
 

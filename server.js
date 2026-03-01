@@ -158,9 +158,25 @@ const { initializeChatSocket } = require('./services/chat-socket');
 // Import rate limiter
 const { apiLimiter } = require('./middleware/rateLimiter');
 
-// Middleware - Disable CSP and some policies for Safari compatibility
+// Middleware - Security headers via helmet
 app.use(helmet({
-  contentSecurityPolicy: false,
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://cdn.socket.io", "https://cdn.datatables.net", "https://code.jquery.com"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://cdn.datatables.net"],
+      imgSrc: ["'self'", "data:", "blob:"],
+      connectSrc: ["'self'", "wss:", "ws:"],
+      fontSrc: ["'self'", "https://cdn.jsdelivr.net", "data:"],
+      frameSrc: ["'none'"],
+      frameAncestors: ["'none'"],
+      formAction: ["'self'"],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+      scriptSrcAttr: ["'unsafe-inline'"],
+      upgradeInsecureRequests: process.env.NODE_ENV === 'production' ? [] : null
+    }
+  },
   crossOriginResourcePolicy: false,
   crossOriginOpenerPolicy: false,
   crossOriginEmbedderPolicy: false
@@ -516,6 +532,11 @@ app.get('/api/pool/status', async (req, res) => {
       timestamp: new Date().toISOString()
     });
   }
+});
+
+// Catch-all 404 handler — prevents Express default from overriding helmet CSP
+app.use((req, res) => {
+  res.status(404).json({ error: 'Not found' });
 });
 
 // Run all tenant migrations (only when RUN_MIGRATIONS=true)

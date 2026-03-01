@@ -123,7 +123,7 @@ router.get('/:tenantCode/articles', async (req, res) => {
 
   } catch (error) {
     console.error('Error fetching KB articles:', error);
-    res.status(500).json({ error: 'Failed to fetch articles', message: error.message });
+    res.status(500).json({ error: 'Failed to fetch articles' });
   }
 });
 
@@ -204,7 +204,7 @@ router.get('/:tenantCode/articles/:articleId', async (req, res) => {
 
   } catch (error) {
     console.error('Error fetching KB article:', error);
-    res.status(500).json({ error: 'Failed to fetch article', message: error.message });
+    res.status(500).json({ error: 'Failed to fetch article' });
   }
 });
 
@@ -244,7 +244,7 @@ router.post('/:tenantCode/articles', requireRole(['admin', 'expert']), async (re
 
   } catch (error) {
     console.error('Error creating KB article:', error);
-    res.status(500).json({ error: 'Failed to create article', message: error.message });
+    res.status(500).json({ error: 'Failed to create article' });
   }
 });
 
@@ -280,7 +280,7 @@ router.put('/:tenantCode/articles/:articleId', requireRole(['admin', 'expert']),
 
   } catch (error) {
     console.error('Error updating KB article:', error);
-    res.status(500).json({ error: 'Failed to update article', message: error.message });
+    res.status(500).json({ error: 'Failed to update article' });
   }
 });
 
@@ -306,7 +306,7 @@ router.delete('/:tenantCode/articles/:articleId', requireRole(['admin']), async 
 
   } catch (error) {
     console.error('Error deleting KB article:', error);
-    res.status(500).json({ error: 'Failed to delete article', message: error.message });
+    res.status(500).json({ error: 'Failed to delete article' });
   }
 });
 
@@ -341,7 +341,7 @@ router.get('/:tenantCode/search', async (req, res) => {
 
   } catch (error) {
     console.error('Error searching KB:', error);
-    res.status(500).json({ error: 'Search failed', message: error.message });
+    res.status(500).json({ error: 'Search failed' });
   }
 });
 
@@ -362,7 +362,7 @@ router.get('/:tenantCode/tickets/:ticketId/suggestions', requireRole(['admin', '
 
   } catch (error) {
     console.error('Error getting KB suggestions:', error);
-    res.status(500).json({ error: 'Failed to get suggestions', message: error.message });
+    res.status(500).json({ error: 'Failed to get suggestions' });
   }
 });
 
@@ -384,7 +384,7 @@ router.post('/:tenantCode/tickets/:ticketId/create-article', requireRole(['admin
 
   } catch (error) {
     console.error('Error creating article from ticket:', error);
-    res.status(500).json({ error: 'Failed to create article', message: error.message });
+    res.status(500).json({ error: 'Failed to create article' });
   }
 });
 
@@ -410,7 +410,7 @@ router.get('/:tenantCode/merge-suggestions', requireRole(['admin', 'expert']), a
 
   } catch (error) {
     console.error('Error getting merge suggestions:', error);
-    res.status(500).json({ error: 'Failed to get merge suggestions', message: error.message });
+    res.status(500).json({ error: 'Failed to get merge suggestions' });
   }
 });
 
@@ -437,7 +437,7 @@ router.post('/:tenantCode/merge', requireRole(['admin']), async (req, res) => {
 
   } catch (error) {
     console.error('Error merging articles:', error);
-    res.status(500).json({ error: 'Failed to merge articles', message: error.message });
+    res.status(500).json({ error: 'Failed to merge articles' });
   }
 });
 
@@ -464,7 +464,7 @@ router.post('/:tenantCode/merge-suggestions/:suggestionId/dismiss', requireRole(
 
   } catch (error) {
     console.error('Error dismissing merge suggestion:', error);
-    res.status(500).json({ error: 'Failed to dismiss suggestion', message: error.message });
+    res.status(500).json({ error: 'Failed to dismiss suggestion' });
   }
 });
 
@@ -496,7 +496,7 @@ router.post('/:tenantCode/articles/:articleId/feedback', async (req, res) => {
 
   } catch (error) {
     console.error('Error recording feedback:', error);
-    res.status(500).json({ error: 'Failed to record feedback', message: error.message });
+    res.status(500).json({ error: 'Failed to record feedback' });
   }
 });
 
@@ -525,7 +525,7 @@ router.get('/:tenantCode/categories', async (req, res) => {
 
   } catch (error) {
     console.error('Error fetching categories:', error);
-    res.status(500).json({ error: 'Failed to fetch categories', message: error.message });
+    res.status(500).json({ error: 'Failed to fetch categories' });
   }
 });
 
@@ -601,7 +601,7 @@ router.get('/:tenantCode/stats', requireRole(['admin', 'expert']), async (req, r
 
   } catch (error) {
     console.error('Error fetching KB stats:', error);
-    res.status(500).json({ error: 'Failed to fetch stats', message: error.message });
+    res.status(500).json({ error: 'Failed to fetch stats' });
   }
 });
 
@@ -626,7 +626,7 @@ router.get('/:tenantCode/suggest-for-ticket/:ticketId', async (req, res) => {
 
   } catch (error) {
     console.error('Error fetching KB suggestions for ticket:', error);
-    res.status(500).json({ error: 'Failed to fetch suggestions', message: error.message });
+    res.status(500).json({ error: 'Failed to fetch suggestions' });
   }
 });
 

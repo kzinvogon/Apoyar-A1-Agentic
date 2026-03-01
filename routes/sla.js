@@ -56,7 +56,7 @@ router.get('/:tenantCode/business-hours', requireRole(['admin']),async (req, res
     res.json({ success: true, profiles });
   } catch (error) {
     console.error('Error fetching business hours profiles:', error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: 'Internal server error' });
   } finally {
     if (connection) connection.release();
   }
@@ -82,7 +82,7 @@ router.get('/:tenantCode/business-hours/:id', requireRole(['admin']),async (req,
     res.json({ success: true, profile: profiles[0] });
   } catch (error) {
     console.error('Error fetching business hours profile:', error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: 'Internal server error' });
   } finally {
     if (connection) connection.release();
   }
@@ -144,7 +144,7 @@ router.post('/:tenantCode/business-hours', requireRole(['admin']),async (req, re
       return res.status(400).json({ success: false, error: 'A profile with this name already exists' });
     }
     console.error('Error creating business hours profile:', error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: 'Internal server error' });
   } finally {
     if (connection) connection.release();
   }
@@ -208,7 +208,7 @@ router.put('/:tenantCode/business-hours/:id', requireRole(['admin']),async (req,
       return res.status(400).json({ success: false, error: 'A profile with this name already exists' });
     }
     console.error('Error updating business hours profile:', error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: 'Internal server error' });
   } finally {
     if (connection) connection.release();
   }
@@ -236,7 +236,7 @@ router.delete('/:tenantCode/business-hours/:id', requireRole(['admin']),async (r
     res.json({ success: true, message: 'Business hours profile deleted' });
   } catch (error) {
     console.error('Error deleting business hours profile:', error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: 'Internal server error' });
   } finally {
     if (connection) connection.release();
   }
@@ -270,7 +270,7 @@ router.get('/:tenantCode/definitions', requireRole(['admin']),async (req, res) =
     res.json({ success: true, definitions });
   } catch (error) {
     console.error('Error fetching SLA definitions:', error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: 'Internal server error' });
   } finally {
     if (connection) connection.release();
   }
@@ -303,7 +303,7 @@ router.get('/:tenantCode/definitions/:id', requireRole(['admin']),async (req, re
     res.json({ success: true, definition: definitions[0] });
   } catch (error) {
     console.error('Error fetching SLA definition:', error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: 'Internal server error' });
   } finally {
     if (connection) connection.release();
   }
@@ -375,7 +375,7 @@ router.post('/:tenantCode/definitions', requireRole(['admin']),async (req, res) 
       return res.status(400).json({ success: false, error: 'An SLA definition with this name already exists' });
     }
     console.error('Error creating SLA definition:', error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: 'Internal server error' });
   } finally {
     if (connection) connection.release();
   }
@@ -452,7 +452,7 @@ router.put('/:tenantCode/definitions/:id', requireRole(['admin']),async (req, re
       return res.status(400).json({ success: false, error: 'An SLA definition with this name already exists' });
     }
     console.error('Error updating SLA definition:', error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: 'Internal server error' });
   } finally {
     if (connection) connection.release();
   }
@@ -474,7 +474,7 @@ router.delete('/:tenantCode/definitions/:id', requireRole(['admin']),async (req,
     res.json({ success: true, message: 'SLA definition deleted' });
   } catch (error) {
     console.error('Error deleting SLA definition:', error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: 'Internal server error' });
   } finally {
     if (connection) connection.release();
   }
@@ -502,7 +502,7 @@ router.get('/:tenantCode/category-mappings', requireRole(['admin']),async (req, 
     res.json({ success: true, mappings });
   } catch (error) {
     console.error('Error fetching category mappings:', error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: 'Internal server error' });
   } finally {
     if (connection) connection.release();
   }
@@ -530,7 +530,7 @@ router.get('/:tenantCode/category-mappings/:id', requireRole(['admin']),async (r
     res.json({ success: true, mapping: mappings[0] });
   } catch (error) {
     console.error('Error fetching category mapping:', error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: 'Internal server error' });
   } finally {
     if (connection) connection.release();
   }
@@ -576,7 +576,7 @@ router.post('/:tenantCode/category-mappings', requireRole(['admin']),async (req,
       return res.status(400).json({ success: false, error: 'A mapping for this category already exists' });
     }
     console.error('Error creating category mapping:', error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: 'Internal server error' });
   } finally {
     if (connection) connection.release();
   }
@@ -634,7 +634,7 @@ router.put('/:tenantCode/category-mappings/:id', requireRole(['admin']),async (r
       return res.status(400).json({ success: false, error: 'A mapping for this category already exists' });
     }
     console.error('Error updating category mapping:', error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: 'Internal server error' });
   } finally {
     if (connection) connection.release();
   }
@@ -656,7 +656,7 @@ router.delete('/:tenantCode/category-mappings/:id', requireRole(['admin']),async
     res.json({ success: true, message: 'Category mapping deleted' });
   } catch (error) {
     console.error('Error deleting category mapping:', error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: 'Internal server error' });
   } finally {
     if (connection) connection.release();
   }

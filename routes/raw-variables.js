@@ -109,7 +109,7 @@ router.get('/:tenantId', async (req, res) => {
     }
   } catch (error) {
     console.error('Error fetching raw variables:', error);
-    res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
 
@@ -168,7 +168,7 @@ router.post('/:tenantId', async (req, res) => {
     }
   } catch (error) {
     console.error('Error creating variable:', error);
-    res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
 
@@ -301,7 +301,7 @@ router.put('/:tenantId/:key', async (req, res) => {
     }
   } catch (error) {
     console.error('Error updating variable:', error);
-    res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
 
@@ -354,7 +354,7 @@ router.delete('/:tenantId/:key', async (req, res) => {
     }
   } catch (error) {
     console.error('Error deleting variable:', error);
-    res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
 
@@ -448,7 +448,7 @@ router.post('/:tenantId/bulk', async (req, res) => {
             }
           }
         } catch (err) {
-          results.errors.push({ key, error: err.message });
+          results.errors.push({ key, error: 'Failed to import variable' });
         }
       }
 
@@ -477,7 +477,7 @@ router.post('/:tenantId/bulk', async (req, res) => {
     }
   } catch (error) {
     console.error('Error bulk updating variables:', error);
-    res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
 
@@ -516,7 +516,7 @@ router.get('/:tenantId/export', async (req, res) => {
     }
   } catch (error) {
     console.error('Error exporting variables:', error);
-    res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
 

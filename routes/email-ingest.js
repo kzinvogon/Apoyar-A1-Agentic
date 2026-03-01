@@ -280,7 +280,7 @@ router.post('/:tenantId/process-now', requireRole(['admin']), writeOperationsLim
     });
   } catch (error) {
     console.error('Error triggering email processing:', error);
-    res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
 

@@ -146,7 +146,7 @@ router.post('/housekeeping/run', requireElevatedAdmin, async (req, res) => {
     res.json({ success: true, tenantCode, ...result });
   } catch (error) {
     console.error('[Admin] Housekeeping error:', error);
-    res.status(500).json({ success: false, error: 'Housekeeping failed: ' + error.message });
+    res.status(500).json({ success: false, error: 'Housekeeping failed' });
   }
 });
 
@@ -193,7 +193,7 @@ router.get('/housekeeping/info', requireElevatedAdmin, async (req, res) => {
     res.json({ success: true, plan: planName, planSlug, retention, override });
   } catch (error) {
     console.error('[Admin] Housekeeping info error:', error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
 
@@ -223,7 +223,7 @@ router.post('/housekeeping/override', requireElevatedAdmin, async (req, res) => 
     res.json({ success: true });
   } catch (error) {
     console.error('[Admin] Housekeeping override error:', error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
 

@@ -36,7 +36,6 @@ router.get('/:tenantId/customers/available', requireRole(['admin']), async (req,
     res.status(500).json({
       success: false,
       error: 'Failed to fetch customers',
-      message: error.message
     });
   }
 });
@@ -91,7 +90,6 @@ router.get('/:tenantId/summary/all', requireRole(['admin']), async (req, res) =>
     res.status(500).json({
       success: false,
       error: 'Failed to fetch expert summary',
-      message: error.message
     });
   }
 });
@@ -128,7 +126,6 @@ router.get('/:tenantId/:expertId', requireRole(['admin', 'expert']), async (req,
     res.status(500).json({
       success: false,
       error: 'Failed to fetch permissions',
-      message: error.message
     });
   }
 });
@@ -248,7 +245,6 @@ router.post('/:tenantId/:expertId', requireRole(['admin']), async (req, res) => 
     res.status(500).json({
       success: false,
       error: 'Failed to create permission',
-      message: error.message
     });
   }
 });
@@ -303,7 +299,6 @@ router.put('/:tenantId/:permissionId', requireRole(['admin']), async (req, res) 
     res.status(500).json({
       success: false,
       error: 'Failed to update permission',
-      message: error.message
     });
   }
 });
@@ -332,7 +327,6 @@ router.delete('/:tenantId/:permissionId', requireRole(['admin']), async (req, re
     res.status(500).json({
       success: false,
       error: 'Failed to delete permission',
-      message: error.message
     });
   }
 });

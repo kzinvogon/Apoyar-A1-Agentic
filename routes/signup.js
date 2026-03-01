@@ -271,9 +271,7 @@ router.post('/create-trial', signupLimiter, async (req, res) => {
 
     res.status(500).json({
       success: false,
-      message,
-      error_detail: error.message,
-      error_code: error.code || null
+      message
     });
   }
 });
