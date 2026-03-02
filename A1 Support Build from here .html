@@ -4891,17 +4891,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             <div class="row space mb-12">
               <h4 class="subtitle" style="margin:0;font-weight:600">Email Ingest Rules</h4>
               <div class="row" style="gap:6px">
-                <button class="btn" onclick="testEmailConnection()">Test Connection</button>
                 <button class="btn" style="color:#b91c1c;border-color:#fca5a5" onclick="clearEmailIngestSettings()">Clear All</button>
                 <button class="btn primary" onclick="saveEmailIngestSettings()">Save Settings</button>
               </div>
-            </div>
-
-            <div class="mb-12">
-              <label class="subtitle">
-                <input type="checkbox" id="email-ingest-enabled" style="margin-right:8px"/>
-                Enable Email Ingest
-              </label>
             </div>
 
             <div class="subtitle mb-12" style="background:#eff6ff;padding:12px;border-radius:4px;border-left:4px solid #2563eb">
@@ -4922,6 +4914,33 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
             <!-- Standard IMAP fields -->
             <div id="email-imap-fields">
+              <div class="mb-12">
+                <label class="subtitle" style="display:flex;align-items:center;cursor:pointer">
+                  <input type="checkbox" id="email-ingest-enabled" style="margin-right:8px"/>
+                  Enable IMAP Ingest
+                </label>
+              </div>
+
+              <div class="mb-12">
+                <label class="subtitle" style="display:flex;align-items:center;cursor:pointer">
+                  <input type="checkbox" id="email-use-for-outbound" style="margin-right:8px" onchange="toggleOutboundSmtpFields()"/>
+                  Enable IMAP Outbound Notifications
+                </label>
+                <div class="subtitle" style="color:#6b7280;font-size:12px;margin-top:4px">
+                  When enabled, ticket notifications and system emails will be sent from this mailbox
+                  instead of the default system email.
+                </div>
+              </div>
+
+              <div class="mb-12" style="display:flex;align-items:center;gap:12px">
+                <button class="btn" onclick="testEmailConnection()">Test Connection</button>
+                <span id="email-last-checked" class="subtitle" style="color:#666"></span>
+              </div>
+              <div id="email-ingest-message" class="subtitle" style="color:#16a34a;display:none;margin-bottom:8px"></div>
+              <div id="email-ingest-error" class="subtitle" style="color:#b91c1c;display:none;margin-bottom:8px"></div>
+
+              <hr style="border:none;border-top:1px solid #e5e7eb;margin:12px 0"/>
+
               <div class="mb-12">
                 <label class="subtitle">Server Type</label>
                 <select id="email-server-type" class="input">
@@ -4956,10 +4975,53 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
                 <label class="subtitle">Email Password</label>
                 <input id="email-password" class="input" type="password" placeholder="Enter password"/>
               </div>
+
+              <div class="mb-12">
+                <label class="subtitle">Check Interval (minutes)</label>
+                <input id="email-check-interval" class="input" type="number" min="1" max="60" placeholder="e.g., 5"/>
+              </div>
+
+              <!-- SMTP fields (only for IMAP when outbound enabled) -->
+              <div id="email-smtp-outbound-fields" style="display:none">
+                <div class="mb-12">
+                  <label class="subtitle">SMTP Server Host</label>
+                  <input id="email-smtp-host" class="input" placeholder="e.g., smtp.gmail.com"/>
+                </div>
+                <div class="mb-12">
+                  <label class="subtitle">SMTP Server Port</label>
+                  <input id="email-smtp-port" class="input" type="number" placeholder="587" value="587"/>
+                </div>
+              </div>
             </div>
 
             <!-- Microsoft 365 fields (Client Credentials / App-Only) -->
             <div id="email-m365-fields" style="display:none">
+              <div class="mb-12">
+                <label class="subtitle" style="display:flex;align-items:center;cursor:pointer">
+                  <input type="checkbox" id="email-m365-ingest-enabled" style="margin-right:8px"/>
+                  Enable M365 Ingest
+                </label>
+              </div>
+
+              <div class="mb-12">
+                <label class="subtitle" style="display:flex;align-items:center;cursor:pointer">
+                  <input type="checkbox" id="email-m365-use-for-outbound" style="margin-right:8px"/>
+                  Enable M365 Outbound Notifications
+                </label>
+                <div class="subtitle" style="color:#6b7280;font-size:12px;margin-top:4px">
+                  When enabled, ticket notifications and system emails will be sent from this Microsoft 365 mailbox
+                  instead of the default system email.
+                </div>
+              </div>
+
+              <div class="mb-12" style="display:flex;align-items:center;gap:12px">
+                <button class="btn" onclick="testEmailConnection()">Test Connection</button>
+              </div>
+              <div id="email-m365-ingest-message" class="subtitle" style="color:#16a34a;display:none;margin-bottom:8px"></div>
+              <div id="email-m365-ingest-error" class="subtitle" style="color:#b91c1c;display:none;margin-bottom:8px"></div>
+
+              <hr style="border:none;border-top:1px solid #e5e7eb;margin:12px 0"/>
+
               <div class="mb-12">
                 <label class="subtitle">Mailbox Email Address</label>
                 <input id="email-m365-address" class="input" type="email" placeholder="e.g., support@yourcompany.com"/>
@@ -4973,52 +5035,23 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
                   <button class="btn" onclick="disconnectMicrosoft365()" style="margin-left:auto;font-size:12px;padding:4px 12px">Disconnect</button>
                 </div>
               </div>
-            </div>
 
-            <div class="mb-12">
-              <label class="subtitle">Check Interval (minutes)</label>
-              <input id="email-check-interval" class="input" type="number" min="1" max="60" placeholder="e.g., 5"/>
-            </div>
-
-            <!-- Outbound Email Section (per-provider) -->
-            <div style="margin-top:16px;padding-top:16px;border-top:1px solid #e5e7eb">
-              <label class="subtitle" style="display:flex;align-items:center;cursor:pointer">
-                <input type="checkbox" id="email-use-for-outbound" style="margin-right:8px" onchange="toggleOutboundSmtpFields()"/>
-                <span id="email-outbound-label">Also use this IMAP account for outbound notifications</span>
-              </label>
-              <div class="subtitle" style="color:#6b7280;font-size:12px;margin-top:4px">
-                When enabled, ticket notifications and system emails will be sent from this mailbox
-                instead of the default system email.
-              </div>
-            </div>
-
-            <!-- SMTP fields (only for IMAP/basic when outbound enabled) -->
-            <div id="email-smtp-outbound-fields" style="display:none;margin-top:12px">
               <div class="mb-12">
-                <label class="subtitle">SMTP Server Host</label>
-                <input id="email-smtp-host" class="input" placeholder="e.g., smtp.gmail.com"/>
+                <label class="subtitle">Check Interval (minutes)</label>
+                <input id="email-m365-check-interval" class="input" type="number" min="1" max="60" placeholder="e.g., 5"/>
               </div>
-              <div class="mb-12">
-                <label class="subtitle">SMTP Server Port</label>
-                <input id="email-smtp-port" class="input" type="number" placeholder="587" value="587"/>
-              </div>
-            </div>
 
-            <div id="email-last-checked" class="subtitle" style="color:#666;margin-top:8px"></div>
-            <div id="email-ingest-message" class="subtitle" style="color:#16a34a;display:none;margin-top:8px"></div>
-            <div id="email-ingest-error" class="subtitle" style="color:#b91c1c;display:none;margin-top:8px"></div>
-
-            <!-- M365 setup note — shown last so it doesn't break the settings flow -->
-            <div id="email-m365-setup-note" style="display:none;margin-top:16px">
-              <div style="background:#eff6ff;padding:14px;border-radius:6px;border-left:4px solid #3b82f6;font-size:13px">
-                <strong>One-time setup required by your M365 admin:</strong>
-                <ol style="margin:8px 0 0;padding-left:20px;line-height:1.7">
-                  <li>Create a mail-enabled security group in Exchange Admin and add the target mailbox</li>
-                  <li>Run in Exchange Online PowerShell:<br>
-                    <code style="background:#dbeafe;padding:2px 6px;border-radius:3px;font-size:12px">New-ApplicationAccessPolicy -AppId "05c4ccac-2615-405f-af73-2ede3d344080" -PolicyScopeGroupId "YourGroupName" -AccessRight RestrictAccess</code>
-                  </li>
-                  <li>Save settings above, then click <strong>Test Connection</strong> to verify</li>
-                </ol>
+              <div style="margin-top:16px">
+                <div style="background:#eff6ff;padding:14px;border-radius:6px;border-left:4px solid #3b82f6;font-size:13px">
+                  <strong>One-time setup required by your M365 admin:</strong>
+                  <ol style="margin:8px 0 0;padding-left:20px;line-height:1.7">
+                    <li>Create a mail-enabled security group in Exchange Admin and add the target mailbox</li>
+                    <li>Run in Exchange Online PowerShell:<br>
+                      <code style="background:#dbeafe;padding:2px 6px;border-radius:3px;font-size:12px">New-ApplicationAccessPolicy -AppId "05c4ccac-2615-405f-af73-2ede3d344080" -PolicyScopeGroupId "YourGroupName" -AccessRight RestrictAccess</code>
+                    </li>
+                    <li>Save settings above, then click <strong>Test Connection</strong> to verify</li>
+                  </ol>
+                </div>
               </div>
             </div>
 
@@ -5056,6 +5089,37 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
               <div id="system-senders-message" class="subtitle" style="color:#16a34a;display:none;margin-top:8px"></div>
               <div id="system-senders-error" class="subtitle" style="color:#b91c1c;display:none;margin-top:8px"></div>
+            </div>
+
+            <!-- Company Email Notifications Section -->
+            <div style="margin-top:24px;padding-top:24px;border-top:1px solid #e5e7eb">
+              <div class="row space mb-12">
+                <h4 class="subtitle" style="margin:0;font-weight:600">Company Email Notifications</h4>
+              </div>
+
+              <div class="subtitle mb-12" style="background:#eff6ff;padding:12px;border-radius:4px;border-left:4px solid #2563eb">
+                <strong>Admin Receives Emails:</strong> The company admin gets ticket notifications for all company tickets.<br>
+                <strong>Members Receive Emails:</strong> Individual team members get ticket notifications for their own tickets.
+              </div>
+
+              <div id="company-notif-grid" style="margin-top:8px">
+                <table style="width:100%;border-collapse:collapse;font-size:13px">
+                  <thead>
+                    <tr style="border-bottom:2px solid #e5e7eb;text-align:left">
+                      <th class="subtitle" style="padding:8px 12px">Company</th>
+                      <th class="subtitle" style="padding:8px 12px">Admin</th>
+                      <th class="subtitle" style="padding:8px 12px;text-align:center">Admin Receives Emails</th>
+                      <th class="subtitle" style="padding:8px 12px;text-align:center">Members Receive Emails</th>
+                    </tr>
+                  </thead>
+                  <tbody id="company-notif-body">
+                    <tr><td colspan="4" class="subtitle" style="padding:12px;color:#666;font-style:italic">Loading...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div id="company-notif-message" class="subtitle" style="color:#16a34a;display:none;margin-top:8px"></div>
+              <div id="company-notif-error" class="subtitle" style="color:#b91c1c;display:none;margin-top:8px"></div>
             </div>
           </div>
 
@@ -12532,6 +12596,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     if (sectionId === 'admin-section-housekeeping') loadHousekeepingInfo();
     if (sectionId === 'admin-section-chat') loadCannedResponsesAdmin();
     if (sectionId === 'admin-section-reports') loadReportSection();
+    if (sectionId === 'admin-section-email-ingest') { loadEmailIngestSettings(); loadSystemSenders(); loadCompanyEmailNotifications(); }
   }
 
   function initWizardSection() {
@@ -15438,57 +15503,24 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   // Email Ingest Functions
   let currentEmailProvider = 'imap'; // 'imap' or 'm365'
-  // Per-provider toggle state
-  let imapEnabled = false, imapOutbound = false;
-  let m365Enabled = false, m365Outbound = false;
 
-  function selectEmailProvider(provider, skipSave) {
-    const enabledEl = document.getElementById('email-ingest-enabled');
-    const outboundEl = document.getElementById('email-use-for-outbound');
-
-    // Save current checkbox values to old provider's state (skip when loading from DB)
-    if (!skipSave) {
-      if (currentEmailProvider === 'imap') {
-        if (enabledEl) imapEnabled = enabledEl.checked;
-        if (outboundEl) imapOutbound = outboundEl.checked;
-      } else {
-        if (enabledEl) m365Enabled = enabledEl.checked;
-        if (outboundEl) m365Outbound = outboundEl.checked;
-      }
-    }
-
+  function selectEmailProvider(provider) {
     currentEmailProvider = provider;
-
-    // Restore new provider's values into the checkboxes
-    if (provider === 'imap') {
-      if (enabledEl) enabledEl.checked = imapEnabled;
-      if (outboundEl) outboundEl.checked = imapOutbound;
-    } else {
-      if (enabledEl) enabledEl.checked = m365Enabled;
-      if (outboundEl) outboundEl.checked = m365Outbound;
-    }
     const imapBtn = document.getElementById('email-provider-imap');
     const m365Btn = document.getElementById('email-provider-m365');
     const imapFields = document.getElementById('email-imap-fields');
     const m365Fields = document.getElementById('email-m365-fields');
-    const m365Note = document.getElementById('email-m365-setup-note');
 
-    // Update outbound label per provider
-    const outboundLabel = document.getElementById('email-outbound-label');
     if (provider === 'imap') {
       if (imapBtn) { imapBtn.className = 'btn primary'; }
       if (m365Btn) { m365Btn.className = 'btn'; }
       if (imapFields) { imapFields.style.display = 'block'; }
       if (m365Fields) { m365Fields.style.display = 'none'; }
-      if (m365Note) { m365Note.style.display = 'none'; }
-      if (outboundLabel) outboundLabel.textContent = 'Also use this IMAP account for outbound notifications';
     } else {
       if (imapBtn) { imapBtn.className = 'btn'; }
       if (m365Btn) { m365Btn.className = 'btn primary'; }
       if (imapFields) { imapFields.style.display = 'none'; }
       if (m365Fields) { m365Fields.style.display = 'block'; }
-      if (m365Note) { m365Note.style.display = 'block'; }
-      if (outboundLabel) outboundLabel.textContent = 'Also use this Microsoft 365 account for outbound notifications';
       loadOAuth2Status();
     }
     toggleOutboundSmtpFields();
@@ -15567,11 +15599,17 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       if (data.success && data.settings) {
         const settings = data.settings;
 
-        // Store per-provider state from DB
-        imapEnabled = !!settings.enabled;
-        imapOutbound = !!settings.use_for_outbound;
-        m365Enabled = !!settings.m365_enabled;
-        m365Outbound = !!settings.m365_use_for_outbound;
+        // Set IMAP provider-specific checkboxes directly
+        const imapEnabledEl = document.getElementById('email-ingest-enabled');
+        if (imapEnabledEl) imapEnabledEl.checked = !!settings.enabled;
+        const imapOutboundEl = document.getElementById('email-use-for-outbound');
+        if (imapOutboundEl) imapOutboundEl.checked = !!settings.use_for_outbound;
+
+        // Set M365 provider-specific checkboxes directly
+        const m365EnabledEl = document.getElementById('email-m365-ingest-enabled');
+        if (m365EnabledEl) m365EnabledEl.checked = !!settings.m365_enabled;
+        const m365OutboundEl = document.getElementById('email-m365-use-for-outbound');
+        if (m365OutboundEl) m365OutboundEl.checked = !!settings.m365_use_for_outbound;
 
         // Load IMAP-specific fields
         const serverTypeEl = document.getElementById('email-server-type');
@@ -15586,8 +15624,12 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         if (usernameEl) usernameEl.value = settings.username;
         const passwordEl = document.getElementById('email-password');
         if (passwordEl) passwordEl.value = settings.password;
+
+        // Both providers share check_interval_minutes from DB
         const checkIntervalEl = document.getElementById('email-check-interval');
         if (checkIntervalEl) checkIntervalEl.value = settings.check_interval_minutes;
+        const m365CheckIntervalEl = document.getElementById('email-m365-check-interval');
+        if (m365CheckIntervalEl) m365CheckIntervalEl.value = settings.check_interval_minutes;
 
         if (settings.last_checked_at) {
           const lastChecked = new Date(settings.last_checked_at);
@@ -15602,13 +15644,12 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         if (smtpPortEl && settings.smtp_port) smtpPortEl.value = settings.smtp_port;
 
         // Select the correct provider tab based on auth_method
-        // skipSave=true to avoid overwriting the just-loaded state vars
         if (settings.auth_method === 'oauth2') {
-          selectEmailProvider('m365', true);
+          selectEmailProvider('m365');
           const emailInput = document.getElementById('email-m365-address');
           if (emailInput && settings.oauth2_email) emailInput.value = settings.oauth2_email;
         } else {
-          selectEmailProvider('imap', true);
+          selectEmailProvider('imap');
         }
         toggleOutboundSmtpFields();
       }
@@ -15618,11 +15659,19 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   }
 
   async function saveEmailIngestSettings() {
-    const enabled = document.getElementById('email-ingest-enabled')?.checked || false;
-    const outbound = document.getElementById('email-use-for-outbound')?.checked ? 1 : 0;
-    const checkInterval = parseInt(document.getElementById('email-check-interval')?.value) || 5;
+    let enabled, outbound, checkInterval;
 
-    if (enabled && checkInterval < 1 || checkInterval > 60) {
+    if (currentEmailProvider === 'imap') {
+      enabled = document.getElementById('email-ingest-enabled')?.checked || false;
+      outbound = document.getElementById('email-use-for-outbound')?.checked ? 1 : 0;
+      checkInterval = parseInt(document.getElementById('email-check-interval')?.value) || 5;
+    } else {
+      enabled = document.getElementById('email-m365-ingest-enabled')?.checked || false;
+      outbound = document.getElementById('email-m365-use-for-outbound')?.checked ? 1 : 0;
+      checkInterval = parseInt(document.getElementById('email-m365-check-interval')?.value) || 5;
+    }
+
+    if (enabled && (checkInterval < 1 || checkInterval > 60)) {
       showEmailIngestError('Check interval must be between 1 and 60 minutes');
       return;
     }
@@ -15725,14 +15774,17 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       });
       const data = await response.json();
       if (data.success) {
-        // Reset all form fields
+        // Reset all form fields (both IMAP and M365)
         const fields = {
           'email-ingest-enabled': false,
           'email-server-host': '', 'email-server-port': '993',
           'email-use-ssl': true, 'email-username': '', 'email-password': '',
           'email-check-interval': '5', 'email-use-for-outbound': false,
           'email-smtp-host': '', 'email-smtp-port': '587',
-          'email-m365-address': ''
+          'email-m365-address': '',
+          'email-m365-ingest-enabled': false,
+          'email-m365-use-for-outbound': false,
+          'email-m365-check-interval': '5'
         };
         for (const [id, val] of Object.entries(fields)) {
           const el = document.getElementById(id);
@@ -15791,24 +15843,28 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   }
 
   function showEmailIngestMessage(message) {
-    const messageEl = document.getElementById('email-ingest-message');
-    const errorEl = document.getElementById('email-ingest-error');
+    const msgId = currentEmailProvider === 'm365' ? 'email-m365-ingest-message' : 'email-ingest-message';
+    const errId = currentEmailProvider === 'm365' ? 'email-m365-ingest-error' : 'email-ingest-error';
+    const messageEl = document.getElementById(msgId);
+    const errorEl = document.getElementById(errId);
     if (errorEl) errorEl.style.display = 'none';
     if (messageEl) { messageEl.textContent = message; messageEl.style.display = 'block'; }
   }
 
   function showEmailIngestError(message) {
-    const messageEl = document.getElementById('email-ingest-message');
-    const errorEl = document.getElementById('email-ingest-error');
+    const msgId = currentEmailProvider === 'm365' ? 'email-m365-ingest-message' : 'email-ingest-message';
+    const errId = currentEmailProvider === 'm365' ? 'email-m365-ingest-error' : 'email-ingest-error';
+    const messageEl = document.getElementById(msgId);
+    const errorEl = document.getElementById(errId);
     if (messageEl) messageEl.style.display = 'none';
     if (errorEl) { errorEl.textContent = message; errorEl.style.display = 'block'; }
   }
 
   function hideEmailIngestMessages() {
-    const m = document.getElementById('email-ingest-message');
-    const e = document.getElementById('email-ingest-error');
-    if (m) m.style.display = 'none';
-    if (e) e.style.display = 'none';
+    ['email-ingest-message', 'email-ingest-error', 'email-m365-ingest-message', 'email-m365-ingest-error'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
   }
 
   // ========== System Senders Management ==========
@@ -15944,6 +16000,91 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const errEl = document.getElementById('system-senders-error');
     if (msgEl) msgEl.style.display = 'none';
     if (errEl) errEl.style.display = 'none';
+  }
+
+  // ========== Company Email Notifications ==========
+
+  async function loadCompanyEmailNotifications() {
+    const tbody = document.getElementById('company-notif-body');
+    if (!tbody) return;
+    try {
+      const tenantCode = window.currentUser?.tenantCode || 'apoyar';
+      const response = await fetch(`${API_BASE}/api/customer-companies`, {
+        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+      });
+      if (!response.ok) {
+        tbody.innerHTML = '<tr><td colspan="4" class="subtitle" style="padding:12px;color:#b91c1c">Failed to load companies</td></tr>';
+        return;
+      }
+      const data = await response.json();
+      if (!data.success || !data.companies || data.companies.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="subtitle" style="padding:12px;color:#666;font-style:italic">No customer companies found</td></tr>';
+        return;
+      }
+      tbody.innerHTML = data.companies.map(c => `
+        <tr style="border-bottom:1px solid #f3f4f6">
+          <td class="subtitle" style="padding:8px 12px">${escapeHtml(c.company_name)}</td>
+          <td class="subtitle" style="padding:8px 12px;color:#6b7280">${c.admin_name ? escapeHtml(c.admin_name) : '<em>None</em>'}</td>
+          <td style="padding:8px 12px;text-align:center">
+            <input type="checkbox" ${c.admin_receive_emails ? 'checked' : ''} onchange="toggleCompanyEmailFlag(${c.id}, 'admin_receive_emails', this.checked, this)"/>
+          </td>
+          <td style="padding:8px 12px;text-align:center">
+            <input type="checkbox" ${c.members_receive_emails ? 'checked' : ''} onchange="toggleCompanyEmailFlag(${c.id}, 'members_receive_emails', this.checked, this)"/>
+          </td>
+        </tr>
+      `).join('');
+    } catch (err) {
+      console.error('Error loading company email notifications:', err);
+      tbody.innerHTML = '<tr><td colspan="4" class="subtitle" style="padding:12px;color:#b91c1c">Error loading companies</td></tr>';
+    }
+  }
+
+  async function toggleCompanyEmailFlag(companyId, field, value, checkboxEl) {
+    hideCompanyNotifMessages();
+    try {
+      const response = await fetch(`${API_BASE}/api/customer-companies/${companyId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + localStorage.getItem('token')
+        },
+        body: JSON.stringify({ [field]: value })
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        // Revert checkbox on failure
+        if (checkboxEl) checkboxEl.checked = !value;
+        showCompanyNotifError(data.message || 'Failed to update');
+        return;
+      }
+      const label = field === 'admin_receive_emails' ? 'Admin emails' : 'Member emails';
+      showCompanyNotifMessage(`${label} ${value ? 'enabled' : 'disabled'} successfully`);
+      setTimeout(() => hideCompanyNotifMessages(), 3000);
+    } catch (err) {
+      if (checkboxEl) checkboxEl.checked = !value;
+      showCompanyNotifError('Error updating: ' + err.message);
+    }
+  }
+
+  function showCompanyNotifMessage(message) {
+    const msgEl = document.getElementById('company-notif-message');
+    const errEl = document.getElementById('company-notif-error');
+    if (errEl) errEl.style.display = 'none';
+    if (msgEl) { msgEl.textContent = message; msgEl.style.display = 'block'; }
+  }
+
+  function showCompanyNotifError(message) {
+    const msgEl = document.getElementById('company-notif-message');
+    const errEl = document.getElementById('company-notif-error');
+    if (msgEl) msgEl.style.display = 'none';
+    if (errEl) { errEl.textContent = message; errEl.style.display = 'block'; }
+  }
+
+  function hideCompanyNotifMessages() {
+    const m = document.getElementById('company-notif-message');
+    const e = document.getElementById('company-notif-error');
+    if (m) m.style.display = 'none';
+    if (e) e.style.display = 'none';
   }
 
 
