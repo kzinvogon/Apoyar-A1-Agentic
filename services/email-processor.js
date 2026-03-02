@@ -1988,10 +1988,29 @@ class EmailProcessor {
     // Get company name from domain (capitalize first letter)
     const companyName = domain.split('.')[0].charAt(0).toUpperCase() + domain.split('.')[0].slice(1);
 
+    // Look up customer_companies record by domain to link this customer
+    let companyId = null;
+    let slaLevel = 'basic';
+    let resolvedCompanyName = companyName;
+    try {
+      const [existingCompany] = await connection.query(
+        'SELECT id, company_name, sla_level FROM customer_companies WHERE company_domain = ?',
+        [domain]
+      );
+      if (existingCompany.length > 0) {
+        companyId = existingCompany[0].id;
+        resolvedCompanyName = existingCompany[0].company_name;
+        slaLevel = existingCompany[0].sla_level || 'basic';
+        console.log(`Linked to customer company: ${resolvedCompanyName} (id=${companyId})`);
+      }
+    } catch (err) {
+      console.warn(`Could not look up customer_companies for domain ${domain}:`, err.message);
+    }
+
     // Create customer profile
     const [customerResult] = await connection.query(
-      'INSERT INTO customers (user_id, company_name, company_domain, sla_level) VALUES (?, ?, ?, ?)',
-      [userId, companyName, domain, 'basic']
+      'INSERT INTO customers (user_id, customer_company_id, company_name, company_domain, sla_level) VALUES (?, ?, ?, ?, ?)',
+      [userId, companyId, resolvedCompanyName, domain, slaLevel]
     );
 
     console.log(`Created new customer: ${username} (${email}) for domain: ${domain}`);
