@@ -8,9 +8,12 @@ CREATE TABLE IF NOT EXISTS ticket_processing_rules (
   description TEXT,
   enabled BOOLEAN DEFAULT TRUE,
 
+  -- AI instruction text (natural language rule description)
+  instruction_text TEXT DEFAULT NULL,
+
   -- Search criteria
   search_in ENUM('title', 'body', 'both') DEFAULT 'both',
-  search_text VARCHAR(500) NOT NULL,
+  search_text VARCHAR(500) DEFAULT NULL,
   case_sensitive BOOLEAN DEFAULT FALSE,
 
   -- Action to perform
@@ -18,6 +21,10 @@ CREATE TABLE IF NOT EXISTS ticket_processing_rules (
 
   -- Action parameters (stored as JSON)
   action_params JSON,
+
+  -- AI interpretation metadata
+  ai_interpreted TINYINT(1) DEFAULT 0,
+  ai_confidence FLOAT DEFAULT NULL,
 
   -- Execution tracking
   times_triggered INT DEFAULT 0,
