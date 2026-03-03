@@ -116,4 +116,37 @@ router.post('/:tenantId/item-types/:itemTypeId/ci-types', writeOperationsLimiter
   }
 });
 
+// Update CI Type
+router.put('/:tenantId/ci-types/:ciTypeId', writeOperationsLimiter, async (req, res) => {
+  try {
+    const { tenantId, ciTypeId } = req.params;
+    const { name, description } = req.body;
+    const tenantCode = tenantId.toLowerCase().replace(/[^a-z0-9]/g, '_');
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ success: false, message: 'Name is required' });
+    }
+
+    const connection = await getTenantConnection(tenantCode);
+
+    try {
+      const [result] = await connection.query(
+        `UPDATE ci_types SET name = ?, description = ? WHERE id = ?`,
+        [name.trim(), description || null, ciTypeId]
+      );
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ success: false, message: 'CI Type not found' });
+      }
+
+      res.json({ success: true, message: 'CI Type updated successfully' });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error updating CI type:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
 module.exports = router;

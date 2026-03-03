@@ -319,17 +319,29 @@ async function createTenantTables(connection) {
     )
   `);
 
-  // Configuration Items table
+  // Configuration Items table (V2 schema)
   await connection.execute(`
     CREATE TABLE IF NOT EXISTS configuration_items (
       id INT AUTO_INCREMENT PRIMARY KEY,
+      ci_id VARCHAR(50),
       cmdb_item_id INT NOT NULL,
-      key_name VARCHAR(100) NOT NULL,
-      value TEXT,
-      data_type ENUM('string', 'number', 'boolean', 'json') DEFAULT 'string',
+      ci_name VARCHAR(255) NOT NULL,
+      asset_category VARCHAR(100),
+      category_field_value TEXT,
+      brand_name VARCHAR(150),
+      model_name VARCHAR(150),
+      serial_number VARCHAR(150),
+      asset_location VARCHAR(255),
+      employee_of VARCHAR(255),
+      comment TEXT,
+      status VARCHAR(50) DEFAULT 'active',
+      created_by INT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      FOREIGN KEY (cmdb_item_id) REFERENCES cmdb_items(id) ON DELETE CASCADE
+      FOREIGN KEY (cmdb_item_id) REFERENCES cmdb_items(id) ON DELETE CASCADE,
+      INDEX idx_ci_id (ci_id),
+      INDEX idx_cmdb_item_id (cmdb_item_id),
+      INDEX idx_status (status)
     )
   `);
 

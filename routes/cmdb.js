@@ -320,11 +320,12 @@ router.get('/:tenantCode/items/:cmdbId', async (req, res) => {
 
       // Get associated Configuration Items (aliased for frontend compatibility)
       const [cis] = await connection.query(
-        `SELECT ci.id AS ci_id, ci.cmdb_item_id, ci.key_name AS ci_name,
-                ci.value AS category_field_value, ci.data_type, ci.created_at, ci.updated_at
+        `SELECT ci.ci_id, ci.cmdb_item_id, ci.ci_name, ci.category_field_value,
+                ci.brand_name, ci.model_name, ci.serial_number, ci.asset_location,
+                ci.employee_of, ci.comment, ci.status, ci.created_at, ci.updated_at
          FROM configuration_items ci
          WHERE ci.cmdb_item_id = ?
-         ORDER BY ci.key_name ASC`,
+         ORDER BY ci.ci_name ASC`,
         [item.id]
       );
 
@@ -606,11 +607,12 @@ router.get('/:tenantCode/items/:cmdbId/cis', async (req, res) => {
       }
 
       const [cis] = await connection.query(
-        `SELECT ci.id AS ci_id, ci.cmdb_item_id, ci.key_name AS ci_name,
-                ci.value AS category_field_value, ci.data_type, ci.created_at, ci.updated_at
+        `SELECT ci.ci_id, ci.cmdb_item_id, ci.ci_name, ci.category_field_value,
+                ci.brand_name, ci.model_name, ci.serial_number, ci.asset_location,
+                ci.employee_of, ci.comment, ci.status, ci.created_at, ci.updated_at
          FROM configuration_items ci
          WHERE ci.cmdb_item_id = ?
-         ORDER BY ci.key_name ASC`,
+         ORDER BY ci.ci_name ASC`,
         [cmdbItems[0].id]
       );
 

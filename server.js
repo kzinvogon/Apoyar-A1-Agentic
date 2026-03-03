@@ -564,6 +564,7 @@ async function runAllMigrations(tenantCode) {
     { name: 'Last login column', fn: async () => { const { migrate } = require('./migrations/add-last-login-column'); await migrate(tenantCode); }},
     { name: 'Tenant features', fn: async () => { const { migrate } = require('./migrations/add-tenant-features'); await migrate(tenantCode, 'professional'); }},
     { name: 'CMDB V2', fn: async () => { const { runMigration } = require('./migrations/add-cmdb-v2-tables'); await runMigration(tenantCode); }},
+    { name: 'Config Items V2 columns', fn: async () => { const { runMigration } = require('./migrations/update-configuration-items-v2'); await runMigration(tenantCode); }},
     { name: 'Chat system', fn: async () => { const { runMigration } = require('./migrations/add-chat-system'); await runMigration(tenantCode); }},
     { name: 'Ticket rules columns', fn: async () => { const { migrate } = require('./migrations/add-ticket-rules-columns'); await migrate(tenantCode); }},
     { name: 'Link customers to companies', fn: async () => { const { migrate } = require('./migrations/link-customers-to-companies'); await migrate(tenantCode); }},

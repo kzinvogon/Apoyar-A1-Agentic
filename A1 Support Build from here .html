@@ -24360,10 +24360,28 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     }
   }
 
-  function cmdbMgmtDownloadTemplate() {
+  async function cmdbMgmtDownloadTemplate() {
     const tenantCode = window.tenant || tenant || localStorage.getItem('tenantCode');
     if (!tenantCode) { alert('No tenant selected'); return; }
-    window.location.href = `${API_BASE}/api/cmdb/${tenantCode}/template/items`;
+    const token = localStorage.getItem('token');
+    if (!token) { alert('Session expired'); window.location.reload(); return; }
+    try {
+      const res = await fetch(`${API_BASE}/api/cmdb/${tenantCode}/template/items`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Download failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'cmdb_import_template.csv';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert('Failed to download template: ' + err.message);
+    }
   }
 
   // ---- Manage CMDB Types ----
@@ -24387,11 +24405,33 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       const res=await fetch(`${API_BASE}/api/cmdb-types/${tenantCode}/item-types/${itemTypeId}/ci-types`,{headers:{'Authorization':`Bearer ${token}`}});
       const data=await res.json(); 
       if(!data.success){ alert('Failed to load CI types: '+data.message); return; } 
-      const body=document.getElementById('ci-types-body'); body.innerHTML=''; data.ciTypes.forEach(ci=>{ const tr=document.createElement('tr'); tr.innerHTML=`<td>${ci.name}</td><td>${ci.description||'—'}</td><td><span class="badge ${ci.is_active?'success':'danger'}">${ci.is_active?'Active':'Inactive'}</span></td><td><button class="btn">Edit</button></td>`; body.appendChild(tr); }); 
+      window._currentItemTypeId = itemTypeId;
+      const body=document.getElementById('ci-types-body'); body.innerHTML=''; data.ciTypes.forEach(ci=>{ const safeName = (ci.name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;'); const safeDesc = (ci.description || '').replace(/'/g, "\\'").replace(/"/g, '&quot;'); const tr=document.createElement('tr'); tr.innerHTML=`<td>${ci.name}</td><td>${ci.description||'—'}</td><td><span class="badge ${ci.is_active?'success':'danger'}">${ci.is_active?'Active':'Inactive'}</span></td><td><button class="btn" onclick="editCIType(${ci.id},'${safeName}','${safeDesc}')">Edit</button></td>`; body.appendChild(tr); });
     }catch(err){ alert('Error loading CI types: '+err.message); } 
   }
   function showCreateItemTypeForm(){ alert('To add a new CMDB Item Type, contact the database administrator or use the API.'); }
   function showCreateCITypeForm(){ alert('To add a new CI Type, select an Item Type first and click "Add CI Type" button.'); }
+  async function editCIType(ciTypeId, currentName, currentDesc) {
+    const newName = prompt('Edit CI Type name:', currentName);
+    if (newName === null) return;
+    if (!newName.trim()) { alert('Name cannot be empty'); return; }
+    const newDesc = prompt('Edit CI Type description:', currentDesc || '');
+    if (newDesc === null) return;
+    const token = localStorage.getItem('token');
+    if (!token) { alert('Session expired'); window.location.reload(); return; }
+    const tenantCode = window.tenant || 'apoyar';
+    try {
+      const res = await fetch(`${API_BASE}/api/cmdb-types/${tenantCode}/ci-types/${ciTypeId}`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newName.trim(), description: newDesc.trim() })
+      });
+      const data = await res.json();
+      if (!data.success) { alert('Failed to update CI Type: ' + data.message); return; }
+      alert('CI Type updated successfully');
+      if (window._currentItemTypeId) viewCITypes(window._currentItemTypeId, document.getElementById('selected-item-type-name').textContent);
+    } catch (err) { alert('Error updating CI Type: ' + err.message); }
+  }
 
   // ============================================================================
   // CMDB V2 FEATURES: Custom Fields, Relationships, History
