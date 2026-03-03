@@ -4502,6 +4502,26 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               </div>
             </div>
 
+            <!-- Filters -->
+            <div class="row mb-12" style="gap:12px;flex-wrap:wrap">
+              <div style="flex:1;min-width:150px">
+                <label class="subtitle" style="font-size:12px">Customer</label>
+                <select id="av-filter-customer" class="input" onchange="avApplyFilters()"><option value="">All</option></select>
+              </div>
+              <div style="flex:1;min-width:150px">
+                <label class="subtitle" style="font-size:12px">Category</label>
+                <select id="av-filter-category" class="input" onchange="avApplyFilters()"><option value="">All</option></select>
+              </div>
+              <div style="flex:1;min-width:150px">
+                <label class="subtitle" style="font-size:12px">Brand</label>
+                <select id="av-filter-brand" class="input" onchange="avApplyFilters()"><option value="">All</option></select>
+              </div>
+              <div style="flex:1;min-width:150px">
+                <label class="subtitle" style="font-size:12px">Model</label>
+                <select id="av-filter-model" class="input" onchange="avApplyFilters()"><option value="">All</option></select>
+              </div>
+            </div>
+
             <!-- Two-Panel Layout -->
             <div class="av-container">
               <!-- Left: Asset Grid -->
@@ -29272,6 +29292,23 @@ async function initAssetViewer() {
     }
   });
 
+  // Populate filter dropdowns once data loads
+  avDataTable.on('xhr.dt', function() {
+    const data = avDataTable.ajax.json();
+    if (!data || !data.items) return;
+    const items = data.items;
+    const populate = (selId, field) => {
+      const sel = document.getElementById(selId);
+      const current = sel.value;
+      const vals = [...new Set(items.map(i => i[field]).filter(Boolean))].sort();
+      sel.innerHTML = '<option value="">All</option>' + vals.map(v => `<option value="${v}"${v === current ? ' selected' : ''}>${v}</option>`).join('');
+    };
+    populate('av-filter-customer', 'customer_name');
+    populate('av-filter-category', 'asset_category');
+    populate('av-filter-brand', 'brand_name');
+    populate('av-filter-model', 'model_name');
+  });
+
   // Search event - update export info
   avDataTable.on('search.dt', function() {
     if (!avDataTable) return;
@@ -29280,6 +29317,21 @@ async function initAssetViewer() {
     document.getElementById('av-export-info').textContent =
       count === total ? 'Exports all assets' : `Exports ${count} filtered assets`;
   });
+}
+
+function avApplyFilters() {
+  if (!avDataTable) return;
+  // Column indexes: 0=ID, 1=Name, 2=Category, 3=Brand, 4=Model, 5=Customer
+  const customer = document.getElementById('av-filter-customer').value;
+  const category = document.getElementById('av-filter-category').value;
+  const brand = document.getElementById('av-filter-brand').value;
+  const model = document.getElementById('av-filter-model').value;
+
+  avDataTable.column(5).search(customer ? '^' + $.fn.dataTable.util.escapeRegex(customer) + '$' : '', true, false);
+  avDataTable.column(2).search(category ? '^' + $.fn.dataTable.util.escapeRegex(category) + '$' : '', true, false);
+  avDataTable.column(3).search(brand ? '^' + $.fn.dataTable.util.escapeRegex(brand) + '$' : '', true, false);
+  avDataTable.column(4).search(model ? '^' + $.fn.dataTable.util.escapeRegex(model) + '$' : '', true, false);
+  avDataTable.draw();
 }
 
 async function avLoadDetail(cmdbId) {
