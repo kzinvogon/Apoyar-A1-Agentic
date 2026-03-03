@@ -6957,7 +6957,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         <div class="mb-12" style="flex:1"><div class="subtitle">Model Name</div><input id="cmdb-mgmt-model" class="input"/></div>
       </div>
       <div class="row" style="gap:16px">
-        <div class="mb-12" style="flex:1"><div class="subtitle">Customer Name</div><input id="cmdb-mgmt-customer-name" class="input"/></div>
+        <div class="mb-12" style="flex:1"><div class="subtitle">Customer Name</div><select id="cmdb-mgmt-customer-name" class="input"><option value="">-- Select Customer --</option></select></div>
         <div class="mb-12" style="flex:1"><div class="subtitle">Employee Of</div><input id="cmdb-mgmt-employee-of" class="input"/></div>
       </div>
       <div class="mb-12"><div class="subtitle">Asset Location</div><input id="cmdb-mgmt-location" class="input"/></div>
@@ -24161,6 +24161,33 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     };
   }
 
+  async function populateCustomerDropdown(selectValue) {
+    const sel = document.getElementById('cmdb-mgmt-customer-name');
+    sel.innerHTML = '<option value="">-- Select Customer --</option>';
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_BASE}/api/customers`, { headers: { 'Authorization': `Bearer ${token}` } });
+      const data = await res.json();
+      if (data.success && data.customers) {
+        const names = [...new Set(data.customers.map(c => c.full_name).filter(Boolean))].sort();
+        names.forEach(name => {
+          const opt = document.createElement('option');
+          opt.value = name;
+          opt.textContent = name;
+          sel.appendChild(opt);
+        });
+      }
+    } catch (err) { console.error('Error loading customers:', err); }
+    if (selectValue) sel.value = selectValue;
+    if (selectValue && sel.value !== selectValue) {
+      const opt = document.createElement('option');
+      opt.value = selectValue;
+      opt.textContent = selectValue;
+      sel.appendChild(opt);
+      sel.value = selectValue;
+    }
+  }
+
   async function cmdbMgmtOpenCreate() {
     document.getElementById('cmdb-mgmt-modal-title').textContent = 'Add CMDB Item';
     document.getElementById('cmdb-mgmt-id').value = '';
@@ -24170,6 +24197,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     });
     document.getElementById('cmdb-mgmt-status').value = 'active';
     await populateCategoryDropdown('');
+    await populateCustomerDropdown('');
     document.getElementById('cmdb-mgmt-modal').style.display = 'flex';
   }
 
@@ -24189,7 +24217,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         document.getElementById('cmdb-mgmt-category-field').value = i.category_field_value || '';
         document.getElementById('cmdb-mgmt-brand').value = i.brand_name || '';
         document.getElementById('cmdb-mgmt-model').value = i.model_name || '';
-        document.getElementById('cmdb-mgmt-customer-name').value = i.customer_name || '';
+        await populateCustomerDropdown(i.customer_name || '');
         document.getElementById('cmdb-mgmt-employee-of').value = i.employee_of || '';
         document.getElementById('cmdb-mgmt-location').value = i.asset_location || '';
         document.getElementById('cmdb-mgmt-comment').value = i.comment || '';
@@ -29454,14 +29482,54 @@ function avEscapeHtml(text) {
   return div.innerHTML.replace(/\n/g, '<br>');
 }
 
-function avEnterEditMode() {
+async function avEnterEditMode() {
   if (!avCurrentAsset) return;
   avEditMode = true;
   document.getElementById('av-edit-btn').style.display = 'none';
-  avRenderEditForm(avCurrentAsset);
+  await avRenderEditForm(avCurrentAsset);
 }
 
-function avRenderEditForm(asset) {
+async function avRenderEditForm(asset) {
+  // Fetch categories and customers in parallel
+  const token = localStorage.getItem('token');
+  const tenantCode = window.tenant || tenant || localStorage.getItem('tenantCode');
+  let categories = [];
+  let customerNames = [];
+  try {
+    const [catRes, custRes] = await Promise.all([
+      fetch(`${API_BASE}/api/cmdb-types/${tenantCode}/categories`, { headers: { 'Authorization': `Bearer ${token}` } }),
+      fetch(`${API_BASE}/api/customers`, { headers: { 'Authorization': `Bearer ${token}` } })
+    ]);
+    const catData = await catRes.json();
+    const custData = await custRes.json();
+    if (catData.success && catData.categories) categories = catData.categories.filter(c => c.is_active);
+    if (custData.success && custData.customers) customerNames = [...new Set(custData.customers.map(c => c.full_name).filter(Boolean))].sort();
+  } catch (err) { console.error('Error loading dropdown data:', err); }
+
+  // Build category options
+  let catOptions = '<option value="">-- Select Category --</option>';
+  let currentCatInList = false;
+  categories.forEach(c => {
+    const sel = c.name === asset.asset_category ? 'selected' : '';
+    if (c.name === asset.asset_category) currentCatInList = true;
+    catOptions += `<option value="${avEscapeAttr(c.name)}" ${sel}>${avEscapeAttr(c.name)}</option>`;
+  });
+  if (asset.asset_category && !currentCatInList) {
+    catOptions += `<option value="${avEscapeAttr(asset.asset_category)}" selected>${avEscapeAttr(asset.asset_category)}</option>`;
+  }
+
+  // Build customer options
+  let custOptions = '<option value="">-- Select Customer --</option>';
+  let currentCustInList = false;
+  customerNames.forEach(name => {
+    const sel = name === asset.customer_name ? 'selected' : '';
+    if (name === asset.customer_name) currentCustInList = true;
+    custOptions += `<option value="${avEscapeAttr(name)}" ${sel}>${avEscapeAttr(name)}</option>`;
+  });
+  if (asset.customer_name && !currentCustInList) {
+    custOptions += `<option value="${avEscapeAttr(asset.customer_name)}" selected>${avEscapeAttr(asset.customer_name)}</option>`;
+  }
+
   let html = '<div class="av-edit-form">';
   html += '<div class="av-section-header">Edit Asset</div>';
 
@@ -29474,7 +29542,7 @@ function avRenderEditForm(asset) {
   // Category
   html += `<div class="av-form-group">
     <label>Category</label>
-    <input type="text" id="av-edit-asset_category" value="${avEscapeAttr(asset.asset_category || '')}">
+    <select id="av-edit-asset_category">${catOptions}</select>
   </div>`;
 
   // Brand
@@ -29492,7 +29560,7 @@ function avRenderEditForm(asset) {
   // Customer
   html += `<div class="av-form-group">
     <label>Customer</label>
-    <input type="text" id="av-edit-customer_name" value="${avEscapeAttr(asset.customer_name || '')}">
+    <select id="av-edit-customer_name">${custOptions}</select>
   </div>`;
 
   // Employee Of
