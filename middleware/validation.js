@@ -196,34 +196,6 @@ const validateCmdbItemsGet = [
   handleValidationErrors
 ];
 
-const validateCmdbItemTypeCreate = [
-  validateTenantId(),
-  body('name')
-    .trim()
-    .notEmpty().withMessage('Name is required')
-    .isLength({ min: 2, max: 100 }).withMessage('Name must be between 2 and 100 characters'),
-  body('description')
-    .optional()
-    .trim()
-    .isLength({ max: 500 }).withMessage('Description must not exceed 500 characters'),
-  handleValidationErrors
-];
-
-const validateCiTypeCreate = [
-  validateTenantId(),
-  param('itemTypeId')
-    .isInt({ min: 1 }).withMessage('Item Type ID must be a positive integer'),
-  body('name')
-    .trim()
-    .notEmpty().withMessage('Name is required')
-    .isLength({ min: 2, max: 100 }).withMessage('Name must be between 2 and 100 characters'),
-  body('description')
-    .optional()
-    .trim()
-    .isLength({ max: 500 }).withMessage('Description must not exceed 500 characters'),
-  handleValidationErrors
-];
-
 // Master admin validation rules
 const validateTenantCreate = [
   body('tenant_code')
@@ -339,8 +311,6 @@ module.exports = {
 
   // CMDB validators
   validateCmdbItemsGet,
-  validateCmdbItemTypeCreate,
-  validateCiTypeCreate,
 
   // Master admin validators
   validateTenantCreate,

@@ -1274,7 +1274,7 @@ vNext-FULL-ActionsSLA:
           <ion-label style="font-size:14px">CMDB Items</ion-label>
         </ion-item>
         <ion-item button onclick="openCmdb('cmdb-section-types'); closeIonicMenu();">
-          <ion-label style="font-size:14px">CMDB Types</ion-label>
+          <ion-label style="font-size:14px">Asset Categories</ion-label>
         </ion-item>
         <ion-item button onclick="openCmdb('cmdb-section-management'); closeIonicMenu();">
           <ion-label style="font-size:14px">CMDB Management</ion-label>
@@ -1687,7 +1687,7 @@ vNext-FULL-ActionsSLA:
                 <div class="navlink" onclick="toggleNavGroup('nav-cmdb-group')">🗃️ CMDB <span class="chev">▸</span></div>
                 <div class="nav-subitems">
                   <div class="nav-subitem" data-section="cmdb-section-items" onclick="openCmdb('cmdb-section-items')">CMDB Items</div>
-                  <div class="nav-subitem" data-section="cmdb-section-types" onclick="openCmdb('cmdb-section-types')">CMDB Types</div>
+                  <div class="nav-subitem" data-section="cmdb-section-types" onclick="openCmdb('cmdb-section-types')">Asset Categories</div>
                   <div class="nav-subitem" data-section="cmdb-section-management" onclick="openCmdb('cmdb-section-management')">CMDB Management</div>
                   <div class="nav-subitem av-nav-item" data-section="cmdb-section-assetviewer" onclick="openCmdb('cmdb-section-assetviewer')" style="display:none">Asset Viewer</div>
                 </div>
@@ -1753,7 +1753,7 @@ vNext-FULL-ActionsSLA:
             <div class="navlink" onclick="toggleNavGroup('nav-cmdb-group-expert')">🗃️ CMDB <span class="chev">▸</span></div>
             <div class="nav-subitems">
               <div class="nav-subitem" data-section="cmdb-section-items" onclick="openCmdb('cmdb-section-items')">CMDB Items</div>
-              <div class="nav-subitem" data-section="cmdb-section-types" onclick="openCmdb('cmdb-section-types')">CMDB Types</div>
+              <div class="nav-subitem" data-section="cmdb-section-types" onclick="openCmdb('cmdb-section-types')">Asset Categories</div>
               <div class="nav-subitem" data-section="cmdb-section-management" onclick="openCmdb('cmdb-section-management')">CMDB Management</div>
               <div class="nav-subitem av-nav-item" data-section="cmdb-section-assetviewer" onclick="openCmdb('cmdb-section-assetviewer')" style="display:none">👁️ Asset Viewer</div>
             </div>
@@ -4710,38 +4710,14 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           </div>
         </div>
 
-        <!-- Manage CMDB Types -->
+        <!-- Asset Categories -->
         <div id="view-manage-cmdb" style="display:none">
           <div class="row space mb-12">
-            <div class="row"><button class="btn ghost" onclick="switchView('dash')">← Back</button><h3 class="title" style="margin:0 0 0 8px">Manage CMDB Types</h3></div>
-            <button class="btn primary" onclick="showCreateItemTypeForm()">+ Add Item Type</button>
-          </div>
-          
-          <!-- CMDB Item Types List -->
-          <div class="card p-16 mb-16">
-            <h4>CMDB Item Types</h4>
-            <table class="mt-16">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Description</th>
-                  <th>CI Types</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody id="item-types-body"></tbody>
-            </table>
+            <div class="row"><button class="btn ghost" onclick="switchView('dash')">← Back</button><h3 class="title" style="margin:0 0 0 8px">Asset Categories</h3></div>
+            <button class="btn primary" onclick="addAssetCategory()">+ Add Category</button>
           </div>
 
-          <!-- CI Types List (shown when item type is selected) -->
-          <div class="card p-16" id="ci-types-section" style="display:none">
-            <div class="row space mb-12">
-              <div class="row">
-                <h4>CI Types for: <span id="selected-item-type-name"></span></h4>
-              </div>
-              <button class="btn primary" onclick="showCreateCITypeForm()">+ Add CI Type</button>
-            </div>
+          <div class="card p-16">
             <table class="mt-16">
               <thead>
                 <tr>
@@ -4751,7 +4727,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
                   <th>Actions</th>
                 </tr>
               </thead>
-              <tbody id="ci-types-body"></tbody>
+              <tbody id="asset-categories-body"></tbody>
             </table>
           </div>
         </div>
@@ -6968,7 +6944,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       <input type="hidden" id="cmdb-mgmt-id">
       <div class="row" style="gap:16px">
         <div class="mb-12" style="flex:1"><div class="subtitle">Asset Name *</div><input id="cmdb-mgmt-asset-name" class="input" required/></div>
-        <div class="mb-12" style="flex:1"><div class="subtitle">Asset Category *</div><input id="cmdb-mgmt-asset-category" class="input" required/></div>
+        <div class="mb-12" style="flex:1"><div class="subtitle">Asset Category *</div><select id="cmdb-mgmt-asset-category" class="input" required><option value="">-- Select Category --</option></select></div>
       </div>
       <div class="row" style="gap:16px">
         <div class="mb-12" style="flex:1"><div class="subtitle">Category Field Value</div><input id="cmdb-mgmt-category-field" class="input"/></div>
@@ -24073,13 +24049,28 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     }
   }
 
-  function cmdbMgmtPopulateFilters() {
-    const cats = [...new Set(CMDB_MGMT_ITEMS.map(i => i.asset_category).filter(Boolean))].sort();
+  async function cmdbMgmtPopulateFilters() {
     const custs = [...new Set(CMDB_MGMT_ITEMS.map(i => i.customer_name).filter(Boolean))].sort();
     const catSel = document.getElementById('cmdb-mgmt-category');
     const custSel = document.getElementById('cmdb-mgmt-customer');
-    catSel.innerHTML = '<option value="">All Categories</option>' + cats.map(c => `<option value="${c}">${c}</option>`).join('');
     custSel.innerHTML = '<option value="">All Customers</option>' + custs.map(c => `<option value="${c}">${c}</option>`).join('');
+    // Populate categories from API
+    try {
+      const token = localStorage.getItem('token');
+      const tenantCode = window.tenant || tenant || localStorage.getItem('tenantCode');
+      if (token && tenantCode) {
+        const res = await fetch(`${API_BASE}/api/cmdb-types/${tenantCode}/categories`, { headers: { 'Authorization': `Bearer ${token}` } });
+        const data = await res.json();
+        if (data.success && data.categories) {
+          const cats = data.categories.filter(c => c.is_active).map(c => c.name).sort();
+          catSel.innerHTML = '<option value="">All Categories</option>' + cats.map(c => `<option value="${c}">${c}</option>`).join('');
+          return;
+        }
+      }
+    } catch (err) { console.error('Error loading categories for filter:', err); }
+    // Fallback: extract from loaded items
+    const cats = [...new Set(CMDB_MGMT_ITEMS.map(i => i.asset_category).filter(Boolean))].sort();
+    catSel.innerHTML = '<option value="">All Categories</option>' + cats.map(c => `<option value="${c}">${c}</option>`).join('');
   }
 
   function cmdbMgmtApplyFilters() { cmdbMgmtRender(); }
@@ -24143,14 +24134,74 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     }).join('');
   }
 
-  function cmdbMgmtOpenCreate() {
+  async function populateCategoryDropdown(selectValue) {
+    const sel = document.getElementById('cmdb-mgmt-asset-category');
+    sel.innerHTML = '<option value="">-- Select Category --</option>';
+    try {
+      const token = localStorage.getItem('token');
+      const tenantCode = window.tenant || tenant || localStorage.getItem('tenantCode');
+      if (!tenantCode) return;
+      const res = await fetch(`${API_BASE}/api/cmdb-types/${tenantCode}/categories`, { headers: { 'Authorization': `Bearer ${token}` } });
+      const data = await res.json();
+      if (data.success && data.categories) {
+        data.categories.filter(c => c.is_active).forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c.name;
+          opt.textContent = c.name;
+          sel.appendChild(opt);
+        });
+        // Add "Other..." option for new categories
+        const otherOpt = document.createElement('option');
+        otherOpt.value = '__other__';
+        otherOpt.textContent = 'Other...';
+        sel.appendChild(otherOpt);
+      }
+    } catch (err) { console.error('Error loading categories:', err); }
+    if (selectValue) sel.value = selectValue;
+    // If the value wasn't found in the list (e.g. inactive or new), add it
+    if (selectValue && sel.value !== selectValue) {
+      const opt = document.createElement('option');
+      opt.value = selectValue;
+      opt.textContent = selectValue;
+      sel.insertBefore(opt, sel.lastElementChild); // before "Other..."
+      sel.value = selectValue;
+    }
+    // Handle "Other..." selection
+    sel.onchange = function() {
+      if (sel.value === '__other__') {
+        const newCat = prompt('Enter new category name:');
+        if (newCat && newCat.trim()) {
+          const opt = document.createElement('option');
+          opt.value = newCat.trim();
+          opt.textContent = newCat.trim();
+          sel.insertBefore(opt, sel.lastElementChild);
+          sel.value = newCat.trim();
+          // Also create it on the server
+          const token = localStorage.getItem('token');
+          const tenantCode = window.tenant || tenant || localStorage.getItem('tenantCode');
+          if (token && tenantCode) {
+            fetch(`${API_BASE}/api/cmdb-types/${tenantCode}/categories`, {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name: newCat.trim() })
+            }).catch(err => console.error('Error auto-creating category:', err));
+          }
+        } else {
+          sel.value = '';
+        }
+      }
+    };
+  }
+
+  async function cmdbMgmtOpenCreate() {
     document.getElementById('cmdb-mgmt-modal-title').textContent = 'Add CMDB Item';
     document.getElementById('cmdb-mgmt-id').value = '';
-    ['asset-name','asset-category','category-field','brand','model','customer-name','employee-of','location','comment'].forEach(f => {
+    ['asset-name','category-field','brand','model','customer-name','employee-of','location','comment'].forEach(f => {
       const el = document.getElementById('cmdb-mgmt-' + f);
       if (el) el.value = '';
     });
     document.getElementById('cmdb-mgmt-status').value = 'active';
+    await populateCategoryDropdown('');
     document.getElementById('cmdb-mgmt-modal').style.display = 'flex';
   }
 
@@ -24166,7 +24217,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         document.getElementById('cmdb-mgmt-modal-title').textContent = 'Edit CMDB Item';
         document.getElementById('cmdb-mgmt-id').value = i.cmdb_id;
         document.getElementById('cmdb-mgmt-asset-name').value = i.asset_name || '';
-        document.getElementById('cmdb-mgmt-asset-category').value = i.asset_category || '';
+        await populateCategoryDropdown(i.asset_category || '');
         document.getElementById('cmdb-mgmt-category-field').value = i.category_field_value || '';
         document.getElementById('cmdb-mgmt-brand').value = i.brand_name || '';
         document.getElementById('cmdb-mgmt-model').value = i.model_name || '';
@@ -24384,53 +24435,70 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     }
   }
 
-  // ---- Manage CMDB Types ----
-  async function loadManageCMDB(){ 
-    try{ 
-      const token=localStorage.getItem('token'); 
-      if(!token){ alert('Session expired'); window.location.reload(); return; } 
+  // ---- Asset Categories ----
+  async function loadAssetCategories() {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) { alert('Session expired'); window.location.reload(); return; }
       const tenantCode = window.tenant || 'apoyar';
-      const res=await fetch(`${API_BASE}/api/cmdb-types/${tenantCode}/item-types`,{headers:{'Authorization':`Bearer ${token}`}});
-      const data=await res.json(); 
-      if(!data.success){ alert('Failed to load CMDB types: '+data.message); return; } 
-      const body=document.getElementById('item-types-body'); body.innerHTML=''; data.itemTypes.forEach(t=>{ const tr=document.createElement('tr'); const safeName = (t.name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;'); tr.innerHTML=`<td>${t.name}</td><td>${t.description||'—'}</td><td>${t.ci_count||0}</td><td><span class="badge ${t.is_active?'success':'danger'}">${t.is_active?'Active':'Inactive'}</span></td><td><button class="btn" onclick="viewCITypes(${t.id},'${safeName}')">View CI Types</button></td>`; body.appendChild(tr); }); 
-    }catch(err){ alert('Error loading CMDB types: '+err.message); } 
+      const res = await fetch(`${API_BASE}/api/cmdb-types/${tenantCode}/categories`, { headers: { 'Authorization': `Bearer ${token}` } });
+      const data = await res.json();
+      if (!data.success) { alert('Failed to load asset categories: ' + data.message); return; }
+      window._assetCategories = data.categories || [];
+      const body = document.getElementById('asset-categories-body');
+      body.innerHTML = '';
+      data.categories.forEach(c => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${c.name}</td><td>${c.description || '—'}</td><td><span class="badge ${c.is_active ? 'success' : 'danger'}">${c.is_active ? 'Active' : 'Inactive'}</span></td><td><button class="btn" onclick="editAssetCategory(${c.id},'${(c.name || '').replace(/'/g, "\\'")}','${(c.description || '').replace(/'/g, "\\'")}',${c.is_active?1:0})">Edit</button></td>`;
+        body.appendChild(tr);
+      });
+    } catch (err) { alert('Error loading asset categories: ' + err.message); }
   }
-  async function viewCITypes(itemTypeId, itemTypeName){ 
-    document.getElementById('selected-item-type-name').textContent=itemTypeName; 
-    document.getElementById('ci-types-section').style.display='block'; 
-    try{ 
-      const token=localStorage.getItem('token'); 
-      const tenantCode = window.tenant || 'apoyar';
-      const res=await fetch(`${API_BASE}/api/cmdb-types/${tenantCode}/item-types/${itemTypeId}/ci-types`,{headers:{'Authorization':`Bearer ${token}`}});
-      const data=await res.json(); 
-      if(!data.success){ alert('Failed to load CI types: '+data.message); return; } 
-      window._currentItemTypeId = itemTypeId;
-      const body=document.getElementById('ci-types-body'); body.innerHTML=''; data.ciTypes.forEach(ci=>{ const safeName = (ci.name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;'); const safeDesc = (ci.description || '').replace(/'/g, "\\'").replace(/"/g, '&quot;'); const tr=document.createElement('tr'); tr.innerHTML=`<td>${ci.name}</td><td>${ci.description||'—'}</td><td><span class="badge ${ci.is_active?'success':'danger'}">${ci.is_active?'Active':'Inactive'}</span></td><td><button class="btn" onclick="editCIType(${ci.id},'${safeName}','${safeDesc}')">Edit</button></td>`; body.appendChild(tr); });
-    }catch(err){ alert('Error loading CI types: '+err.message); } 
-  }
-  function showCreateItemTypeForm(){ alert('To add a new CMDB Item Type, contact the database administrator or use the API.'); }
-  function showCreateCITypeForm(){ alert('To add a new CI Type, select an Item Type first and click "Add CI Type" button.'); }
-  async function editCIType(ciTypeId, currentName, currentDesc) {
-    const newName = prompt('Edit CI Type name:', currentName);
-    if (newName === null) return;
-    if (!newName.trim()) { alert('Name cannot be empty'); return; }
-    const newDesc = prompt('Edit CI Type description:', currentDesc || '');
-    if (newDesc === null) return;
+  // Alias for backward compat with switchView
+  function loadManageCMDB() { loadAssetCategories(); }
+
+  async function addAssetCategory() {
+    const name = prompt('New category name:');
+    if (name === null) return;
+    if (!name.trim()) { alert('Name cannot be empty'); return; }
+    const description = prompt('Description (optional):', '') || '';
     const token = localStorage.getItem('token');
     if (!token) { alert('Session expired'); window.location.reload(); return; }
     const tenantCode = window.tenant || 'apoyar';
     try {
-      const res = await fetch(`${API_BASE}/api/cmdb-types/${tenantCode}/ci-types/${ciTypeId}`, {
-        method: 'PUT',
+      const res = await fetch(`${API_BASE}/api/cmdb-types/${tenantCode}/categories`, {
+        method: 'POST',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newName.trim(), description: newDesc.trim() })
+        body: JSON.stringify({ name: name.trim(), description: description.trim() || null })
       });
       const data = await res.json();
-      if (!data.success) { alert('Failed to update CI Type: ' + data.message); return; }
-      alert('CI Type updated successfully');
-      if (window._currentItemTypeId) viewCITypes(window._currentItemTypeId, document.getElementById('selected-item-type-name').textContent);
-    } catch (err) { alert('Error updating CI Type: ' + err.message); }
+      if (!data.success) { alert('Failed to create category: ' + data.message); return; }
+      alert('Category created successfully');
+      loadAssetCategories();
+    } catch (err) { alert('Error creating category: ' + err.message); }
+  }
+
+  async function editAssetCategory(id, currentName, currentDesc, currentActive) {
+    const newName = prompt('Edit category name:', currentName);
+    if (newName === null) return;
+    if (!newName.trim()) { alert('Name cannot be empty'); return; }
+    const newDesc = prompt('Edit description:', currentDesc || '');
+    if (newDesc === null) return;
+    const toggleActive = confirm(`Category is currently ${currentActive ? 'Active' : 'Inactive'}. Click OK to toggle, Cancel to keep.`);
+    const token = localStorage.getItem('token');
+    if (!token) { alert('Session expired'); window.location.reload(); return; }
+    const tenantCode = window.tenant || 'apoyar';
+    try {
+      const res = await fetch(`${API_BASE}/api/cmdb-types/${tenantCode}/categories/${id}`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newName.trim(), description: newDesc.trim() || null, is_active: toggleActive ? !currentActive : !!currentActive })
+      });
+      const data = await res.json();
+      if (!data.success) { alert('Failed to update category: ' + data.message); return; }
+      alert('Category updated successfully');
+      loadAssetCategories();
+    } catch (err) { alert('Error updating category: ' + err.message); }
   }
 
   // ============================================================================
@@ -24544,11 +24612,11 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       const token = localStorage.getItem('token');
       const tenantCode = window.tenant || tenant || localStorage.getItem('tenantCode');
       if (!tenantCode) return;
-      const res = await fetch(`${API_BASE}/api/cmdb/${tenantCode}/items`, { headers: { 'Authorization': `Bearer ${token}` } });
+      const res = await fetch(`${API_BASE}/api/cmdb-types/${tenantCode}/categories`, { headers: { 'Authorization': `Bearer ${token}` } });
       const data = await res.json();
 
-      if (data.success && data.items) {
-        const categories = [...new Set(data.items.map(i => i.asset_category).filter(Boolean))].sort();
+      if (data.success && data.categories) {
+        const categories = data.categories.filter(c => c.is_active).map(c => c.name).sort();
         filter.innerHTML = '<option value="">All Categories</option>';
         categories.forEach(cat => {
           const opt = document.createElement('option');
@@ -24581,7 +24649,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     document.getElementById('custom-field-error').style.display = 'none';
     toggleDropdownOptions();
 
-    // Populate category dropdown
+    // Populate category dropdown from asset_categories table
     const catSelect = document.getElementById('custom-field-category');
     catSelect.innerHTML = '<option value="">-- Select Category --</option>';
     catSelect.disabled = false;
@@ -24590,15 +24658,14 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       const token = localStorage.getItem('token');
       const tenantCode = window.tenant || tenant || localStorage.getItem('tenantCode');
       if (!tenantCode) return;
-      const res = await fetch(`${API_BASE}/api/cmdb/${tenantCode}/items`, { headers: { 'Authorization': `Bearer ${token}` } });
+      const res = await fetch(`${API_BASE}/api/cmdb-types/${tenantCode}/categories`, { headers: { 'Authorization': `Bearer ${token}` } });
       const data = await res.json();
 
-      if (data.success && data.items) {
-        const categories = [...new Set(data.items.map(i => i.asset_category).filter(Boolean))].sort();
-        categories.forEach(cat => {
+      if (data.success && data.categories) {
+        data.categories.filter(c => c.is_active).sort((a,b) => a.name.localeCompare(b.name)).forEach(c => {
           const opt = document.createElement('option');
-          opt.value = cat;
-          opt.textContent = cat;
+          opt.value = c.name;
+          opt.textContent = c.name;
           catSelect.appendChild(opt);
         });
       }

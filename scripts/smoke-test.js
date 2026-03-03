@@ -292,12 +292,12 @@ async function runTests() {
     cmdbItems = res.data.items;
   });
 
-  // Test 9: Get CMDB item types
-  await test('Fetch CMDB item types', async () => {
-    const res = await request('GET', `/api/cmdb-types/${TENANT}/item-types`);
+  // Test 9: Get asset categories
+  await test('Fetch asset categories', async () => {
+    const res = await request('GET', `/api/cmdb-types/${TENANT}/categories`);
     if (res.status !== 200) throw new Error(`Status ${res.status}`);
     if (!res.data.success) throw new Error(`API error: ${res.data.message}`);
-    if (!Array.isArray(res.data.itemTypes)) throw new Error('itemTypes is not an array');
+    if (!Array.isArray(res.data.categories)) throw new Error('categories is not an array');
   });
 
   // Test 10: Get custom field definitions

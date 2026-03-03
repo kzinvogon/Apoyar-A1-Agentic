@@ -305,10 +305,10 @@ async function runTests() {
     assertOk(res, [200, 404]);
   });
 
-  await test('GET /api/cmdb-types/{tenant}/item-types', async () => {
-    const res = await request('GET', `/api/cmdb-types/${TENANT}/item-types`);
+  await test('GET /api/cmdb-types/{tenant}/categories', async () => {
+    const res = await request('GET', `/api/cmdb-types/${TENANT}/categories`);
     const data = assertOk(res);
-    if (!Array.isArray(data.itemTypes)) throw new Error('itemTypes not array');
+    if (!Array.isArray(data.categories)) throw new Error('categories not array');
   });
 
   // ============================================
