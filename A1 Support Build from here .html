@@ -19503,7 +19503,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     // Close Request button - show for customers when ticket is not already Closed/Resolved
     const closeBtn = document.getElementById('btn-customer-close');
     if (closeBtn) {
-      const isClosed = ticket.status === 'Closed' || ticket.status === 'Resolved';
+      const isClosed = t && (t.status === 'Closed' || t.status === 'Resolved');
       closeBtn.style.display = (isCustomer && !isClosed) ? 'inline-block' : 'none';
     }
 
