@@ -3503,6 +3503,15 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
                       <span>Case sensitive matching</span>
                     </label>
                   </div>
+
+                  <div class="mb-12">
+                    <label style="display:block;margin-bottom:4px;font-weight:600">Ticket Source</label>
+                    <select id="rule-source-filter" class="input" style="width:100%">
+                      <option value="all">All Tickets</option>
+                      <option value="monitoring">System/Monitoring Only</option>
+                      <option value="customer">Customer Tickets Only</option>
+                    </select>
+                  </div>
                 </div>
 
                 <!-- Action Section -->
@@ -27832,6 +27841,7 @@ function displayRules(rules) {
             <div><strong>Search in:</strong> ${rule.search_in}</div>
             <div><strong>Text:</strong> "${escapeHtml(rule.search_text || '')}"</div>
             <div><strong>Case sensitive:</strong> ${rule.case_sensitive ? 'Yes' : 'No'}</div>
+            ${rule.source_filter && rule.source_filter !== 'all' ? `<div><strong>Source:</strong> ${rule.source_filter === 'monitoring' ? 'System/Monitoring' : 'Customer'}</div>` : ''}
           </div>
           <div>
             <div class="subtitle" style="margin-bottom:4px">${actionIcon} Action</div>
@@ -27915,6 +27925,7 @@ function showCreateRuleModal() {
   document.getElementById('rule-enabled').checked = true;
   document.getElementById('rule-instruction').value = '';
   document.getElementById('rule-action-type').value = '';
+  document.getElementById('rule-source-filter').value = 'all';
   document.getElementById('interpretation-result').style.display = 'none';
   document.getElementById('instruction-section').style.display = '';
   document.getElementById('advanced-fields').style.display = 'none';
@@ -28066,6 +28077,7 @@ async function saveRule(event) {
     search_in: document.getElementById('rule-search-in').value,
     search_text: searchText || null,
     case_sensitive: document.getElementById('rule-case-sensitive').checked,
+    source_filter: document.getElementById('rule-source-filter').value || 'all',
     action_type: actionType,
     action_params: getActionParams(),
     ai_interpreted: document.getElementById('rule-ai-interpreted').value === '1',
@@ -28222,7 +28234,7 @@ function displayInterpretation(interp) {
   };
 
   detailsDiv.innerHTML = `
-    <div style="margin-bottom:6px"><strong>Condition:</strong> When ${searchInLabel} contains "<em>${escapeHtml(interp.search_text || '')}</em>"${interp.case_sensitive ? ' (case sensitive)' : ''}</div>
+    <div style="margin-bottom:6px"><strong>Condition:</strong> When ${searchInLabel} contains "<em>${escapeHtml(interp.search_text || '')}</em>"${interp.case_sensitive ? ' (case sensitive)' : ''}${interp.source_filter && interp.source_filter !== 'all' ? ` <span style="color:#6366f1;font-weight:600">[${interp.source_filter === 'monitoring' ? 'System/Monitoring only' : 'Customer only'}]</span>` : ''}</div>
     <div style="margin-bottom:6px"><strong>Action:</strong> ${actionLabels[interp.action_type] || interp.action_type}</div>
     ${interp.reasoning ? `<div style="margin-bottom:6px;color:#6b7280"><strong>Reasoning:</strong> ${escapeHtml(interp.reasoning)}</div>` : ''}
   `;
@@ -28255,6 +28267,9 @@ function populateStructuredFields(interp) {
   document.getElementById('rule-search-in').value = interp.search_in || 'both';
   document.getElementById('rule-search-text').value = interp.search_text || '';
   document.getElementById('rule-case-sensitive').checked = !!interp.case_sensitive;
+  if (interp.source_filter) {
+    document.getElementById('rule-source-filter').value = interp.source_filter;
+  }
 
   // Set action type — add option dynamically if AI returned a value not in the select
   const actionSelect = document.getElementById('rule-action-type');
@@ -28352,6 +28367,7 @@ async function editRule(ruleId) {
       document.getElementById('rule-search-in').value = rule.search_in || 'both';
       document.getElementById('rule-search-text').value = rule.search_text || '';
       document.getElementById('rule-case-sensitive').checked = rule.case_sensitive;
+      document.getElementById('rule-source-filter').value = rule.source_filter || 'all';
       document.getElementById('rule-action-type').value = rule.action_type;
       document.getElementById('rule-ai-interpreted').value = rule.ai_interpreted ? '1' : '0';
       document.getElementById('rule-ai-confidence').value = rule.ai_confidence || '';

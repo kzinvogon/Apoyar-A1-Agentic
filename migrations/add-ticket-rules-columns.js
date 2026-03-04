@@ -68,6 +68,15 @@ async function migrate(tenantCode) {
       MODIFY COLUMN search_text VARCHAR(500) DEFAULT NULL
     `);
 
+    // Add source_filter if missing
+    if (!(await hasColumn(connection, 'ticket_processing_rules', 'source_filter'))) {
+      await connection.query(`
+        ALTER TABLE ticket_processing_rules
+        ADD COLUMN source_filter ENUM('all', 'monitoring', 'customer') DEFAULT 'all' AFTER case_sensitive
+      `);
+      console.log(`[${tenantCode}] Added source_filter column`);
+    }
+
     // Ensure action_type ENUM includes all values (idempotent)
     await connection.query(`
       ALTER TABLE ticket_processing_rules

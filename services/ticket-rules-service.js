@@ -131,6 +131,7 @@ class TicketRulesService {
         search_in = 'both',
         search_text,
         case_sensitive = false,
+        source_filter = 'all',
         action_type,
         action_params = {},
         ai_interpreted = false,
@@ -140,8 +141,8 @@ class TicketRulesService {
       const [result] = await connection.query(
         `INSERT INTO ticket_processing_rules
          (tenant_code, rule_name, description, instruction_text, enabled, search_in, search_text,
-          case_sensitive, action_type, action_params, ai_interpreted, ai_confidence, created_by)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          case_sensitive, source_filter, action_type, action_params, ai_interpreted, ai_confidence, created_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           this.tenantCode,
           rule_name,
@@ -151,6 +152,7 @@ class TicketRulesService {
           search_in,
           search_text || null,
           case_sensitive,
+          source_filter || 'all',
           action_type,
           JSON.stringify(action_params),
           ai_interpreted ? 1 : 0,
@@ -177,7 +179,7 @@ class TicketRulesService {
 
       const updatableFields = [
         'rule_name', 'description', 'instruction_text', 'enabled', 'search_in',
-        'search_text', 'case_sensitive', 'action_type', 'action_params',
+        'search_text', 'case_sensitive', 'source_filter', 'action_type', 'action_params',
         'ai_interpreted', 'ai_confidence'
       ];
 
@@ -287,10 +289,18 @@ class TicketRulesService {
         ? [searchValue, searchValue]
         : [searchValue];
 
+      // Source filter clause
+      let sourceFilterClause = '';
+      if (rule.source_filter === 'monitoring') {
+        sourceFilterClause = ` AND (JSON_EXTRACT(source_metadata, '$.type') = 'monitoring' OR JSON_EXTRACT(source_metadata, '$.monitoring') = true)`;
+      } else if (rule.source_filter === 'customer') {
+        sourceFilterClause = ` AND (source_metadata IS NULL OR (JSON_EXTRACT(source_metadata, '$.type') != 'monitoring' AND (JSON_EXTRACT(source_metadata, '$.monitoring') IS NULL OR JSON_EXTRACT(source_metadata, '$.monitoring') = false)))`;
+      }
+
       const [tickets] = await connection.query(
         `SELECT id, title, description, status, priority, created_at
          FROM tickets
-         WHERE ${searchCondition}
+         WHERE ${searchCondition}${sourceFilterClause}
          ORDER BY created_at DESC
          LIMIT 100`,
         queryParams
