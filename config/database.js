@@ -324,6 +324,49 @@ async function createMasterTables() {
       INDEX idx_email (email),
       INDEX idx_created_at (created_at)
     )`,
+    // Slack integration tables
+    `CREATE TABLE IF NOT EXISTS slack_workspace_mappings (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      slack_workspace_id VARCHAR(100) NOT NULL UNIQUE,
+      slack_workspace_name VARCHAR(255),
+      tenant_code VARCHAR(50) NOT NULL,
+      slack_bot_token TEXT,
+      is_active BOOLEAN DEFAULT TRUE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_slack_workspace_id (slack_workspace_id),
+      INDEX idx_tenant_code (tenant_code)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+    `CREATE TABLE IF NOT EXISTS slack_email_domain_mappings (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      email_domain VARCHAR(255) NOT NULL UNIQUE,
+      tenant_code VARCHAR(50) NOT NULL,
+      is_active BOOLEAN DEFAULT TRUE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_email_domain (email_domain),
+      INDEX idx_tenant_code (tenant_code)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+    // Teams integration tables
+    `CREATE TABLE IF NOT EXISTS teams_tenant_mappings (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      teams_tenant_id VARCHAR(100) NOT NULL UNIQUE,
+      teams_tenant_name VARCHAR(255),
+      tenant_code VARCHAR(50) NOT NULL,
+      is_active BOOLEAN DEFAULT TRUE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_teams_tenant_id (teams_tenant_id),
+      INDEX idx_tenant_code (tenant_code)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+    `CREATE TABLE IF NOT EXISTS teams_email_domain_mappings (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      email_domain VARCHAR(255) NOT NULL UNIQUE,
+      tenant_code VARCHAR(50) NOT NULL,
+      is_active BOOLEAN DEFAULT TRUE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_email_domain (email_domain),
+      INDEX idx_tenant_code (tenant_code)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
   ];
 
   for (const sql of statements) {

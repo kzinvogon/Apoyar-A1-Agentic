@@ -87,6 +87,10 @@ router.get('/:tenantCode/teams/status', async (req, res) => {
 
     res.json(response);
   } catch (error) {
+    // Handle missing tables gracefully (tables created on next startup)
+    if (error.code === 'ER_NO_SUCH_TABLE') {
+      return res.json({ feature_enabled: false, connected: false, email_domains: [], minimum_plan: 'professional' });
+    }
     console.error('[Teams Integration] Status error:', error);
     res.status(500).json({ error: 'Failed to check Teams integration status' });
   } finally {
