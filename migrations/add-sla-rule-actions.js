@@ -53,7 +53,8 @@ async function migrate() {
             'add_tag',
             'add_to_monitoring',
             'set_sla_deadlines',
-            'set_sla_definition'
+            'set_sla_definition',
+            'close_ticket'
           ) NOT NULL
         `);
 

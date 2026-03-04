@@ -68,6 +68,16 @@ async function migrate(tenantCode) {
       MODIFY COLUMN search_text VARCHAR(500) DEFAULT NULL
     `);
 
+    // Ensure action_type ENUM includes all values (idempotent)
+    await connection.query(`
+      ALTER TABLE ticket_processing_rules
+      MODIFY COLUMN action_type ENUM(
+        'delete', 'create_for_customer', 'assign_to_expert',
+        'set_priority', 'set_status', 'add_tag', 'add_to_monitoring',
+        'set_sla_deadlines', 'set_sla_definition', 'close_ticket'
+      ) NOT NULL
+    `);
+
     console.log(`[${tenantCode}] ticket_processing_rules columns migration complete`);
 
   } catch (error) {

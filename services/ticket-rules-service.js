@@ -357,6 +357,10 @@ class TicketRulesService {
           actionResult = await this.setSlaDefinition(ticketId, rule.action_params);
           break;
 
+        case 'close_ticket':
+          actionResult = await this.closeTicket(ticketId, rule.action_params);
+          break;
+
         default:
           throw new Error(`Unknown action type: ${rule.action_type}`);
       }
@@ -371,7 +375,8 @@ class TicketRulesService {
           add_tag:             { type: 'updated',   key: 'ticket.tag.added',      desc: actionResult.message },
           add_to_monitoring:   { type: 'updated',   key: 'ticket.monitoring.set', desc: actionResult.message },
           set_sla_deadlines:   { type: 'updated',   key: 'ticket.sla.deadlines',  desc: actionResult.message },
-          set_sla_definition:  { type: 'updated',   key: 'ticket.sla.applied',    desc: actionResult.message }
+          set_sla_definition:  { type: 'updated',   key: 'ticket.sla.applied',    desc: actionResult.message },
+          close_ticket:        { type: 'closed',    key: 'ticket.status.changed', desc: actionResult.message }
         };
         const info = activityMap[rule.action_type] || { type: 'updated', key: 'ticket.rule.action', desc: actionResult.message };
         try {
@@ -379,12 +384,12 @@ class TicketRulesService {
             ticketId,
             userId: null,
             activityType: info.type,
-            description: `${info.desc} (Rule: ${rule.name})`,
+            description: `${info.desc} (Rule: ${rule.rule_name})`,
             isPublic: false,
             source: 'system',
             actorType: 'system',
             eventKey: info.key,
-            meta: { ruleId: rule.id, ruleName: rule.name, actionType: rule.action_type, params: rule.action_params }
+            meta: { ruleId: rule.id, ruleName: rule.rule_name, actionType: rule.action_type, params: rule.action_params }
           });
         } catch (actErr) {
           console.error(`[TicketRules] Activity log failed for ticket #${ticketId}:`, actErr.message);
@@ -573,6 +578,40 @@ class TicketRulesService {
       return {
         message: `Ticket #${ticketId} status set to ${params.status}`,
         status: params.status
+      };
+    } finally {
+      connection.release();
+    }
+  }
+
+  async closeTicket(ticketId, params = {}) {
+    const connection = await getTenantConnection(this.tenantCode);
+    try {
+      // Log closure note as internal comment if provided
+      if (params.note) {
+        await logTicketActivity(connection, {
+          ticketId,
+          userId: null,
+          activityType: 'comment',
+          description: params.note,
+          isPublic: false,
+          source: 'system',
+          actorType: 'system',
+          eventKey: 'ticket.comment.added',
+          meta: { closureNote: true, triggeredBy: 'ticket_rule' }
+        });
+      }
+
+      await connection.query(
+        `UPDATE tickets
+         SET status = 'Closed', updated_at = NOW()
+         WHERE id = ?`,
+        [ticketId]
+      );
+
+      return {
+        message: `Ticket #${ticketId} closed${params.note ? ' with closure note' : ''}`,
+        status: 'Closed'
       };
     } finally {
       connection.release();

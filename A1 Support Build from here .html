@@ -3520,6 +3520,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
                       <option value="set_status">Set Status</option>
                       <option value="add_tag">Add Tag</option>
                       <option value="add_to_monitoring">Add to System Monitoring Sources</option>
+                      <option value="close_ticket">Close Ticket</option>
                       <option value="set_sla_definition">Apply SLA Definition</option>
                       <option value="set_sla_deadlines">Set SLA Deadlines</option>
                     </select>
@@ -27780,7 +27781,8 @@ function displayRules(rules) {
     set_priority: '⚡',
     set_status: '📊',
     add_tag: '🏷️',
-    add_to_monitoring: '📡'
+    add_to_monitoring: '📡',
+    close_ticket: '🔒'
   };
 
   const actionLabels = {
@@ -27790,7 +27792,8 @@ function displayRules(rules) {
     set_priority: 'Set Priority',
     set_status: 'Set Status',
     add_tag: 'Add Tag',
-    add_to_monitoring: 'Add to Monitoring'
+    add_to_monitoring: 'Add to Monitoring',
+    close_ticket: 'Close Ticket'
   };
 
   rulesList.innerHTML = rules.map(rule => {
@@ -27863,6 +27866,8 @@ function formatActionParams(actionType, params) {
       return `<div>Status: ${params.status}</div>`;
     case 'add_tag':
       return `<div>Tag: ${params.tag}</div>`;
+    case 'close_ticket':
+      return params.note ? `<div>Note: ${escapeHtml(params.note)}</div>` : '';
     default:
       return '';
   }
@@ -28004,6 +28009,16 @@ function updateActionParams() {
       `;
       break;
 
+    case 'close_ticket':
+      html = `
+        <div class="mb-12">
+          <label style="display:block;margin-bottom:4px;font-weight:600">Closure Note (optional)</label>
+          <textarea id="param-close-note" class="input" placeholder="e.g., Auto-closed by automated action" rows="2" style="width:100%"></textarea>
+          <div class="subtitle" style="margin-top:4px">This note will be logged as an internal comment in the ticket activity</div>
+        </div>
+      `;
+      break;
+
     case 'add_to_monitoring':
       html = `
         <div class="subtitle" style="margin-top:8px">
@@ -28116,6 +28131,13 @@ function getActionParams() {
 
     case 'set_status':
       params.status = document.getElementById('param-status').value;
+      break;
+
+    case 'close_ticket':
+      const closeNote = document.getElementById('param-close-note');
+      if (closeNote && closeNote.value.trim()) {
+        params.note = closeNote.value.trim();
+      }
       break;
 
     case 'add_tag':
@@ -28274,6 +28296,12 @@ function populateStructuredFields(interp) {
             if (el) el.value = interp.action_params.status;
           }
           break;
+        case 'close_ticket':
+          if (interp.action_params.note) {
+            const el = document.getElementById('param-close-note');
+            if (el) el.value = interp.action_params.note;
+          }
+          break;
         case 'add_tag':
           if (interp.action_params.tag) {
             const el = document.getElementById('param-tag');
@@ -28367,6 +28395,12 @@ async function editRule(ruleId) {
               if (rule.action_params.status) {
                 const el = document.getElementById('param-status');
                 if (el) el.value = rule.action_params.status;
+              }
+              break;
+            case 'close_ticket':
+              if (rule.action_params.note) {
+                const el = document.getElementById('param-close-note');
+                if (el) el.value = rule.action_params.note;
               }
               break;
             case 'add_tag':

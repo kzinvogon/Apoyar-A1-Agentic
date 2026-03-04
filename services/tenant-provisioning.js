@@ -699,7 +699,7 @@ async function createTenantTables(connection) {
       search_in ENUM('title', 'body', 'both') DEFAULT 'both',
       search_text VARCHAR(500) DEFAULT NULL,
       case_sensitive TINYINT(1) DEFAULT 0,
-      action_type ENUM('delete', 'create_for_customer', 'assign_to_expert', 'set_priority', 'set_status', 'add_tag', 'add_to_monitoring', 'set_sla_deadlines', 'set_sla_definition') NOT NULL,
+      action_type ENUM('delete', 'create_for_customer', 'assign_to_expert', 'set_priority', 'set_status', 'add_tag', 'add_to_monitoring', 'set_sla_deadlines', 'set_sla_definition', 'close_ticket') NOT NULL,
       action_params JSON,
       ai_interpreted TINYINT(1) DEFAULT 0,
       ai_confidence FLOAT DEFAULT NULL,
