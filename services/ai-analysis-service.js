@@ -996,10 +996,38 @@ SLA Status:
    - "met": Target was met successfully
    - "pending": Not yet applicable (e.g., resolve clock before response)
 
-Provide actionable suggestions in valid JSON format:
+## Status Rules (MUST follow):
+- Ticket status ENUM values are Title Case ONLY: "Open", "In Progress", "Pending", "Resolved", "Closed".
+- NEVER output lowercase statuses anywhere.
+
+## Action Execution Constraints (MUST follow):
+- You can ONLY suggest these action types: assign, priority, category, respond, close.
+- "respond" creates an INTERNAL ticket_activity comment only. It does NOT email the customer.
+- "close" will set the ticket status to "Closed" (Title Case). Do NOT attempt to set a different status via params.
+
+## Operational Autotune Rules (MUST follow):
+A) If the ticket clearly indicates a SUCCESS / OK / COMPLETED outcome and there are NO error/failure/impact indicators,
+   you MUST include a TOP suggestedAction of type "close" with confidence 90-100.
+B) When you include a "close" action, you MUST also include a second suggestedAction of type "respond" with:
+   - label EXACTLY: "Add closure note (internal)"
+   - params.response containing a short evidence-based closure note explaining why it was closed
+   - confidence 85-100
+C) If the ticket looks like recurring monitoring noise that should not create tickets, include another suggestedAction
+   of type "respond" that proposes an automation/suppression rule candidate (pattern + negative match for error keywords).
+D) NEVER recommend "close" if ANY failure/impact indicators exist, including:
+   ERROR, FAILED, FAIL, PANIC, corrupt, aborted, permission denied, timeout, unreachable, down, exception, stack trace.
+E) If you recommend closing, analysis.summary MUST include the exact phrase:
+   "Informational success event; no remediation required."
+F) For close actions: set params.status = null (system sets status to "Closed"). Do not output lowercase statuses.
+
+## Automated Actions
+Factor in the active automated actions listed below. Do NOT suggest actions that duplicate what these rules already handle automatically.
+If a rule already applies to this ticket, mention it in your analysis.
+
+Provide actionable suggestions in valid JSON format ONLY (no markdown, no extra commentary):
 {
   "analysis": {
-    "summary": "Brief 1-2 sentence summary of the issue",
+    "summary": "Brief 1-2 sentence summary of the issue (include required phrase when closing for success events)",
     "urgency": "critical|high|medium|low",
     "complexity": "simple|moderate|complex",
     "estimatedTime": "Time estimate to resolve",
@@ -1008,7 +1036,7 @@ Provide actionable suggestions in valid JSON format:
   "suggestedActions": [
     {
       "id": "unique_id",
-      "type": "assign|priority|category|respond|escalate|close",
+      "type": "assign|priority|category|respond|close",
       "label": "Button text (short)",
       "description": "What this does",
       "confidence": 0-100,
@@ -1017,23 +1045,22 @@ Provide actionable suggestions in valid JSON format:
         "priority": "string or null",
         "category": "string or null",
         "response": "string or null",
-        "status": "string or null"
+        "status": "Open|In Progress|Pending|Resolved|Closed or null"
       }
     }
   ],
-  "draftResponse": "Suggested response to send to customer",
+  "draftResponse": "Optional internal text. Use empty string when not needed.",
   "nextSteps": ["Recommended step 1", "Recommended step 2"],
   "knowledgeHints": ["Relevant KB article suggestion 1"],
   "warnings": ["Any concerns or things to watch out for, including SLA warnings"]
 }
 
-Provide 3-5 actionable suggestions ordered by confidence/relevance.
-For assign actions, include assignee_id from the expert list.
-For respond actions, include a professional draft response.
-If SLA is near_breach or breached, include a warning and prioritize actions that help meet SLA.
-
-## Automated Actions
-Factor in the active automated actions listed below. Do NOT suggest actions that duplicate what these rules already handle automatically. If a rule already applies to this ticket, mention it in your analysis.`;
+Additional requirements:
+- Provide 3-5 suggestedActions ordered by confidence/relevance.
+- If you recommend "close", it MUST be the first suggestedAction.
+- For "assign" actions, include assignee_id from the expert list.
+- If SLA is near_breach or breached, include a warning and prioritize actions that help meet SLA.
+- Do not recommend actions that duplicate automatedActions already applied.`;
 
     // Add JSON enforcement if enabled
     if (CONFIG.AI_JSON_ONLY) {
