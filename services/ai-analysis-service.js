@@ -1003,15 +1003,14 @@ SLA Status:
 ## Action Execution Constraints (MUST follow):
 - You can ONLY suggest these action types: assign, priority, category, respond, close.
 - "respond" creates an INTERNAL ticket_activity comment only. It does NOT email the customer.
-- "close" will set the ticket status to "Closed" (Title Case). Do NOT attempt to set a different status via params.
+- "close" will set the ticket status to "Closed" (Title Case). If params.response is provided, it will ALSO log an internal closure note before closing. Do NOT attempt to set a different status via params.
 
 ## Operational Autotune Rules (MUST follow):
-A) If the ticket clearly indicates a SUCCESS / OK / COMPLETED outcome and there are NO error/failure/impact indicators,
+A) If the ticket clearly indicates a SUCCESS / OK / COMPLETED / RECOVERY outcome and there are NO error/failure/impact indicators,
    you MUST include a TOP suggestedAction of type "close" with confidence 90-100.
-B) When you include a "close" action, you MUST also include a second suggestedAction of type "respond" with:
-   - label EXACTLY: "Add closure note (internal)"
-   - params.response containing a short evidence-based closure note explaining why it was closed
-   - confidence 85-100
+B) When you include a "close" action, you MUST include params.response containing a short evidence-based closure note
+   explaining why the ticket was closed. The system will log this as an internal note and then close the ticket in one step.
+   Use label "Close with note" for these combined close+note actions.
 C) If the ticket looks like recurring monitoring noise that should not create tickets, include another suggestedAction
    of type "respond" that proposes an automation/suppression rule candidate (pattern + negative match for error keywords).
 D) NEVER recommend "close" if ANY failure/impact indicators exist, including:
@@ -1355,6 +1354,15 @@ Return the structured rule as JSON.`
           break;
 
         case 'close':
+          // Log closure note first if provided
+          if (action.params.response) {
+            await logTicketActivity(connection, {
+              ticketId, userId, activityType: 'comment',
+              description: action.params.response,
+              source: 'system', eventKey: 'ticket.comment.added',
+              meta: { triggeredBy: 'ai_suggestion', closureNote: true }
+            });
+          }
           await connection.query(
             'UPDATE tickets SET status = ? WHERE id = ?',
             ['Closed', ticketId]
