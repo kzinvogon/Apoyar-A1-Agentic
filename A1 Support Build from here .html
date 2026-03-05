@@ -23192,7 +23192,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             const ticketCount = c.open_ticket_count || 0;
             const ticketStyle = ticketCount > 0 ? 'color:#2563eb;font-weight:600;cursor:pointer' : 'color:#6b7280';
             const emailEnabled = c.email_notifications_enabled !== 0;
-            const companyBlocked = !c.is_company_admin && c.members_receive_emails === 0;
+            const companyBlocked = c.is_company_admin ? (c.admin_receive_emails === 0) : (c.members_receive_emails === 0);
             const emailDisabledByCompany = companyBlocked;
 
             // Desktop table row
@@ -23774,15 +23774,27 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       document.getElementById('profile-email').value=profile.email||''; 
       document.getElementById('profile-phone').value=profile.phone||''; 
       document.getElementById('profile-department').value=profile.department||'';
-      // Email preference — grey out if company blocks
+      // Email preference — grey out if system or company blocks
       const emailCheckbox = document.getElementById('profile-receive-email-updates');
       const emailBlockedMsg = document.getElementById('profile-email-blocked-msg');
       const isCustomerRole = (window.role || role) === 'customer';
+      const systemBlocksEmail = profile.system_emails_enabled === 0;
       const companyBlocksEmail = isCustomerRole && !profile.is_company_admin && profile.members_receive_emails === 0;
-      emailCheckbox.checked = !companyBlocksEmail && profile.receive_email_updates == 1;
-      emailCheckbox.disabled = companyBlocksEmail;
-      if (emailBlockedMsg) emailBlockedMsg.style.display = companyBlocksEmail ? 'block' : 'none';
-      if (companyBlocksEmail) {
+      const emailBlocked = systemBlocksEmail || companyBlocksEmail;
+      emailCheckbox.checked = !emailBlocked && profile.receive_email_updates == 1;
+      emailCheckbox.disabled = emailBlocked;
+      if (emailBlockedMsg) {
+        if (systemBlocksEmail) {
+          emailBlockedMsg.textContent = 'Email notifications are currently disabled by your administrator.';
+          emailBlockedMsg.style.display = 'block';
+        } else if (companyBlocksEmail) {
+          emailBlockedMsg.textContent = 'Your company administrator has disabled email notifications for team members. Contact your admin to enable them.';
+          emailBlockedMsg.style.display = 'block';
+        } else {
+          emailBlockedMsg.style.display = 'none';
+        }
+      }
+      if (emailBlocked) {
         document.getElementById('profile-email-label').style.cursor = 'not-allowed';
         document.getElementById('profile-email-label').style.opacity = '0.5';
       } else {

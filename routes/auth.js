@@ -414,6 +414,18 @@ router.get('/profile', verifyToken, async (req, res) => {
           return res.status(404).json({ success: false, message: 'User not found' });
         }
 
+        // For customer/expert users, include system-level email kill switch
+        try {
+          const emailType = rows[0].role === 'customer' ? 'send_emails_customers' : 'send_emails_experts';
+          const [settings] = await connection.query(
+            'SELECT setting_value FROM tenant_settings WHERE setting_key = ?',
+            [emailType]
+          );
+          rows[0].system_emails_enabled = (settings.length === 0 || settings[0].setting_value !== 'false') ? 1 : 0;
+        } catch (e) {
+          rows[0].system_emails_enabled = 1;
+        }
+
         // For customer users, include company name and email notification overrides
         if (rows[0].role === 'customer') {
           try {
