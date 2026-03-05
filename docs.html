@@ -152,6 +152,7 @@
   <a href="#creating-actions">Creating Actions</a>
   <a href="#testing-actions">Testing &amp; Running</a>
   <a href="#actions-best-practices">Best Practices</a>
+  <a href="#monitoring-correlation">Alert Correlation</a>
 
   <span class="section-label">Analytics &amp; More</span>
   <a href="#analytics">Analytics Dashboard</a>
@@ -1022,11 +1023,22 @@
 <ol class="steps">
   <li>Go to <strong>Settings &gt; Email Ingest</strong> and select the <strong>Standard IMAP</strong> tab.</li>
   <li>Tick <strong>Enable IMAP Ingest</strong>.</li>
-  <li>Enter your IMAP server details (host, port, username, password).</li>
-  <li>Enable <strong>Use SSL</strong> (recommended).</li>
-  <li>Set the <strong>Check Interval</strong> (1&ndash;60 minutes).</li>
+  <li>Enter your IMAP server details:
+    <table>
+      <tr><th>Field</th><th>Example (Gmail)</th><th>Example (Outlook)</th></tr>
+      <tr><td>Server Host</td><td><code>imap.gmail.com</code></td><td><code>outlook.office365.com</code></td></tr>
+      <tr><td>Server Port</td><td><code>993</code></td><td><code>993</code></td></tr>
+      <tr><td>Use SSL</td><td>Yes</td><td>Yes</td></tr>
+      <tr><td>Username</td><td><code>support@company.com</code></td><td><code>support@company.com</code></td></tr>
+      <tr><td>Password</td><td>App Password</td><td>App Password</td></tr>
+    </table>
+  </li>
+  <li>Set the <strong>Check Interval</strong> (1&ndash;60 minutes). Recommended: <strong>2&ndash;5 minutes</strong>.</li>
+  <li>(Optional) Enable <strong>Use for Outbound</strong> and enter SMTP details if you want replies sent from this mailbox.</li>
   <li>Click <strong>Test Connection</strong> to verify, then <strong>Save Settings</strong>.</li>
 </ol>
+
+<div class="warning-box"><strong>Warning</strong>Use an <strong>app password</strong> (not your main password) when connecting Gmail or Outlook. Both providers require app-specific passwords for IMAP access. For Gmail, enable 2FA first, then generate an app password at <code>myaccount.google.com/apppasswords</code>.</div>
 
 <h2>What Happens When an Email Arrives</h2>
 <ol>
@@ -1039,9 +1051,7 @@
 </ol>
 
 <h2>System / Monitoring Senders</h2>
-<p>You can designate specific email addresses as <strong>System Senders</strong> (e.g. <code>nagios@company.com</code>). Emails from these addresses create tickets under the "System" user instead of auto-creating customer accounts. ServiFlow also has built-in detection for common monitoring systems (Nagios, Zabbix, Datadog, etc.) and parses their alerts specially &mdash; extracting host, service, alert type, and state.</p>
-
-<div class="warning-box"><strong>Warning</strong>Use an <strong>app password</strong> (not your main password) when connecting Gmail. Gmail requires app-specific passwords for IMAP access.</div>
+<p>You can designate specific email addresses as <strong>System Senders</strong> (e.g. <code>nagios@company.com</code>). Emails from these addresses create tickets under the "System" user instead of auto-creating customer accounts. ServiFlow also has built-in detection for common monitoring systems (Nagios, Zabbix, Datadog, etc.) and parses their alerts specially &mdash; extracting host, service, alert type, and state. See <a href="#monitoring-correlation">Alert Correlation</a> for how recovery alerts automatically close previous alert tickets.</p>
 </section>
 
 <section id="email-m365" data-section>
@@ -1057,15 +1067,38 @@
   <li>Click <strong>Save Settings</strong>.</li>
 </ol>
 
-<h2>One-Time Admin Setup</h2>
-<p>Your Microsoft 365 administrator must complete a one-time setup:</p>
-<ol>
-  <li>Create a mail-enabled security group in Exchange Admin and add the target mailbox.</li>
-  <li>Run the <code>New-ApplicationAccessPolicy</code> PowerShell command to grant the ServiFlow app access to the security group.</li>
-  <li>Click <strong>Test Connection</strong> in ServiFlow to verify the configuration.</li>
+<h2>One-Time M365 Admin Setup</h2>
+<p>Your Microsoft 365 administrator must complete the following one-time setup to allow ServiFlow to read the shared mailbox.</p>
+
+<h3>Step 1: Create a Mail-Enabled Security Group</h3>
+<ol class="steps">
+  <li>Open the <strong>Exchange Admin Center</strong> (<code>admin.exchange.microsoft.com</code>).</li>
+  <li>Go to <strong>Recipients &gt; Groups</strong> and create a <strong>Mail-enabled security group</strong>.</li>
+  <li>Name it something like <code>ServiFlow-Mail-Access</code>.</li>
+  <li>Add the target mailbox (e.g. <code>support@company.com</code>) as a member.</li>
 </ol>
 
-<div class="note-box"><strong>Note</strong>M365 uses the Microsoft Graph API for email access, which provides more reliable connectivity than IMAP for Microsoft 365 mailboxes.</div>
+<h3>Step 2: Grant App Access via PowerShell</h3>
+<p>Open <strong>Exchange Online PowerShell</strong> and run:</p>
+<pre><code>Connect-ExchangeOnline
+New-ApplicationAccessPolicy `
+  -AppId "&lt;ServiFlow-App-Client-ID&gt;" `
+  -PolicyScopeGroupId "ServiFlow-Mail-Access" `
+  -AccessRight RestrictAccess `
+  -Description "ServiFlow email ingest"</code></pre>
+<p>Replace <code>&lt;ServiFlow-App-Client-ID&gt;</code> with the Application (client) ID provided in your ServiFlow settings. The policy takes up to <strong>30 minutes</strong> to propagate.</p>
+
+<h3>Step 3: Verify in ServiFlow</h3>
+<ol class="steps">
+  <li>Return to <strong>Settings &gt; Email Ingest &gt; Microsoft 365</strong> tab.</li>
+  <li>Enter the mailbox email address.</li>
+  <li>Click <strong>Test Connection</strong> &mdash; you should see a green success message.</li>
+  <li>Click <strong>Save Settings</strong>.</li>
+</ol>
+
+<div class="note-box"><strong>Note</strong>M365 uses the Microsoft Graph API with client credentials (app-only) authentication. This provides more reliable connectivity than IMAP for Microsoft 365 mailboxes and does not require storing a user password.</div>
+
+<div class="tip-box"><strong>Tip</strong>If the test fails with a 403 error, the access policy may not have propagated yet. Wait 30 minutes and try again. If it still fails, verify the security group membership and Application ID.</div>
 </section>
 
 <section id="email-threading" data-section>
@@ -1379,6 +1412,51 @@
 <div class="tip-box"><strong>Tip</strong>Start with actions disabled and use Test mode to verify matches. Enable only after confirming the pattern works correctly.</div>
 
 <div class="warning-box"><strong>Warning</strong>The <strong>Delete</strong> action permanently removes matching tickets. Use it with extreme caution and test thoroughly first.</div>
+</section>
+
+<section id="monitoring-correlation" data-section>
+<h1>Monitoring Alert Correlation <span class="role-badge role-admin">Admin</span></h1>
+<p>ServiFlow automatically correlates monitoring alerts by <strong>host</strong> and <strong>service</strong>, so that when a recovery notification arrives, the original alert ticket is closed automatically. This eliminates the need to manually close resolved alerts and reduces monitoring ticket noise by 80&ndash;90%.</p>
+
+<h2>How It Works</h2>
+<p>When ServiFlow processes an email from a monitoring system (Nagios, Zabbix, etc.), it extracts three key fields from the email body:</p>
+<table>
+  <tr><th>Field</th><th>Pattern</th><th>Example</th></tr>
+  <tr><td>Host</td><td><code>Host: &lt;value&gt;</code></td><td>HRMS Apoyar</td></tr>
+  <tr><td>Service</td><td><code>Service: &lt;value&gt;</code></td><td>TTFB</td></tr>
+  <tr><td>State</td><td><code>State: &lt;value&gt;</code></td><td>OK, WARNING, CRITICAL</td></tr>
+</table>
+<p>These fields are combined into a <strong>correlation key</strong> (<code>tenant|host|service</code>) and stored in the ticket's metadata.</p>
+
+<h2>Incident Lifecycle</h2>
+<p>A typical monitoring incident follows this timeline:</p>
+<table>
+  <tr><th>Time</th><th>Event</th><th>Result</th></tr>
+  <tr><td>03:12</td><td>WARNING alert for Server1/CPU Load</td><td>Ticket #884 created (Open)</td></tr>
+  <tr><td>03:19</td><td>RECOVERY alert for Server1/CPU Load</td><td>Ticket #884 <strong>closed automatically</strong> by correlation</td></tr>
+  <tr><td>03:19</td><td>(same RECOVERY email)</td><td>OK ticket #885 created and closed by Automated Action rule</td></tr>
+</table>
+<p>The result is a clean audit trail: one alert ticket per incident, closed when the service recovers.</p>
+
+<h2>Correlation Rules</h2>
+<ul>
+  <li>Correlation matches by <strong>host + service</strong> within the same tenant.</li>
+  <li>Only <strong>OK</strong> and <strong>RECOVERY</strong> states trigger correlation.</li>
+  <li>The system finds the most recent open alert ticket with the same host/service and closes it.</li>
+  <li>A system note is added to the closed ticket recording the recovery.</li>
+  <li>The OK/RECOVERY ticket itself is <strong>not</strong> closed by correlation &mdash; use an Automated Action rule (e.g. "Close OK System Monitoring Tickets") to close those.</li>
+</ul>
+
+<h2>Recommended Setup</h2>
+<ol class="steps">
+  <li>Add your monitoring system's email address to <strong>System Senders</strong> in Settings &gt; Email Ingest.</li>
+  <li>Create an Automated Action with search text <code>OK</code>, source filter <strong>System/Monitoring Only</strong>, and action <strong>Close Ticket</strong>.</li>
+  <li>Correlation is automatic and requires no additional configuration.</li>
+</ol>
+
+<div class="tip-box"><strong>Tip</strong>Correlation works with any monitoring tool that includes <code>Host:</code>, <code>Service:</code>, and <code>State:</code> lines in its notification emails (Nagios, Icinga, Zabbix, etc.).</div>
+
+<div class="note-box"><strong>Note</strong>If host or service cannot be extracted from the email body, the ticket is created normally without correlation.</div>
 </section>
 
 <!-- ═══════════════════════════════════════════════════ -->

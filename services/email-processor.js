@@ -21,6 +21,37 @@ const fetch = require('node-fetch');
 const { tryLock, unlock } = require('./imap-lock');
 
 // ============================================================================
+// MONITORING ALERT CORRELATION HELPERS
+// ============================================================================
+
+/**
+ * Extract host, service, and state from Nagios/monitoring email body.
+ * Works with standard Nagios notification format:
+ *   Host: <hostname>
+ *   Service: <service name>
+ *   State: OK|WARNING|CRITICAL|UNKNOWN
+ */
+function extractMonitoringFields(text = '') {
+  const hostMatch = text.match(/Host:\s*(.+)/i);
+  const serviceMatch = text.match(/Service:\s*(.+)/i);
+  const stateMatch = text.match(/State:\s*(OK|WARNING|CRITICAL|UNKNOWN|RECOVERY)/i);
+  return {
+    host: hostMatch ? hostMatch[1].trim() : null,
+    service: serviceMatch ? serviceMatch[1].trim() : null,
+    state: stateMatch ? stateMatch[1].trim().toUpperCase() : null
+  };
+}
+
+/**
+ * Build a deterministic correlation key from tenant, host, and service.
+ * Returns null if host or service cannot be determined.
+ */
+function buildCorrelationKey(tenantCode, host, service) {
+  if (!host || !service) return null;
+  return `${tenantCode}|${host}|${service}`;
+}
+
+// ============================================================================
 // EMAIL REPLY THREADING PATTERNS
 // ============================================================================
 
@@ -2081,14 +2112,26 @@ class EmailProcessor {
     }
 
     // Build source metadata JSON for system-sourced tickets
+    // Extract monitoring fields (host, service, state) and generate correlation key
+    const monitoringFields = extractMonitoringFields(email.text || email.html || description || '');
+    const correlationKey = buildCorrelationKey(this.tenantCode, monitoringFields.host, monitoringFields.service);
+
     let sourceMetadataJson = null;
     if (sourceMetadata.sourceType === 'system') {
-      sourceMetadataJson = JSON.stringify({
+      const metadataObj = {
         type: 'monitoring',
         reason: sourceMetadata.classificationReason,
         source_email: sourceMetadata.sourceEmail,
         created_via: sourceMetadata.createdVia
-      });
+      };
+      // Add correlation fields when monitoring data is extractable
+      if (correlationKey) {
+        metadataObj.host = monitoringFields.host;
+        metadataObj.service = monitoringFields.service;
+        metadataObj.state = monitoringFields.state;
+        metadataObj.correlation_key = correlationKey;
+      }
+      sourceMetadataJson = JSON.stringify(metadataObj);
     }
 
     // Resolve applicable SLA using priority-based selector
@@ -2177,6 +2220,54 @@ class EmailProcessor {
       source: 'email',
       eventKey: 'ticket.created'
     });
+
+    // ============================================
+    // MONITORING ALERT CORRELATION
+    // Correlate OK/RECOVERY events with previous WARNING/CRITICAL alert tickets
+    // Must happen BEFORE executeTicketRules() so the automated rule that
+    // closes the OK ticket can still run independently
+    // ============================================
+    if (correlationKey && (monitoringFields.state === 'OK' || monitoringFields.state === 'RECOVERY')) {
+      try {
+        const [alertRows] = await connection.query(
+          `SELECT id FROM tickets
+           WHERE id <> ?
+             AND status IN ('Open', 'In Progress', 'Pending', 'Resolved')
+             AND JSON_EXTRACT(source_metadata, '$.correlation_key') = ?
+           ORDER BY created_at DESC
+           LIMIT 1`,
+          [ticketId, correlationKey]
+        );
+
+        if (alertRows.length > 0) {
+          const alertTicketId = alertRows[0].id;
+
+          // Write activity note before closing
+          await logTicketActivity(connection, {
+            ticketId: alertTicketId,
+            userId: null,
+            activityType: 'system_note',
+            description: `Monitoring recovery received (Ticket #${ticketId}). ${monitoringFields.host}/${monitoringFields.service} returned to OK state — closing automatically.`,
+            isPublic: false,
+            source: 'system',
+            actorType: 'system',
+            eventKey: 'ticket.correlation.closed',
+            meta: { correlationKey, recoveryTicketId: ticketId }
+          });
+
+          // Close the previous alert ticket
+          await connection.query(
+            `UPDATE tickets SET status = 'Closed', updated_at = NOW() WHERE id = ?`,
+            [alertTicketId]
+          );
+
+          console.log(`🔗 [Correlation] Recovery ticket #${ticketId} closed alert ticket #${alertTicketId} (${monitoringFields.host}/${monitoringFields.service})`);
+        }
+      } catch (corrErr) {
+        console.error(`[Correlation] Error correlating ticket #${ticketId}:`, corrErr.message);
+        // Non-fatal — don't block ticket creation
+      }
+    }
 
     // Execute ticket processing rules (fire-and-forget)
     this.executeTicketRules(ticketId);
