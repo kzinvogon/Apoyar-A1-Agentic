@@ -39,15 +39,15 @@ async function isEmailSendingEnabled(tenantCode, emailType = null) {
 }
 
 // Helper function to check if email notifications are enabled for a specific user
-// Uses the receive_email_updates column (default ON for normal users, OFF for system users)
+// Checks cascading flags: company-level → admin per-user toggle → user self-service preference
 async function isUserEmailNotificationsEnabled(tenantCode, userEmail) {
   try {
     const connection = await getTenantConnection(tenantCode);
     try {
-      // Check company-level override first
+      // 1. Check company-level overrides (admin_receive_emails / members_receive_emails)
       try {
         const [companyRows] = await connection.query(`
-          SELECT cc.members_receive_emails
+          SELECT cc.admin_receive_emails, cc.members_receive_emails, c.is_company_admin
           FROM customers c
           JOIN customer_companies cc ON c.customer_company_id = cc.id
           JOIN users u ON c.user_id = u.id
@@ -55,34 +55,47 @@ async function isUserEmailNotificationsEnabled(tenantCode, userEmail) {
           LIMIT 1
         `, [userEmail]);
 
-        if (companyRows.length > 0 && companyRows[0].members_receive_emails === 0) {
-          return false; // Company-wide emails disabled — overrides individual setting
+        if (companyRows.length > 0) {
+          const row = companyRows[0];
+          if (row.is_company_admin) {
+            // Company admin — check admin_receive_emails flag
+            if (row.admin_receive_emails === 0) {
+              return false;
+            }
+          } else {
+            // Regular member — check members_receive_emails flag
+            if (row.members_receive_emails === 0) {
+              return false;
+            }
+          }
         }
       } catch (companyErr) {
-        // Column may not exist yet on older tenants — skip check
+        // Columns may not exist yet on older tenants — skip check
         console.error('Company email check skipped:', companyErr.message);
       }
 
-      // First check if column exists to avoid query errors
-      const [cols] = await connection.query(`
-        SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
-        WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'users' AND COLUMN_NAME = 'receive_email_updates'
-      `, [`a1_tenant_${tenantCode}`]);
-
-      // If column doesn't exist, default to enabled
-      if (cols.length === 0) {
-        return true;
-      }
-
+      // 2. Check admin per-user toggle (email_notifications_enabled on users table)
+      // and user self-service preference (receive_email_updates on users table)
       const [users] = await connection.query(
-        'SELECT receive_email_updates FROM users WHERE email = ?',
+        'SELECT email_notifications_enabled, receive_email_updates FROM users WHERE email = ?',
         [userEmail]
       );
       // Default to enabled if user not found
       if (users.length === 0) return true;
-      // If value is null, default to enabled
-      if (users[0].receive_email_updates === undefined || users[0].receive_email_updates === null) return true;
-      return users[0].receive_email_updates === 1;
+
+      const user = users[0];
+
+      // Admin per-user toggle (from Manage Customers table) — default enabled if null
+      if (user.email_notifications_enabled !== undefined && user.email_notifications_enabled !== null && user.email_notifications_enabled === 0) {
+        return false;
+      }
+
+      // User self-service preference (from My Profile) — default enabled if null
+      if (user.receive_email_updates !== undefined && user.receive_email_updates !== null && user.receive_email_updates === 0) {
+        return false;
+      }
+
+      return true;
     } finally {
       connection.release();
     }

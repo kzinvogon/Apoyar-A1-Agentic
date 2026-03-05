@@ -627,7 +627,10 @@ async function createTenantTables(connection) {
       ('monthly_report_enabled', 'false', 'boolean', 'Enable automatic monthly report email'),
       ('monthly_report_recipients', '[]', 'json', 'JSON array of email addresses to receive monthly report'),
       ('monthly_report_send_day', '1', 'number', 'Day of month to send report (1-28)'),
-      ('monthly_report_include_system_tickets', 'false', 'boolean', 'Include system-generated tickets in monthly report')
+      ('monthly_report_include_system_tickets', 'false', 'boolean', 'Include system-generated tickets in monthly report'),
+      ('send_emails_experts', 'true', 'boolean', 'Enable/disable email notifications to experts'),
+      ('send_emails_customers', 'true', 'boolean', 'Enable/disable email notifications to customers'),
+      ('process_sla', 'true', 'boolean', 'Enable/disable SLA breach checking and notifications')
   `);
 
   // Report history table

@@ -202,10 +202,10 @@ router.put('/:tenantId/settings', requireElevatedAdmin, writeOperationsLimiter, 
         ]);
       }
 
-      // Fetch updated settings to return current state
-      const [updatedSettings] = await connection.query('SELECT enabled, m365_enabled FROM email_ingest_settings ORDER BY id ASC LIMIT 1');
+      // Fetch updated settings to return current state (provider-specific check)
+      const [updatedSettings] = await connection.query('SELECT enabled, m365_enabled, auth_method FROM email_ingest_settings ORDER BY id ASC LIMIT 1');
       const row = updatedSettings.length > 0 ? updatedSettings[0] : {};
-      const currentEnabled = !!row.enabled || !!row.m365_enabled;
+      const currentEnabled = row.auth_method === 'oauth2' ? !!row.m365_enabled : !!row.enabled;
 
       res.json({
         success: true,
