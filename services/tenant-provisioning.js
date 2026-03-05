@@ -222,6 +222,7 @@ async function createTenantTables(connection) {
       phone VARCHAR(50) DEFAULT NULL,
       department VARCHAR(100) DEFAULT NULL,
       receive_email_updates TINYINT(1) DEFAULT 1,
+      email_notifications_enabled TINYINT(1) DEFAULT 1,
       auth_method ENUM('password','magic_link','both') DEFAULT 'password',
       is_active BOOLEAN DEFAULT TRUE,
       last_login TIMESTAMP NULL,

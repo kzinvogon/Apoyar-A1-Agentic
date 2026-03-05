@@ -105,6 +105,99 @@ async function isUserEmailNotificationsEnabled(tenantCode, userEmail) {
   }
 }
 
+/**
+ * Unified email notification decision function.
+ * 4-layer hierarchy — stops on first block:
+ *   Layer 1: System kill switch (tenant_settings.send_emails_customers / send_emails_experts)
+ *   Layer 2: Notification Rules (placeholder — always passes)
+ *   Layer 3: Company Controls (customer_companies.admin_receive_emails / members_receive_emails)
+ *   Layer 4: User Preference (users.email_notifications_enabled + users.receive_email_updates)
+ *
+ * @param {string} tenantCode
+ * @param {string} userEmail - recipient email
+ * @param {string} eventType - 'customers' or 'experts'
+ * @returns {Promise<{send: boolean, reason: string, layer: number}>}
+ */
+async function shouldSendNotification(tenantCode, userEmail, eventType = 'customers') {
+  // Layer 1 — System kill switch
+  const systemEnabled = await isEmailSendingEnabled(tenantCode, eventType);
+  if (!systemEnabled) {
+    const result = { send: false, reason: `System kill switch: send_emails_${eventType} is off`, layer: 1 };
+    console.log(`[EmailDecision] ${userEmail}: BLOCKED layer ${result.layer} — ${result.reason}`);
+    return result;
+  }
+
+  // Layer 2 — Notification Rules (placeholder for future rule engine)
+  // Always passes for now
+
+  // Layer 3 + 4 — Company controls and user preferences
+  let connection;
+  try {
+    connection = await getTenantConnection(tenantCode);
+
+    // Layer 3 — Company controls
+    try {
+      const [companyRows] = await connection.query(`
+        SELECT cc.admin_receive_emails, cc.members_receive_emails, c.is_company_admin
+        FROM customers c
+        JOIN customer_companies cc ON c.customer_company_id = cc.id
+        JOIN users u ON c.user_id = u.id
+        WHERE u.email = ? AND cc.is_active = 1
+        LIMIT 1
+      `, [userEmail]);
+
+      if (companyRows.length > 0) {
+        const row = companyRows[0];
+        if (row.is_company_admin) {
+          if (row.admin_receive_emails === 0) {
+            const result = { send: false, reason: 'Company admin_receive_emails is off', layer: 3 };
+            console.log(`[EmailDecision] ${userEmail}: BLOCKED layer ${result.layer} — ${result.reason}`);
+            return result;
+          }
+        } else {
+          if (row.members_receive_emails === 0) {
+            const result = { send: false, reason: 'Company members_receive_emails is off', layer: 3 };
+            console.log(`[EmailDecision] ${userEmail}: BLOCKED layer ${result.layer} — ${result.reason}`);
+            return result;
+          }
+        }
+      }
+    } catch (companyErr) {
+      // Columns may not exist on older tenants — skip
+      console.error('[EmailDecision] Company check skipped:', companyErr.message);
+    }
+
+    // Layer 4 — User preferences
+    const [users] = await connection.query(
+      'SELECT email_notifications_enabled, receive_email_updates FROM users WHERE email = ?',
+      [userEmail]
+    );
+
+    if (users.length > 0) {
+      const user = users[0];
+      if (user.email_notifications_enabled !== null && user.email_notifications_enabled !== undefined && user.email_notifications_enabled === 0) {
+        const result = { send: false, reason: 'Admin per-user toggle email_notifications_enabled is off', layer: 4 };
+        console.log(`[EmailDecision] ${userEmail}: BLOCKED layer ${result.layer} — ${result.reason}`);
+        return result;
+      }
+      if (user.receive_email_updates !== null && user.receive_email_updates !== undefined && user.receive_email_updates === 0) {
+        const result = { send: false, reason: 'User self-service receive_email_updates is off', layer: 4 };
+        console.log(`[EmailDecision] ${userEmail}: BLOCKED layer ${result.layer} — ${result.reason}`);
+        return result;
+      }
+    }
+
+    const result = { send: true, reason: 'All layers passed', layer: 0 };
+    console.log(`[EmailDecision] ${userEmail}: ALLOWED — ${result.reason}`);
+    return result;
+  } catch (error) {
+    console.error('[EmailDecision] Error, defaulting to allow:', error.message);
+    return { send: true, reason: 'Error in decision check, defaulting to allow', layer: 0 };
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
 // Cache tenant display names to avoid repeated master DB lookups
 const tenantNameCache = new Map();
 
@@ -277,31 +370,21 @@ async function sendTicketNotificationEmail(ticketData, action, details = {}) {
     const { ticket, customer_email, customer_name, tenantCode } = ticketData;
     const tenantDisplayName = await getTenantDisplayName(tenantCode);
 
-    // Check if email sending is enabled (kill switch)
     // Determine email type: explicit override in ticketData.emailType takes precedence,
     // otherwise infer from action ('assigned' → experts, everything else → customers).
     const emailType = ticketData.emailType || (action === 'assigned' ? 'experts' : 'customers');
-    if (tenantCode) {
-      const emailEnabled = await isEmailSendingEnabled(tenantCode, emailType);
-      if (!emailEnabled) {
-        console.log(`🔴 KILL SWITCH: Email sending is disabled (send_emails_${emailType}) for tenant:`, tenantCode);
-        console.log('📧 Would have sent email for:', action, 'to:', customer_email);
-        return { success: false, message: 'Email sending disabled by kill switch' };
-      }
-    }
 
     if (!customer_email) {
       console.log('⚠️  Skipping email - no customer email found for ticket', ticket.id);
       return { success: false, message: 'No customer email' };
     }
 
-    // Check if user has email notifications enabled
+    // Unified 4-layer decision tree
     if (tenantCode) {
-      const userEmailEnabled = await isUserEmailNotificationsEnabled(tenantCode, customer_email);
-      if (!userEmailEnabled) {
-        console.log('🔕 Email notifications disabled for user:', customer_email);
-        console.log('📧 Would have sent email for:', action, 'to:', customer_email);
-        return { success: false, message: 'User email notifications disabled' };
+      const decision = await shouldSendNotification(tenantCode, customer_email, emailType);
+      if (!decision.send) {
+        console.log(`📧 Would have sent email for: ${action} to: ${customer_email} — blocked at layer ${decision.layer}: ${decision.reason}`);
+        return { success: false, message: decision.reason };
       }
     }
 
@@ -724,6 +807,7 @@ module.exports = {
   sendNotificationEmail,
   sendEmail,
   testEmailConnection,
-  getTenantDisplayName
+  getTenantDisplayName,
+  shouldSendNotification
 };
 

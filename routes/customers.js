@@ -101,6 +101,8 @@ router.get('/', requireRole(['admin', 'expert']), readOperationsLimiter, async (
           c.created_at, c.updated_at,
           cc.company_name as master_company_name,
           cc.company_domain as company_domain,
+          cc.admin_receive_emails,
+          cc.members_receive_emails,
           (SELECT COUNT(*) FROM tickets t WHERE t.requester_id = u.id AND LOWER(t.status) != 'closed') as open_ticket_count
         FROM users u
         LEFT JOIN customers c ON u.id = c.user_id
@@ -152,7 +154,9 @@ router.get('/:id', requireRole(['admin', 'expert']), readOperationsLimiter, asyn
           c.created_at, c.updated_at,
           cc.company_name as master_company_name,
           cc.company_domain as company_domain,
-          cc.admin_email as company_admin_email
+          cc.admin_email as company_admin_email,
+          cc.admin_receive_emails,
+          cc.members_receive_emails
         FROM users u
         LEFT JOIN customers c ON u.id = c.user_id
         LEFT JOIN customer_companies cc ON c.customer_company_id = cc.id
@@ -315,15 +319,18 @@ router.put('/:id', requireRole(['admin', 'expert']), writeOperationsLimiter, val
       contact_phone,
       address,
       sla_level,
-      email_notifications_enabled
+      email_notifications_enabled,
+      admin_receive_emails,
+      members_receive_emails,
+      receive_email_updates
     } = req.body;
 
     const connection = await getTenantConnection(tenantCode);
 
     try {
-      // Verify customer exists
+      // Verify customer exists and get company info
       const [existing] = await connection.query(
-        'SELECT u.id, c.id as customer_id FROM users u LEFT JOIN customers c ON u.id = c.user_id WHERE u.id = ? AND u.role = "customer"',
+        'SELECT u.id, c.id as customer_id, c.customer_company_id, c.is_company_admin FROM users u LEFT JOIN customers c ON u.id = c.user_id WHERE u.id = ? AND u.role = "customer"',
         [id]
       );
 
@@ -349,6 +356,10 @@ router.put('/:id', requireRole(['admin', 'expert']), writeOperationsLimiter, val
       if (email_notifications_enabled !== undefined) {
         userUpdates.push('email_notifications_enabled = ?');
         userValues.push(email_notifications_enabled ? 1 : 0);
+      }
+      if (receive_email_updates !== undefined) {
+        userUpdates.push('receive_email_updates = ?');
+        userValues.push(receive_email_updates ? 1 : 0);
       }
 
       if (userUpdates.length > 0) {
@@ -407,6 +418,27 @@ router.put('/:id', requireRole(['admin', 'expert']), writeOperationsLimiter, val
               address || null,
               sla_level || 'basic'
             ]
+          );
+        }
+      }
+
+      // Save company-level email flags (only for company admins with a linked company)
+      if (existing[0].customer_company_id && existing[0].is_company_admin) {
+        const companyUpdates = [];
+        const companyValues = [];
+        if (admin_receive_emails !== undefined) {
+          companyUpdates.push('admin_receive_emails = ?');
+          companyValues.push(admin_receive_emails ? 1 : 0);
+        }
+        if (members_receive_emails !== undefined) {
+          companyUpdates.push('members_receive_emails = ?');
+          companyValues.push(members_receive_emails ? 1 : 0);
+        }
+        if (companyUpdates.length > 0) {
+          companyValues.push(existing[0].customer_company_id);
+          await connection.query(
+            `UPDATE customer_companies SET ${companyUpdates.join(', ')} WHERE id = ?`,
+            companyValues
           );
         }
       }

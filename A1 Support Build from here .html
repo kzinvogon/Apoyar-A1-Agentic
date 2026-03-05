@@ -2284,13 +2284,14 @@ vNext-FULL-ActionsSLA:
           <div class="card p-16" style="margin-top:16px">
             <h4>Email Preferences</h4>
             <div style="margin-top:16px">
-              <label style="display:flex;align-items:center;gap:12px;cursor:pointer">
+              <label style="display:flex;align-items:center;gap:12px;cursor:pointer" id="profile-email-label">
                 <input type="checkbox" id="profile-receive-email-updates" style="width:18px;height:18px">
                 <span>
                   <strong>Receive Email Updates</strong>
                   <div class="subtitle" style="margin-top:4px">If disabled, you won't receive email notifications about ticket updates.</div>
                 </span>
               </label>
+              <div id="profile-email-blocked-msg" class="subtitle" style="display:none;color:#b91c1c;margin-top:8px;padding:8px;background:#fef2f2;border-radius:4px">Your company administrator has disabled email notifications for team members. Contact your admin to enable them.</div>
             </div>
           </div>
 
@@ -4294,14 +4295,24 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
                 </select>
               </div>
 
-              <div class="mb-12" style="display:flex;align-items:center;gap:8px">
-                <input type="checkbox" id="customer-admin-emails" checked/>
-                <label class="subtitle" for="customer-admin-emails" style="margin:0">Admin receives member ticket emails</label>
-              </div>
-
-              <div class="mb-12" style="display:flex;align-items:center;gap:8px">
-                <input type="checkbox" id="customer-members-emails" checked/>
-                <label class="subtitle" for="customer-members-emails" style="margin:0">Members receive email notifications</label>
+              <div id="customer-email-controls">
+                <div id="customer-admin-email-section" class="mb-12" style="display:none">
+                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                    <input type="checkbox" id="customer-admin-emails" checked/>
+                    <label class="subtitle" for="customer-admin-emails" style="margin:0">Receive Email Updates</label>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:8px">
+                    <input type="checkbox" id="customer-members-emails" checked/>
+                    <label class="subtitle" for="customer-members-emails" style="margin:0">Enable Team Member Updates</label>
+                  </div>
+                </div>
+                <div id="customer-member-email-section" class="mb-12" style="display:none">
+                  <div style="display:flex;align-items:center;gap:8px">
+                    <input type="checkbox" id="customer-receive-updates" checked/>
+                    <label class="subtitle" for="customer-receive-updates" style="margin:0">Receive Email Updates</label>
+                  </div>
+                  <div id="customer-member-blocked-msg" class="subtitle" style="display:none;color:#b91c1c;font-size:12px;margin-top:4px">Company admin has disabled team member email updates.</div>
+                </div>
               </div>
 
               <div id="customer-form-message" class="subtitle" style="color:#16a34a;display:none;margin-top:8px"></div>
@@ -4362,12 +4373,12 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
               <div class="mb-12" style="display:flex;align-items:center;gap:8px">
                 <input type="checkbox" id="company-admin-emails" checked/>
-                <label class="subtitle" for="company-admin-emails" style="margin:0">Admin receives member ticket emails</label>
+                <label class="subtitle" for="company-admin-emails" style="margin:0">Receive Email Updates</label>
               </div>
 
               <div class="mb-12" style="display:flex;align-items:center;gap:8px">
                 <input type="checkbox" id="company-members-emails" checked/>
-                <label class="subtitle" for="company-members-emails" style="margin:0">Members receive email notifications</label>
+                <label class="subtitle" for="company-members-emails" style="margin:0">Enable Team Member Updates</label>
               </div>
 
               <div class="mb-12">
@@ -5084,8 +5095,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               </div>
 
               <div class="subtitle mb-12" style="background:#eff6ff;padding:12px;border-radius:4px;border-left:4px solid #2563eb">
-                <strong>Admin Receives Emails:</strong> The company admin gets ticket notifications for all company tickets.<br>
-                <strong>Members Receive Emails:</strong> Individual team members get ticket notifications for their own tickets.
+                <strong>Receive Email Updates:</strong> The company admin receives email notifications for company tickets.<br>
+                <strong>Enable Team Member Updates:</strong> Individual team members receive email notifications for their own tickets.
               </div>
 
               <div id="company-notif-grid" style="margin-top:8px">
@@ -5094,8 +5105,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
                     <tr style="border-bottom:2px solid #e5e7eb;text-align:left">
                       <th class="subtitle" style="padding:8px 12px">Company</th>
                       <th class="subtitle" style="padding:8px 12px">Admin</th>
-                      <th class="subtitle" style="padding:8px 12px;text-align:center">Admin Receives Emails</th>
-                      <th class="subtitle" style="padding:8px 12px;text-align:center">Members Receive Emails</th>
+                      <th class="subtitle" style="padding:8px 12px;text-align:center">Receive Email Updates</th>
+                      <th class="subtitle" style="padding:8px 12px;text-align:center">Enable Team Member Updates</th>
                     </tr>
                   </thead>
                   <tbody id="company-notif-body">
@@ -16011,7 +16022,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         showCompanyNotifError(data.message || 'Failed to update');
         return;
       }
-      const label = field === 'admin_receive_emails' ? 'Admin emails' : 'Member emails';
+      const label = field === 'admin_receive_emails' ? 'Receive Email Updates' : 'Enable Team Member Updates';
       showCompanyNotifMessage(`${label} ${value ? 'enabled' : 'disabled'} successfully`);
       setTimeout(() => hideCompanyNotifMessages(), 3000);
     } catch (err) {
@@ -23181,6 +23192,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             const ticketCount = c.open_ticket_count || 0;
             const ticketStyle = ticketCount > 0 ? 'color:#2563eb;font-weight:600;cursor:pointer' : 'color:#6b7280';
             const emailEnabled = c.email_notifications_enabled !== 0;
+            const companyBlocked = !c.is_company_admin && c.members_receive_emails === 0;
+            const emailDisabledByCompany = companyBlocked;
 
             // Desktop table row
             const tr=document.createElement('tr');
@@ -23192,10 +23205,10 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               <td style="${statusStyle};${ticketStyle}" ${ticketCount > 0 ? `onclick="viewCustomerTickets(${c.id}, '${(c.full_name || c.username).replace(/'/g, "\\'")}')"` : ''}>${ticketCount}</td>
               <td style="${statusStyle};color:${slaColor};font-weight:600;text-transform:capitalize">${c.sla_level || 'basic'}</td>
               <td style="text-align:center">
-                <input type="checkbox" ${emailEnabled ? 'checked' : ''} ${!isActive ? 'disabled' : ''}
+                <input type="checkbox" ${emailEnabled && !emailDisabledByCompany ? 'checked' : ''} ${!isActive || emailDisabledByCompany ? 'disabled' : ''}
                   onchange="toggleCustomerEmailNotifications(${c.id}, this.checked)"
-                  title="${emailEnabled ? 'Email notifications enabled' : 'Email notifications disabled'}"
-                  style="width:18px;height:18px;cursor:${isActive ? 'pointer' : 'not-allowed'}">
+                  title="${emailDisabledByCompany ? 'Blocked by company setting' : emailEnabled ? 'Email notifications enabled' : 'Email notifications disabled'}"
+                  style="width:18px;height:18px;cursor:${!isActive || emailDisabledByCompany ? 'not-allowed' : 'pointer'};${emailDisabledByCompany ? 'opacity:0.4' : ''}">
               </td>
               <td>
                 <button class="btn ghost" onclick="editCustomer(${c.id})" style="padding:4px 8px;font-size:13px" ${!isActive ? 'disabled' : ''}>Edit</button>
@@ -23312,6 +23325,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     document.getElementById('customer-username').disabled = false;
     document.getElementById('customer-form-message').style.display = 'none';
     document.getElementById('customer-form-error').style.display = 'none';
+    // Hide both email sections for new customers (not editing)
+    document.getElementById('customer-admin-email-section').style.display = 'none';
+    document.getElementById('customer-member-email-section').style.display = 'none';
     const modal = document.getElementById('customer-modal');
     modal.style.display = 'flex';
     modal.scrollTop = 0;
@@ -23343,8 +23359,26 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         document.getElementById('customer-phone').value = c.contact_phone || '';
         document.getElementById('customer-address').value = c.address || '';
         document.getElementById('customer-sla').value = c.sla_level || 'basic';
-        document.getElementById('customer-admin-emails').checked = c.admin_receive_emails !== 0;
-        document.getElementById('customer-members-emails').checked = c.members_receive_emails !== 0;
+
+        // Context-aware email controls
+        const adminSection = document.getElementById('customer-admin-email-section');
+        const memberSection = document.getElementById('customer-member-email-section');
+        if (c.is_company_admin) {
+          adminSection.style.display = 'block';
+          memberSection.style.display = 'none';
+          document.getElementById('customer-admin-emails').checked = c.admin_receive_emails !== 0;
+          document.getElementById('customer-members-emails').checked = c.members_receive_emails !== 0;
+        } else {
+          adminSection.style.display = 'none';
+          memberSection.style.display = 'block';
+          const memberCheckbox = document.getElementById('customer-receive-updates');
+          const blockedMsg = document.getElementById('customer-member-blocked-msg');
+          const companyBlocked = c.members_receive_emails === 0;
+          memberCheckbox.checked = !companyBlocked && c.email_notifications_enabled !== 0;
+          memberCheckbox.disabled = companyBlocked;
+          blockedMsg.style.display = companyBlocked ? 'block' : 'none';
+        }
+
         document.getElementById('customer-form-message').style.display = 'none';
         document.getElementById('customer-form-error').style.display = 'none';
         const modal = document.getElementById('customer-modal');
@@ -23591,10 +23625,23 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       company_domain: document.getElementById('customer-domain').value.toLowerCase(),
       contact_phone: document.getElementById('customer-phone').value,
       address: document.getElementById('customer-address').value,
-      sla_level: document.getElementById('customer-sla').value,
-      admin_receive_emails: document.getElementById('customer-admin-emails').checked,
-      members_receive_emails: document.getElementById('customer-members-emails').checked
+      sla_level: document.getElementById('customer-sla').value
     };
+
+    // Add email control fields based on which section is visible
+    if (isEdit) {
+      const adminSection = document.getElementById('customer-admin-email-section');
+      const memberSection = document.getElementById('customer-member-email-section');
+      if (adminSection.style.display !== 'none') {
+        customerData.admin_receive_emails = document.getElementById('customer-admin-emails').checked;
+        customerData.members_receive_emails = document.getElementById('customer-members-emails').checked;
+      } else if (memberSection.style.display !== 'none') {
+        const memberCheckbox = document.getElementById('customer-receive-updates');
+        if (!memberCheckbox.disabled) {
+          customerData.receive_email_updates = memberCheckbox.checked;
+        }
+      }
+    }
 
     try {
       const token = localStorage.getItem('token');
@@ -23727,7 +23774,21 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       document.getElementById('profile-email').value=profile.email||''; 
       document.getElementById('profile-phone').value=profile.phone||''; 
       document.getElementById('profile-department').value=profile.department||'';
-      document.getElementById('profile-receive-email-updates').checked = profile.receive_email_updates == 1;
+      // Email preference — grey out if company blocks
+      const emailCheckbox = document.getElementById('profile-receive-email-updates');
+      const emailBlockedMsg = document.getElementById('profile-email-blocked-msg');
+      const isCustomerRole = (window.role || role) === 'customer';
+      const companyBlocksEmail = isCustomerRole && !profile.is_company_admin && profile.members_receive_emails === 0;
+      emailCheckbox.checked = !companyBlocksEmail && profile.receive_email_updates == 1;
+      emailCheckbox.disabled = companyBlocksEmail;
+      if (emailBlockedMsg) emailBlockedMsg.style.display = companyBlocksEmail ? 'block' : 'none';
+      if (companyBlocksEmail) {
+        document.getElementById('profile-email-label').style.cursor = 'not-allowed';
+        document.getElementById('profile-email-label').style.opacity = '0.5';
+      } else {
+        document.getElementById('profile-email-label').style.cursor = 'pointer';
+        document.getElementById('profile-email-label').style.opacity = '1';
+      }
       document.getElementById('profile-created').value=profile.created_at?new Date(profile.created_at).toLocaleString():'';
       document.getElementById('profile-updated').value=profile.updated_at?new Date(profile.updated_at).toLocaleString():'';
       // Show company name card for customer role

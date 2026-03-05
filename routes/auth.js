@@ -414,11 +414,13 @@ router.get('/profile', verifyToken, async (req, res) => {
           return res.status(404).json({ success: false, message: 'User not found' });
         }
 
-        // For customer users, include company name
+        // For customer users, include company name and email notification overrides
         if (rows[0].role === 'customer') {
           try {
             const [custRows] = await connection.query(
-              `SELECT c.company_name, cc.name as company_company_name
+              `SELECT c.company_name, c.is_company_admin,
+                      cc.company_name as company_company_name,
+                      cc.admin_receive_emails, cc.members_receive_emails
                FROM customers c
                LEFT JOIN customer_companies cc ON c.customer_company_id = cc.id
                WHERE c.user_id = ?`,
@@ -426,6 +428,9 @@ router.get('/profile', verifyToken, async (req, res) => {
             );
             if (custRows.length > 0) {
               rows[0].customer_name = custRows[0].company_company_name || custRows[0].company_name || '';
+              rows[0].is_company_admin = custRows[0].is_company_admin || 0;
+              rows[0].admin_receive_emails = custRows[0].admin_receive_emails;
+              rows[0].members_receive_emails = custRows[0].members_receive_emails;
             }
           } catch (e) {
             // customers table may not exist on older tenants
