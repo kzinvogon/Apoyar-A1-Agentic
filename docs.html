@@ -102,6 +102,7 @@
   <a href="#ai-insights">AI Insights Dashboard</a>
   <a href="#ai-chatbot">AI Chatbot</a>
   <a href="#ai-kb-generation">AI KB Generation</a>
+  <a href="#live-chat">Live Chat</a>
 
   <span class="section-label">SLA Management</span>
   <a href="#understanding-slas">Understanding SLAs</a>
@@ -115,7 +116,8 @@
   <span class="section-label">CMDB</span>
   <a href="#cmdb-overview">Overview</a>
   <a href="#managing-assets">Managing Assets</a>
-  <a href="#cmdb-types">Categories, Brands, Models</a>
+  <a href="#asset-viewer">Asset Viewer</a>
+  <a href="#cmdb-types">Asset Categories</a>
   <a href="#cmdb-custom-fields">Custom Fields</a>
   <a href="#cmdb-relationships">Relationships</a>
   <a href="#cmdb-history">Change History</a>
@@ -130,31 +132,37 @@
 
   <span class="section-label">Email</span>
   <a href="#email-to-ticket">Email to Ticket</a>
+  <a href="#email-m365">Microsoft 365 Email</a>
   <a href="#email-threading">Email Threading</a>
+  <a href="#email-outbound">Outbound Notifications</a>
   <a href="#auto-reply">Auto-Reply</a>
   <a href="#email-notifications">Notifications</a>
+  <a href="#company-email-notifs">Company Email Controls</a>
 
   <span class="section-label">People</span>
   <a href="#managing-customers">Managing Customers</a>
   <a href="#companies">Companies</a>
   <a href="#customer-portal">Customer Portal</a>
   <a href="#managing-experts">Managing Experts</a>
+  <a href="#expert-registration">Expert Self-Registration</a>
   <a href="#expert-permissions">Expert Permissions</a>
 
   <span class="section-label">Automation</span>
-  <a href="#rules-overview">Understanding Rules</a>
-  <a href="#creating-rules">Creating Rules</a>
-  <a href="#testing-rules">Testing &amp; Running</a>
-  <a href="#rules-best-practices">Best Practices</a>
+  <a href="#automated-actions">Automated Actions</a>
+  <a href="#creating-actions">Creating Actions</a>
+  <a href="#testing-actions">Testing &amp; Running</a>
+  <a href="#actions-best-practices">Best Practices</a>
 
   <span class="section-label">Analytics &amp; More</span>
   <a href="#analytics">Analytics Dashboard</a>
+  <a href="#monthly-reports">Monthly Reports</a>
   <a href="#teams-integration">Microsoft Teams</a>
   <a href="#slack-integration">Slack</a>
 
   <span class="section-label">Settings</span>
   <a href="#tenant-settings">Tenant Settings</a>
   <a href="#email-ingest-config">Email Ingest Config</a>
+  <a href="#system-admin-tools">System Admin Tools</a>
   <a href="#system-control">System Control</a>
   <a href="#housekeeping">Housekeeping</a>
   <a href="#audit-log">Audit Log</a>
@@ -239,7 +247,7 @@
   <li><strong>SLA Definitions</strong> &mdash; Go to <strong>SLA Management &gt; Definitions</strong>. Create SLA targets for response and resolution times. See <a href="#sla-definitions">SLA Definitions</a>.</li>
   <li><strong>Invite Experts</strong> &mdash; Go to <strong>Experts</strong> and click <strong>Invite Expert</strong>. Each expert receives an email with an invitation link. See <a href="#managing-experts">Managing Experts</a>.</li>
   <li><strong>Add Customers</strong> &mdash; Go to <strong>Customers</strong> and click <strong>Add Customer</strong>. Enter company name, domain, and contact details. See <a href="#managing-customers">Managing Customers</a>.</li>
-  <li><strong>Ticket Processing Rules</strong> &mdash; Go to <strong>Ticket Rules</strong> to create automation rules that auto-assign, categorise, or escalate tickets. See <a href="#rules-overview">Understanding Rules</a>.</li>
+  <li><strong>Automated Actions</strong> &mdash; Go to <strong>Automated Actions</strong> to create AI-powered rules that auto-assign, categorise, or escalate tickets. See <a href="#automated-actions">Automated Actions</a>.</li>
   <li><strong>CMDB</strong> &mdash; Go to <strong>CMDB</strong> and start adding your configuration items (servers, network devices, software). You can also bulk-import via CSV. See <a href="#cmdb-overview">CMDB Overview</a>.</li>
   <li><strong>Integrations</strong> &mdash; Connect Microsoft Teams or Slack to receive ticket notifications in your chat channels. See <a href="#teams-integration">Microsoft Teams</a> or <a href="#slack-integration">Slack</a>.</li>
 </ol>
@@ -251,7 +259,7 @@
 <!-- ═══════════════════════════════════════════════════ -->
 <section id="admin-dashboard" data-section>
 <h1>Admin Dashboard <span class="role-badge role-admin">Admin</span></h1>
-<p>The admin dashboard gives you a bird's-eye view of your service desk operations.</p>
+<p>The admin dashboard gives you a bird's-eye view of your service desk operations. The sidebar uses collapsible sections to organise navigation, with sensitive settings behind an elevation-gated <strong>System Admin Tools</strong> section.</p>
 
 <h2>Quick Admin</h2>
 <p>At the top of the dashboard, the <strong>Quick Admin</strong> panel provides one-click access to common tasks:</p>
@@ -259,7 +267,7 @@
   <li><strong>Manage Experts</strong> &mdash; view, invite, or deactivate experts</li>
   <li><strong>Manage Customers</strong> &mdash; view, add, or edit customers</li>
   <li><strong>Open CMDB</strong> &mdash; jump to the configuration database</li>
-  <li><strong>Ticket Rules</strong> &mdash; manage automation rules</li>
+  <li><strong>Automated Actions</strong> &mdash; manage AI-powered automation rules</li>
   <li><strong>SLA Management</strong> &mdash; configure SLA definitions and business hours</li>
   <li><strong>Settings</strong> &mdash; tenant configuration and email setup</li>
 </ul>
@@ -299,19 +307,31 @@
 
 <section id="customer-dashboard" data-section>
 <h1>Customer Dashboard <span class="role-badge role-customer">Customer</span></h1>
-<p>Customers see a simplified dashboard focused on their own support requests.</p>
+<p>Customers see a modern, gradient-styled dashboard focused on their support requests. The interface uses friendly terminology ("Requests" instead of "Tickets") and a clean two-column layout.</p>
 
 <h2>My Requests</h2>
-<p>A list of all tickets you have raised, with current status, priority, and last update time. Click any ticket to view details, add comments, or accept a resolution.</p>
+<p>A list of all requests you have raised, with current status, priority, and last update time. Click any request to view details, add comments, or accept a resolution. Filters let you narrow by status and priority.</p>
 
-<h2>Raising a Ticket</h2>
-<p>Click the <strong>New Ticket</strong> button to submit a support request. Fill in the title, description, priority, and category. You can also raise tickets by email or via the AI chatbot.</p>
+<h2>Raising a Request</h2>
+<p>Click the <strong>New Request</strong> button to submit a support request. Fill in the title, description, priority, and category. You can also raise requests by email or via the AI chatbot.</p>
 
-<h2>Status Tracking</h2>
-<p>Each ticket card shows a colour-coded status badge so you can see at a glance which requests are open, in progress, or resolved.</p>
+<h2>Trending</h2>
+<p>The Trending section shows a category breakdown of recent tickets, helping you see which types of issues are most common across your company.</p>
+
+<h2>My Equipment</h2>
+<p>If you have CMDB items linked to your account, the <strong>My Equipment</strong> card shows them. Click to open the asset list view.</p>
+
+<h2>Monitoring Events</h2>
+<p>Company Admins can toggle a <strong>Show Monitoring Events</strong> switch to include or exclude system/monitoring tickets from the request list. This helps distinguish between automated alerts and human-raised requests.</p>
 
 <h2>Company Admin</h2>
-<p>If you are a <strong>Company Admin</strong>, you also see a <strong>Manage Company Users</strong> section where you can view all users in your company, invite new users, and manage permissions.</p>
+<p>If you are a <strong>Company Admin</strong>, you gain additional capabilities:</p>
+<ul>
+  <li>View all requests raised by any user in your company</li>
+  <li>Access the <strong>Monthly Reports</strong> feature for your company</li>
+  <li>Toggle monitoring event visibility</li>
+  <li>See company user statistics and manage team members</li>
+</ul>
 </section>
 
 <!-- ═══════════════════════════════════════════════════ -->
@@ -448,10 +468,11 @@
 
 <div class="note-box"><strong>Note</strong>Customers can <strong>decline a resolution</strong> if they are not satisfied, which reopens the ticket back to In Progress. They must provide a reason (minimum 10 characters).</div>
 
-<h2>Completion Modals</h2>
+<h2>Completion Actions</h2>
 <p>Certain status transitions require a note:</p>
 <ul>
   <li><strong>Resolve</strong> &mdash; you must enter a resolution description.</li>
+  <li><strong>Close</strong> &mdash; uses a one-click action that combines closing and adding a closure note in a single step.</li>
   <li><strong>Reassign</strong> &mdash; you must select the new assignee and add a handover note.</li>
 </ul>
 </section>
@@ -630,6 +651,25 @@
 <div class="tip-box"><strong>Tip</strong>Regularly review auto-generated articles. They save time, but a quick edit ensures accuracy and readability before publishing.</div>
 </section>
 
+<section id="live-chat" data-section>
+<h1>Live Chat <span class="role-badge role-admin">Admin</span> <span class="role-badge role-expert">Expert</span> <span class="role-badge role-customer">Customer</span></h1>
+<p>ServiFlow includes a built-in live chat system that lets customers communicate with experts in real time.</p>
+
+<h2>How It Works</h2>
+<ul>
+  <li><strong>Customers</strong> can start a live chat from the ticket detail view or the floating chat widget.</li>
+  <li><strong>Experts</strong> see incoming chat requests and can accept them from their dashboard.</li>
+  <li>Chat messages appear in real time with no page refresh needed.</li>
+  <li>Chat history is preserved and attached to the relevant ticket.</li>
+</ul>
+
+<h2>Canned Responses</h2>
+<p>Admins can configure <strong>Canned Responses</strong> in <strong>Settings &gt; Canned Responses</strong> &mdash; pre-written reply templates that experts can insert into a chat with one click. This speeds up responses for common questions.</p>
+
+<h2>Chat Notifications</h2>
+<p>When a new chat message arrives, a notification badge appears on the chat icon. Desktop notifications are also sent if the browser supports them.</p>
+</section>
+
 <!-- ═══════════════════════════════════════════════════ -->
 <!--  CHAPTER 5: SLA MANAGEMENT                        -->
 <!-- ═══════════════════════════════════════════════════ -->
@@ -802,15 +842,32 @@
 </ol>
 </section>
 
+<section id="asset-viewer" data-section>
+<h1>Asset Viewer <span class="role-badge role-admin">Admin</span> <span class="role-badge role-expert">Expert</span></h1>
+<p>The Asset Viewer provides a powerful grid-based view of all CMDB assets, built on DataTables for fast searching, sorting, and pagination.</p>
+
+<h2>Grid Columns</h2>
+<p>The asset grid displays: ID, Asset Name, Category, Brand, Model, Customer, Location, and Status. Click any column header to sort. Use the search box to filter across all columns.</p>
+
+<h2>Filters</h2>
+<p>Dedicated filter dropdowns let you narrow assets by <strong>Customer</strong>, <strong>Category</strong>, <strong>Brand</strong>, and <strong>Model</strong>. Filters can be combined for precise results.</p>
+
+<h2>Detail Panel</h2>
+<p>Click any asset row to open the detail panel on the right. This shows all asset fields, configuration items (CIs), linked tickets, and custom field values. Click <strong>Edit</strong> to modify asset details inline.</p>
+
+<h2>CSV Export</h2>
+<p>Click <strong>Export to CSV</strong> to download all assets (or the current filtered set) as a CSV file.</p>
+</section>
+
 <section id="cmdb-types" data-section>
-<h1>Categories, Brands, and Models <span class="role-badge role-admin">Admin</span></h1>
-<p>The CMDB taxonomy is organised in three levels:</p>
-<ul>
-  <li><strong>Categories</strong> &mdash; the type of asset (e.g. Windows Server, Network Device)</li>
-  <li><strong>Brands</strong> &mdash; the manufacturer (e.g. Dell, Cisco, Microsoft)</li>
-  <li><strong>Models</strong> &mdash; the specific product (e.g. PowerEdge R740, Catalyst 9300)</li>
-</ul>
-<p>Manage these from the CMDB settings section. Adding brands and models in advance speeds up asset creation and ensures consistency.</p>
+<h1>Asset Categories <span class="role-badge role-admin">Admin</span></h1>
+<p>Asset Categories define the types of assets in your CMDB. Categories are managed centrally and appear as dropdown options when creating or editing assets.</p>
+
+<h2>Managing Categories</h2>
+<p>Go to <strong>CMDB &gt; Settings &gt; Asset Categories</strong> to add, edit, or remove categories. Common categories include: Windows Server, Linux Server, Network Infrastructure, Hardware, Software, Database, VoIP, and Service.</p>
+
+<h2>Brands and Models</h2>
+<p>In addition to categories, you can manage <strong>Brands</strong> (manufacturers like Dell, Cisco, Microsoft) and <strong>Models</strong> (specific products like PowerEdge R740, Catalyst 9300). These appear as dropdowns in asset forms for consistent data entry.</p>
 </section>
 
 <section id="cmdb-custom-fields" data-section>
@@ -956,16 +1013,19 @@
 <!-- ═══════════════════════════════════════════════════ -->
 <section id="email-to-ticket" data-section>
 <h1>Email to Ticket <span class="role-badge role-admin">Admin</span></h1>
-<p>ServiFlow can monitor an email inbox and automatically create tickets from incoming messages.</p>
+<p>ServiFlow can monitor an email inbox and automatically create tickets from incoming messages. Two email providers are supported: <strong>Standard IMAP</strong> and <strong>Microsoft 365</strong>.</p>
 
-<h2>Setting Up Email Ingest</h2>
+<h2>Email Provider Tabs</h2>
+<p>The Email Ingest settings page is organised into two provider tabs. Each tab has its own <strong>Enable</strong> toggle, <strong>Outbound</strong> toggle, <strong>Test Connection</strong> button, and <strong>Check Interval</strong> setting. The providers are independent &mdash; enabling IMAP does not affect M365 and vice versa.</p>
+
+<h2>Setting Up IMAP</h2>
 <ol class="steps">
-  <li>Go to <strong>Settings &gt; Email Ingest</strong>.</li>
+  <li>Go to <strong>Settings &gt; Email Ingest</strong> and select the <strong>Standard IMAP</strong> tab.</li>
+  <li>Tick <strong>Enable IMAP Ingest</strong>.</li>
   <li>Enter your IMAP server details (host, port, username, password).</li>
-  <li>Set the <strong>check interval</strong> (how often to poll for new emails, 1&ndash;60 minutes).</li>
-  <li>Enable <strong>Use SSL</strong> (recommended for security).</li>
-  <li>Toggle <strong>Process Emails</strong> to On.</li>
-  <li>Click <strong>Save</strong>.</li>
+  <li>Enable <strong>Use SSL</strong> (recommended).</li>
+  <li>Set the <strong>Check Interval</strong> (1&ndash;60 minutes).</li>
+  <li>Click <strong>Test Connection</strong> to verify, then <strong>Save Settings</strong>.</li>
 </ol>
 
 <h2>What Happens When an Email Arrives</h2>
@@ -973,15 +1033,39 @@
   <li>ServiFlow fetches unread messages from the inbox.</li>
   <li>The sender's email domain is matched to a customer record.</li>
   <li>If the sender is a known customer, a ticket is created under their account.</li>
-  <li>If the sender is unknown, a new customer user is created automatically from the email details.</li>
+  <li>If the sender is unknown but their domain matches a customer company, a new customer account is created automatically.</li>
   <li>The email subject becomes the ticket title; the body becomes the description.</li>
   <li>A confirmation email (auto-reply) is sent back to the sender with the ticket ID and a link to track it.</li>
 </ol>
 
-<h2>Monitoring Alerts</h2>
-<p>ServiFlow detects Nagios and Zabbix alert emails and parses them specially &mdash; extracting host, service, alert type (PROBLEM/RECOVERY), and state. These tickets are marked as system alerts and correlated by host:service key to group related alerts.</p>
+<h2>System / Monitoring Senders</h2>
+<p>You can designate specific email addresses as <strong>System Senders</strong> (e.g. <code>nagios@company.com</code>). Emails from these addresses create tickets under the "System" user instead of auto-creating customer accounts. ServiFlow also has built-in detection for common monitoring systems (Nagios, Zabbix, Datadog, etc.) and parses their alerts specially &mdash; extracting host, service, alert type, and state.</p>
 
 <div class="warning-box"><strong>Warning</strong>Use an <strong>app password</strong> (not your main password) when connecting Gmail. Gmail requires app-specific passwords for IMAP access.</div>
+</section>
+
+<section id="email-m365" data-section>
+<h1>Microsoft 365 Email <span class="role-badge role-admin">Admin</span></h1>
+<p>ServiFlow can connect to a Microsoft 365 mailbox using the Microsoft Graph API with client credentials (app-only) authentication.</p>
+
+<h2>Setting Up M365</h2>
+<ol class="steps">
+  <li>Go to <strong>Settings &gt; Email Ingest</strong> and select the <strong>Microsoft 365</strong> tab.</li>
+  <li>Tick <strong>Enable M365 Ingest</strong>.</li>
+  <li>Enter the <strong>Mailbox Email Address</strong> (the shared or user mailbox to monitor).</li>
+  <li>Set the <strong>Check Interval</strong>.</li>
+  <li>Click <strong>Save Settings</strong>.</li>
+</ol>
+
+<h2>One-Time Admin Setup</h2>
+<p>Your Microsoft 365 administrator must complete a one-time setup:</p>
+<ol>
+  <li>Create a mail-enabled security group in Exchange Admin and add the target mailbox.</li>
+  <li>Run the <code>New-ApplicationAccessPolicy</code> PowerShell command to grant the ServiFlow app access to the security group.</li>
+  <li>Click <strong>Test Connection</strong> in ServiFlow to verify the configuration.</li>
+</ol>
+
+<div class="note-box"><strong>Note</strong>M365 uses the Microsoft Graph API for email access, which provides more reliable connectivity than IMAP for Microsoft 365 mailboxes.</div>
 </section>
 
 <section id="email-threading" data-section>
@@ -1013,6 +1097,35 @@
   <li>Confirmation that the request has been received</li>
 </ul>
 <p>Auto-reply can be toggled on or off per tenant in <strong>Settings &gt; Email Ingest</strong>.</p>
+</section>
+
+<section id="email-outbound" data-section>
+<h1>Outbound Email Notifications <span class="role-badge role-admin">Admin</span></h1>
+<p>Each email provider (IMAP and M365) has its own <strong>Enable Outbound Notifications</strong> toggle. When enabled, ticket notifications and system emails are sent from that provider's mailbox instead of the default system email.</p>
+
+<h2>IMAP Outbound</h2>
+<p>When outbound is enabled on the IMAP tab, you can configure separate <strong>SMTP Server Host</strong> and <strong>SMTP Port</strong> for sending emails.</p>
+
+<h2>M365 Outbound</h2>
+<p>When outbound is enabled on the M365 tab, emails are sent via the Microsoft Graph API using the same mailbox configured for ingest.</p>
+
+<div class="note-box"><strong>Note</strong>Only one provider's outbound should be active at a time. The currently selected provider's outbound settings are saved when you click Save.</div>
+</section>
+
+<section id="company-email-notifs" data-section>
+<h1>Company Email Controls <span class="role-badge role-admin">Admin</span></h1>
+<p>The <strong>Company Email Notifications</strong> grid (at the bottom of the Email Ingest settings page) gives you a consolidated view of email preferences for all customer companies.</p>
+
+<h2>Grid Columns</h2>
+<table>
+  <tr><th>Column</th><th>Description</th></tr>
+  <tr><td>Company</td><td>The customer company name.</td></tr>
+  <tr><td>Admin</td><td>The company admin's name.</td></tr>
+  <tr><td>Admin Receives Emails</td><td>When checked, the company admin receives ticket notifications for all company tickets.</td></tr>
+  <tr><td>Members Receive Emails</td><td>When checked, individual team members receive ticket notifications for their own tickets.</td></tr>
+</table>
+
+<p>Toggle any checkbox to update the setting immediately. Changes take effect on the next notification event.</p>
 </section>
 
 <section id="email-notifications" data-section>
@@ -1075,6 +1188,9 @@
   <tr><td>Contact Email</td><td>Primary contact email for the company.</td></tr>
   <tr><td>Phone</td><td>Company phone number.</td></tr>
   <tr><td>Address</td><td>Company address.</td></tr>
+  <tr><td>SLA Level</td><td>Company-wide SLA level (Basic, Premium, Enterprise).</td></tr>
+  <tr><td>Admin Receives Emails</td><td>Whether the company admin gets ticket notifications for all company tickets.</td></tr>
+  <tr><td>Members Receive Emails</td><td>Whether individual members get ticket notifications for their own tickets.</td></tr>
   <tr><td>Notes</td><td>Internal notes (not visible to customers).</td></tr>
 </table>
 
@@ -1087,22 +1203,29 @@
 
 <section id="customer-portal" data-section>
 <h1>Customer Portal <span class="role-badge role-customer">Customer</span></h1>
-<p>The customer portal is the interface customers see when they log in.</p>
+<p>The customer portal is a modern, gradient-styled interface that customers see when they log in. It uses friendly terminology ("Requests" instead of "Tickets") and a streamlined navigation with SVG icons.</p>
 
 <h2>What Customers Can Do</h2>
 <ul>
-  <li><strong>View their tickets</strong> &mdash; see all requests they have raised, with current status</li>
-  <li><strong>Raise new tickets</strong> &mdash; via the web form, email, or AI chatbot</li>
-  <li><strong>Add comments</strong> &mdash; post updates or additional information on their tickets</li>
+  <li><strong>View their requests</strong> &mdash; see all support requests with current status, priority, and timeline</li>
+  <li><strong>Raise new requests</strong> &mdash; via the web form, email, or AI chatbot</li>
+  <li><strong>Add comments</strong> &mdash; post updates or additional information on their requests</li>
   <li><strong>Accept or decline resolutions</strong> &mdash; when an expert resolves a ticket, the customer can confirm or reopen it</li>
   <li><strong>Browse the Knowledge Base</strong> &mdash; search published articles for self-service answers</li>
+  <li><strong>View My Equipment</strong> &mdash; see CMDB assets linked to their account</li>
+  <li><strong>Use Live Chat</strong> &mdash; communicate with experts in real time</li>
   <li><strong>Provide feedback</strong> &mdash; rate completed tickets with 1&ndash;5 stars and optional comments</li>
 </ul>
+
+<h2>Ticket Detail View</h2>
+<p>The ticket detail view features a gradient header showing key information (status, priority, SLA), an improved activity timeline with clear visual separation, and quick-action buttons for common operations.</p>
 
 <h2>Company Admin</h2>
 <p>A customer promoted to <strong>Company Admin</strong> gains additional capabilities:</p>
 <ul>
   <li>View all tickets raised by any user in their company</li>
+  <li>Toggle <strong>Show Monitoring Events</strong> to include/exclude system tickets</li>
+  <li>Access <strong>Monthly Reports</strong> for their company</li>
   <li>See company user statistics (total, active, disabled)</li>
   <li>Invite new users to the company</li>
   <li>Disable or promote other company users</li>
@@ -1140,6 +1263,21 @@
 <p>When you deactivate an expert, their account is soft-deleted. Open tickets assigned to them should be reassigned first. Deactivated experts appear in a separate "Deleted Experts" list and can be reactivated if needed.</p>
 </section>
 
+<section id="expert-registration" data-section>
+<h1>Expert Self-Registration <span class="role-badge role-admin">Admin</span></h1>
+<p>Staff members can self-register as experts by sending an email with the subject <code>Register_Expert</code> to your support inbox.</p>
+
+<h2>How It Works</h2>
+<ol>
+  <li>The admin configures the <strong>Tenant Domain</strong> in <strong>Settings &gt; Expert Registration</strong> (e.g. <code>apoyar.eu</code>).</li>
+  <li>A staff member sends an email with subject <code>Register_Expert</code> to the support address.</li>
+  <li>ServiFlow verifies the sender's email domain matches the tenant domain.</li>
+  <li>A new expert account is created and a welcome email with login credentials is sent automatically.</li>
+</ol>
+
+<div class="warning-box"><strong>Warning</strong>Only emails from the configured tenant domain can register. This prevents unauthorised registrations from external senders.</div>
+</section>
+
 <section id="expert-permissions" data-section>
 <h1>Expert Permissions <span class="role-badge role-admin">Admin</span></h1>
 <p>Experts have access to the following features:</p>
@@ -1157,87 +1295,88 @@
   <li>Manage other users (customers or experts)</li>
   <li>Change tenant settings or email configuration</li>
   <li>Create or edit SLA definitions</li>
-  <li>Create or manage ticket processing rules</li>
-  <li>Modify CMDB items (admin only)</li>
+  <li>Create or manage automated actions</li>
   <li>Access billing or subscription settings</li>
 </ul>
 </section>
 
 <!-- ═══════════════════════════════════════════════════ -->
-<!--  CHAPTER 11: TICKET PROCESSING RULES              -->
+<!--  CHAPTER 11: AUTOMATED ACTIONS                    -->
 <!-- ═══════════════════════════════════════════════════ -->
-<section id="rules-overview" data-section>
-<h1>Understanding Ticket Processing Rules <span class="role-badge role-admin">Admin</span></h1>
-<p>Ticket processing rules let you automate actions on tickets that match specific criteria. Rules run automatically when new tickets are created, and can also be triggered manually.</p>
+<section id="automated-actions" data-section>
+<h1>Automated Actions <span class="role-badge role-admin">Admin</span></h1>
+<p>Automated Actions are AI-powered rules that automatically process tickets matching specific criteria. They replace the older keyword-based ticket processing rules with more flexible, intelligent matching.</p>
 
-<h2>How Rules Work</h2>
+<h2>How Automated Actions Work</h2>
 <ol>
   <li>You define a <strong>search pattern</strong> &mdash; text to look for in the ticket title, body, or both.</li>
   <li>You choose an <strong>action</strong> &mdash; what should happen when a match is found.</li>
-  <li>When a new ticket arrives, all enabled rules are checked. Matching rules fire their actions.</li>
+  <li>Optionally filter by <strong>ticket source</strong> (e.g. only apply to email-created tickets).</li>
+  <li>When a new ticket arrives, all enabled actions are evaluated. Matching actions fire automatically.</li>
 </ol>
+
+<h2>Source Filtering</h2>
+<p>Actions can be restricted to tickets from specific sources: <code>email</code>, <code>web</code>, <code>chatbot</code>, or <code>all</code>. This lets you create actions that only apply to, say, tickets created from inbound email.</p>
 </section>
 
-<section id="creating-rules" data-section>
-<h1>Creating Rules <span class="role-badge role-admin">Admin</span></h1>
+<section id="creating-actions" data-section>
+<h1>Creating Actions <span class="role-badge role-admin">Admin</span></h1>
 
-<h2>Rule Fields</h2>
+<h2>Action Fields</h2>
 <table>
   <tr><th>Field</th><th>Description</th></tr>
   <tr><td>Rule Name</td><td>A descriptive label (e.g. "Auto-assign Infrastructure Alerts").</td></tr>
   <tr><td>Search In</td><td>Where to search: <code>title</code>, <code>body</code>, or <code>both</code>.</td></tr>
   <tr><td>Search Text</td><td>The text pattern to match.</td></tr>
   <tr><td>Case Sensitive</td><td>Whether the match should be case-sensitive.</td></tr>
+  <tr><td>Source Filter</td><td>Restrict to a specific ticket source (<code>email</code>, <code>web</code>, <code>chatbot</code>, or <code>all</code>).</td></tr>
   <tr><td>Action Type</td><td>The action to perform on matching tickets.</td></tr>
-  <tr><td>Action Parameters</td><td>Additional settings for the chosen action (e.g. which expert to assign to).</td></tr>
-  <tr><td>Enabled</td><td>Toggle the rule on or off without deleting it.</td></tr>
+  <tr><td>Instruction Text</td><td>AI instruction or additional context for the action.</td></tr>
+  <tr><td>Enabled</td><td>Toggle the action on or off without deleting it.</td></tr>
 </table>
 
 <h2>Action Types</h2>
 <table>
   <tr><th>Action</th><th>Description</th><th>Parameters</th></tr>
   <tr><td><strong>Delete</strong></td><td>Delete matching tickets (e.g. spam)</td><td>None</td></tr>
-  <tr><td><strong>Assign to Expert</strong></td><td>Auto-assign to a specific expert</td><td>Expert ID</td></tr>
-  <tr><td><strong>Create for Customer</strong></td><td>Reassign to a different customer</td><td>Customer ID</td></tr>
+  <tr><td><strong>Assign to Expert</strong></td><td>Auto-assign to a specific expert</td><td>Expert selection</td></tr>
+  <tr><td><strong>Create for Customer</strong></td><td>Reassign to a different customer</td><td>Customer selection</td></tr>
   <tr><td><strong>Set Priority</strong></td><td>Set ticket priority</td><td>Priority (Low / Medium / High / Critical)</td></tr>
   <tr><td><strong>Set Status</strong></td><td>Set ticket status</td><td>Status (Open / In Progress / Paused / Resolved / Closed)</td></tr>
   <tr><td><strong>Add Tag</strong></td><td>Add tags to the ticket</td><td>Tag values</td></tr>
+  <tr><td><strong>Close Ticket</strong></td><td>Close the ticket with an activity log entry</td><td>Optional closure note</td></tr>
 </table>
 </section>
 
-<section id="testing-rules" data-section>
-<h1>Testing and Running Rules <span class="role-badge role-admin">Admin</span></h1>
+<section id="testing-actions" data-section>
+<h1>Testing and Running Actions <span class="role-badge role-admin">Admin</span></h1>
 
 <h2>Test Mode</h2>
-<p>Before enabling a rule, use the <strong>Test</strong> button to preview which tickets would match without actually executing the action. This shows a list of matching tickets so you can verify the search pattern is correct.</p>
+<p>Before enabling an action, use the <strong>Test</strong> button to preview which tickets would match without actually executing the action. This shows a list of matching tickets so you can verify the search pattern is correct.</p>
 
 <h2>Manual Execution</h2>
-<p>Click <strong>Run</strong> on a rule to execute it once against all current tickets. This is useful for applying a new rule to existing tickets.</p>
+<p>Click <strong>Run</strong> on an action to execute it once against all current tickets. This is useful for applying a new action to existing tickets.</p>
 
 <h2>Batch Processing</h2>
-<p>For rules that match many tickets, ServiFlow processes them in batches to avoid overloading the server. You can configure:</p>
-<ul>
-  <li><strong>Batch size</strong> &mdash; how many tickets to process per batch</li>
-  <li><strong>Batch interval</strong> &mdash; delay between batches</li>
-</ul>
+<p>For actions that match many tickets, ServiFlow processes them in batches. You can configure batch size and interval in the support settings.</p>
 
 <h2>Execution History</h2>
-<p>Each rule maintains a history of its executions, including timestamps, number of matches, and results (success or failure).</p>
+<p>Each action maintains a history of its executions, including timestamps, number of matches, and results (success or failure).</p>
 </section>
 
-<section id="rules-best-practices" data-section>
-<h1>Rules Best Practices</h1>
+<section id="actions-best-practices" data-section>
+<h1>Automated Actions Best Practices</h1>
 
 <h2>Common Patterns</h2>
 <table>
-  <tr><th>Goal</th><th>Search Text</th><th>Search In</th><th>Action</th></tr>
-  <tr><td>Auto-assign server alerts</td><td><code>Infrastructure Monitoring</code></td><td>Title</td><td>Assign to Expert (Infrastructure Team)</td></tr>
-  <tr><td>Escalate urgent requests</td><td><code>URGENT</code></td><td>Title</td><td>Set Priority (Critical)</td></tr>
-  <tr><td>Tag password reset tickets</td><td><code>password reset</code></td><td>Both</td><td>Add Tag ("password-reset")</td></tr>
-  <tr><td>Auto-close spam</td><td><code>unsubscribe</code></td><td>Body</td><td>Delete</td></tr>
+  <tr><th>Goal</th><th>Search Text</th><th>Source</th><th>Action</th></tr>
+  <tr><td>Auto-assign server alerts</td><td><code>Infrastructure Monitoring</code></td><td>Email</td><td>Assign to Expert</td></tr>
+  <tr><td>Escalate urgent requests</td><td><code>URGENT</code></td><td>All</td><td>Set Priority (Critical)</td></tr>
+  <tr><td>Tag password reset tickets</td><td><code>password reset</code></td><td>All</td><td>Add Tag ("password-reset")</td></tr>
+  <tr><td>Auto-close marketing emails</td><td><code>unsubscribe</code></td><td>Email</td><td>Close Ticket</td></tr>
 </table>
 
-<div class="tip-box"><strong>Tip</strong>Start with rules disabled and use Test mode to verify matches. Enable only after confirming the pattern works correctly.</div>
+<div class="tip-box"><strong>Tip</strong>Start with actions disabled and use Test mode to verify matches. Enable only after confirming the pattern works correctly.</div>
 
 <div class="warning-box"><strong>Warning</strong>The <strong>Delete</strong> action permanently removes matching tickets. Use it with extreme caution and test thoroughly first.</div>
 </section>
@@ -1295,6 +1434,34 @@
 
 <h2>Customer Analytics <span class="role-badge role-customer">Customer</span></h2>
 <p>Customers see a simplified analytics view showing only their own tickets: total created, currently open, and average response time.</p>
+</section>
+
+<section id="monthly-reports" data-section>
+<h1>Monthly Reports <span class="role-badge role-admin">Admin</span> <span class="role-badge role-customer">Customer</span></h1>
+<p>Monthly Reports provide a formatted summary of ticket activity for a selected company over a chosen month.</p>
+
+<h2>Report Contents</h2>
+<ul>
+  <li>Ticket totals (created, resolved, open, closed)</li>
+  <li>Average response and resolution times</li>
+  <li>SLA compliance percentage</li>
+  <li>Breakdown by category, priority, and status</li>
+  <li>List of all tickets with key details</li>
+</ul>
+
+<h2>Generating a Report</h2>
+<ol class="steps">
+  <li>Go to <strong>Reports &gt; Monthly Reports</strong>.</li>
+  <li>Select the <strong>company</strong> and <strong>month</strong>.</li>
+  <li>Click <strong>Generate</strong> to preview the report.</li>
+  <li>Click <strong>Send Now</strong> to email the report to the selected recipients.</li>
+</ol>
+
+<h2>Auto-Schedule</h2>
+<p>Admins can configure automatic monthly report delivery. Reports are generated and emailed on the first day of each month for the previous month's data.</p>
+
+<h2>Company Admin Access</h2>
+<p>Company Admin customers can also access Monthly Reports for their own company, giving them self-service visibility into their support metrics.</p>
 </section>
 
 <!-- ═══════════════════════════════════════════════════ -->
@@ -1377,20 +1544,44 @@
 
 <section id="email-ingest-config" data-section>
 <h1>Email Ingest Configuration <span class="role-badge role-admin">Admin</span></h1>
-<p>Go to <strong>Settings &gt; Email Ingest</strong> to configure inbound email processing. See <a href="#email-to-ticket">Email to Ticket</a> for the full setup guide.</p>
+<p>Go to <strong>Settings &gt; Email Ingest</strong> to configure inbound email processing. The settings are organised into two provider tabs (IMAP and M365), each with independent controls.</p>
 
-<h2>Configuration Fields</h2>
-<table>
-  <tr><th>Field</th><th>Description</th></tr>
-  <tr><td>Server Type</td><td>IMAP or POP3.</td></tr>
-  <tr><td>Server Host</td><td>Mail server hostname (e.g. <code>imap.gmail.com</code>).</td></tr>
-  <tr><td>Port</td><td>Server port (typically 993 for IMAP with SSL).</td></tr>
-  <tr><td>Username</td><td>Email account username.</td></tr>
-  <tr><td>Password</td><td>Email account password or app password (masked in UI).</td></tr>
-  <tr><td>Use SSL</td><td>Enable SSL/TLS encryption.</td></tr>
-  <tr><td>Check Interval</td><td>How often to poll for new emails (1&ndash;60 minutes).</td></tr>
-  <tr><td>Process Emails</td><td>Master toggle to enable/disable email processing.</td></tr>
-</table>
+<h2>Per-Provider Controls</h2>
+<p>Each provider tab includes its own:</p>
+<ul>
+  <li><strong>Enable Ingest</strong> &mdash; toggle inbound email processing for this provider</li>
+  <li><strong>Enable Outbound Notifications</strong> &mdash; send system emails from this provider's mailbox</li>
+  <li><strong>Test Connection</strong> &mdash; verify the connection works</li>
+  <li><strong>Check Interval</strong> &mdash; how often to poll for new emails (1&ndash;60 minutes)</li>
+</ul>
+
+<h2>IMAP Settings</h2>
+<p>Server Type (IMAP/POP3), Host, Port, SSL, Username, Password, and optional SMTP fields for outbound.</p>
+
+<h2>M365 Settings</h2>
+<p>Mailbox Email Address, connection status indicator, and one-time setup instructions for your M365 admin.</p>
+
+<h2>Additional Sections</h2>
+<p>The Email Ingest page also includes <a href="#email-to-ticket">System Senders</a> (addresses treated as monitoring sources) and <a href="#company-email-notifs">Company Email Notifications</a> (per-company notification toggles).</p>
+
+<p>See <a href="#email-to-ticket">Email to Ticket</a> and <a href="#email-m365">Microsoft 365 Email</a> for full setup guides.</p>
+</section>
+
+<section id="system-admin-tools" data-section>
+<h1>System Admin Tools <span class="role-badge role-admin">Admin</span></h1>
+<p>Sensitive configuration settings are grouped under <strong>System Admin Tools</strong> in a collapsible sidebar section. Accessing these tools requires <strong>password re-authentication</strong> (elevation) to prevent accidental changes.</p>
+
+<h2>Elevation</h2>
+<p>When you click System Admin Tools, a password prompt appears. Enter your admin password to gain elevated access for 30 minutes. An <strong>Elevated</strong> badge appears in the sidebar while active.</p>
+
+<h2>Tools Included</h2>
+<ul>
+  <li><strong>Raw Variables</strong> &mdash; view and edit system configuration values</li>
+  <li><strong>System Control</strong> &mdash; master toggles for email processing, notifications, and features</li>
+  <li><strong>Housekeeping</strong> &mdash; data retention and cleanup</li>
+</ul>
+
+<div class="note-box"><strong>Note</strong>The elevation token expires after 30 minutes. You will need to re-authenticate to continue making changes.</div>
 </section>
 
 <section id="system-control" data-section>

@@ -26839,11 +26839,12 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         updateSystemSettingStatus('process_sla', true);
       }
 
-      // Update Process Emails toggle from email_ingest_settings (either provider enabled)
+      // Update Process Emails toggle from email_ingest_settings (provider-specific check)
       const processEmailsCheckbox = document.getElementById('sc-process-emails');
       const eis = emailIngestData.success && emailIngestData.settings ? emailIngestData.settings : {};
-      const processEmailsEnabled = !!eis.enabled || !!eis.m365_enabled;
-      console.log('process_emails: imap_enabled=', eis.enabled, 'm365_enabled=', eis.m365_enabled, 'any_enabled:', processEmailsEnabled);
+      // Must match backend logic: oauth2 checks m365_enabled, basic/imap checks enabled
+      const processEmailsEnabled = eis.auth_method === 'oauth2' ? !!eis.m365_enabled : !!eis.enabled;
+      console.log('process_emails: auth_method=', eis.auth_method, 'imap_enabled=', eis.enabled, 'm365_enabled=', eis.m365_enabled, 'effective:', processEmailsEnabled);
       if (processEmailsCheckbox) {
         processEmailsCheckbox.checked = processEmailsEnabled;
       }
