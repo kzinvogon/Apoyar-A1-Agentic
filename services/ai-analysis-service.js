@@ -1371,17 +1371,20 @@ Return the structured rule as JSON.`
 
         case 'priority':
           if (action.params.priority) {
+            // Map AI-suggested values to valid DB ENUM (low, medium, high, critical)
+            const PRIORITY_MAP = { urgent: 'critical', normal: 'medium', low: 'low', medium: 'medium', high: 'high', critical: 'critical' };
+            const mappedPriority = PRIORITY_MAP[action.params.priority.toLowerCase()] || 'medium';
             await connection.query(
               'UPDATE tickets SET priority = ? WHERE id = ?',
-              [action.params.priority, ticketId]
+              [mappedPriority, ticketId]
             );
             await logTicketActivity(connection, {
               ticketId, userId, activityType: 'updated',
-              description: `Priority set to ${action.params.priority} (AI suggestion)`,
+              description: `Priority set to ${mappedPriority} (AI suggestion)`,
               source: 'system', eventKey: 'ticket.priority.changed',
-              meta: { field: 'priority', to: action.params.priority, triggeredBy: 'ai_suggestion' }
+              meta: { field: 'priority', to: mappedPriority, triggeredBy: 'ai_suggestion' }
             });
-            results.push({ success: true, action: 'priority', message: `Priority set to ${action.params.priority}` });
+            results.push({ success: true, action: 'priority', message: `Priority set to ${mappedPriority}` });
           }
           break;
 
