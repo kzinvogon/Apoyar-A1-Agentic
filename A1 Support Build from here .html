@@ -19348,6 +19348,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           srcBadge.innerHTML = '<span style="display:inline-block;font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;background:#0ea5e9;color:#fff;letter-spacing:0.5px">CHAT</span>';
           srcBadge.style.display = '';
         }
+
+        // Auto-load AI suggestions (fire-and-forget, won't block page)
+        loadAISuggestions();
       }
     } catch (error) {
       console.error('Error loading ticket details:', error);
@@ -20299,20 +20302,23 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       return;
     }
 
+    // Capture ticket ID at call time to detect stale responses
+    const requestedTicketId = currentTicketId;
+
     const panel = document.getElementById('ai-panel');
     const loading = document.getElementById('ai-loading');
     const content = document.getElementById('ai-content');
 
     // Show panel and loading state
-    panel.style.display = 'block';
-    loading.style.display = 'block';
-    content.style.display = 'none';
+    if (panel) panel.style.display = 'block';
+    if (loading) { loading.style.display = 'block'; loading.innerHTML = '<div style="color:#ffc">Loading AI suggestions...</div>'; }
+    if (content) content.style.display = 'none';
 
     try {
       const token = localStorage.getItem('token');
       const tenantCode = window.tenant || 'apoyar';
 
-      const response = await fetch(`${API_BASE}/api/ai/${tenantCode}/tickets/${currentTicketId}/suggestions`, {
+      const response = await fetch(`${API_BASE}/api/ai/${tenantCode}/tickets/${requestedTicketId}/suggestions`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -20320,19 +20326,28 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         }
       });
 
+      // Discard stale response if user navigated to a different ticket
+      if (currentTicketId !== requestedTicketId) {
+        console.log(`[ai-suggestions] Discarding stale response for ticket #${requestedTicketId} (now viewing #${currentTicketId})`);
+        return;
+      }
+
       const data = await response.json();
 
       if (data.success && data.suggestions) {
         currentAISuggestions = data.suggestions;
         renderAISuggestions(data.suggestions);
-        loading.style.display = 'none';
-        content.style.display = 'block';
+        if (loading) loading.style.display = 'none';
+        if (content) content.style.display = 'block';
       } else {
         throw new Error(data.error || 'Failed to get AI suggestions');
       }
     } catch (error) {
       console.error('Error loading AI suggestions:', error);
-      loading.innerHTML = '<div style="color:#ffc">Error: ' + error.message + '</div>';
+      // Only show error if still on the same ticket
+      if (currentTicketId === requestedTicketId && loading) {
+        loading.innerHTML = '<div style="color:#ffc">Error: ' + error.message + '</div>';
+      }
     }
   }
 
