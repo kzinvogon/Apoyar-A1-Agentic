@@ -169,8 +169,20 @@ async function getActiveTenants() {
     );
     return rows.map(r => r.tenant_code);
   } catch (error) {
-    log.error('Failed to get active tenants', { error: error.message });
-    return [];
+    log.error('Failed to get active tenants, attempting reconnect', { error: error.message });
+    // Reconnect: destroy dead pool, create fresh one, retry once
+    try { await masterPool.end(); } catch (_) {}
+    masterPool = createMasterPool();
+    try {
+      const [rows] = await masterPool.query(
+        "SELECT tenant_code FROM tenants WHERE status = 'active'"
+      );
+      log.info('Master pool reconnect successful');
+      return rows.map(r => r.tenant_code);
+    } catch (retryErr) {
+      log.error('Master pool reconnect failed', { error: retryErr.message });
+      return [];
+    }
   }
 }
 

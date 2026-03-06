@@ -469,10 +469,24 @@ class EmailProcessor {
     const deltaItems = [];
     let newDeltaLink = null;
     let pageCount = 0;
+    let deltaResetAttempted = false;
 
     while (deltaUrl) {
       pageCount++;
-      const data = await graphRequest(deltaUrl);
+      let data;
+      try {
+        data = await graphRequest(deltaUrl);
+      } catch (err) {
+        // Auto-reset stale deltaLink on 410 SyncStateNotFound (once per cycle)
+        if (!deltaResetAttempted && err.message && err.message.includes('SyncStateNotFound')) {
+          deltaResetAttempted = true;
+          console.warn(`⚠️ [${self.tenantCode}] Delta sync state expired (410 SyncStateNotFound) for ${userEmail} — resetting to full sync`);
+          await connection.query('UPDATE email_ingest_settings SET graph_delta_link = NULL WHERE id = ?', [mailboxId]);
+          deltaUrl = `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(userEmail)}/mailFolders/Inbox/messages/delta?$select=id,receivedDateTime,internetMessageId,from,subject,hasAttachments&$top=50`;
+          continue;
+        }
+        throw err;
+      }
 
       for (const item of (data.value || [])) {
         // Skip deletions and items without id
