@@ -373,6 +373,13 @@ class EmailProcessor {
         console.error(`   Email UID ${uid} will NOT be marked as seen (will be reprocessed after migration)`);
         return { success: false, missingTable: true };
       }
+      // Data truncation (e.g. ENUM mismatch) — non-critical, log and continue
+      // Don't crash email processing over a tracking table issue
+      if (error.code === 'WARN_DATA_TRUNCATED' || error.code === 'ER_TRUNCATED_WRONG_VALUE_FOR_FIELD' ||
+          (error.message && error.message.includes('Data truncated'))) {
+        console.error(`⚠️ recordProcessedMessage: Data truncated for message_id=${messageId}, result=${result} — ENUM may need migration`);
+        return { success: false, missingTable: false };
+      }
       throw error;
     }
   }
