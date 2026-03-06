@@ -51,6 +51,25 @@ function buildCorrelationKey(tenantCode, host, service) {
   return `${tenantCode}|${host}|${service}`;
 }
 
+/**
+ * Generate a SHA-256 fingerprint for deduplicating alerts within a ticket.
+ * Combines incident_key + state + normalised subject.
+ *
+ * @param {string} incidentKey - Normalised host:service key
+ * @param {string} state - Alert state (CRITICAL, WARNING, etc.)
+ * @param {string} subject - Email subject
+ * @returns {string} 64-char hex SHA-256 hash
+ */
+function generateAlertFingerprint(incidentKey, state, subject) {
+  const normSubject = (subject || '')
+    .replace(/\d{4}-\d{2}-\d{2}[\sT]\d{2}:\d{2}(:\d{2})?/g, '') // strip timestamps
+    .replace(/\d+/g, 'N')  // normalise numbers
+    .trim()
+    .toLowerCase();
+  const payload = `${incidentKey}|${state || 'UNKNOWN'}|${normSubject}`;
+  return crypto.createHash('sha256').update(payload).digest('hex');
+}
+
 // ============================================================================
 // EMAIL REPLY THREADING PATTERNS
 // ============================================================================
@@ -1928,6 +1947,31 @@ class EmailProcessor {
           }
         }
 
+        // ALERT GROUPING: check if an open ticket already exists for this host+service
+        if (isMonitoringType) {
+          const alert = parseMonitoringAlert(email);
+          const incidentKey = alert.correlation_key;
+          try {
+            const existingTicket = await this.findOpenIncidentTicket(connection, incidentKey);
+            if (existingTicket) {
+              await this.attachAlertToTicket(connection, existingTicket.id, alert, email, fromEmail);
+              console.log(`📎 [Grouping] Alert grouped into ticket #${existingTicket.id} (alert_count was ${existingTicket.alertCount}) — ${alert.host}/${alert.service}`);
+              return {
+                success: true,
+                ticketId: existingTicket.id,
+                wasGrouped: true,
+                alertCount: existingTicket.alertCount + 1,
+                sourceType: 'system',
+                classificationReason: classification.reason,
+                wasNewCustomer: false
+              };
+            }
+          } catch (groupErr) {
+            // Non-fatal — fall through to create a new ticket
+            console.warn(`[Grouping] Error checking for existing incident ticket:`, groupErr.message);
+          }
+        }
+
         // Create ticket with System user as requester, no customer company
         const ticketId = await this.createTicketFromEmail(connection, email, systemUserId, {
           sourceType: 'system',
@@ -2134,8 +2178,87 @@ class EmailProcessor {
   }
 
   /**
+   * Find an open incident ticket matching the given incident_key.
+   * Returns the most recently created matching ticket, or null.
+   *
+   * @param {Object} connection - Tenant-scoped DB connection
+   * @param {string} incidentKey - Normalised host:service key
+   * @returns {{ id: number, alertCount: number } | null}
+   */
+  async findOpenIncidentTicket(connection, incidentKey) {
+    const [rows] = await connection.query(
+      `SELECT id, alert_count FROM tickets
+       WHERE incident_key = ?
+         AND status IN ('Open', 'In Progress', 'Pending')
+       ORDER BY created_at DESC LIMIT 1`,
+      [incidentKey]
+    );
+    return rows.length > 0 ? { id: rows[0].id, alertCount: rows[0].alert_count } : null;
+  }
+
+  /**
+   * Attach a new monitoring alert to an existing grouped ticket.
+   * - Records the event in incident_events (full audit trail)
+   * - Upserts alert_fingerprints (dedup identical alerts)
+   * - Increments alert_count and updates last_alert_at on the ticket
+   * - Logs a system_note activity entry (visible in ticket timeline)
+   *
+   * @param {Object} connection - Tenant-scoped DB connection
+   * @param {number} ticketId - Existing ticket to attach to
+   * @param {Object} alert - Parsed alert from parseMonitoringAlert()
+   * @param {Object} email - Original email object
+   * @param {string} fromEmail - Sender email address
+   */
+  async attachAlertToTicket(connection, ticketId, alert, email, fromEmail) {
+    const fingerprint = generateAlertFingerprint(alert.correlation_key, alert.state, email.subject);
+    const subjectTrunc = (email.subject || '').substring(0, 200);
+    const messageId = (email.messageId || email.message_id || '').substring(0, 512);
+
+    // 1. Full audit trail — every alert gets a row
+    await connection.query(
+      `INSERT INTO incident_events (ticket_id, event_type, state, subject, from_email, message_id, raw_metadata)
+       VALUES (?, 'alert_received', ?, ?, ?, ?, ?)`,
+      [ticketId, alert.state, subjectTrunc, fromEmail, messageId,
+       JSON.stringify({ host: alert.host, service: alert.service, state: alert.state, correlation_key: alert.correlation_key, sender: fromEmail })]
+    );
+
+    // 2. Dedup fingerprint — ON DUPLICATE KEY UPDATE increments count
+    await connection.query(
+      `INSERT INTO alert_fingerprints (ticket_id, fingerprint, subject, from_email, state)
+       VALUES (?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         occurrence_count = occurrence_count + 1,
+         last_seen_at = CURRENT_TIMESTAMP`,
+      [ticketId, fingerprint, subjectTrunc, fromEmail, alert.state]
+    );
+
+    // 3. Update ticket counters
+    const [updateResult] = await connection.query(
+      `UPDATE tickets SET alert_count = alert_count + 1, last_alert_at = NOW(), updated_at = NOW() WHERE id = ?`,
+      [ticketId]
+    );
+    const newCount = updateResult.affectedRows > 0 ? '(count updated)' : '(no rows affected)';
+
+    // 4. Log activity — visible in ticket timeline
+    await logTicketActivity(connection, {
+      ticketId,
+      userId: null,
+      activityType: 'system_note',
+      description: `Alert grouped: ${subjectTrunc} [state: ${alert.state}]`,
+      isPublic: false,
+      source: 'system',
+      actorType: 'system',
+      eventKey: 'ticket.alert.grouped',
+      meta: { host: alert.host, service: alert.service, state: alert.state, fingerprint, sender: fromEmail }
+    });
+
+    console.log(`📎 [Correlation] Attached alert to ticket #${ticketId} ${newCount} — ${alert.host}/${alert.service} [${alert.state}]`);
+  }
+
+  /**
    * Correlate a RECOVERY monitoring alert with open PROBLEM ticket(s).
    * Closes all matching tickets and logs a system_note on each.
+   * Uses incident_key column for fast indexed lookup, with fallback to legacy JSON_EXTRACT.
    *
    * @param {Object} connection - Tenant-scoped DB connection (via getTenantConnection)
    * @param {Object} alert - Parsed alert from parseMonitoringAlert()
@@ -2147,15 +2270,16 @@ class EmailProcessor {
     const normKey = normaliseCorrelationKey(alert.host, alert.service);
     const legacyKey = buildCorrelationKey(this.tenantCode, alert.host, alert.service);
 
-    // Dual-key lookup: exact legacy key OR normalised key (case-insensitive LIKE)
-    // Connection is tenant-scoped — each tenant has its own DB, no cross-tenant leakage
+    // Primary lookup: indexed incident_key column
+    // Fallback: legacy JSON_EXTRACT for tickets created before migration
     const [rows] = await connection.query(
       `SELECT id FROM tickets
        WHERE status IN ('Open', 'In Progress', 'Pending', 'Resolved')
-         AND (JSON_EXTRACT(source_metadata, '$.correlation_key') = ?
+         AND (incident_key = ?
+              OR JSON_EXTRACT(source_metadata, '$.correlation_key') = ?
               OR LOWER(JSON_EXTRACT(source_metadata, '$.correlation_key')) LIKE ?)
        ORDER BY created_at DESC`,
-      [legacyKey, `%${normKey}%`]
+      [normKey, legacyKey, `%${normKey}%`]
     );
 
     if (rows.length === 0) {
@@ -2164,6 +2288,19 @@ class EmailProcessor {
 
     const closedTicketIds = [];
     for (const row of rows) {
+      // Record recovery event in incident_events timeline
+      try {
+        await connection.query(
+          `INSERT INTO incident_events (ticket_id, event_type, state, subject, from_email, raw_metadata)
+           VALUES (?, 'recovery_received', ?, ?, ?, ?)`,
+          [row.id, alert.state, (email.subject || '').substring(0, 200), fromEmail,
+           JSON.stringify({ host: alert.host, service: alert.service, state: alert.state, correlation_key: normKey, sender: fromEmail })]
+        );
+      } catch (evtErr) {
+        // Non-fatal — table may not exist on un-migrated tenants
+        console.warn(`[Correlation] Could not insert incident_event for ticket #${row.id}:`, evtErr.message);
+      }
+
       await logTicketActivity(connection, {
         ticketId: row.id,
         userId: null,
@@ -2286,16 +2423,50 @@ class EmailProcessor {
     const slaHours = priority === 'high' ? 4 : priority === 'low' ? 48 : 24;
     const slaDeadline = new Date(Date.now() + slaHours * 60 * 60 * 1000);
 
-    // Create ticket with SLA fields
+    // Determine incident correlation fields for monitoring tickets
+    const isMonitoringTicket = sourceMetadata.createdVia === 'monitoring';
+    const incidentKey = isMonitoringTicket ? normaliseCorrelationKey(
+      monitoringFields.host, monitoringFields.service
+    ) : null;
+
+    // Create ticket with SLA fields + incident correlation fields
     const [result] = await connection.query(
       `INSERT INTO tickets (title, description, status, priority, category, requester_id, sla_deadline, source_metadata,
-                            sla_definition_id, sla_source, sla_applied_at, response_due_at, resolve_due_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                            sla_definition_id, sla_source, sla_applied_at, response_due_at, resolve_due_at,
+                            incident_key, alert_count, last_alert_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [title, description, 'open', priority, 'Email', requesterId, slaDeadline, sourceMetadataJson,
-       slaFields.sla_definition_id, slaFields.sla_source, slaFields.sla_applied_at, slaFields.response_due_at, slaFields.resolve_due_at]
+       slaFields.sla_definition_id, slaFields.sla_source, slaFields.sla_applied_at, slaFields.response_due_at, slaFields.resolve_due_at,
+       incidentKey, isMonitoringTicket ? 1 : 0, isMonitoringTicket ? new Date() : null]
     );
 
     const ticketId = result.insertId;
+
+    // Record first incident event + fingerprint for monitoring tickets
+    if (isMonitoringTicket && incidentKey) {
+      try {
+        const alert = parseMonitoringAlert(email);
+        const fingerprint = generateAlertFingerprint(incidentKey, alert.state, email.subject);
+        const subjectTrunc = (email.subject || '').substring(0, 200);
+        const messageId = (email.messageId || email.message_id || '').substring(0, 512);
+
+        await connection.query(
+          `INSERT INTO incident_events (ticket_id, event_type, state, subject, from_email, message_id, raw_metadata)
+           VALUES (?, 'alert_received', ?, ?, ?, ?, ?)`,
+          [ticketId, alert.state, subjectTrunc, sourceMetadata.sourceEmail, messageId,
+           JSON.stringify({ host: alert.host, service: alert.service, state: alert.state, correlation_key: incidentKey, sender: sourceMetadata.sourceEmail })]
+        );
+
+        await connection.query(
+          `INSERT INTO alert_fingerprints (ticket_id, fingerprint, subject, from_email, state)
+           VALUES (?, ?, ?, ?, ?)`,
+          [ticketId, fingerprint, subjectTrunc, sourceMetadata.sourceEmail, alert.state]
+        );
+      } catch (incErr) {
+        // Non-fatal — don't block ticket creation if incident tables aren't migrated yet
+        console.warn(`[Incident] Could not record initial incident data for ticket #${ticketId}:`, incErr.message);
+      }
+    }
 
     // Log activity with source information including classification reason
     let sourceInfo;
@@ -2337,10 +2508,10 @@ class EmailProcessor {
           `SELECT id FROM tickets
            WHERE id <> ?
              AND status IN ('Open', 'In Progress', 'Pending', 'Resolved')
-             AND JSON_EXTRACT(source_metadata, '$.correlation_key') = ?
+             AND (incident_key = ? OR JSON_EXTRACT(source_metadata, '$.correlation_key') = ?)
            ORDER BY created_at DESC
            LIMIT 1`,
-          [ticketId, correlationKey]
+          [ticketId, incidentKey, correlationKey]
         );
 
         if (alertRows.length > 0) {

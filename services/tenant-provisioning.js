@@ -505,8 +505,12 @@ async function createTenantTables(connection) {
       INDEX idx_tickets_claimed_by (claimed_by_expert_id),
       INDEX idx_tickets_work_type (work_type),
       INDEX idx_tickets_source (source),
+      incident_key VARCHAR(255) NULL,
+      alert_count INT NOT NULL DEFAULT 0,
+      last_alert_at TIMESTAMP NULL,
       INDEX idx_tickets_related (related_ticket_id),
-      INDEX idx_tickets_major_incident (is_major_incident)
+      INDEX idx_tickets_major_incident (is_major_incident),
+      INDEX idx_tickets_incident_key (incident_key)
     )
   `);
 
@@ -533,6 +537,40 @@ async function createTenantTables(connection) {
       INDEX idx_ticket_activity_event_created (event_key, created_at),
       INDEX idx_ticket_activity_actor_created (actor_id, created_at)
     )
+  `);
+
+  // Alert Fingerprints — deduplicates identical alerts within a grouped ticket
+  await connection.execute(`
+    CREATE TABLE IF NOT EXISTS alert_fingerprints (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      ticket_id INT NOT NULL,
+      fingerprint VARCHAR(64) NOT NULL,
+      subject VARCHAR(200) NULL,
+      from_email VARCHAR(255) NULL,
+      state VARCHAR(20) NULL,
+      first_seen_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      last_seen_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      occurrence_count INT NOT NULL DEFAULT 1,
+      UNIQUE KEY uk_ticket_fingerprint (ticket_id, fingerprint),
+      FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
+  // Incident Events — full timeline of every alert received for a grouped ticket
+  await connection.execute(`
+    CREATE TABLE IF NOT EXISTS incident_events (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      ticket_id INT NOT NULL,
+      event_type VARCHAR(30) NOT NULL,
+      state VARCHAR(20) NULL,
+      subject VARCHAR(200) NULL,
+      from_email VARCHAR(255) NULL,
+      message_id VARCHAR(512) NULL,
+      raw_metadata JSON NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_incident_events_ticket (ticket_id, created_at),
+      FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
   // Ticket Classification Events (history/audit trail)
