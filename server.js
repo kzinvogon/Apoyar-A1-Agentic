@@ -572,6 +572,7 @@ async function runAllMigrations(tenantCode) {
     { name: 'Ticket rules columns', fn: async () => { const { migrate } = require('./migrations/add-ticket-rules-columns'); await migrate(tenantCode); }},
     { name: 'Link customers to companies', fn: async () => { const { migrate } = require('./migrations/link-customers-to-companies'); await migrate(tenantCode); }},
     { name: 'Asset categories', fn: async () => { const { migrate } = require('./migrations/add-asset-categories'); await migrate(tenantCode); }},
+    { name: 'Incident correlation', fn: async () => { const { runMigration } = require('./migrations/add-incident-correlation'); await runMigration(tenantCode); }},
   ];
 
   let successCount = 0;
