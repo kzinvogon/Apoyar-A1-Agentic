@@ -597,13 +597,19 @@ async function sendNotificationEmail(to, subject, htmlContent, tenantCode = null
   try {
     const tenantDisplayName = await getTenantDisplayName(tenantCode);
 
-    // Check kill switch if tenantCode provided
-    if (tenantCode) {
+    // Unified 4-layer decision tree (system kill switch + company + user prefs)
+    if (tenantCode && to) {
+      const decision = await shouldSendNotification(tenantCode, to, emailType);
+      if (!decision.send) {
+        console.log(`📧 Would have sent notification to: ${to} Subject: ${subject} — blocked at layer ${decision.layer}: ${decision.reason}`);
+        return { success: false, message: decision.reason };
+      }
+    } else if (tenantCode) {
+      // No recipient email — fall back to kill switch only
       const emailEnabled = await isEmailSendingEnabled(tenantCode, emailType);
       if (!emailEnabled) {
         const settingName = `send_emails_${emailType}`;
         console.log(`🔴 KILL SWITCH: Email sending is disabled (${settingName}) for tenant:`, tenantCode);
-        console.log('📧 Would have sent email to:', to, 'Subject:', subject);
         return { success: false, message: 'Email sending disabled by kill switch' };
       }
     }
