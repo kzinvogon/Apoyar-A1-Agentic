@@ -247,18 +247,28 @@ async function startWorker() {
 
   const pollIntervalMs = parseInt(process.env.EMAIL_POLL_INTERVAL_MS || '60000', 10);
 
-  // Create master pool
-  masterPool = createMasterPool();
-
-  // Verify connection
-  try {
-    const conn = await masterPool.getConnection();
-    await conn.ping();
-    conn.release();
-    log.info('Database connection verified');
-  } catch (error) {
-    log.error('Failed to connect to database', { error: error.message });
-    process.exit(1);
+  // Create master pool with retry (avoid crash-loop exhausting MySQL connections)
+  const MAX_RETRIES = 5;
+  const RETRY_DELAY_MS = 10000; // 10s between retries
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    masterPool = createMasterPool();
+    try {
+      const conn = await masterPool.getConnection();
+      await conn.ping();
+      conn.release();
+      log.info('Database connection verified');
+      break;
+    } catch (error) {
+      log.error(`Failed to connect to database (attempt ${attempt}/${MAX_RETRIES})`, { error: error.message });
+      try { await masterPool.end(); } catch (_) {}
+      masterPool = null;
+      if (attempt === MAX_RETRIES) {
+        log.error('All connection attempts exhausted — exiting');
+        process.exit(1);
+      }
+      log.info(`Retrying in ${RETRY_DELAY_MS / 1000}s...`);
+      await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
+    }
   }
 
   // Log mailbox configurations for each tenant
