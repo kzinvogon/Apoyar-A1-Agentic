@@ -155,6 +155,9 @@ const reportScheduler = require('./services/report-scheduler');
 // Import chat socket service
 const { initializeChatSocket } = require('./services/chat-socket');
 
+// Register event bus subscribers
+require('./services/subscribers/ai-analysis-subscriber');
+
 // Import rate limiter
 const { apiLimiter } = require('./middleware/rateLimiter');
 
