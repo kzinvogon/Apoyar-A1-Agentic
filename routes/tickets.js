@@ -14,6 +14,8 @@ const {
   readOperationsLimiter
 } = require('../middleware/rateLimiter');
 const { triggerTeamsNotificationAsync } = require('../services/teams-notification');
+const ticketService = require('../services/domain/ticket-service');
+const { EVENT_SOURCES } = ticketService;
 
 // AI-powered CMDB auto-linking (fire-and-forget)
 const { triggerAutoLink } = require('../scripts/auto-link-cmdb');
@@ -212,6 +214,15 @@ router.post('/public/:token/accept', async (req, res) => {
          VALUES (?, ?, ?, ?)`,
         [ticketId, ticket.requester_id, 'resolved', `Resolution Accepted - ${currentTime}`]
       );
+
+      // Emit lifecycle event
+      if (tenantCode && ticketId) {
+        await ticketService.closeTicket({
+          tenantCode,
+          ticketId: parseInt(ticketId),
+          source: EVENT_SOURCES.CUSTOMER_ACCEPTED
+        });
+      }
 
       res.json({ success: true, message: 'Resolution accepted. Please provide your feedback.' });
     } finally {
@@ -1529,6 +1540,17 @@ router.post('/:tenantId', writeOperationsLimiter, validateTicketCreate, async (r
         [ticketId]
       );
 
+      // Emit lifecycle event
+      if (tenantCode && ticketId && req.user.userId) {
+        await ticketService.createTicket({
+          tenantCode,
+          ticketId,
+          userId: req.user.userId,
+          source: EVENT_SOURCES.WEB,
+          assigneeId: assignFields.assignee_id || null
+        });
+      }
+
       // Send email notification to requester
       await sendTicketNotificationEmail({
         ticket: tickets[0],
@@ -1694,6 +1716,18 @@ router.post('/:tenantId/:ticketId/self-assign', writeOperationsLimiter, requireR
          WHERE t.id = ?`,
         [ticketId]
       );
+
+      // Emit lifecycle event
+      if (tenantCode && ticketId && req.user.userId) {
+        await ticketService.assignTicket({
+          tenantCode,
+          ticketId: parseInt(ticketId),
+          userId: req.user.userId,
+          assigneeId: req.user.userId,
+          oldAssigneeId: previousAssigneeId || null,
+          method: EVENT_SOURCES.SELF_ASSIGN
+        });
+      }
 
       // Notify customer that their ticket is now being worked on
       await sendTicketNotificationEmail({
@@ -1960,6 +1994,18 @@ router.post('/:tenantId/:ticketId/accept-ownership', writeOperationsLimiter, req
         WHERE t.id = ?
       `, [ticketId]);
 
+      // Emit lifecycle event
+      if (tenantCode && ticketId && req.user.userId) {
+        await ticketService.assignTicket({
+          tenantCode,
+          ticketId: parseInt(ticketId),
+          userId: req.user.userId,
+          assigneeId: req.user.userId,
+          oldAssigneeId: ticket.assignee_id || null,
+          method: EVENT_SOURCES.ACCEPT_OWNERSHIP
+        });
+      }
+
       // Send email notification to the expert who accepted ownership
       if (updatedTickets[0].assignee_email) {
         sendTicketNotificationEmail({
@@ -2157,6 +2203,18 @@ router.post('/:tenantId/:ticketId/take-over', writeOperationsLimiter, requireRol
         LEFT JOIN users owner ON t.owned_by_expert_id = owner.id
         WHERE t.id = ?
       `, [ticketId]);
+
+      // Emit lifecycle event
+      if (tenantCode && ticketId && req.user.userId) {
+        await ticketService.assignTicket({
+          tenantCode,
+          ticketId: parseInt(ticketId),
+          userId: req.user.userId,
+          assigneeId: req.user.userId,
+          oldAssigneeId: ticket.owned_by_expert_id || null,
+          method: EVENT_SOURCES.TAKE_OVER
+        });
+      }
 
       await enrichTicketWithSLAStatus(updatedTickets[0], connection);
 
@@ -2661,6 +2719,54 @@ router.put('/:tenantId/:ticketId', writeOperationsLimiter, validateTicketUpdate,
         throw txErr;
       }
 
+      // Emit lifecycle events after successful commit
+      if (tenantCode && ticketId && req.user.userId) {
+        if (status && status.toLowerCase() === 'resolved' && oldStatus !== 'Resolved') {
+          await ticketService.resolveTicket({
+            tenantCode,
+            ticketId: parseInt(ticketId),
+            userId: req.user.userId,
+            comment: comment || null
+          });
+        } else if (status && status.toLowerCase() === 'closed' && oldStatus !== 'Closed') {
+          await ticketService.closeTicket({
+            tenantCode,
+            ticketId: parseInt(ticketId),
+            userId: req.user.userId,
+            source: EVENT_SOURCES.MANUAL
+          });
+        } else if (status && status !== oldStatus) {
+          await ticketService.updateTicket({
+            tenantCode,
+            ticketId: parseInt(ticketId),
+            userId: req.user.userId,
+            changes: { status, priority },
+            oldStatus,
+            newStatus: status
+          });
+        } else if (priority || comment) {
+          await ticketService.updateTicket({
+            tenantCode,
+            ticketId: parseInt(ticketId),
+            userId: req.user.userId,
+            changes: { ...(priority && { priority }), ...(comment && { comment }) },
+            oldStatus: null,
+            newStatus: null
+          });
+        }
+
+        if (assignee_id && assignee_id !== oldAssigneeId) {
+          await ticketService.assignTicket({
+            tenantCode,
+            ticketId: parseInt(ticketId),
+            userId: req.user.userId,
+            assigneeId: assignee_id,
+            oldAssigneeId: oldAssigneeId || null,
+            method: EVENT_SOURCES.DIRECT
+          });
+        }
+      }
+
       // Get updated ticket
       const [tickets] = await connection.query(
         `SELECT t.*,
@@ -2890,6 +2996,16 @@ router.post('/:tenantId/:ticketId/comment', writeOperationsLimiter, async (req, 
         'UPDATE tickets SET updated_at = NOW() WHERE id = ?',
         [ticketId]
       );
+
+      // Emit lifecycle event
+      if (tenantCode && ticketId && req.user.userId) {
+        await ticketService.addComment({
+          tenantCode,
+          ticketId: parseInt(ticketId),
+          userId: req.user.userId,
+          isInternal
+        });
+      }
 
       res.json({ success: true, message: 'Comment added successfully' });
     } finally {
