@@ -19349,8 +19349,11 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           srcBadge.style.display = '';
         }
 
-        // Auto-load AI suggestions (fire-and-forget, won't block page)
-        loadAISuggestions();
+        // Auto-load AI suggestions (skip closed monitoring tickets — already auto-handled)
+        const isMonitoring = ticket.source === 'monitoring' || ticket.source === 'ticket_rule_action';
+        if (!(isMonitoring && ticket.status === 'Closed')) {
+          loadAISuggestions();
+        }
       }
     } catch (error) {
       console.error('Error loading ticket details:', error);
