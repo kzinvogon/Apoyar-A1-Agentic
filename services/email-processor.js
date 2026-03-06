@@ -1882,6 +1882,31 @@ class EmailProcessor {
         // Determine if this is a monitoring source (for skipping confirmation email)
         const isMonitoringType = ['monitoring_pattern_strong', 'monitoring_pattern_weak'].includes(classification.reason);
 
+        // RECOVERY interception: close matching PROBLEM ticket(s) without creating a new ticket
+        if (isMonitoringType) {
+          const alert = parseMonitoringAlert(email);
+          if (alert.alert_type === 'RECOVERY' || alert.state === 'OK' || alert.state === 'UP') {
+            const result = await this.correlateRecovery(connection, alert, email, fromEmail);
+            if (result.count > 0) {
+              console.log(`🔗 [Recovery] Closed ${result.count} alert ticket(s) [${result.closedTicketIds.join(', ')}] for ${alert.host}/${alert.service} — no new ticket created`);
+            } else {
+              console.warn(`⚠️ [Recovery] No matching PROBLEM ticket found — skipping ticket creation`, {
+                tenant: this.tenantCode,
+                host: alert.host,
+                service: alert.service,
+                state: alert.state,
+                subject: email.subject,
+                sender: fromEmail
+              });
+            }
+            return {
+              action: 'recovery_correlated',
+              closedCount: result.count,
+              closedTicketIds: result.closedTicketIds
+            };
+          }
+        }
+
         // Create ticket with System user as requester, no customer company
         const ticketId = await this.createTicketFromEmail(connection, email, systemUserId, {
           sourceType: 'system',
@@ -2088,6 +2113,60 @@ class EmailProcessor {
   }
 
   /**
+   * Correlate a RECOVERY monitoring alert with open PROBLEM ticket(s).
+   * Closes all matching tickets and logs a system_note on each.
+   *
+   * @param {Object} connection - Tenant-scoped DB connection (via getTenantConnection)
+   * @param {Object} alert - Parsed alert from parseMonitoringAlert()
+   * @param {Object} email - Original email object
+   * @param {string} fromEmail - Sender email address
+   * @returns {{ count: number, closedTicketIds: number[] }}
+   */
+  async correlateRecovery(connection, alert, email, fromEmail) {
+    const normKey = normaliseCorrelationKey(alert.host, alert.service);
+    const legacyKey = buildCorrelationKey(this.tenantCode, alert.host, alert.service);
+
+    // Dual-key lookup: exact legacy key OR normalised key (case-insensitive LIKE)
+    // Connection is tenant-scoped — each tenant has its own DB, no cross-tenant leakage
+    const [rows] = await connection.query(
+      `SELECT id FROM tickets
+       WHERE status IN ('Open', 'In Progress', 'Pending', 'Resolved')
+         AND (JSON_EXTRACT(source_metadata, '$.correlation_key') = ?
+              OR LOWER(JSON_EXTRACT(source_metadata, '$.correlation_key')) LIKE ?)
+       ORDER BY created_at DESC`,
+      [legacyKey, `%${normKey}%`]
+    );
+
+    if (rows.length === 0) {
+      return { count: 0, closedTicketIds: [] };
+    }
+
+    const closedTicketIds = [];
+    for (const row of rows) {
+      await logTicketActivity(connection, {
+        ticketId: row.id,
+        userId: null,
+        activityType: 'system_note',
+        description: `Monitoring recovery received. ${alert.host}/${alert.service} returned to ${alert.state} state — closing automatically. (No recovery ticket created)`,
+        isPublic: false,
+        source: 'system',
+        actorType: 'system',
+        eventKey: 'ticket.correlation.closed',
+        meta: { correlationKey: legacyKey, normKey, recoverySubject: email.subject, sender: fromEmail }
+      });
+
+      await connection.query(
+        `UPDATE tickets SET status = 'Closed', updated_at = NOW() WHERE id = ?`,
+        [row.id]
+      );
+
+      closedTicketIds.push(row.id);
+    }
+
+    return { count: closedTicketIds.length, closedTicketIds };
+  }
+
+  /**
    * Create ticket from email content
    * @param {Object} connection - Database connection
    * @param {Object} email - Email data (from, subject, body)
@@ -2228,6 +2307,10 @@ class EmailProcessor {
     // closes the OK ticket can still run independently
     // ============================================
     if (correlationKey && (monitoringFields.state === 'OK' || monitoringFields.state === 'RECOVERY')) {
+      console.warn(`⚠️ [Correlation] Legacy fallback reached — RECOVERY ticket created despite pre-creation interception. correlation_key=${correlationKey}, state=${monitoringFields.state}`);
+      // Safety net: this block should rarely execute now that RECOVERY emails are
+      // intercepted in processEmail() before createTicketFromEmail() is called.
+      // Kept as fallback for edge cases (e.g. monitoring_pattern not classified).
       try {
         const [alertRows] = await connection.query(
           `SELECT id FROM tickets
