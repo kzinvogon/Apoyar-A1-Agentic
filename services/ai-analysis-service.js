@@ -911,6 +911,13 @@ Respond with valid JSON only, no markdown formatting.`
         currentStatus: ticket.status,
         currentPriority: ticket.priority,
         currentAssignee: ticket.assignee_name,
+        classification: {
+          workType: ticket.work_type || null,
+          executionMode: ticket.execution_mode || null,
+          systemTags: ticket.system_tags ? (typeof ticket.system_tags === 'string' ? JSON.parse(ticket.system_tags) : ticket.system_tags) : [],
+          confidence: ticket.classification_confidence || null
+        },
+        sourceMetadata: ticket.source_metadata ? (typeof ticket.source_metadata === 'string' ? JSON.parse(ticket.source_metadata) : ticket.source_metadata) : null,
         slaFacts: slaFacts,
         activityHistory: activities.map(a => ({
           type: a.activity_type,
@@ -933,6 +940,28 @@ Respond with valid JSON only, no markdown formatting.`
       } else {
         // Fallback to pattern-based suggestions
         analysis = await this.getPatternSuggestions(emailData, experts);
+      }
+
+      // Hard guard: strip close/suppress suggestions from non-monitoring tickets
+      const tags = emailData.classification?.systemTags || [];
+      const srcMeta = emailData.sourceMetadata || {};
+      const isMonitoring = tags.includes('monitoring') || srcMeta.monitoring === true || srcMeta.type === 'monitoring';
+      if (!isMonitoring && analysis.suggestedActions) {
+        const SUPPRESS_PATTERNS = /suppress|suppression|informational success|no remediation required/i;
+        const beforeCount = analysis.suggestedActions.length;
+        analysis.suggestedActions = analysis.suggestedActions.filter(action => {
+          if (action.type === 'close') return false;
+          if (action.type === 'respond' && SUPPRESS_PATTERNS.test(action.params?.response || '')) return false;
+          if (action.type === 'respond' && SUPPRESS_PATTERNS.test(action.label || '')) return false;
+          return true;
+        });
+        if (analysis.suggestedActions.length < beforeCount) {
+          console.log(`[AI-suggestions] Stripped ${beforeCount - analysis.suggestedActions.length} close/suppress action(s) from non-monitoring ticket #${ticketId}`);
+        }
+        // Also clean the summary if it incorrectly says informational success
+        if (analysis.analysis?.summary && SUPPRESS_PATTERNS.test(analysis.analysis.summary)) {
+          analysis.analysis.summary = analysis.analysis.summary.replace(/Informational success event; no remediation required\.\s*/g, '').trim();
+        }
       }
 
       // Add expert recommendations
@@ -1005,17 +1034,29 @@ SLA Status:
 - "respond" creates an INTERNAL ticket_activity comment only. It does NOT email the customer.
 - "close" will set the ticket status to "Closed" (Title Case). If params.response is provided, it will ALSO log an internal closure note before closing. Do NOT attempt to set a different status via params.
 
+## Classification Context (MUST respect):
+The ticket has already been classified by a separate AI pass. The classification is provided below.
+Your suggestions MUST be consistent with this classification. Do NOT contradict it.
+If the classification says "incident" or "expert_required", treat the ticket as a real support issue.
+
 ## Operational Autotune Rules (MUST follow):
-A) If the ticket clearly indicates a SUCCESS / OK / COMPLETED / RECOVERY outcome and there are NO error/failure/impact indicators,
+PREREQUISITE: Rules A, C, and E below apply ONLY to monitoring/alerting tickets.
+A ticket qualifies as monitoring ONLY if ALL of these are true:
+  - classification.systemTags includes "monitoring", OR source_metadata indicates a monitoring system, OR the title/description explicitly names a monitoring tool (Nagios, Zabbix, Datadog, PRTG, etc.)
+  - classification.workType is "operational_action" or "incident" with systemTags containing "monitoring"
+If the ticket does NOT qualify as monitoring, SKIP rules A, C, and E entirely.
+For non-monitoring tickets classified as "incident", NEVER suggest "close" or "suppression" — suggest triage, assignment, and investigation instead.
+
+A) MONITORING ONLY: If the monitoring ticket clearly indicates a SUCCESS / OK / COMPLETED / RECOVERY outcome and there are NO error/failure/impact indicators,
    you MUST include a TOP suggestedAction of type "close" with confidence 90-100.
 B) When you include a "close" action, you MUST include params.response containing a short evidence-based closure note
    explaining why the ticket was closed. The system will log this as an internal note and then close the ticket in one step.
    Use label "Close with note" for these combined close+note actions.
-C) If the ticket looks like recurring monitoring noise that should not create tickets, include another suggestedAction
+C) MONITORING ONLY: If the monitoring ticket looks like recurring monitoring noise that should not create tickets, include another suggestedAction
    of type "respond" that proposes an automation/suppression rule candidate (pattern + negative match for error keywords).
 D) NEVER recommend "close" if ANY failure/impact indicators exist, including:
    ERROR, FAILED, FAIL, PANIC, corrupt, aborted, permission denied, timeout, unreachable, down, exception, stack trace.
-E) If you recommend closing, analysis.summary MUST include the exact phrase:
+E) MONITORING ONLY: If you recommend closing a monitoring ticket, analysis.summary MUST include the exact phrase:
    "Informational success event; no remediation required."
 F) For close actions: set params.status = null (system sets status to "Closed"). Do not output lowercase statuses.
 
@@ -1079,6 +1120,18 @@ Additional requirements:
       automatedActionsContext = `\n\nACTIVE AUTOMATED ACTIONS (fire automatically on matching tickets):\n${actionDescriptions}`;
     }
 
+    // Build classification context for prompt
+    const srcMeta = emailData.sourceMetadata;
+    const monitoringFlag = srcMeta ? (srcMeta.monitoring === true || srcMeta.type === 'monitoring') : false;
+    const classificationContext = emailData.classification?.workType
+      ? `\nClassification (from separate AI pass — do NOT contradict):
+- Work Type: ${emailData.classification.workType}
+- Execution Mode: ${emailData.classification.executionMode}
+- System Tags: ${JSON.stringify(emailData.classification.systemTags)}
+- Confidence: ${emailData.classification.confidence}
+- Monitoring Origin: ${monitoringFlag || (emailData.classification.systemTags || []).includes('monitoring')}`
+      : '\nClassification: Not yet classified';
+
     const response = await anthropic.messages.create({
       model: this.model || 'claude-3-haiku-20240307',
       max_tokens: 2048,
@@ -1092,6 +1145,7 @@ Status: ${emailData.currentStatus}
 Priority: ${emailData.currentPriority}
 Assignee: ${emailData.currentAssignee || 'Unassigned'}
 Customer: ${emailData.customerName} (${emailData.companyName})
+${classificationContext}
 ${slaContext}
 Description:
 ${emailData.body}
