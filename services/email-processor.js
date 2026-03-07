@@ -250,9 +250,21 @@ class EmailProcessor {
     try {
       const connection = await this.getConnection();
       try {
-        const [settings] = await connection.query(
-          'SELECT id, enabled, m365_enabled, auth_method FROM email_ingest_settings ORDER BY id ASC LIMIT 1'
-        );
+        let settings;
+        try {
+          [settings] = await connection.query(
+            'SELECT id, enabled, m365_enabled, auth_method FROM email_ingest_settings ORDER BY id ASC LIMIT 1'
+          );
+        } catch (colErr) {
+          if (colErr.code === 'ER_BAD_FIELD_ERROR') {
+            // Tenant DB missing m365_enabled column — fall back to basic query
+            [settings] = await connection.query(
+              'SELECT id, enabled, auth_method FROM email_ingest_settings ORDER BY id ASC LIMIT 1'
+            );
+          } else {
+            throw colErr;
+          }
+        }
         // No settings row = not configured = disabled
         if (settings.length === 0) {
           return { enabled: false, reason: 'no_config' };
