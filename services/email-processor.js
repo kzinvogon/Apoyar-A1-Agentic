@@ -1115,6 +1115,12 @@ class EmailProcessor {
     }
   }
 
+  _subjectHasMonitoringState(subject) {
+    if (!subject) return false;
+    const stateWords = /\b(OK|UP|DOWN|CRITICAL|WARNING|PROBLEM|RECOVERY|ALERT|FAILED|FAILURE|DEGRADED|UNREACHABLE|OUTAGE|FULL|RESOLVED|FIRING)\b/i;
+    return stateWords.test(subject);
+  }
+
   /**
    * Classify if sender is a system/monitoring source
    * Returns { isSystemSource: boolean, reason: string|null }
@@ -1133,6 +1139,9 @@ class EmailProcessor {
     // Check 1: Admin-configured system senders allowlist (exact email match, highest priority)
     if (systemSenders && systemSenders.length > 0) {
       if (systemSenders.includes(emailLower)) {
+        if (this._subjectHasMonitoringState(subject)) {
+          return { isSystemSource: true, reason: 'monitoring_pattern_strong' };
+        }
         return { isSystemSource: true, reason: 'system_senders_allowlist' };
       }
     }
@@ -1141,6 +1150,9 @@ class EmailProcessor {
     if (systemDomains && systemDomains.length > 0) {
       const matchedDomain = systemDomains.find(sd => domain === sd.toLowerCase());
       if (matchedDomain) {
+        if (this._subjectHasMonitoringState(subject)) {
+          return { isSystemSource: true, reason: 'monitoring_pattern_strong' };
+        }
         return { isSystemSource: true, reason: 'system_domains_setting' };
       }
     }
