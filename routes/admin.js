@@ -252,4 +252,44 @@ function maskIp(ip) {
   return ip.substring(0, 10) + '...';
 }
 
+/**
+ * GET /api/admin/reconcile-export
+ * TEMPORARY: Export email_processed_messages for reconciliation
+ * Remove after reconciliation is complete.
+ */
+router.get('/reconcile-export', async (req, res) => {
+  try {
+    const tenantCode = req.user.tenantCode;
+    const since = req.query.since || '2026-01-01';
+    const connection = await getTenantConnection(tenantCode);
+    try {
+      const [rows] = await connection.query(
+        `SELECT message_id, result, ticket_id, processed_at
+         FROM email_processed_messages
+         WHERE processed_at >= ?
+         ORDER BY processed_at ASC`,
+        [since]
+      );
+      res.json({
+        environment: process.env.RAILWAY_ENVIRONMENT_NAME || process.env.RAILWAY_SERVICE_NAME || 'local',
+        tenant: tenantCode,
+        since,
+        exportedAt: new Date().toISOString(),
+        count: rows.length,
+        messages: rows.map(r => ({
+          message_id: r.message_id,
+          result: r.result,
+          ticket_id: r.ticket_id,
+          processed_at: r.processed_at
+        }))
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (err) {
+    console.error('Reconcile export error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
