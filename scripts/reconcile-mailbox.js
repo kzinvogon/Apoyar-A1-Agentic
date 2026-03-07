@@ -244,6 +244,7 @@ async function runDiff() {
       // Create EmailProcessor with same context as normal ingestion
       const processor = new EmailProcessor(TENANT_CODE, {
         getConnection: () => pool.getConnection(),
+        pool: pool,
       });
 
       let backfilled = 0;
@@ -316,6 +317,8 @@ async function runDiff() {
               else if (result.reason === 'domain_not_found') resultType = 'skipped_domain';
               else if (result.reason === 'skipped_system') resultType = 'skipped_system';
               else resultType = 'error';
+            } else if (result.action === 'recovery_correlated') {
+              resultType = result.closedCount > 0 ? 'ticket_updated' : 'skipped_system';
             } else if (result.wasReply) {
               resultType = 'ticket_updated';
             }

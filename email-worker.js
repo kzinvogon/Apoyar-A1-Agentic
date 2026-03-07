@@ -195,8 +195,10 @@ function getProcessor(tenantCode) {
   }
 
   // Create processor with injected connection getter (uses worker's isolated pool)
+  const pool = getTenantPool(tenantCode);
   const processor = new EmailProcessor(tenantCode, {
     getConnection: () => getTenantConnection(tenantCode),
+    pool: pool,
   });
   processors.set(tenantCode, processor);
   return processor;

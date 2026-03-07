@@ -300,6 +300,17 @@ async function getTenantPool(tenantCode) {
 }
 
 /**
+ * Register an externally-created tenant pool so that downstream code
+ * (AI analysis, ticket rules, classification) that calls getTenantPool()
+ * picks up the caller's pool instead of building one from getDbConfig().
+ */
+function registerTenantPool(tenantCode, pool) {
+  const normalizedCode = tenantCode.toLowerCase();
+  tenantPools.set(normalizedCode, pool);
+  log.info('External tenant pool registered', { tenant: normalizedCode });
+}
+
+/**
  * Check if an error is a schema/configuration error (NOT retryable)
  */
 function isSchemaError(err) {
@@ -666,6 +677,9 @@ module.exports = {
   // Pool access for advanced use cases (migrations, etc.)
   getMasterPool,
   getTenantPool,
+
+  // Pool registration (for external callers like email-worker / reconcile scripts)
+  registerTenantPool,
 
   // Lifecycle
   shutdown,

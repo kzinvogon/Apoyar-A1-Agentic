@@ -232,6 +232,15 @@ class EmailProcessor {
     this.imap = null;
     // Use injected getter or fall back to shared pool (lazy-loaded)
     this._getConnection = options.getConnection || (() => getSharedTenantConnection(this.tenantCode));
+
+    // Register the caller's pool with db/pool.js so background tasks
+    // (AI analysis, ticket rules, classification) use the correct connection
+    if (options.getConnection && options.pool) {
+      try {
+        const { registerTenantPool } = require('../db/pool');
+        registerTenantPool(tenantCode, options.pool);
+      } catch (_) {}
+    }
   }
 
   /**
@@ -651,6 +660,10 @@ class EmailProcessor {
               resultType = 'error';
               stats.errors++;
             }
+          } else if (result.action === 'recovery_correlated') {
+            resultType = result.closedCount > 0 ? 'ticket_updated' : 'skipped_system';
+            if (result.closedCount > 0) stats.ticket_updated++;
+            else stats.skipped_system = (stats.skipped_system || 0) + 1;
           } else if (result.wasReply) {
             resultType = 'ticket_updated';
             stats.ticket_updated++;
@@ -1968,6 +1981,7 @@ class EmailProcessor {
               });
             }
             return {
+              success: true,
               action: 'recovery_correlated',
               closedCount: result.count,
               closedTicketIds: result.closedTicketIds
