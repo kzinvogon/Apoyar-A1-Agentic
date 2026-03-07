@@ -367,7 +367,7 @@ class EmailProcessor {
   async isMessageProcessed(connection, mailboxId, messageId) {
     try {
       const [rows] = await connection.query(
-        'SELECT id FROM email_processed_messages WHERE mailbox_id = ? AND message_id = ?',
+        "SELECT id FROM email_processed_messages WHERE mailbox_id = ? AND message_id = ? AND result != 'error'",
         [mailboxId, messageId]
       );
       return rows.length > 0;
@@ -694,11 +694,15 @@ class EmailProcessor {
 
     // ── Persist delta cursor ──
     if (newDeltaLink) {
-      await connection.query(
-        'UPDATE email_ingest_settings SET graph_delta_link = ? WHERE id = ?',
-        [newDeltaLink, mailboxId]
-      );
-      console.log(`💾 [${self.tenantCode}] Stored new deltaLink`);
+      if (stats.errors > 0) {
+        console.warn(`⚠️ [${self.tenantCode}] Delta cursor NOT advanced — ${stats.errors} processing error(s) in this cycle. Next poll will replay the same delta.`);
+      } else {
+        await connection.query(
+          'UPDATE email_ingest_settings SET graph_delta_link = ? WHERE id = ?',
+          [newDeltaLink, mailboxId]
+        );
+        console.log(`💾 [${self.tenantCode}] Stored new deltaLink`);
+      }
     }
 
     return processedEmails;
