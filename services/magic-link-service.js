@@ -19,7 +19,7 @@ const TOKEN_EXPIRY_MINUTES = 15;
  * Demo hosts — any email can sign up, always binds to tenant_code=demo.
  * All other environments (UAT, prod) require an existing user or verified domain mapping.
  */
-const DEMO_HOSTS = ['demo.serviflow.app', 'web-demo.up.railway.app'];
+const DEMO_HOSTS = ['demo.serviflow.app', 'web-demo'];
 
 /**
  * Resolve which tenant an email belongs to.
