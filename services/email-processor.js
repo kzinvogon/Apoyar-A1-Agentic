@@ -160,7 +160,8 @@ function parseMonitoringAlert(email) {
   const statePatterns = [
     /State:\s*(CRITICAL|WARNING|OK|UNKNOWN|UP|DOWN|UNREACHABLE)/i,
     /Status:\s*(CRITICAL|WARNING|OK|UNKNOWN|UP|DOWN)/i,
-    /is\s+(CRITICAL|WARNING|OK|DOWN|UP)/i
+    /is\s+(CRITICAL|WARNING|OK|DOWN|UP)/i,
+    /\b(FULL|FAILED|SUCCESS)\b/i  // Backup states
   ];
 
   // Extract host
@@ -200,6 +201,84 @@ function parseMonitoringAlert(email) {
     if (match && match[1]) {
       state = match[1].toUpperCase();
       break;
+    }
+  }
+
+  // SUBJECT FALLBACK: Nagios format "** PROBLEM Service Alert: host/service is STATE **"
+  if (!host || !service) {
+    const nagiosService = subject.match(/(?:PROBLEM|RECOVERY)\s+Service Alert:\s*([^/]+)\/(.+?)\s+is\s+/i);
+    if (nagiosService) {
+      if (!host) host = nagiosService[1].trim();
+      if (!service) service = nagiosService[2].trim();
+    }
+  }
+
+  // SUBJECT FALLBACK: Nagios host alert "** PROBLEM Host Alert: hostname is DOWN **"
+  if (!host) {
+    const nagiosHost = subject.match(/(?:PROBLEM|RECOVERY)\s+Host Alert:\s*(.+?)\s+is\s+/i);
+    if (nagiosHost) {
+      host = nagiosHost[1].trim();
+      if (!service) service = 'Host status';
+    }
+  }
+
+  // SUBJECT FALLBACK: "Host Down ServerName" / "Server Down ServerName" / "Node Down Name"
+  if (!host) {
+    const hostDown = subject.match(/(?:Host|Server|Node)\s+(Down|Up)\s+(.+)/i);
+    if (hostDown) {
+      if (state === 'UNKNOWN') state = hostDown[1].toUpperCase();
+      host = hostDown[2].trim();
+      if (!service) service = 'Host status';
+    }
+  }
+
+  // SUBJECT FALLBACK: "ServerName Server Down" / "ServerName Host Down"
+  if (!host) {
+    const reverseDown = subject.match(/^(.+?)\s+(?:Server|Host)\s+(Down|Up)\b/i);
+    if (reverseDown) {
+      if (state === 'UNKNOWN') state = reverseDown[2].toUpperCase();
+      host = reverseDown[1].trim();
+      if (!service) service = 'Host status';
+    }
+  }
+
+  // SUBJECT FALLBACK: Backup alerts "Backup disk Full UAT" / "Backup disk OK"
+  if (!service) {
+    const backup = subject.match(/\b(Backup\s+\w+)\s+(Full|OK|FAILED|SUCCESS|CRITICAL)/i);
+    if (backup) {
+      service = backup[1].trim();           // e.g. "Backup disk"
+      if (state === 'UNKNOWN') state = backup[2].toUpperCase();
+      if (!host) host = subject.replace(backup[0], '').trim() || 'unknown';
+    }
+  }
+
+  // SUBJECT FALLBACK: "LIVE MariaDB Backup SUCCESS on hostname"
+  if (!service) {
+    const backupOn = subject.match(/(.+?Backup)\s+(SUCCESS|FAILED)\s+on\s+(.+)/i);
+    if (backupOn) {
+      service = backupOn[1].trim();         // e.g. "LIVE MariaDB Backup"
+      if (state === 'UNKNOWN') state = backupOn[2].toUpperCase();
+      if (!host) host = backupOn[3].trim(); // e.g. "nldtc1bopsqlp05"
+    }
+  }
+
+  // SUBJECT FALLBACK: "UAT-Mariadb Backup Status"
+  if (!service && /backup\s*status/i.test(subject)) {
+    service = 'Backup status';
+    if (!host) {
+      const prefix = subject.match(/^(.+?)\s+Backup\s+Status/i);
+      if (prefix) host = prefix[1].trim();
+    }
+  }
+
+  // Derive alertType from state when not explicitly set
+  if (alertType === 'UNKNOWN' && state !== 'UNKNOWN') {
+    if (['CRITICAL', 'DOWN', 'UNREACHABLE', 'FULL', 'FAILED'].includes(state)) {
+      alertType = 'PROBLEM';
+    } else if (['OK', 'UP', 'SUCCESS'].includes(state)) {
+      alertType = 'RECOVERY';
+    } else if (state === 'WARNING') {
+      alertType = 'PROBLEM';  // WARNING is still a problem, just lower severity
     }
   }
 
@@ -1204,7 +1283,8 @@ class EmailProcessor {
     const alertSubjectPatterns = [
       'CRITICAL', 'WARNING', 'OK', 'PROBLEM', 'RECOVERY', 'ALERT',
       'TRIGGER', 'HOST DOWN', 'SERVICE DOWN', 'DOWN:', 'UP:',
-      '[FIRING]', '[RESOLVED]', 'DEGRADED', 'OUTAGE'
+      '[FIRING]', '[RESOLVED]', 'DEGRADED', 'OUTAGE',
+      'FULL', 'FAILED', 'SUCCESS', 'BACKUP'
     ];
 
     const checkString = (fromEmail + ' ' + (displayName || '')).toLowerCase();
@@ -1966,9 +2046,11 @@ class EmailProcessor {
         // RECOVERY interception: close matching PROBLEM ticket(s) without creating a new ticket
         if (isMonitoringType) {
           const alert = parseMonitoringAlert(email);
-          if (alert.alert_type === 'RECOVERY' || alert.state === 'OK' || alert.state === 'UP') {
+          console.log(`[MONITORING] detected alert host=${alert.host} service=${alert.service} state=${alert.state} type=${alert.alert_type} key=${alert.correlation_key}`);
+          if (alert.alert_type === 'RECOVERY' || alert.state === 'OK' || alert.state === 'UP' || alert.state === 'SUCCESS') {
             const result = await this.correlateRecovery(connection, alert, email, fromEmail);
             if (result.count > 0) {
+              result.closedTicketIds.forEach(id => console.log(`[MONITORING] closing ticket #${id} via recovery correlation`));
               console.log(`🔗 [Recovery] Closed ${result.count} alert ticket(s) [${result.closedTicketIds.join(', ')}] for ${alert.host}/${alert.service} — no new ticket created`);
             } else {
               console.warn(`⚠️ [Recovery] No matching PROBLEM ticket found — skipping ticket creation`, {
@@ -2392,8 +2474,10 @@ class EmailProcessor {
 
     // Build source metadata JSON for system-sourced tickets
     // Extract monitoring fields (host, service, state) and generate correlation key
-    const monitoringFields = extractMonitoringFields(email.text || email.html || description || '');
-    const correlationKey = buildCorrelationKey(this.tenantCode, monitoringFields.host, monitoringFields.service);
+    const monitoringFields = parseMonitoringAlert(email);
+    const correlationKey = (monitoringFields.host !== 'unknown' && monitoringFields.service !== 'unknown')
+      ? buildCorrelationKey(this.tenantCode, monitoringFields.host, monitoringFields.service)
+      : null;
 
     let sourceMetadataJson = null;
     if (sourceMetadata.sourceType === 'system') {
@@ -2467,9 +2551,9 @@ class EmailProcessor {
 
     // Determine incident correlation fields for monitoring tickets
     const isMonitoringTicket = sourceMetadata.createdVia === 'monitoring';
-    const incidentKey = isMonitoringTicket ? normaliseCorrelationKey(
-      monitoringFields.host, monitoringFields.service
-    ) : null;
+    const incidentKey = (isMonitoringTicket && monitoringFields.host !== 'unknown' && monitoringFields.service !== 'unknown')
+      ? normaliseCorrelationKey(monitoringFields.host, monitoringFields.service)
+      : null;
 
     // Create ticket with SLA fields + incident correlation fields
     const [result] = await connection.query(
