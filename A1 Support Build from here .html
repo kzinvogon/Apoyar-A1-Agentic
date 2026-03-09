@@ -4064,13 +4064,12 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               <table>
                 <thead>
                   <tr>
-                    <th style="cursor:pointer" onclick="sortExpertsBy('full_name')">Real Name <span id="expert-sort-full_name">▲</span></th>
-                    <th style="cursor:pointer" onclick="sortExpertsBy('username')">Username <span id="expert-sort-username"></span></th>
-                    <th style="cursor:pointer" onclick="sortExpertsBy('location')">Location <span id="expert-sort-location"></span></th>
-                    <th style="cursor:pointer" onclick="sortExpertsBy('email')">Email <span id="expert-sort-email"></span></th>
-                    <th style="cursor:pointer" onclick="sortExpertsBy('open_tickets')">Open Tickets <span id="expert-sort-open_tickets"></span></th>
-                    <th style="cursor:pointer" onclick="sortExpertsBy('last_login')">Last Login <span id="expert-sort-last_login"></span></th>
-                    <th style="width:180px">Actions</th>
+                    <th style="cursor:pointer;padding:4px 8px" onclick="sortExpertsBy('full_name')">Real Name <span id="expert-sort-full_name">▲</span></th>
+                    <th style="cursor:pointer;padding:4px 8px" onclick="sortExpertsBy('username')">Username <span id="expert-sort-username"></span></th>
+                    <th style="cursor:pointer;padding:4px 8px" onclick="sortExpertsBy('timezone')">TZ <span id="expert-sort-timezone"></span></th>
+                    <th style="cursor:pointer;padding:4px 8px" onclick="sortExpertsBy('open_tickets')">Open Tickets <span id="expert-sort-open_tickets"></span></th>
+                    <th style="cursor:pointer;padding:4px 8px" onclick="sortExpertsBy('last_login')">Last Login <span id="expert-sort-last_login"></span></th>
+                    <th style="width:180px;padding:4px 8px">Actions</th>
                   </tr>
                 </thead>
                 <tbody id="experts-body"></tbody>
@@ -21340,10 +21339,48 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     openTicketsFromInsight(uniqueIds, title);
   }
 
+  // Derive short timezone code from IANA timezone or location
+  function getTimezoneCode(expert) {
+    const iana = expert.timezone;
+    if (iana) {
+      try {
+        const short = new Intl.DateTimeFormat('en-US', { timeZone: iana, timeZoneName: 'short' })
+          .formatToParts(new Date()).find(p => p.type === 'timeZoneName');
+        if (short) return short.value;
+      } catch(e) { /* invalid iana, fall through */ }
+    }
+    // Derive from location if timezone missing
+    const loc = (expert.location || '').toLowerCase().trim();
+    if (!loc) return '-';
+    const locMap = {
+      'india':'IST','mumbai':'IST','delhi':'IST','bangalore':'IST','chennai':'IST','hyderabad':'IST','kolkata':'IST','pune':'IST',
+      'london':'GMT','uk':'GMT','england':'GMT','manchester':'GMT','edinburgh':'GMT','birmingham':'GMT','bristol':'GMT',
+      'new york':'EST','boston':'EST','washington':'EST','atlanta':'EST','miami':'EST','philadelphia':'EST','charlotte':'EST',
+      'chicago':'CST','dallas':'CST','houston':'CST','austin':'CST','minneapolis':'CST','denver':'MST','phoenix':'MST',
+      'los angeles':'PST','san francisco':'PST','seattle':'PST','portland':'PST','las vegas':'PST','san diego':'PST',
+      'paris':'CET','berlin':'CET','madrid':'CET','rome':'CET','amsterdam':'CET','brussels':'CET','vienna':'CET','munich':'CET','zurich':'CET','prague':'CET','warsaw':'CET','stockholm':'CET','oslo':'CET','copenhagen':'CET',
+      'dublin':'GMT','lisbon':'WET',
+      'tokyo':'JST','osaka':'JST','japan':'JST',
+      'sydney':'AEST','melbourne':'AEST','brisbane':'AEST','perth':'AWST','adelaide':'ACST','australia':'AEST',
+      'toronto':'EST','montreal':'EST','vancouver':'PST','calgary':'MST','ottawa':'EST',
+      'dubai':'GST','abu dhabi':'GST','singapore':'SGT','hong kong':'HKT','beijing':'CST','shanghai':'CST',
+      'auckland':'NZST','wellington':'NZST','new zealand':'NZST',
+      'sao paulo':'BRT','rio':'BRT','brazil':'BRT',
+      'cairo':'EET','johannesburg':'SAST','lagos':'WAT','nairobi':'EAT',
+      'bangkok':'ICT','jakarta':'WIB','manila':'PHT','seoul':'KST','taipei':'CST',
+      'moscow':'MSK','istanbul':'TRT','athens':'EET','helsinki':'EET','bucharest':'EET','kyiv':'EET',
+      'cape town':'SAST','accra':'GMT','casablanca':'WET'
+    };
+    for (const [key, tz] of Object.entries(locMap)) {
+      if (loc.includes(key)) return tz;
+    }
+    return '-';
+  }
+
   async function renderExperts(){
     const body=document.getElementById('experts-body');
     if(!body) return;
-    body.innerHTML='<tr><td colspan="7" style="text-align:center;">Loading...</td></tr>';
+    body.innerHTML='<tr><td colspan="2" style="text-align:center;">Loading...</td></tr>';
 
     try {
       const token = localStorage.getItem('token');
@@ -21366,9 +21403,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           !q ||
           (e.full_name||'').toLowerCase().includes(q) ||
           (e.username||'').toLowerCase().includes(q) ||
-          (e.location||'').toLowerCase().includes(q) ||
-          (e.postcode||'').toLowerCase().includes(q) ||
-          (e.email||'').toLowerCase().includes(q)
+          getTimezoneCode(e).toLowerCase().includes(q)
         );
 
         // Apply sorting
@@ -21383,13 +21418,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               valA = (a.username || '').toLowerCase();
               valB = (b.username || '').toLowerCase();
               break;
-            case 'location':
-              valA = (a.location || '').toLowerCase();
-              valB = (b.location || '').toLowerCase();
-              break;
-            case 'email':
-              valA = (a.email || '').toLowerCase();
-              valB = (b.email || '').toLowerCase();
+            case 'timezone':
+              valA = getTimezoneCode(a).toLowerCase();
+              valB = getTimezoneCode(b).toLowerCase();
               break;
             case 'open_tickets':
               valA = a.open_tickets || 0;
@@ -21434,7 +21465,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         if (cardsContainer) cardsContainer.innerHTML = '';
 
         if (paginatedExperts.length === 0) {
-          body.innerHTML='<tr><td colspan="7" style="text-align:center;">No experts found</td></tr>';
+          body.innerHTML='<tr><td colspan="2" style="text-align:center;">No experts found</td></tr>';
           if (cardsContainer) cardsContainer.innerHTML = '<div class="mobile-card"><div style="text-align:center;color:var(--muted)">No experts found</div></div>';
         } else {
           paginatedExperts.forEach(e=>{
@@ -21445,18 +21476,19 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               : '<span style="color:#6b7280">0</span>';
 
             // Desktop table row
+            const tzCode = getTimezoneCode(e);
             const tr=document.createElement('tr');
+            tr.style.lineHeight='1.4';
             tr.innerHTML=`
-              <td>${e.full_name || e.username}</td>
-              <td>${e.username}</td>
-              <td>${e.location || '-'}</td>
-              <td>${e.email || '-'}</td>
-              <td>${ticketBadge}</td>
-              <td>${lastLogin}</td>
-              <td>
-                <button class="btn ghost" style="padding:4px 8px;font-size:12px" onclick="viewExpertDetail(${e.id})">View</button>
-                <button class="btn ghost" style="padding:4px 8px;font-size:12px" onclick="showEditExpertForm(${e.id})">Edit</button>
-                <button class="btn danger" style="padding:4px 8px;font-size:12px" onclick="deleteExpertPrompt(${e.id})">Delete</button>
+              <td style="padding:4px 8px">${e.full_name || e.username}</td>
+              <td style="padding:4px 8px">${e.username}</td>
+              <td style="padding:4px 8px" title="${e.timezone || e.location || ''}">${tzCode}</td>
+              <td style="padding:4px 8px">${ticketBadge}</td>
+              <td style="padding:4px 8px">${lastLogin}</td>
+              <td style="padding:4px 8px">
+                <button class="btn ghost" style="padding:2px 6px;font-size:12px" onclick="viewExpertDetail(${e.id})">View</button>
+                <button class="btn ghost" style="padding:2px 6px;font-size:12px" onclick="showEditExpertForm(${e.id})">Edit</button>
+                <button class="btn danger" style="padding:2px 6px;font-size:12px" onclick="deleteExpertPrompt(${e.id})">Delete</button>
               </td>
             `;
             body.appendChild(tr);
@@ -21466,12 +21498,11 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
               const card = document.createElement('div');
               card.className = 'mobile-card';
               card.onclick = () => viewExpertDetail(e.id);
+              const cardTz = getTimezoneCode(e);
               card.innerHTML = `
                 <div class="mobile-card-header">${e.full_name || e.username}</div>
                 <div class="mobile-card-meta">
-                  @${e.username} ${e.location ? '• ' + e.location : ''}<br>
-                  ${e.email || ''}<br>
-                  Open tickets: ${ticketBadge}
+                  @${e.username} ${cardTz !== '-' ? '• ' + cardTz : ''} • Tickets: ${ticketBadge}
                 </div>
                 <div class="mobile-card-actions" onclick="event.stopPropagation()">
                   <button class="btn primary" onclick="viewExpertDetail(${e.id})">View</button>
@@ -21483,13 +21514,13 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
           });
         }
       } else {
-        body.innerHTML='<tr><td colspan="7" style="text-align:center;color:red;">Failed to load experts</td></tr>';
+        body.innerHTML='<tr><td colspan="2" style="text-align:center;color:red;">Failed to load experts</td></tr>';
         const cardsContainer = document.getElementById('experts-cards');
         if (cardsContainer) cardsContainer.innerHTML = '<div class="mobile-card"><div style="text-align:center;color:var(--danger)">Failed to load experts</div></div>';
       }
     } catch (error) {
       console.error('Error loading experts:', error);
-      body.innerHTML='<tr><td colspan="7" style="text-align:center;color:red;">Error loading experts</td></tr>';
+      body.innerHTML='<tr><td colspan="2" style="text-align:center;color:red;">Error loading experts</td></tr>';
     }
   }
 
@@ -21502,7 +21533,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       expertSortAsc = true;
     }
     // Update sort indicators
-    ['full_name', 'username', 'location', 'email', 'open_tickets', 'last_login'].forEach(f => {
+    ['full_name', 'username', 'timezone', 'open_tickets', 'last_login'].forEach(f => {
       const el = document.getElementById('expert-sort-' + f);
       if (el) el.textContent = f === expertSortField ? (expertSortAsc ? '▲' : '▼') : '';
     });
