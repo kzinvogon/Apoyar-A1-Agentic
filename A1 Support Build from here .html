@@ -8173,6 +8173,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
    * Handles requires_context by showing the context chooser.
    */
   function completeLogin(data) {
+    // Clear stale elevation state from any previous session
+    localStorage.removeItem('token_base');
+    sessionStorage.removeItem('serviflow.reauthUntil');
     // Store session data
     localStorage.setItem('token', data.token);
     localStorage.setItem('role', data.user.role);
@@ -12732,7 +12735,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         pendingReauthCallback = null;
         if (cb) cb();
       } else {
-        errEl.textContent = data.error || 'Invalid password';
+        errEl.textContent = data.error || data.message || 'Invalid password';
         errEl.style.display = 'block';
       }
     } catch(e) {
