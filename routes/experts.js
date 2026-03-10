@@ -123,11 +123,9 @@ router.get('/:tenantId/:expertId', async (req, res) => {
           u.timezone, u.language, u.interface_language, u.security_level,
           u.receive_email_updates AS email_updates,
           u.created_at, u.updated_at, u.last_login,
-          COUNT(CASE WHEN t.status IN ('open', 'in_progress', 'paused') THEN 1 END) as open_tickets
+          (SELECT COUNT(*) FROM tickets t WHERE t.assignee_id = u.id AND t.status IN ('open', 'in_progress', 'paused')) as open_tickets
          FROM users u
-         LEFT JOIN tickets t ON u.id = t.assignee_id
-         WHERE u.id = ? AND u.role IN ('admin', 'expert')
-         GROUP BY u.id`,
+         WHERE u.id = ? AND u.role IN ('admin', 'expert')`,
         [expertId]
       );
 

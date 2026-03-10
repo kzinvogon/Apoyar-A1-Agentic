@@ -235,6 +235,16 @@ async function consumeMagicLink(tokenPlain, host, ip) {
     requires_context: requiresContext
   });
 
+  // Update last_login timestamp
+  try {
+    await tenantQuery(tenantCode,
+      'UPDATE users SET last_login = NOW(), updated_at = NOW() WHERE id = ?',
+      [user.id]
+    );
+  } catch (e) {
+    console.error('Magic link: failed to update last_login:', e.message);
+  }
+
   await logAuthEvent('magic_link.consume.success', link.email, link.tenant_id, { userId: user.id }, ipHash);
 
   return {
