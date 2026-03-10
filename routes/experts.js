@@ -206,12 +206,7 @@ router.post('/:tenantId', async (req, res) => {
 router.put('/:tenantId/:expertId', async (req, res) => {
   try {
     const { tenantId, expertId } = req.params;
-    const {
-      username, email, full_name, role, phone, department, is_active, status,
-      location, street_address, city, state, postcode, country, timezone, language,
-      email_updates, rating, reference_code, first_name, middle_name, last_name,
-      screen_name, interface_language, security_level
-    } = req.body;
+    const { is_active, status, email_updates } = req.body;
 
     const connection = await getTenantConnection(tenantId);
 
@@ -227,10 +222,10 @@ router.put('/:tenantId/:expertId', async (req, res) => {
       }
 
       // Check for duplicate username/email (excluding current expert)
-      if (username || email) {
+      if (req.body.username || req.body.email) {
         const [duplicates] = await connection.query(
           'SELECT id FROM users WHERE (username = ? OR email = ?) AND id != ?',
-          [username, email, expertId]
+          [req.body.username || '', req.body.email || '', expertId]
         );
 
         if (duplicates.length > 0) {
@@ -241,29 +236,26 @@ router.put('/:tenantId/:expertId', async (req, res) => {
         }
       }
 
-      // Discover which columns actually exist in users table
-      const [cols] = await connection.query(
-        `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users'`
-      );
-      const colSet = new Set(cols.map(c => c.COLUMN_NAME));
+      // Explicit allowlist of editable columns — must match actual DB schema.
+      // Frontend may send extra fields (rating, reference_code, first_name,
+      // middle_name, last_name, screen_name, interface_language, security_level)
+      // that don't exist in the users table yet; they are silently ignored.
+      const EDITABLE_COLUMNS = [
+        'username', 'email', 'full_name', 'role', 'phone', 'department',
+        'location', 'street_address', 'city', 'state', 'postcode', 'country',
+        'timezone', 'language'
+      ];
 
-      // Build update query dynamically — only set columns that exist
       const updates = [];
       const values = [];
-      const fieldMap = {
-        username, email, full_name, role, phone, department,
-        location, street_address, city, state, postcode, country,
-        timezone, language, rating, reference_code, first_name,
-        middle_name, last_name, screen_name, interface_language, security_level
-      };
 
-      for (const [col, val] of Object.entries(fieldMap)) {
-        if (val !== undefined && colSet.has(col)) {
+      for (const col of EDITABLE_COLUMNS) {
+        if (req.body[col] !== undefined) {
           updates.push(`${col} = ?`);
-          values.push(val);
+          values.push(req.body[col]);
         }
       }
-      if (email_updates !== undefined && colSet.has('receive_email_updates')) {
+      if (email_updates !== undefined) {
         updates.push('receive_email_updates = ?');
         values.push(email_updates ? 1 : 0);
       }
