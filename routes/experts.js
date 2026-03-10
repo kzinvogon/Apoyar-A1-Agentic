@@ -115,14 +115,8 @@ router.get('/:tenantId/:expertId', async (req, res) => {
     try {
       // Get expert with open ticket count
       const [experts] = await connection.query(
-        `SELECT
-          u.id, u.username, u.email, u.full_name, u.role, u.is_active,
-          u.phone, u.department, u.rating, u.reference_code,
-          u.first_name, u.middle_name, u.last_name, u.screen_name,
-          u.location, u.street_address, u.city, u.state, u.postcode, u.country,
-          u.timezone, u.language, u.interface_language, u.security_level,
+        `SELECT u.*,
           u.receive_email_updates AS email_updates,
-          u.created_at, u.updated_at, u.last_login,
           (SELECT COUNT(*) FROM tickets t WHERE t.assignee_id = u.id AND t.status IN ('open', 'in_progress', 'paused')) as open_tickets
          FROM users u
          WHERE u.id = ? AND u.role IN ('admin', 'expert')`,
