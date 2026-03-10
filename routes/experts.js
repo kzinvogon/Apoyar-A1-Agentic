@@ -241,33 +241,32 @@ router.put('/:tenantId/:expertId', async (req, res) => {
         }
       }
 
-      // Build update query dynamically
+      // Discover which columns actually exist in users table
+      const [cols] = await connection.query(
+        `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users'`
+      );
+      const colSet = new Set(cols.map(c => c.COLUMN_NAME));
+
+      // Build update query dynamically — only set columns that exist
       const updates = [];
       const values = [];
+      const fieldMap = {
+        username, email, full_name, role, phone, department,
+        location, street_address, city, state, postcode, country,
+        timezone, language, rating, reference_code, first_name,
+        middle_name, last_name, screen_name, interface_language, security_level
+      };
 
-      if (username !== undefined) { updates.push('username = ?'); values.push(username); }
-      if (email !== undefined) { updates.push('email = ?'); values.push(email); }
-      if (full_name !== undefined) { updates.push('full_name = ?'); values.push(full_name); }
-      if (role !== undefined) { updates.push('role = ?'); values.push(role); }
-      if (phone !== undefined) { updates.push('phone = ?'); values.push(phone); }
-      if (department !== undefined) { updates.push('department = ?'); values.push(department); }
-      if (location !== undefined) { updates.push('location = ?'); values.push(location); }
-      if (street_address !== undefined) { updates.push('street_address = ?'); values.push(street_address); }
-      if (city !== undefined) { updates.push('city = ?'); values.push(city); }
-      if (state !== undefined) { updates.push('state = ?'); values.push(state); }
-      if (postcode !== undefined) { updates.push('postcode = ?'); values.push(postcode); }
-      if (country !== undefined) { updates.push('country = ?'); values.push(country); }
-      if (timezone !== undefined) { updates.push('timezone = ?'); values.push(timezone); }
-      if (language !== undefined) { updates.push('language = ?'); values.push(language); }
-      if (email_updates !== undefined) { updates.push('receive_email_updates = ?'); values.push(email_updates ? 1 : 0); }
-      if (rating !== undefined) { updates.push('rating = ?'); values.push(rating); }
-      if (reference_code !== undefined) { updates.push('reference_code = ?'); values.push(reference_code); }
-      if (first_name !== undefined) { updates.push('first_name = ?'); values.push(first_name); }
-      if (middle_name !== undefined) { updates.push('middle_name = ?'); values.push(middle_name); }
-      if (last_name !== undefined) { updates.push('last_name = ?'); values.push(last_name); }
-      if (screen_name !== undefined) { updates.push('screen_name = ?'); values.push(screen_name); }
-      if (interface_language !== undefined) { updates.push('interface_language = ?'); values.push(interface_language); }
-      if (security_level !== undefined) { updates.push('security_level = ?'); values.push(security_level); }
+      for (const [col, val] of Object.entries(fieldMap)) {
+        if (val !== undefined && colSet.has(col)) {
+          updates.push(`${col} = ?`);
+          values.push(val);
+        }
+      }
+      if (email_updates !== undefined && colSet.has('receive_email_updates')) {
+        updates.push('receive_email_updates = ?');
+        values.push(email_updates ? 1 : 0);
+      }
 
       // Handle is_active - accept both is_active boolean and status string
       if (is_active !== undefined) {
