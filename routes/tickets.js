@@ -580,7 +580,7 @@ router.get('/:tenantId', readOperationsLimiter, validateTicketGet, async (req, r
         }
       } else if (req.user.role === 'expert') {
         const [permissions] = await connection.query(
-          `SELECT permission_type, customer_id, title_pattern
+          `SELECT permission_type, customer_id, company_id, title_pattern
            FROM expert_ticket_permissions
            WHERE expert_id = ? AND is_active = TRUE`,
           [req.user.userId]
@@ -593,6 +593,10 @@ router.get('/:tenantId', readOperationsLimiter, validateTicketGet, async (req, r
             const customerIds = permissions.filter(p => p.permission_type === 'specific_customers').map(p => p.customer_id);
             if (customerIds.length > 0) {
               permissionConditions.push(`t.requester_id IN (${customerIds.join(',')})`);
+            }
+            const companyIds = permissions.filter(p => p.permission_type === 'specific_company' && p.company_id).map(p => p.company_id);
+            if (companyIds.length > 0) {
+              permissionConditions.push(`t.requester_id IN (SELECT c.user_id FROM customers c WHERE c.customer_company_id IN (${companyIds.join(',')}))`);
             }
             const titlePatterns = permissions.filter(p => p.permission_type === 'title_patterns' && p.title_pattern).map(p => p.title_pattern);
             if (titlePatterns.length > 0) {
@@ -1044,6 +1048,11 @@ router.get('/:tenantId/my-tickets', readOperationsLimiter, requireRole(['expert'
     const connection = await getTenantConnection(tenantCode);
 
     try {
+      // Allow admins to impersonate an expert via ?expert_id=
+      const expertId = (req.user.role === 'admin' && req.query.expert_id)
+        ? parseInt(req.query.expert_id)
+        : req.user.userId;
+
       // Include owned tickets AND claimed tickets (not yet expired)
       const [myTickets] = await connection.query(`
         SELECT t.*,
@@ -1068,7 +1077,7 @@ router.get('/:tenantId/my-tickets', readOperationsLimiter, requireRole(['expert'
             WHEN 'WAITING_CUSTOMER' THEN 2
           END,
           t.resolve_due_at IS NULL, t.resolve_due_at ASC
-      `, [req.user.userId, req.user.userId]);
+      `, [expertId, expertId]);
 
       await enrichTicketsWithSLAStatus(myTickets, connection);
 

@@ -1131,6 +1131,31 @@ vNext-FULL-ActionsSLA:
     color: var(--bg);
   }
 
+  /* Inline ticket actions (hover) */
+  .inline-ticket-actions {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    gap: 2px;
+    background: var(--card);
+    padding: 2px 4px;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+    z-index: 2;
+  }
+  tr:hover .inline-ticket-actions {
+    display: flex;
+  }
+  /* Keyboard focus highlight */
+  tr.focus-active {
+    background: #eff6ff !important;
+  }
+  [data-theme="dark"] tr.focus-active {
+    background: #1e3a5f !important;
+  }
+
   .global-search-modal {
     position: fixed;
     top: 0;
@@ -2076,41 +2101,28 @@ vNext-FULL-ActionsSLA:
           <!-- Expert -->
           <div id="dash-expert" class="card p-16 mb-16" style="display:none">
             <div class="row space mb-12">
-              <div>
-                <h3 class="title" style="margin:0">Expert Dashboard</h3>
-                <div class="subtitle">Your queue & SLA focus</div>
-              </div>
-              <div class="row" style="gap:8px">
-                <button class="btn" onclick="navTo('tickets')" style="gap:6px">📥 Open Queue</button>
-                <button class="btn" onclick="navTo('cmdb')" style="gap:6px">🔍 Search CMDB</button>
-                <button class="btn" onclick="navTo('knowledge-base')" style="gap:6px">📚 Knowledge Base</button>
-                <button class="btn primary" onclick="navTo('raise')" style="gap:6px">➕ Log Request</button>
+              <h3 class="title" style="margin:0;font-size:16px">Expert Dashboard</h3>
+              <div class="row" style="gap:6px">
+                <button class="btn ghost" onclick="navTo('tickets')" style="padding:4px 10px;font-size:12px">Open Queue</button>
+                <button class="btn ghost" onclick="navTo('cmdb')" style="padding:4px 10px;font-size:12px">Search CMDB</button>
+                <button class="btn ghost" onclick="navTo('knowledge-base')" style="padding:4px 10px;font-size:12px">Knowledge Base</button>
+                <button class="btn primary" onclick="navTo('raise')" style="padding:4px 10px;font-size:12px">Log Request</button>
               </div>
             </div>
 
             <!-- Power Search Bar -->
-            <div class="card p-12 mb-12" style="background:linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);">
-              <div class="row" style="gap:8px">
-                <input id="expert-power-search" class="input" style="flex:1;border:2px solid #0ea5e9" placeholder="🔍 Power Search - tickets, assets, knowledge base..." onkeyup="if(event.key==='Enter')expertPowerSearch()">
-                <button class="btn primary" onclick="expertPowerSearch()" style="background:#0ea5e9">Search</button>
-              </div>
-              <div id="expert-search-results" style="display:none;margin-top:12px"></div>
+            <div style="position:relative;margin-bottom:12px">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);width:16px;height:16px;pointer-events:none"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+              <input id="expert-power-search" class="input" style="width:100%;padding-left:32px;border:1px solid var(--border);font-size:13px" placeholder="Search tickets, assets, KB... (Ctrl+K for full search)" onkeyup="if(event.key==='Enter')expertPowerSearch()" onfocus="openGlobalSearch()">
             </div>
+            <div id="expert-search-results" style="display:none;margin-bottom:12px"></div>
 
-            <!-- Stats Row -->
-            <div class="grid3 mb-16">
-              <div id="stat-card-open" class="card p-12 clickable stat-card-active" onclick="filterExpertTickets('open')" style="cursor:pointer;transition:all 0.15s;box-shadow:0 0 0 2px #2563eb">
-                <div class="subtitle">My open</div>
-                <div id="ex-open" style="font-size:22px;font-weight:800;color:#2563eb">0</div>
-              </div>
-              <div id="stat-card-today" class="card p-12 clickable" onclick="filterExpertTickets('today')" style="cursor:pointer;transition:all 0.15s">
-                <div class="subtitle">Due today</div>
-                <div id="ex-today" style="font-size:22px;font-weight:800;color:#d97706">0</div>
-              </div>
-              <div id="stat-card-risk" class="card p-12 clickable" onclick="filterExpertTickets('risk')" style="cursor:pointer;transition:all 0.15s">
-                <div class="subtitle">SLA at risk</div>
-                <div id="ex-risk" style="font-size:22px;font-weight:800;color:#dc2626">0</div>
-              </div>
+            <!-- Stats Strip -->
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+              <div id="stat-inline-open" onclick="filterExpertTickets('open')" style="cursor:pointer;padding:4px 10px;font-size:13px;border-radius:6px;border:1px solid #2563eb;background:var(--card);transition:all 0.15s;display:inline-flex;align-items:center;gap:4px"><strong id="ex-open" style="color:#2563eb">0</strong> <span style="color:var(--muted)">open</span></div>
+              <div id="stat-inline-today" onclick="filterExpertTickets('today')" style="cursor:pointer;padding:4px 10px;font-size:13px;border-radius:6px;border:1px solid transparent;transition:all 0.15s;display:inline-flex;align-items:center;gap:4px"><strong id="ex-today" style="color:#d97706">0</strong> <span style="color:var(--muted)">due today</span></div>
+              <div id="stat-inline-risk" onclick="filterExpertTickets('risk')" style="cursor:pointer;padding:4px 10px;font-size:13px;border-radius:6px;border:1px solid transparent;transition:all 0.15s;display:inline-flex;align-items:center;gap:4px"><strong id="ex-risk" style="color:#dc2626">0</strong> <span style="color:var(--muted)">SLA risk</span></div>
+              <span style="margin-left:auto;font-size:11px;color:var(--muted)">Ctrl+K search</span>
             </div>
 
             <!-- Main Content: Left Tickets Panel + Right Panels -->
@@ -2120,8 +2132,9 @@ vNext-FULL-ActionsSLA:
                 <!-- Tab Switcher -->
                 <div class="row space mb-12">
                   <div class="row" style="gap:4px;background:var(--badge-bg);padding:4px;border-radius:8px">
-                    <button id="pool-tab-btn" class="btn" onclick="switchExpertView('pool')" style="padding:8px 16px;font-size:13px;border-radius:6px">🎯 Requests</button>
-                    <button id="my-tickets-tab-btn" class="btn primary" onclick="switchExpertView('my')" style="padding:8px 16px;font-size:13px;border-radius:6px">📋 My Tickets</button>
+                    <button id="focus-tab-btn" class="btn" onclick="switchExpertView('focus')" style="padding:8px 16px;font-size:13px;border-radius:6px">Focus</button>
+                    <button id="pool-tab-btn" class="btn" onclick="switchExpertView('pool')" style="padding:8px 16px;font-size:13px;border-radius:6px">Requests</button>
+                    <button id="my-tickets-tab-btn" class="btn primary" onclick="switchExpertView('my')" style="padding:8px 16px;font-size:13px;border-radius:6px">My Tickets</button>
                   </div>
                   <div class="row" style="gap:8px">
                     <select id="ex-ticket-filter" class="input" style="width:140px;padding:4px 8px;font-size:12px" onchange="syncStatCardHighlight(); renderExpertDash()">
@@ -2171,7 +2184,7 @@ vNext-FULL-ActionsSLA:
                     </label>
                     <button class="btn ghost" onclick="clearPoolFilters()" style="font-size:11px;padding:2px 8px">Clear</button>
                   </div>
-                  <div style="max-height:400px;overflow-y:auto">
+                  <div style="max-height:500px;overflow-y:auto">
                     <table style="font-size:13px"><thead><tr><th style="cursor:pointer" onclick="sortPoolBy('score')">Score ⇅</th><th style="cursor:pointer" onclick="sortPoolBy('id')">ID ⇅</th><th style="cursor:pointer" onclick="sortPoolBy('title')">Title ⇅</th><th style="cursor:pointer" onclick="sortPoolBy('customer')">Customer ⇅</th><th style="cursor:pointer" onclick="sortPoolBy('sla')">SLA ⇅</th><th>Action</th></tr></thead><tbody id="pool-list"></tbody></table>
                   </div>
                   <!-- Pool Pagination Controls -->
@@ -2191,28 +2204,37 @@ vNext-FULL-ActionsSLA:
 
                 <!-- My Tickets View (Shown by default) -->
                 <div id="expert-my-view">
-                  <div style="max-height:400px;overflow-y:auto">
+                  <div style="max-height:500px;overflow-y:auto">
                     <table style="font-size:13px"><thead><tr><th style="cursor:pointer" onclick="sortMyTicketsBy('id')">ID ⇅</th><th style="cursor:pointer" onclick="sortMyTicketsBy('title')">Title ⇅</th><th style="cursor:pointer" onclick="sortMyTicketsBy('date')">Date/Time ⇅</th><th style="cursor:pointer" onclick="sortMyTicketsBy('status')">Status ⇅</th><th style="cursor:pointer" onclick="sortMyTicketsBy('sla')">SLA ⇅</th></tr></thead><tbody id="ex-list"></tbody></table>
                   </div>
-                  <div id="ex-no-tickets" style="display:none;text-align:center;padding:24px;color:var(--muted)">
-                    <div style="font-size:32px;margin-bottom:8px">✅</div>
-                    <div>No tickets in queue</div>
+                  <div id="ex-no-tickets" style="display:none;text-align:center;padding:24px;color:var(--muted);font-size:13px">
+                    Queue clear — no tickets assigned.
+                  </div>
+                </div>
+
+                <!-- Focus Queue View -->
+                <div id="expert-focus-view" style="display:none">
+                  <div style="max-height:500px;overflow-y:auto">
+                    <table style="font-size:13px"><thead><tr><th style="width:10px"></th><th>ID</th><th>Title</th><th>SLA</th><th>Priority</th><th>Source</th></tr></thead><tbody id="focus-list"></tbody></table>
+                  </div>
+                  <div id="focus-no-tickets" style="display:none;text-align:center;padding:24px;color:var(--muted);font-size:13px">
+                    Queue clear — no tickets assigned.
                   </div>
                 </div>
               </div>
 
               <!-- Right: Stacked Panels -->
-              <div style="width:380px;flex-shrink:0;display:flex;flex-direction:column;gap:10px">
+              <div style="width:300px;flex-shrink:0;display:flex;flex-direction:column;gap:10px">
                 <!-- AI Insights Panel -->
-                <div class="card p-16" style="background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);color:white">
-                  <div class="row space mb-12">
-                    <strong style="display:flex;align-items:center;gap:6px">🤖 AI Insights</strong>
-                    <button class="btn ghost" onclick="refreshExpertAIInsights()" style="color:white;border-color:rgba(255,255,255,0.3);padding:4px 8px;font-size:11px">Refresh</button>
+                <div class="card p-12" style="border-left:3px solid var(--muted)">
+                  <div class="row space mb-8">
+                    <strong style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)">AI Insights</strong>
+                    <button class="btn ghost" onclick="refreshExpertAIInsights()" style="padding:4px 8px;font-size:11px">Refresh</button>
                   </div>
                   <div id="ex-ai-insights">
-                    <div id="ex-ai-loading" style="text-align:center;padding:12px;font-size:13px">Analyzing your queue...</div>
-                    <div id="ex-ai-content" style="display:none;font-size:13px">
-                      <div id="ex-ai-summary" style="margin-bottom:12px;line-height:1.5"></div>
+                    <div id="ex-ai-loading" style="text-align:center;padding:8px;font-size:12px;color:var(--muted)">Analyzing your queue...</div>
+                    <div id="ex-ai-content" style="display:none;font-size:12px">
+                      <div id="ex-ai-summary" style="margin-bottom:8px;line-height:1.5"></div>
                       <div id="ex-ai-suggestions"></div>
                     </div>
                   </div>
@@ -7538,6 +7560,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       <button class="global-search-tab" data-category="cmdb" onclick="setSearchCategory('cmdb')">CMDB</button>
       <button class="global-search-tab" data-category="customers" onclick="setSearchCategory('customers')">Customers</button>
       <button class="global-search-tab" data-category="sla" onclick="setSearchCategory('sla')">SLAs</button>
+      <button class="global-search-tab" data-category="kb" onclick="setSearchCategory('kb')">KB</button>
+      <button class="global-search-tab" data-category="experts" onclick="setSearchCategory('experts')">Experts</button>
     </div>
     <div id="global-search-results" class="global-search-results">
       <div class="global-search-empty">
@@ -10074,7 +10098,11 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     // Fetch my tickets from server API
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/tickets/${tenant}/my-tickets`, {
+      const impExpertId = (window.impersonatedUser && window.impersonatedUser.role === 'expert') ? window.impersonatedUser.id : null;
+      const myTicketsUrl = impExpertId
+        ? `/api/tickets/${tenant}/my-tickets?expert_id=${impExpertId}`
+        : `/api/tickets/${tenant}/my-tickets`;
+      const res = await fetch(myTicketsUrl, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
@@ -10119,7 +10147,13 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
       // Store tickets for sorting and render
       myTicketsData = displayTickets;
+      allMyTickets = my;
+      focusedTicketIndex = -1;
       renderMyTicketsTable();
+
+      // Build focus queue from my tickets + pool cache
+      buildFocusQueue(my, poolTickets);
+      if (expertViewMode === 'focus') renderFocusQueue();
 
       // Load AI insights and recent assets
       loadExpertAIInsights(my, today, risk);
@@ -10137,11 +10171,11 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     if (filterSelect) {
       filterSelect.value = type === 'open' ? 'all' : type;
 
-      // Update visual highlighting on stat cards
-      const cards = {
-        open: document.getElementById('stat-card-open'),
-        today: document.getElementById('stat-card-today'),
-        risk: document.getElementById('stat-card-risk')
+      // Update visual highlighting on stat pills
+      const pills = {
+        open: document.getElementById('stat-inline-open'),
+        today: document.getElementById('stat-inline-today'),
+        risk: document.getElementById('stat-inline-risk')
       };
       const colors = {
         open: '#2563eb',
@@ -10149,18 +10183,18 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         risk: '#dc2626'
       };
 
-      // Remove active state from all cards
-      Object.values(cards).forEach(card => {
-        if (card) {
-          card.style.boxShadow = '';
-          card.classList.remove('stat-card-active');
+      // Remove active state from all pills
+      Object.values(pills).forEach(pill => {
+        if (pill) {
+          pill.style.borderColor = 'transparent';
+          pill.style.background = '';
         }
       });
 
-      // Add active state to clicked card
-      if (cards[type]) {
-        cards[type].style.boxShadow = `0 0 0 2px ${colors[type]}`;
-        cards[type].classList.add('stat-card-active');
+      // Add active state to clicked pill
+      if (pills[type]) {
+        pills[type].style.borderColor = colors[type];
+        pills[type].style.background = 'var(--card)';
       }
 
       // Scroll to ticket list for visibility
@@ -10178,13 +10212,13 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const filterSelect = document.getElementById('ex-ticket-filter');
     const filterValue = filterSelect ? filterSelect.value : 'all';
 
-    // Map dropdown value to card type
+    // Map dropdown value to pill type
     const type = filterValue === 'all' ? 'open' : filterValue;
 
-    const cards = {
-      open: document.getElementById('stat-card-open'),
-      today: document.getElementById('stat-card-today'),
-      risk: document.getElementById('stat-card-risk')
+    const pills = {
+      open: document.getElementById('stat-inline-open'),
+      today: document.getElementById('stat-inline-today'),
+      risk: document.getElementById('stat-inline-risk')
     };
     const colors = {
       open: '#2563eb',
@@ -10192,23 +10226,23 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       risk: '#dc2626'
     };
 
-    // Remove active state from all cards
-    Object.values(cards).forEach(card => {
-      if (card) {
-        card.style.boxShadow = '';
-        card.classList.remove('stat-card-active');
+    // Remove active state from all pills
+    Object.values(pills).forEach(pill => {
+      if (pill) {
+        pill.style.borderColor = 'transparent';
+        pill.style.background = '';
       }
     });
 
-    // Add active state to matching card
-    if (cards[type]) {
-      cards[type].style.boxShadow = `0 0 0 2px ${colors[type]}`;
-      cards[type].classList.add('stat-card-active');
+    // Add active state to matching pill
+    if (pills[type]) {
+      pills[type].style.borderColor = colors[type];
+      pills[type].style.background = 'var(--card)';
     }
   }
 
   // ========== TICKET POOL WORKFLOW ==========
-  let expertViewMode = 'my';  // 'pool' or 'my'
+  let expertViewMode = 'my';  // 'pool', 'my', or 'focus'
   let poolTickets = [];       // Tickets from pool API
   let poolPage = 1;           // Current page
   let poolTotalPages = 1;     // Total pages
@@ -10225,6 +10259,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   let myTicketsSortColumn = 'id';
   let myTicketsSortDirection = 'desc';
   let myTicketsData = [];  // Store my tickets for sorting
+  let focusQueueData = [];  // Scored & sorted focus queue
+  let focusedTicketIndex = -1; // Keyboard-focused row index
+  let allMyTickets = [];  // Unfiltered my tickets for focus queue
 
   // Sort Pool view by column
   function sortPoolBy(column) {
@@ -10371,7 +10408,8 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       }
 
       const dateTime = formatDateTime(t.created_at);
-      tr.innerHTML = `<td>#${t.id}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(t.title)}</td><td>${dateTime}</td><td>${statusDisplay}</td><td>${slaBadge}</td>`;
+      tr.style.position = 'relative';
+      tr.innerHTML = `<td>#${t.id}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(t.title)}</td><td>${dateTime}</td><td>${statusDisplay}</td><td style="position:relative">${slaBadge}<div class="inline-ticket-actions"><button class="btn ghost" onclick="event.stopPropagation();inlineResolve(${t.id})" style="font-size:11px;padding:2px 8px">Resolve</button><button class="btn ghost" onclick="event.stopPropagation();inlineReassign(${t.id})" style="font-size:11px;padding:2px 8px">Reassign</button><button class="btn ghost" onclick="event.stopPropagation();inlineComment(${t.id})" style="font-size:11px;padding:2px 8px">Comment</button></div></td>`;
       tb.appendChild(tr);
     });
   }
@@ -10379,28 +10417,248 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   // Switch between pool and my tickets view
   function switchExpertView(mode) {
     expertViewMode = mode;
+    focusedTicketIndex = -1;
     const poolBtn = document.getElementById('pool-tab-btn');
     const myBtn = document.getElementById('my-tickets-tab-btn');
+    const focusBtn = document.getElementById('focus-tab-btn');
     const poolView = document.getElementById('expert-pool-view');
     const myView = document.getElementById('expert-my-view');
+    const focusView = document.getElementById('expert-focus-view');
     const filterEl = document.getElementById('ex-ticket-filter');
 
+    // Reset all tabs
+    if (poolBtn) poolBtn.classList.remove('primary');
+    if (myBtn) myBtn.classList.remove('primary');
+    if (focusBtn) focusBtn.classList.remove('primary');
+    if (poolView) poolView.style.display = 'none';
+    if (myView) myView.style.display = 'none';
+    if (focusView) focusView.style.display = 'none';
+
     if (mode === 'pool') {
-      poolBtn.classList.add('primary');
-      myBtn.classList.remove('primary');
-      poolView.style.display = 'block';
-      myView.style.display = 'none';
+      if (poolBtn) poolBtn.classList.add('primary');
+      if (poolView) poolView.style.display = 'block';
       if (filterEl) filterEl.style.display = 'none';
       refreshPoolView();
+    } else if (mode === 'focus') {
+      if (focusBtn) focusBtn.classList.add('primary');
+      if (focusView) focusView.style.display = 'block';
+      if (filterEl) filterEl.style.display = 'none';
+      renderFocusQueue();
     } else {
-      poolBtn.classList.remove('primary');
-      myBtn.classList.add('primary');
-      poolView.style.display = 'none';
-      myView.style.display = 'block';
+      if (myBtn) myBtn.classList.add('primary');
+      if (myView) myView.style.display = 'block';
       if (filterEl) filterEl.style.display = 'block';
       renderExpertDash();
     }
   }
+
+  // ========== FOCUS QUEUE ==========
+  function buildFocusQueue(myTickets, pool) {
+    const scored = [];
+    const now = new Date();
+
+    (myTickets || []).forEach(t => {
+      let score = 0;
+      const sla = t.sla_status || {};
+      const resolveState = sla.resolve?.state || '';
+
+      if (resolveState === 'breached') score += 1000;
+      else if (resolveState === 'near_breach') score += 800;
+
+      if (t.resolve_due_at) {
+        const due = new Date(t.resolve_due_at);
+        if (now.toDateString() === due.toDateString()) score += 500;
+      }
+
+      const p = (t.priority || '').toLowerCase();
+      if (p === 'critical' || p === 'urgent' || p === '1') score += 300;
+      else if (p === 'high' || p === '2') score += 200;
+
+      if (t.updated_at) {
+        const diff = now - new Date(t.updated_at);
+        if (diff < 3600000) score += 100;
+      }
+
+      if (t.pool_status === 'CLAIMED_LOCKED') score += 50;
+
+      scored.push({ ...t, _score: score, _source: 'mine' });
+    });
+
+    (pool || []).forEach(t => {
+      let score = 0;
+      const sla = t.sla_status || {};
+      const resolveState = sla.resolve?.state || '';
+
+      if (resolveState === 'breached') score += 400;
+      else if (resolveState === 'near_breach') score += 300;
+
+      if (t.resolve_due_at) {
+        const due = new Date(t.resolve_due_at);
+        if (now.toDateString() === due.toDateString()) score += 200;
+      }
+
+      const p = (t.priority || '').toLowerCase();
+      if (p === 'critical' || p === 'urgent' || p === '1') score += 150;
+      else if (p === 'high' || p === '2') score += 100;
+
+      scored.push({ ...t, _score: score, _source: 'pool' });
+    });
+
+    scored.sort((a, b) => b._score - a._score);
+    focusQueueData = scored;
+  }
+
+  function renderFocusQueue() {
+    const tb = document.getElementById('focus-list');
+    const noEl = document.getElementById('focus-no-tickets');
+    const tableEl = tb ? tb.closest('table') : null;
+    if (!tb) return;
+
+    focusedTicketIndex = -1;
+    tb.innerHTML = '';
+
+    if (focusQueueData.length === 0) {
+      if (noEl) noEl.style.display = 'block';
+      if (tableEl) tableEl.style.display = 'none';
+      return;
+    }
+
+    if (noEl) noEl.style.display = 'none';
+    if (tableEl) tableEl.style.display = 'table';
+
+    focusQueueData.slice(0, 30).forEach((t, idx) => {
+      const tr = document.createElement('tr');
+      tr.style.cursor = 'pointer';
+      tr.style.position = 'relative';
+      tr.dataset.focusIdx = idx;
+      tr.onclick = () => openTicket(t.id);
+
+      // Priority dot color
+      const sla = t.sla_status || {};
+      const resolveState = sla.resolve?.state || '';
+      let dotColor = 'var(--muted)';
+      if (resolveState === 'breached') dotColor = '#dc2626';
+      else if (resolveState === 'near_breach') dotColor = '#d97706';
+      else if (resolveState === 'on_track') dotColor = '#2563eb';
+
+      // SLA badge
+      let slaBadge = '<span class="badge sla">—</span>';
+      if (resolveState === 'breached') slaBadge = '<span class="badge sla breach">Breached</span>';
+      else if (resolveState === 'near_breach') slaBadge = '<span class="badge sla warn">At Risk</span>';
+      else if (resolveState === 'on_track') slaBadge = '<span class="badge sla ok">On Track</span>';
+
+      const priority = t.priority || '—';
+      const sourceTag = t._source === 'mine'
+        ? '<span class="badge" style="background:#dbeafe;color:#1e40af;font-size:10px;padding:2px 6px">Mine</span>'
+        : '<span class="badge" style="background:#f3f4f6;color:#6b7280;font-size:10px;padding:2px 6px">Pool</span>';
+
+      tr.innerHTML = `<td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${dotColor}"></span></td><td>#${t.id}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(t.title)}</td><td>${slaBadge}</td><td>${escapeHtml(priority)}</td><td style="position:relative">${sourceTag}<div class="inline-ticket-actions"><button class="btn ghost" onclick="event.stopPropagation();inlineResolve(${t.id})" style="font-size:11px;padding:2px 8px">Resolve</button><button class="btn ghost" onclick="event.stopPropagation();inlineReassign(${t.id})" style="font-size:11px;padding:2px 8px">Reassign</button><button class="btn ghost" onclick="event.stopPropagation();inlineComment(${t.id})" style="font-size:11px;padding:2px 8px">Comment</button></div></td>`;
+      tb.appendChild(tr);
+    });
+  }
+
+  // ========== INLINE TICKET ACTIONS ==========
+  function inlineResolve(ticketId) {
+    currentTicketId = ticketId;
+    openCompletion('resolve');
+  }
+
+  function inlineReassign(ticketId) {
+    currentTicketId = ticketId;
+    openCompletion('reassign');
+  }
+
+  function inlineComment(ticketId) {
+    openTicket(ticketId);
+    setTimeout(() => {
+      const commentInput = document.getElementById('td-comment-input') || document.getElementById('comment-input');
+      if (commentInput) commentInput.focus();
+    }, 500);
+  }
+
+  // ========== KEYBOARD WORKFLOW ==========
+  function updateFocusHighlight() {
+    document.querySelectorAll('.focus-active').forEach(el => el.classList.remove('focus-active'));
+    let activeData, containerId;
+    if (expertViewMode === 'focus') {
+      activeData = focusQueueData;
+      containerId = 'focus-list';
+    } else if (expertViewMode === 'my') {
+      activeData = myTicketsData;
+      containerId = 'ex-list';
+    } else return;
+
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    const rows = container.querySelectorAll('tr');
+    if (focusedTicketIndex >= 0 && focusedTicketIndex < rows.length) {
+      rows[focusedTicketIndex].classList.add('focus-active');
+      rows[focusedTicketIndex].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }
+
+  function getActiveTicketList() {
+    if (expertViewMode === 'focus') return focusQueueData.slice(0, 30);
+    if (expertViewMode === 'my') return myTicketsData.slice(0, 15);
+    return [];
+  }
+
+  document.addEventListener('keydown', (e) => {
+    // Guard: only on expert dash, no input focused, focus or my mode
+    const dashEl = document.getElementById('dash-expert');
+    if (!dashEl || dashEl.style.display === 'none') return;
+    if (currentView && currentView !== 'dash') return;
+    if (expertViewMode !== 'focus' && expertViewMode !== 'my') return;
+
+    const tag = (document.activeElement || {}).tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+    // Check no modal is open
+    const globalSearchModal = document.getElementById('global-search-modal');
+    if (globalSearchModal && globalSearchModal.classList.contains('active')) return;
+    const dlg = document.getElementById('dlg');
+    if (dlg && dlg.style.display === 'flex') return;
+
+    const list = getActiveTicketList();
+    if (list.length === 0) return;
+
+    switch (e.key) {
+      case 'j':
+        e.preventDefault();
+        focusedTicketIndex = Math.min(focusedTicketIndex + 1, list.length - 1);
+        updateFocusHighlight();
+        break;
+      case 'k':
+        e.preventDefault();
+        focusedTicketIndex = Math.max(focusedTicketIndex - 1, 0);
+        updateFocusHighlight();
+        break;
+      case 'Enter':
+        if (focusedTicketIndex >= 0 && focusedTicketIndex < list.length) {
+          e.preventDefault();
+          openTicket(list[focusedTicketIndex].id);
+        }
+        break;
+      case 'r':
+        if (focusedTicketIndex >= 0 && focusedTicketIndex < list.length) {
+          e.preventDefault();
+          inlineResolve(list[focusedTicketIndex].id);
+        }
+        break;
+      case 'a':
+        if (focusedTicketIndex >= 0 && focusedTicketIndex < list.length) {
+          e.preventDefault();
+          inlineReassign(list[focusedTicketIndex].id);
+        }
+        break;
+      case 'c':
+        if (focusedTicketIndex >= 0 && focusedTicketIndex < list.length) {
+          e.preventDefault();
+          inlineComment(list[focusedTicketIndex].id);
+        }
+        break;
+    }
+  });
 
   // Pool filter state
   let poolFilterTags = [];
@@ -11057,30 +11315,51 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     let suggestions = '';
 
     if (myTickets.length === 0) {
-      summary = '🎉 Your queue is clear! Great job staying on top of tickets.';
+      summary = 'Your queue is clear.';
     } else {
       summary = `You have <strong>${myTickets.length}</strong> open ticket${myTickets.length !== 1 ? 's' : ''}.`;
 
       if (riskTickets.length > 0) {
-        summary += ` <span style="color:#fbbf24">⚠️ ${riskTickets.length} at SLA risk!</span>`;
+        summary += ` <span style="color:#d97706">${riskTickets.length} at SLA risk.</span>`;
       }
 
       if (todayTickets.length > 0) {
-        summary += `<br><span style="color:#fcd34d">📅 ${todayTickets.length} due today.</span>`;
+        summary += `<br><span style="color:#d97706">${todayTickets.length} due today.</span>`;
       }
 
       // Prioritization suggestion
       if (riskTickets.length > 0) {
         const urgent = riskTickets[0];
-        suggestions = `<div style="background:rgba(255,255,255,0.15);border-radius:6px;padding:8px;margin-top:8px">
+        suggestions = `<div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px;margin-top:8px">
           <strong>Suggested action:</strong><br>
-          Focus on <a href="#" onclick="openTicket(${urgent.id});return false" style="color:#fcd34d">#${urgent.id}</a> - ${urgent.title.substring(0, 40)}...
+          Focus on <a href="#" onclick="openTicket(${urgent.id});return false" style="color:#2563eb">#${urgent.id}</a> - ${escapeHtml(urgent.title.substring(0, 40))}...
         </div>`;
       } else if (todayTickets.length > 0) {
         const next = todayTickets[0];
-        suggestions = `<div style="background:rgba(255,255,255,0.15);border-radius:6px;padding:8px;margin-top:8px">
+        suggestions = `<div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px;margin-top:8px">
           <strong>Next up:</strong><br>
-          <a href="#" onclick="openTicket(${next.id});return false" style="color:#fcd34d">#${next.id}</a> - ${next.title.substring(0, 40)}...
+          <a href="#" onclick="openTicket(${next.id});return false" style="color:#2563eb">#${next.id}</a> - ${escapeHtml(next.title.substring(0, 40))}...
+        </div>`;
+      }
+
+      // Incident signal detection: group tickets by CMDB asset
+      const assetGroups = {};
+      myTickets.forEach(t => {
+        const asset = t.cmdb_item_name || t.asset_name;
+        if (asset) {
+          if (!assetGroups[asset]) assetGroups[asset] = [];
+          assetGroups[asset].push(t);
+        }
+      });
+      const clusters = Object.entries(assetGroups).filter(([, tickets]) => tickets.length >= 2);
+      if (clusters.length > 0) {
+        let clusterHtml = '';
+        clusters.forEach(([asset, tickets]) => {
+          const links = tickets.map(t => `<a href="#" onclick="openTicket(${t.id});return false" style="color:#2563eb">#${t.id}</a>`).join(', ');
+          clusterHtml += `<div style="margin-bottom:4px">Related tickets detected: <strong>${escapeHtml(asset)}</strong>: ${links}</div>`;
+        });
+        suggestions += `<div style="background:#fffbeb;border:1px solid #f59e0b;border-radius:6px;padding:8px;margin-top:8px;font-size:12px">
+          <strong style="color:#92400e">Incident Signals</strong><br>${clusterHtml}
         </div>`;
       }
     }
@@ -18621,13 +18900,11 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       params.set('ticket_ids', window.insightTicketFilter.join(','));
     }
 
-    // Impersonation filtering - override assignee/requester filters
+    // Impersonation filtering - override requester filter for customers only
+    // Expert impersonation: do NOT override assignee_id; the backend permission
+    // system controls ticket visibility (all_tickets, specific_customers, etc.)
     if (window.impersonatedUser) {
-      if (window.impersonatedUser.role === 'expert') {
-        // When impersonating an expert, show only their assigned tickets
-        params.set('assignee_id', window.impersonatedUser.id);
-      } else if (window.impersonatedUser.role === 'customer') {
-        // When impersonating a customer, show only their requested tickets
+      if (window.impersonatedUser.role === 'customer') {
         params.set('requester_id', window.impersonatedUser.id);
       }
     }
@@ -26105,6 +26382,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   let globalSearchSelectedIndex = -1;
   let globalSearchCategory = 'all';
   let globalSearchDebounceTimer = null;
+  let globalSearchKBArticles = [];
 
   // Keyboard shortcut: Cmd+K / Ctrl+K to open search, Escape to close
   document.addEventListener('keydown', (e) => {
@@ -26162,16 +26440,15 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     // Ensure all data sources are loaded
     await ensureGlobalSearchDataLoaded();
 
-    // Show ready state
-    document.getElementById('global-search-results').innerHTML = `
-      <div class="global-search-empty">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <circle cx="11" cy="11" r="8"></circle>
-          <path d="m21 21-4.3-4.3"></path>
-        </svg>
-        <div>Start typing to search...</div>
-      </div>
-    `;
+    // Show quick actions on initial open
+    globalSearchResults = [
+      { type: 'action', id: 'qa-queue', title: 'Open Queue', meta: 'View all tickets', badge: 'Nav', data: { handler: () => navTo('tickets') } },
+      { type: 'action', id: 'qa-log', title: 'Log New Request', meta: 'Create a new ticket', badge: 'Nav', data: { handler: () => navTo('raise') } },
+      { type: 'action', id: 'qa-cmdb', title: 'Search CMDB', meta: 'Browse assets', badge: 'Nav', data: { handler: () => navTo('cmdb') } },
+      { type: 'action', id: 'qa-kb', title: 'Knowledge Base', meta: 'Browse articles', badge: 'Nav', data: { handler: () => navTo('knowledge-base') } }
+    ];
+    globalSearchSelectedIndex = 0;
+    renderGlobalSearchResults();
   }
 
   async function ensureGlobalSearchDataLoaded() {
@@ -26240,6 +26517,19 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       );
     }
 
+    // Load KB articles if empty
+    if (globalSearchKBArticles.length === 0) {
+      loadPromises.push(
+        fetch(`${API_BASE}/api/kb/${tenantCode}/articles?status=published`, {
+          headers: { 'Authorization': 'Bearer ' + token }
+        }).then(res => res.json()).then(data => {
+          if (data.success && data.articles) {
+            globalSearchKBArticles = data.articles;
+          }
+        }).catch(err => console.error('Error loading KB articles for search:', err))
+      );
+    }
+
     // Wait for all data to load
     await Promise.all(loadPromises);
   }
@@ -26272,18 +26562,15 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     }
 
     if (!query) {
-      // Show empty state
-      document.getElementById('global-search-results').innerHTML = `
-        <div class="global-search-empty">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <circle cx="11" cy="11" r="8"></circle>
-            <path d="m21 21-4.3-4.3"></path>
-          </svg>
-          <div>Start typing to search...</div>
-        </div>
-      `;
-      globalSearchResults = [];
-      globalSearchSelectedIndex = -1;
+      // Show quick actions instead of empty state
+      globalSearchResults = [
+        { type: 'action', id: 'qa-queue', title: 'Open Queue', meta: 'View all tickets', badge: 'Nav', data: { handler: () => navTo('tickets') } },
+        { type: 'action', id: 'qa-log', title: 'Log New Request', meta: 'Create a new ticket', badge: 'Nav', data: { handler: () => navTo('raise') } },
+        { type: 'action', id: 'qa-cmdb', title: 'Search CMDB', meta: 'Browse assets', badge: 'Nav', data: { handler: () => navTo('cmdb') } },
+        { type: 'action', id: 'qa-kb', title: 'Knowledge Base', meta: 'Browse articles', badge: 'Nav', data: { handler: () => navTo('knowledge-base') } }
+      ];
+      globalSearchSelectedIndex = 0;
+      renderGlobalSearchResults();
       return;
     }
 
@@ -26418,6 +26705,53 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       results.push(...slaResults);
     }
 
+    // Search KB Articles
+    if (globalSearchCategory === 'all' || globalSearchCategory === 'kb') {
+      const kbResults = (globalSearchKBArticles || [])
+        .filter(a => {
+          const searchable = [
+            a.title || '',
+            a.tags || '',
+            a.category || '',
+            a.content || ''
+          ].join(' ').toLowerCase();
+          return searchable.includes(q);
+        })
+        .slice(0, maxPerCategory)
+        .map(a => ({
+          type: 'kb',
+          id: a.id,
+          title: a.title || 'Untitled Article',
+          meta: [a.category, a.tags].filter(Boolean).join(' | '),
+          badge: a.category || 'KB',
+          data: a
+        }));
+      results.push(...kbResults);
+    }
+
+    // Search Experts
+    if (globalSearchCategory === 'all' || globalSearchCategory === 'experts') {
+      const expertResults = (cachedExperts || [])
+        .filter(e => {
+          const searchable = [
+            e.full_name || '',
+            e.username || '',
+            e.email || ''
+          ].join(' ').toLowerCase();
+          return searchable.includes(q);
+        })
+        .slice(0, maxPerCategory)
+        .map(e => ({
+          type: 'expert',
+          id: e.id,
+          title: e.full_name || e.username || 'Unknown',
+          meta: e.email || '',
+          badge: 'Expert',
+          data: e
+        }));
+      results.push(...expertResults);
+    }
+
     globalSearchResults = results;
     globalSearchSelectedIndex = results.length > 0 ? 0 : -1;
     renderGlobalSearchResults();
@@ -26452,18 +26786,24 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       ticket: 'Tickets',
       cmdb: 'CMDB Items',
       customer: 'Customers',
-      sla: 'SLA Definitions'
+      sla: 'SLA Definitions',
+      kb: 'Knowledge Base',
+      expert: 'Experts',
+      action: 'Quick Actions'
     };
 
     const typeIcons = {
       ticket: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>',
       cmdb: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>',
       customer: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
-      sla: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>'
+      sla: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+      kb: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>',
+      expert: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>',
+      action: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>'
     };
 
     let html = '';
-    const typeOrder = ['ticket', 'cmdb', 'customer', 'sla'];
+    const typeOrder = ['action', 'ticket', 'cmdb', 'customer', 'sla', 'kb', 'expert'];
 
     typeOrder.forEach(type => {
       if (!groups[type]) return;
@@ -26542,7 +26882,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       case 'Tab':
         e.preventDefault();
         // Cycle through categories
-        const categories = ['all', 'tickets', 'cmdb', 'customers', 'sla'];
+        const categories = ['all', 'tickets', 'cmdb', 'customers', 'sla', 'kb', 'experts'];
         const currentIdx = categories.indexOf(globalSearchCategory);
         const nextIdx = e.shiftKey
           ? (currentIdx - 1 + categories.length) % categories.length
@@ -26585,6 +26925,27 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             openSLADefinitionModal(result.id);
           }
         }, 300);
+        break;
+
+      case 'kb':
+        navTo('knowledge-base');
+        setTimeout(() => {
+          if (typeof viewKBArticle === 'function') {
+            viewKBArticle(result.id);
+          }
+        }, 300);
+        break;
+
+      case 'expert':
+        if (typeof viewExpertDetail === 'function') {
+          viewExpertDetail(result.id);
+        }
+        break;
+
+      case 'action':
+        if (result.data && typeof result.data.handler === 'function') {
+          result.data.handler();
+        }
         break;
     }
   }
