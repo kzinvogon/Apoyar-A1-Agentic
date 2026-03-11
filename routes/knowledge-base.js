@@ -310,6 +310,41 @@ router.delete('/:tenantCode/articles/:articleId', requireRole(['admin']), async 
   }
 });
 
+// Bulk action (publish/delete) - admin only
+router.post('/:tenantCode/articles/bulk-action', requireRole(['admin']), async (req, res) => {
+  try {
+    const { tenantCode } = req.params;
+    const { action, article_ids } = req.body;
+
+    if (!['publish', 'delete'].includes(action)) {
+      return res.status(400).json({ error: 'Invalid action. Must be "publish" or "delete"' });
+    }
+    if (!Array.isArray(article_ids) || article_ids.length === 0) {
+      return res.status(400).json({ error: 'article_ids must be a non-empty array' });
+    }
+
+    const connection = await getTenantConnection(tenantCode);
+
+    try {
+      const newStatus = action === 'publish' ? 'published' : 'archived';
+      const [result] = await connection.query(
+        'UPDATE kb_articles SET status = ? WHERE id IN (?)',
+        [newStatus, article_ids]
+      );
+
+      console.log(`KB bulk ${action}: ${result.affectedRows} articles updated by user ${req.user.userId} in ${tenantCode}`);
+      res.json({ success: true, updated: result.affectedRows });
+
+    } finally {
+      connection.release();
+    }
+
+  } catch (error) {
+    console.error('Error performing KB bulk action:', error);
+    res.status(500).json({ error: 'Failed to perform bulk action' });
+  }
+});
+
 // ============================================================================
 // SEARCH ROUTES
 // ============================================================================
