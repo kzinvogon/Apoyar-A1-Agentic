@@ -1,6 +1,9 @@
 /**
  * Database configuration for Teams Connector
  * Standalone version for Railway deployment
+ *
+ * Wraps mysql2 pools with automatic retry on PROTOCOL_CONNECTION_LOST
+ * so that idle connection drops (common on Railway proxy) self-heal.
  */
 
 const mysql = require('mysql2/promise');
@@ -8,10 +11,18 @@ const mysql = require('mysql2/promise');
 // Connection pool cache
 const connectionPools = {};
 
+const RETRIABLE_CODES = new Set([
+  'PROTOCOL_CONNECTION_LOST',
+  'ECONNRESET',
+  'EPIPE',
+  'ETIMEDOUT',
+  'ECONNREFUSED'
+]);
+
 /**
- * Create a pool with keep-alive and auto-recovery on dropped connections.
+ * Create a raw mysql2 pool with keep-alive settings.
  */
-function createResilientPool(databaseName) {
+function createRawPool(databaseName) {
   const config = {
     host: process.env.MYSQLHOST || process.env.MYSQL_HOST || 'localhost',
     port: parseInt(process.env.MYSQLPORT || process.env.MYSQL_PORT || '3306'),
@@ -26,43 +37,81 @@ function createResilientPool(databaseName) {
     idleTimeout: 60000
   };
 
-  const pool = mysql.createPool(config);
-  pool.on('error', (err) => {
-    console.error(`[DB] Pool error for ${databaseName}:`, err.message);
-    if (err.code === 'PROTOCOL_CONNECTION_LOST' || err.code === 'ECONNRESET' || err.code === 'EPIPE') {
-      delete connectionPools[databaseName];
+  return mysql.createPool(config);
+}
+
+/**
+ * Get or create a pool, wrapped with retry-on-disconnect logic.
+ * Returns an object with a .query() that retries once on connection loss.
+ */
+function getPool(databaseName) {
+  if (connectionPools[databaseName]) {
+    return connectionPools[databaseName];
+  }
+
+  let rawPool = createRawPool(databaseName);
+
+  const wrapper = {
+    /**
+     * pool.query with one automatic retry on connection-lost errors.
+     */
+    async query(sql, params) {
+      try {
+        return await rawPool.query(sql, params);
+      } catch (err) {
+        if (RETRIABLE_CODES.has(err.code)) {
+          console.log(`[DB] Connection lost for ${databaseName}, recreating pool and retrying...`);
+          try { rawPool.end().catch(() => {}); } catch (_) {}
+          rawPool = createRawPool(databaseName);
+          // Update the wrapper's reference so future calls use the new pool
+          return await rawPool.query(sql, params);
+        }
+        throw err;
+      }
+    },
+
+    /** Expose getConnection for callers that need transactions */
+    async getConnection() {
+      try {
+        return await rawPool.getConnection();
+      } catch (err) {
+        if (RETRIABLE_CODES.has(err.code)) {
+          console.log(`[DB] Connection lost for ${databaseName}, recreating pool...`);
+          try { rawPool.end().catch(() => {}); } catch (_) {}
+          rawPool = createRawPool(databaseName);
+          return await rawPool.getConnection();
+        }
+        throw err;
+      }
+    },
+
+    /** Graceful shutdown */
+    async end() {
+      return rawPool.end();
     }
-  });
-  return pool;
+  };
+
+  connectionPools[databaseName] = wrapper;
+  return wrapper;
 }
 
 /**
  * Get database connection for a tenant
  * @param {string} tenantCode - The tenant code (e.g., 'apoyar')
- * @returns {Promise<mysql.Pool>}
+ * @returns {Promise<object>} Pool wrapper with retry-capable .query()
  */
 async function getTenantConnection(tenantCode) {
   const databaseName = `a1_tenant_${tenantCode}`;
-
-  if (!connectionPools[databaseName]) {
-    connectionPools[databaseName] = createResilientPool(databaseName);
-  }
-
-  return connectionPools[databaseName];
+  return getPool(databaseName);
 }
 
 /**
  * Get master database connection
- * @returns {Promise<mysql.Pool>}
+ * @returns {Promise<object>} Pool wrapper with retry-capable .query()
  */
 async function getMasterConnection() {
   const databaseName = process.env.MYSQLDATABASE || process.env.MYSQL_DATABASE || 'master_tenant';
-
-  if (!connectionPools[databaseName]) {
-    connectionPools[databaseName] = createResilientPool(databaseName);
-  }
-
-  return connectionPools[databaseName];
+  return getPool(databaseName);
 }
 
 module.exports = {
