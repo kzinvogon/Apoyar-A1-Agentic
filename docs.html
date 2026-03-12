@@ -1845,9 +1845,118 @@ New-ApplicationAccessPolicy `
 
 <section id="raw-variables" data-section>
 <h1>Raw Variables <span class="role-badge role-admin">Admin</span></h1>
-<p>The Raw Variables section shows advanced tenant configuration values. This is a read-only view of system environment variables, configuration settings, feature flag states, and database connection information.</p>
+<p>Raw Variables is a comprehensive configuration viewer that surfaces <strong>all system settings</strong> in one place. It aggregates data from 12 sections covering tenant settings, email configuration, SLA definitions, automation rules, customer company config, CMDB settings, user notification preferences, and more. Found under <strong>Settings &rarr; Raw Variables</strong> (labelled "Developer Mode").</p>
 
-<div class="warning-box"><strong>Warning</strong>This section is intended for advanced users and troubleshooting. Modifying raw variables directly can cause unexpected behaviour. Contact support before making changes.</div>
+<div class="warning-box"><strong>Caution</strong>Changes to editable fields apply immediately. Incorrect values can break email ingestion, SLA notifications, or outbound emails. Only modify if you understand the impact.</div>
+
+<h2>All Sections</h2>
+<table>
+  <tr><th>Section</th><th>Source</th><th>Editable</th><th>Description</th></tr>
+  <tr><td><strong>Tenant Settings</strong></td><td><code>tenant_settings</code></td><td>Yes</td><td>Custom key-value config, feature flags, thresholds</td></tr>
+  <tr><td><strong>IMAP Ingest</strong></td><td><code>email_ingest_settings</code></td><td>Yes</td><td>IMAP server, credentials, polling interval</td></tr>
+  <tr><td><strong>Microsoft 365</strong></td><td><code>email_ingest_settings</code></td><td>Partial</td><td>Graph API / OAuth2 settings, tokens</td></tr>
+  <tr><td><strong>Outbound / SMTP</strong></td><td><code>email_ingest_settings</code></td><td>Yes</td><td>SMTP relay host, port, outbound toggle</td></tr>
+  <tr><td><strong>Company Profile</strong></td><td><code>company_profile</code></td><td>Yes</td><td>Company name, phone, email, domain</td></tr>
+  <tr><td><strong>Feature Flags</strong></td><td><code>tenant_features</code></td><td>No</td><td>Enabled/disabled features from subscription plan or overrides</td></tr>
+  <tr><td><strong>SLA &amp; Business Hours</strong></td><td><code>sla_definitions</code>, <code>business_hours_profiles</code></td><td>No</td><td>SLA response/resolve targets, schedules</td></tr>
+  <tr><td><strong>Automation &amp; Chat</strong></td><td><code>ticket_processing_rules</code>, <code>chat_canned_responses</code></td><td>No</td><td>Ticket rules (match/action), canned chat messages</td></tr>
+  <tr><td><strong>Customer Companies</strong></td><td><code>customer_companies</code></td><td>No</td><td>Per-company SLA level, notification settings</td></tr>
+  <tr><td><strong>CMDB Configuration</strong></td><td><code>asset_categories</code>, <code>cmdb_custom_field_definitions</code></td><td>No</td><td>Asset categories, custom field counts</td></tr>
+  <tr><td><strong>Users &amp; Notifications</strong></td><td><code>users</code></td><td>No</td><td>Admin/expert email notification preferences</td></tr>
+  <tr><td><strong>Environment</strong></td><td>Server process env</td><td>No</td><td>NODE_ENV, BASE_URL, PORT</td></tr>
+</table>
+
+<h2>Editable Sections</h2>
+
+<h3>Tenant Settings</h3>
+<p>Custom key-value pairs stored in the <code>tenant_settings</code> table. Common keys include:</p>
+<ul>
+  <li><code>send_emails_experts</code> / <code>send_emails_customers</code> &mdash; global email notification toggles</li>
+  <li><code>process_sla</code> &mdash; enable/disable SLA breach checking</li>
+  <li><code>monthly_report_enabled</code> / <code>monthly_report_recipients</code> &mdash; automated reporting</li>
+  <li><code>customer_billing_enabled</code> / <code>enhanced_sla_billing_mode</code> &mdash; billing config</li>
+  <li><code>batch_delay_seconds</code> / <code>batch_size</code> &mdash; email batch processing</li>
+</ul>
+<p>Use <strong>+ Add Variable</strong> to create new keys, <strong>Edit</strong> to change values, and <strong>Delete</strong> to remove custom keys.</p>
+
+<h3>IMAP Ingest</h3>
+<p>Configuration for IMAP email-to-ticket polling:</p>
+<table>
+  <tr><th>Key</th><th>Description</th></tr>
+  <tr><td><code>enabled</code></td><td>Enable/disable IMAP polling</td></tr>
+  <tr><td><code>server_type</code></td><td>Protocol: <code>imap</code> or <code>graph</code></td></tr>
+  <tr><td><code>auth_method</code></td><td>Authentication: <code>basic</code> or <code>oauth2</code></td></tr>
+  <tr><td><code>server_host</code> / <code>server_port</code> / <code>use_ssl</code></td><td>IMAP server connection details</td></tr>
+  <tr><td><code>username</code> / <code>password</code></td><td>Mailbox credentials (password masked)</td></tr>
+  <tr><td><code>check_interval_minutes</code></td><td>Polling frequency</td></tr>
+  <tr><td><code>last_checked_at</code></td><td>Last poll timestamp (read-only)</td></tr>
+  <tr><td><code>imap_locked_by</code> / <code>imap_lock_expires</code></td><td>Worker lock status (read-only)</td></tr>
+</table>
+
+<h3>Microsoft 365</h3>
+<p>Graph API / OAuth2 configuration for M365 mailbox integration:</p>
+<table>
+  <tr><th>Key</th><th>Description</th></tr>
+  <tr><td><code>m365_enabled</code></td><td>Enable Microsoft 365 ingestion</td></tr>
+  <tr><td><code>oauth2_email</code></td><td>M365 mailbox email address</td></tr>
+  <tr><td><code>oauth2_refresh_token</code></td><td>OAuth2 refresh token (masked)</td></tr>
+  <tr><td><code>oauth2_access_token</code></td><td>Current access token (read-only, masked)</td></tr>
+  <tr><td><code>oauth2_token_expiry</code></td><td>Token expiry timestamp (read-only)</td></tr>
+  <tr><td><code>graph_delta_link</code></td><td>Graph API delta link (read-only)</td></tr>
+  <tr><td><code>m365_use_for_outbound</code></td><td>Use M365 for sending replies</td></tr>
+</table>
+
+<h3>Outbound / SMTP</h3>
+<table>
+  <tr><th>Key</th><th>Description</th></tr>
+  <tr><td><code>use_for_outbound</code></td><td>Enable SMTP relay for outbound emails</td></tr>
+  <tr><td><code>smtp_host</code> / <code>smtp_port</code></td><td>SMTP server address and port</td></tr>
+</table>
+
+<h3>Company Profile</h3>
+<table>
+  <tr><th>Key</th><th>Description</th></tr>
+  <tr><td><code>company.name</code></td><td>Company display name</td></tr>
+  <tr><td><code>company.contact_phone</code></td><td>Support phone number</td></tr>
+  <tr><td><code>company.mail_from_email</code></td><td>From address for notifications</td></tr>
+  <tr><td><code>company.url_domain</code></td><td>Company website/portal domain</td></tr>
+</table>
+
+<h2>Read-Only Sections</h2>
+<p>The following sections pull live data from their respective tables. They are read-only in Raw Variables &mdash; use the dedicated management UIs to modify them.</p>
+
+<h3>Feature Flags</h3>
+<p>Shows all features from the <code>tenant_features</code> table, including those granted by the subscription plan, manual overrides, and trials. Each flag shows its enabled/disabled state and source.</p>
+
+<h3>SLA &amp; Business Hours</h3>
+<p>Lists every SLA definition with its response and resolve targets (in minutes), near-breach percentage threshold, and active status. Also shows business hours profiles with their schedules and timezones.</p>
+
+<h3>Automation &amp; Chat</h3>
+<p>Shows all ticket processing rules with their enabled status, action type, match criteria, and trigger count. Also lists chat canned responses with their action type and active status.</p>
+
+<h3>Customer Companies</h3>
+<p>Per-company configuration: SLA level (basic/premium/enterprise), assigned SLA definition, active status, and notification preferences (<code>admin_emails</code>, <code>member_emails</code>).</p>
+
+<h3>CMDB Configuration</h3>
+<p>Lists all asset categories (active/inactive) and the count of custom field definitions per category.</p>
+
+<h3>Users &amp; Notifications</h3>
+<p>Shows email notification preferences for every admin and expert user: <code>email_updates</code> (receive email updates), <code>notifications_enabled</code> (email notifications on), and <code>active</code> status.</p>
+
+<h3>Environment</h3>
+<p>Read-only server environment values: <code>NODE_ENV</code>, <code>BASE_URL</code>, <code>DEFAULT_TENANT</code>, <code>PORT</code>.</p>
+
+<h2>Search, Export &amp; Import</h2>
+<p>The search box at the top filters across all 12 sections, matching against both key names and values.</p>
+<ul>
+  <li><strong>Export JSON</strong> &mdash; downloads all <code>tenant_settings</code> as a JSON file for backup or migration.</li>
+  <li><strong>Import JSON</strong> &mdash; uploads a JSON object to bulk-create or update variables. Existing keys are updated; new keys are created. Reserved prefixes (<code>email_ingest.</code>, <code>company.</code>) are handled automatically. Masked passwords are skipped.</li>
+</ul>
+
+<h2>Audit Trail</h2>
+<p>All Raw Variables actions are logged: opening the view, creating/updating/deleting variables (old and new values recorded), and exporting or importing. Password and token values are redacted in audit logs.</p>
+
+<div class="tip-box"><strong>Tip</strong>Use the search box to quickly find settings across all sections. For example, search "email" to see all email-related config from IMAP, M365, SMTP, tenant settings, and user notification preferences in one filtered view.</div>
 </section>
 
 <!-- ═══════════════════════════════════════════════════ -->

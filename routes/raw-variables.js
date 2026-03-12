@@ -19,8 +19,16 @@ router.get('/:tenantId', async (req, res) => {
     try {
       const variables = {
         tenant_settings: [],
-        email_ingest: [],
+        email_imap: [],
+        email_m365: [],
+        email_outbound: [],
         company_profile: [],
+        feature_flags: [],
+        sla_config: [],
+        automation: [],
+        customers_config: [],
+        cmdb_config: [],
+        users_notifications: [],
         environment: []
       };
 
@@ -42,23 +50,47 @@ router.get('/:tenantId', async (req, res) => {
         console.log('tenant_settings table may not exist:', e.message);
       }
 
-      // 2. Get email_ingest_settings
+      // 2. Get email_ingest_settings — split into IMAP, M365, Outbound groups
       try {
         const [emailSettings] = await connection.query(
           'SELECT * FROM email_ingest_settings LIMIT 1'
         );
         if (emailSettings.length > 0) {
           const es = emailSettings[0];
-          variables.email_ingest = [
-            { key: 'email_ingest.enabled', value: String(es.enabled || false), category: 'email_ingest', editable: true, deletable: false },
-            { key: 'email_ingest.server_type', value: es.server_type || 'imap', category: 'email_ingest', editable: true, deletable: false },
-            { key: 'email_ingest.server_host', value: es.server_host || '', category: 'email_ingest', editable: true, deletable: false },
-            { key: 'email_ingest.server_port', value: String(es.server_port || 993), category: 'email_ingest', editable: true, deletable: false },
-            { key: 'email_ingest.use_ssl', value: String(es.use_ssl !== false), category: 'email_ingest', editable: true, deletable: false },
-            { key: 'email_ingest.username', value: es.username || '', category: 'email_ingest', editable: true, deletable: false },
-            { key: 'email_ingest.password', value: es.password ? '******' : '', category: 'email_ingest', editable: true, deletable: false, sensitive: true },
-            { key: 'email_ingest.check_interval_minutes', value: String(es.check_interval_minutes || 5), category: 'email_ingest', editable: true, deletable: false },
-            { key: 'email_ingest.last_checked_at', value: es.last_checked_at ? new Date(es.last_checked_at).toISOString() : 'Never', category: 'email_ingest', editable: false, deletable: false }
+          const cat = 'email_ingest';
+
+          // IMAP / General ingest settings
+          variables.email_imap = [
+            { key: 'email_ingest.enabled', value: String(es.enabled || false), category: cat, editable: true, deletable: false },
+            { key: 'email_ingest.server_type', value: es.server_type || 'imap', category: cat, editable: true, deletable: false },
+            { key: 'email_ingest.auth_method', value: es.auth_method || 'basic', category: cat, editable: true, deletable: false },
+            { key: 'email_ingest.server_host', value: es.server_host || '', category: cat, editable: true, deletable: false },
+            { key: 'email_ingest.server_port', value: String(es.server_port || 993), category: cat, editable: true, deletable: false },
+            { key: 'email_ingest.use_ssl', value: String(es.use_ssl !== false), category: cat, editable: true, deletable: false },
+            { key: 'email_ingest.username', value: es.username || '', category: cat, editable: true, deletable: false },
+            { key: 'email_ingest.password', value: es.password ? '******' : '', category: cat, editable: true, deletable: false, sensitive: true },
+            { key: 'email_ingest.check_interval_minutes', value: String(es.check_interval_minutes || 5), category: cat, editable: true, deletable: false },
+            { key: 'email_ingest.last_checked_at', value: es.last_checked_at ? new Date(es.last_checked_at).toISOString() : 'Never', category: cat, editable: false, deletable: false },
+            { key: 'email_ingest.imap_locked_by', value: es.imap_locked_by || '', category: cat, editable: false, deletable: false },
+            { key: 'email_ingest.imap_lock_expires', value: es.imap_lock_expires ? new Date(es.imap_lock_expires).toISOString() : '', category: cat, editable: false, deletable: false }
+          ];
+
+          // Microsoft 365 / Graph API settings
+          variables.email_m365 = [
+            { key: 'email_ingest.m365_enabled', value: String(es.m365_enabled || false), category: cat, editable: true, deletable: false },
+            { key: 'email_ingest.oauth2_email', value: es.oauth2_email || '', category: cat, editable: true, deletable: false },
+            { key: 'email_ingest.oauth2_refresh_token', value: es.oauth2_refresh_token ? '******' : '', category: cat, editable: true, deletable: false, sensitive: true },
+            { key: 'email_ingest.oauth2_access_token', value: es.oauth2_access_token ? '******' : '', category: cat, editable: false, deletable: false, sensitive: true },
+            { key: 'email_ingest.oauth2_token_expiry', value: es.oauth2_token_expiry ? new Date(es.oauth2_token_expiry).toISOString() : '', category: cat, editable: false, deletable: false },
+            { key: 'email_ingest.graph_delta_link', value: es.graph_delta_link ? '(set — ' + es.graph_delta_link.length + ' chars)' : '', category: cat, editable: false, deletable: false },
+            { key: 'email_ingest.m365_use_for_outbound', value: String(es.m365_use_for_outbound || false), category: cat, editable: true, deletable: false }
+          ];
+
+          // Outbound / SMTP settings
+          variables.email_outbound = [
+            { key: 'email_ingest.use_for_outbound', value: String(es.use_for_outbound || false), category: cat, editable: true, deletable: false },
+            { key: 'email_ingest.smtp_host', value: es.smtp_host || '', category: cat, editable: true, deletable: false },
+            { key: 'email_ingest.smtp_port', value: String(es.smtp_port || 587), category: cat, editable: true, deletable: false }
           ];
         }
       } catch (e) {
@@ -83,7 +115,147 @@ router.get('/:tenantId', async (req, res) => {
         console.log('company_profile table may not exist:', e.message);
       }
 
-      // 4. Add safe environment variables (read-only)
+      // 4. Get feature flags (tenant_features)
+      try {
+        const [features] = await connection.query(
+          'SELECT feature_key, enabled, source, expires_at FROM tenant_features ORDER BY feature_key'
+        );
+        variables.feature_flags = features.map(f => ({
+          key: `feature.${f.feature_key}`,
+          value: String(f.enabled),
+          category: 'feature_flags',
+          editable: false,
+          deletable: false,
+          meta: `source: ${f.source || 'system'}${f.expires_at ? ', expires: ' + new Date(f.expires_at).toLocaleDateString() : ''}`
+        }));
+      } catch (e) {
+        console.log('tenant_features table may not exist:', e.message);
+      }
+
+      // 5. Get SLA configuration (sla_definitions + business_hours_profiles)
+      try {
+        const [slas] = await connection.query(
+          'SELECT id, name, response_target_minutes, resolve_target_minutes, near_breach_percent, is_active FROM sla_definitions ORDER BY name'
+        );
+        for (const s of slas) {
+          variables.sla_config.push(
+            { key: `sla.${s.name}.response_target`, value: `${s.response_target_minutes} min`, category: 'sla_config', editable: false, deletable: false },
+            { key: `sla.${s.name}.resolve_target`, value: `${s.resolve_target_minutes} min`, category: 'sla_config', editable: false, deletable: false },
+            { key: `sla.${s.name}.near_breach_pct`, value: `${s.near_breach_percent}%`, category: 'sla_config', editable: false, deletable: false },
+            { key: `sla.${s.name}.active`, value: String(!!s.is_active), category: 'sla_config', editable: false, deletable: false }
+          );
+        }
+      } catch (e) {
+        console.log('sla_definitions may not exist:', e.message);
+      }
+      try {
+        const [bh] = await connection.query(
+          'SELECT id, name, timezone, is_24x7, start_time, end_time, is_active FROM business_hours_profiles ORDER BY name'
+        );
+        for (const h of bh) {
+          const hours = h.is_24x7 ? '24x7' : `${h.start_time || '?'}-${h.end_time || '?'}`;
+          variables.sla_config.push(
+            { key: `hours.${h.name}.schedule`, value: hours, category: 'sla_config', editable: false, deletable: false },
+            { key: `hours.${h.name}.timezone`, value: h.timezone || '', category: 'sla_config', editable: false, deletable: false },
+            { key: `hours.${h.name}.active`, value: String(!!h.is_active), category: 'sla_config', editable: false, deletable: false }
+          );
+        }
+      } catch (e) {
+        console.log('business_hours_profiles may not exist:', e.message);
+      }
+
+      // 6. Get automation rules + chat canned responses
+      try {
+        const [rules] = await connection.query(
+          'SELECT id, rule_name, enabled, action_type, search_in, search_text, times_triggered FROM ticket_processing_rules ORDER BY rule_name'
+        );
+        for (const r of rules) {
+          variables.automation.push(
+            { key: `rule.${r.rule_name}.enabled`, value: String(!!r.enabled), category: 'automation', editable: false, deletable: false },
+            { key: `rule.${r.rule_name}.action`, value: r.action_type || '', category: 'automation', editable: false, deletable: false },
+            { key: `rule.${r.rule_name}.match`, value: `${r.search_in || ''}:${r.search_text || ''}`, category: 'automation', editable: false, deletable: false },
+            { key: `rule.${r.rule_name}.triggered`, value: String(r.times_triggered || 0), category: 'automation', editable: false, deletable: false }
+          );
+        }
+      } catch (e) {
+        console.log('ticket_processing_rules may not exist:', e.message);
+      }
+      try {
+        const [canned] = await connection.query(
+          'SELECT MIN(id) as id, label, action_type, MAX(is_active) as is_active FROM chat_canned_responses GROUP BY label, action_type ORDER BY MIN(sort_order)'
+        );
+        for (const c of canned) {
+          variables.automation.push(
+            { key: `canned.${c.label}`, value: `${c.action_type || 'text'} (${c.is_active ? 'active' : 'inactive'})`, category: 'automation', editable: false, deletable: false }
+          );
+        }
+      } catch (e) {
+        console.log('chat_canned_responses may not exist:', e.message);
+      }
+
+      // 7. Get customer companies config summary
+      try {
+        const [companies] = await connection.query(
+          'SELECT id, company_name, sla_level, sla_definition_id, is_active, admin_receive_emails, members_receive_emails FROM customer_companies ORDER BY company_name'
+        );
+        for (const co of companies) {
+          variables.customers_config.push(
+            { key: `company.${co.company_name}.sla_level`, value: co.sla_level || 'basic', category: 'customers_config', editable: false, deletable: false },
+            { key: `company.${co.company_name}.sla_definition_id`, value: co.sla_definition_id ? String(co.sla_definition_id) : 'default', category: 'customers_config', editable: false, deletable: false },
+            { key: `company.${co.company_name}.active`, value: String(!!co.is_active), category: 'customers_config', editable: false, deletable: false },
+            { key: `company.${co.company_name}.admin_emails`, value: String(co.admin_receive_emails !== false), category: 'customers_config', editable: false, deletable: false },
+            { key: `company.${co.company_name}.member_emails`, value: String(co.members_receive_emails !== false), category: 'customers_config', editable: false, deletable: false }
+          );
+        }
+      } catch (e) {
+        console.log('customer_companies may not exist:', e.message);
+      }
+
+      // 8. Get CMDB configuration (asset categories + custom field counts)
+      try {
+        const [cats] = await connection.query(
+          'SELECT id, name, is_active FROM asset_categories ORDER BY name'
+        );
+        for (const ac of cats) {
+          variables.cmdb_config.push(
+            { key: `asset_category.${ac.name}`, value: ac.is_active ? 'active' : 'inactive', category: 'cmdb_config', editable: false, deletable: false }
+          );
+        }
+      } catch (e) {
+        console.log('asset_categories may not exist:', e.message);
+      }
+      try {
+        const [fields] = await connection.query(
+          'SELECT asset_category, COUNT(*) as cnt FROM cmdb_custom_field_definitions WHERE is_active = 1 GROUP BY asset_category'
+        );
+        for (const f of fields) {
+          variables.cmdb_config.push(
+            { key: `custom_fields.${f.asset_category}.count`, value: String(f.cnt), category: 'cmdb_config', editable: false, deletable: false }
+          );
+        }
+      } catch (e) {
+        console.log('cmdb_custom_field_definitions may not exist:', e.message);
+      }
+
+      // 9. Get user notification settings (admin, experts, customers)
+      try {
+        const [users] = await connection.query(
+          `SELECT u.username, u.role, u.full_name, u.receive_email_updates, u.email_notifications_enabled, u.is_active
+           FROM users u WHERE u.role IN ('admin','expert') ORDER BY u.role, u.username`
+        );
+        for (const u of users) {
+          const label = u.full_name || u.username;
+          variables.users_notifications.push(
+            { key: `${u.role}.${label}.email_updates`, value: String(!!u.receive_email_updates), category: 'users_notifications', editable: false, deletable: false },
+            { key: `${u.role}.${label}.notifications_enabled`, value: String(!!u.email_notifications_enabled), category: 'users_notifications', editable: false, deletable: false },
+            { key: `${u.role}.${label}.active`, value: String(!!u.is_active), category: 'users_notifications', editable: false, deletable: false }
+          );
+        }
+      } catch (e) {
+        console.log('users table query failed:', e.message);
+      }
+
+      // 10. Add safe environment variables (read-only)
       variables.environment = [
         { key: 'NODE_ENV', value: process.env.NODE_ENV || 'development', category: 'environment', editable: false, deletable: false },
         { key: 'BASE_URL', value: process.env.BASE_URL || 'https://serviflow.app', category: 'environment', editable: false, deletable: false },
@@ -92,8 +264,7 @@ router.get('/:tenantId', async (req, res) => {
       ];
 
       // Audit log: Raw Variables opened
-      const totalCount = variables.tenant_settings.length + variables.email_ingest.length +
-                        variables.company_profile.length + variables.environment.length;
+      const totalCount = Object.values(variables).reduce((sum, arr) => sum + arr.length, 0);
       logAudit({
         tenantCode: tenantId,
         user: req.user,
@@ -192,36 +363,47 @@ router.put('/:tenantId/:key', async (req, res) => {
         const fieldMap = {
           'enabled': 'enabled',
           'server_type': 'server_type',
+          'auth_method': 'auth_method',
           'server_host': 'server_host',
           'server_port': 'server_port',
           'use_ssl': 'use_ssl',
           'username': 'username',
           'password': 'password',
-          'check_interval_minutes': 'check_interval_minutes'
+          'check_interval_minutes': 'check_interval_minutes',
+          'm365_enabled': 'm365_enabled',
+          'oauth2_email': 'oauth2_email',
+          'oauth2_refresh_token': 'oauth2_refresh_token',
+          'm365_use_for_outbound': 'm365_use_for_outbound',
+          'use_for_outbound': 'use_for_outbound',
+          'smtp_host': 'smtp_host',
+          'smtp_port': 'smtp_port'
         };
 
         if (!fieldMap[field]) {
           return res.status(400).json({ success: false, message: 'Invalid email_ingest field' });
         }
 
-        // Don't update password if it's the masked value
-        if (field === 'password' && value === '******') {
-          return res.json({ success: true, message: 'Password unchanged' });
+        // Don't update sensitive fields if masked
+        const sensitiveFields = ['password', 'oauth2_refresh_token'];
+        if (sensitiveFields.includes(field) && value === '******') {
+          return res.json({ success: true, message: 'Sensitive field unchanged' });
         }
 
         // Get old value before update
         try {
           const [oldSettings] = await connection.query(`SELECT ${fieldMap[field]} as val FROM email_ingest_settings LIMIT 1`);
           if (oldSettings.length > 0) {
-            oldValue = field === 'password' ? '[REDACTED]' : String(oldSettings[0].val);
+            oldValue = sensitiveFields.includes(field) ? '[REDACTED]' : String(oldSettings[0].val);
           }
         } catch (e) { /* ignore */ }
 
         // Convert value types
         let dbValue = value;
-        if (field === 'enabled' || field === 'use_ssl') {
+        const boolFields = ['enabled', 'use_ssl', 'm365_enabled', 'm365_use_for_outbound', 'use_for_outbound'];
+        const intFields = ['server_port', 'check_interval_minutes', 'smtp_port'];
+        if (boolFields.includes(field)) {
           dbValue = value === 'true' || value === true;
-        } else if (field === 'server_port' || field === 'check_interval_minutes') {
+        } else if (intFields.includes(field)) {
           dbValue = parseInt(value, 10) || 0;
         }
 
@@ -389,19 +571,30 @@ router.post('/:tenantId/bulk', async (req, res) => {
               const fieldMap = {
                 'enabled': 'enabled',
                 'server_type': 'server_type',
+                'auth_method': 'auth_method',
                 'server_host': 'server_host',
                 'server_port': 'server_port',
                 'use_ssl': 'use_ssl',
                 'username': 'username',
                 'password': 'password',
-                'check_interval_minutes': 'check_interval_minutes'
+                'check_interval_minutes': 'check_interval_minutes',
+                'm365_enabled': 'm365_enabled',
+                'oauth2_email': 'oauth2_email',
+                'oauth2_refresh_token': 'oauth2_refresh_token',
+                'm365_use_for_outbound': 'm365_use_for_outbound',
+                'use_for_outbound': 'use_for_outbound',
+                'smtp_host': 'smtp_host',
+                'smtp_port': 'smtp_port'
               };
 
-              if (fieldMap[field] && !(field === 'password' && value === '******')) {
+              const sensitiveFields = ['password', 'oauth2_refresh_token'];
+              if (fieldMap[field] && !(sensitiveFields.includes(field) && value === '******')) {
                 let dbValue = value;
-                if (field === 'enabled' || field === 'use_ssl') {
+                const boolFields = ['enabled', 'use_ssl', 'm365_enabled', 'm365_use_for_outbound', 'use_for_outbound'];
+                const intFields = ['server_port', 'check_interval_minutes', 'smtp_port'];
+                if (boolFields.includes(field)) {
                   dbValue = value === 'true' || value === true;
-                } else if (field === 'server_port' || field === 'check_interval_minutes') {
+                } else if (intFields.includes(field)) {
                   dbValue = parseInt(value, 10) || 0;
                 }
                 await connection.query(`UPDATE email_ingest_settings SET ${fieldMap[field]} = ?`, [dbValue]);
