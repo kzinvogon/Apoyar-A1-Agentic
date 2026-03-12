@@ -2606,6 +2606,8 @@ router.put('/:tenantId/:ticketId', writeOperationsLimiter, validateTicketUpdate,
           updates.push('resolved_by = ?');
           values.push(req.user.userId);
           updates.push('resolved_at = NOW()');
+          updates.push('pool_status = ?');
+          values.push('RESOLVED');
 
           if (comment) {
             updates.push('resolution_comment = ?');
@@ -3362,6 +3364,108 @@ router.get('/:tenantId/:ticketId/classification-events', readOperationsLimiter, 
     }
   } catch (error) {
     console.error('Error fetching classification events:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// Get related tickets for a given ticket
+// GET /api/tickets/:tenantId/:ticketId/related
+router.get('/:tenantId/:ticketId/related', readOperationsLimiter, requireRole(['expert', 'admin']), async (req, res) => {
+  try {
+    const { tenantId, ticketId } = req.params;
+    const tenantCode = tenantId.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    const connection = await getTenantConnection(tenantCode);
+
+    try {
+      const tid = parseInt(ticketId);
+
+      // Fetch source ticket attributes
+      const [source] = await connection.query(`
+        SELECT t.cmdb_item_id, t.work_type, t.created_at, c.customer_company_id
+        FROM tickets t
+        LEFT JOIN customers c ON t.requester_id = c.user_id
+        WHERE t.id = ?
+      `, [tid]);
+
+      if (!source.length) {
+        return res.json({ success: true, tickets: [], count: 0 });
+      }
+
+      const src = source[0];
+      const conditions = [];
+      const params = [];
+
+      if (src.cmdb_item_id) {
+        conditions.push('t.cmdb_item_id = ?');
+        params.push(src.cmdb_item_id);
+      }
+      if (src.customer_company_id) {
+        conditions.push('c.customer_company_id = ?');
+        params.push(src.customer_company_id);
+      }
+      if (src.work_type && src.work_type !== 'unknown') {
+        conditions.push('t.work_type = ?');
+        params.push(src.work_type);
+      }
+
+      if (conditions.length === 0) {
+        return res.json({ success: true, tickets: [], count: 0 });
+      }
+
+      // Time window: 30 days before/after source ticket
+      const createdAt = new Date(src.created_at);
+      const windowStart = new Date(createdAt.getTime() - 30 * 86400000).toISOString().slice(0, 19).replace('T', ' ');
+      const windowEnd = new Date(createdAt.getTime() + 30 * 86400000).toISOString().slice(0, 19).replace('T', ' ');
+
+      // Build relevance scoring as sum of matching criteria
+      const relevanceParts = [];
+      const relevanceParams = [];
+      if (src.cmdb_item_id) {
+        relevanceParts.push('(t.cmdb_item_id = ?)');
+        relevanceParams.push(src.cmdb_item_id);
+      }
+      if (src.customer_company_id) {
+        relevanceParts.push('(c.customer_company_id = ?)');
+        relevanceParams.push(src.customer_company_id);
+      }
+      if (src.work_type && src.work_type !== 'unknown') {
+        relevanceParts.push('(t.work_type = ?)');
+        relevanceParams.push(src.work_type);
+      }
+
+      const relevanceExpr = relevanceParts.join(' + ');
+
+      const [related] = await connection.query(`
+        SELECT
+          t.id, t.title, t.status, t.priority, t.work_type, t.created_at,
+          (${relevanceExpr}) as relevance,
+          CONCAT_WS(', ',
+            ${src.cmdb_item_id ? 'IF(t.cmdb_item_id = ?, "same asset", NULL)' : 'NULL'},
+            ${src.customer_company_id ? 'IF(c.customer_company_id = ?, "same company", NULL)' : 'NULL'},
+            ${src.work_type && src.work_type !== 'unknown' ? 'IF(t.work_type = ?, "same work type", NULL)' : 'NULL'}
+          ) as match_reason
+        FROM tickets t
+        LEFT JOIN customers c ON t.requester_id = c.user_id
+        WHERE t.id != ?
+          AND t.created_at BETWEEN ? AND ?
+          AND (${conditions.join(' OR ')})
+        ORDER BY relevance DESC, t.created_at DESC
+        LIMIT 3
+      `, [
+        ...relevanceParams,
+        ...(src.cmdb_item_id ? [src.cmdb_item_id] : []),
+        ...(src.customer_company_id ? [src.customer_company_id] : []),
+        ...(src.work_type && src.work_type !== 'unknown' ? [src.work_type] : []),
+        tid, windowStart, windowEnd,
+        ...params
+      ]);
+
+      res.json({ success: true, tickets: related, count: related.length });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error fetching related tickets:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });

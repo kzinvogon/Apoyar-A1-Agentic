@@ -1155,6 +1155,19 @@ vNext-FULL-ActionsSLA:
   [data-theme="dark"] tr.focus-active {
     background: #1e3a5f !important;
   }
+  /* Peek panel styles */
+  .peek-section { margin-bottom:10px; }
+  .peek-section-title { font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px; }
+  .peek-meta-row { display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px solid var(--border); }
+  .peek-meta-label { color:var(--muted); }
+  .peek-meta-value { font-weight:500;text-align:right;max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+  .peek-activity-item { padding:6px 0;border-bottom:1px solid var(--border);font-size:12px; }
+  .peek-activity-item:last-child { border-bottom:none; }
+  .peek-activity-type { font-weight:600;font-size:11px;text-transform:capitalize; }
+  .peek-activity-time { font-size:10px;color:var(--muted); }
+  .peek-related-item { display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer;font-size:12px;border:1px solid var(--border);margin-bottom:4px;transition:background .15s; }
+  .peek-related-item:hover { background:var(--table-header); }
+  .peek-related-match { font-size:10px;color:var(--muted); }
 
   .global-search-modal {
     position: fixed;
@@ -2215,7 +2228,7 @@ vNext-FULL-ActionsSLA:
                 <!-- Focus Queue View -->
                 <div id="expert-focus-view" style="display:none">
                   <div style="max-height:500px;overflow-y:auto">
-                    <table style="font-size:13px"><thead><tr><th style="width:10px"></th><th>ID</th><th>Title</th><th>SLA</th><th>Priority</th><th>Source</th></tr></thead><tbody id="focus-list"></tbody></table>
+                    <table style="font-size:13px"><thead><tr><th style="width:10px"></th><th>ID</th><th>Title</th><th>Tier</th><th>SLA</th><th>Priority</th><th>Source</th></tr></thead><tbody id="focus-list"></tbody></table>
                   </div>
                   <div id="focus-no-tickets" style="display:none;text-align:center;padding:24px;color:var(--muted);font-size:13px">
                     Queue clear — no tickets assigned.
@@ -2224,7 +2237,42 @@ vNext-FULL-ActionsSLA:
               </div>
 
               <!-- Right: Stacked Panels -->
-              <div style="width:300px;flex-shrink:0;display:flex;flex-direction:column;gap:10px">
+              <div id="expert-right-panel" style="width:300px;flex-shrink:0;display:flex;flex-direction:column;gap:10px">
+
+                <!-- Peek Panel (hidden by default) -->
+                <div id="expert-peek-panel" style="display:none;flex-direction:column;gap:0;height:100%">
+                  <div class="card" style="flex:1;display:flex;flex-direction:column;overflow:hidden">
+                    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid var(--border);flex-shrink:0">
+                      <strong style="font-size:12px">Ticket Peek</strong>
+                      <div style="display:flex;gap:4px">
+                        <button class="btn ghost" id="peek-open-full-btn" style="font-size:11px;padding:2px 8px">Open Full</button>
+                        <button class="btn ghost" onclick="closePeekPanel()" style="font-size:11px;padding:2px 8px">Close</button>
+                      </div>
+                    </div>
+                    <div style="flex:1;overflow-y:auto;padding:10px 12px">
+                      <div id="peek-title" style="font-size:13px;font-weight:600;margin-bottom:8px"></div>
+                      <div id="peek-badges" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px"></div>
+                      <div class="peek-section">
+                        <div class="peek-section-title">Details</div>
+                        <div id="peek-meta"></div>
+                      </div>
+                      <div class="peek-section">
+                        <div class="peek-section-title">Description</div>
+                        <div id="peek-description" style="font-size:12px;line-height:1.5;color:var(--text);max-height:80px;overflow-y:auto"></div>
+                      </div>
+                      <div class="peek-section" id="peek-activity-section" style="display:none">
+                        <div class="peek-section-title">Recent Activity</div>
+                        <div id="peek-activity-list"><div style="font-size:11px;color:var(--muted)">Loading...</div></div>
+                      </div>
+                      <div class="peek-section" id="peek-related-section" style="display:none">
+                        <div class="peek-section-title">Related Tickets</div>
+                        <div id="peek-related-list"><div style="font-size:11px;color:var(--muted)">Loading...</div></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div id="expert-right-default" style="display:flex;flex-direction:column;gap:10px">
                 <!-- AI Insights Panel -->
                 <div class="card p-12" style="border-left:3px solid var(--muted)">
                   <div class="row space mb-8">
@@ -2292,6 +2340,7 @@ vNext-FULL-ActionsSLA:
                   </div>
                 </div>
 
+                </div><!-- /expert-right-default -->
               </div>
             </div>
           </div>
@@ -10151,6 +10200,19 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
       focusedTicketIndex = -1;
       renderMyTicketsTable();
 
+      // Pre-fetch pool tickets if cache is empty (needed for focus queue)
+      if (poolTickets.length === 0) {
+        try {
+          const poolRes = await fetch(`/api/tickets/${window.tenant}/pool`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          const poolData = await poolRes.json();
+          if (poolRes.ok && poolData.success) {
+            poolTickets = poolData.pool || [];
+          }
+        } catch (e) { /* pool fetch failed, continue with empty */ }
+      }
+
       // Build focus queue from my tickets + pool cache
       buildFocusQueue(my, poolTickets);
       if (expertViewMode === 'focus') renderFocusQueue();
@@ -10418,6 +10480,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   function switchExpertView(mode) {
     expertViewMode = mode;
     focusedTicketIndex = -1;
+    closePeekPanel();
     const poolBtn = document.getElementById('pool-tab-btn');
     const myBtn = document.getElementById('my-tickets-tab-btn');
     const focusBtn = document.getElementById('focus-tab-btn');
@@ -10454,58 +10517,38 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
   // ========== FOCUS QUEUE ==========
   function buildFocusQueue(myTickets, pool) {
-    const scored = [];
-    const now = new Date();
+    const tiered = [];
 
-    (myTickets || []).forEach(t => {
-      let score = 0;
+    function assignTier(t, isMine) {
       const sla = t.sla_status || {};
       const resolveState = sla.resolve?.state || '';
-
-      if (resolveState === 'breached') score += 1000;
-      else if (resolveState === 'near_breach') score += 800;
-
-      if (t.resolve_due_at) {
-        const due = new Date(t.resolve_due_at);
-        if (now.toDateString() === due.toDateString()) score += 500;
-      }
-
       const p = (t.priority || '').toLowerCase();
-      if (p === 'critical' || p === 'urgent' || p === '1') score += 300;
-      else if (p === 'high' || p === '2') score += 200;
+      const isHighPri = (p === 'critical' || p === 'urgent' || p === '1' || p === 'high' || p === '2');
 
-      if (t.updated_at) {
-        const diff = now - new Date(t.updated_at);
-        if (diff < 3600000) score += 100;
-      }
+      if (resolveState === 'breached') return { tier: 1, label: 'T1', color: '#dc2626', desc: 'SLA Breached' };
+      if (resolveState === 'near_breach') return { tier: 2, label: 'T2', color: '#d97706', desc: 'At Risk' };
+      if (isMine) return { tier: 3, label: 'T3', color: '#2563eb', desc: 'Assigned' };
+      if (isHighPri) return { tier: 4, label: 'T4', color: '#7c3aed', desc: 'High Pri Pool' };
+      return { tier: 5, label: 'T5', color: '#6b7280', desc: 'Pool' };
+    }
 
-      if (t.pool_status === 'CLAIMED_LOCKED') score += 50;
-
-      scored.push({ ...t, _score: score, _source: 'mine' });
+    (myTickets || []).forEach(t => {
+      const ti = assignTier(t, true);
+      tiered.push({ ...t, _tier: ti.tier, _tierLabel: ti.label, _tierColor: ti.color, _tierDesc: ti.desc, _source: 'mine' });
     });
 
     (pool || []).forEach(t => {
-      let score = 0;
-      const sla = t.sla_status || {};
-      const resolveState = sla.resolve?.state || '';
-
-      if (resolveState === 'breached') score += 400;
-      else if (resolveState === 'near_breach') score += 300;
-
-      if (t.resolve_due_at) {
-        const due = new Date(t.resolve_due_at);
-        if (now.toDateString() === due.toDateString()) score += 200;
-      }
-
-      const p = (t.priority || '').toLowerCase();
-      if (p === 'critical' || p === 'urgent' || p === '1') score += 150;
-      else if (p === 'high' || p === '2') score += 100;
-
-      scored.push({ ...t, _score: score, _source: 'pool' });
+      const ti = assignTier(t, false);
+      tiered.push({ ...t, _tier: ti.tier, _tierLabel: ti.label, _tierColor: ti.color, _tierDesc: ti.desc, _source: 'pool' });
     });
 
-    scored.sort((a, b) => b._score - a._score);
-    focusQueueData = scored;
+    tiered.sort((a, b) => {
+      if (a._tier !== b._tier) return a._tier - b._tier;
+      const aTime = new Date(a.updated_at || 0).getTime();
+      const bTime = new Date(b.updated_at || 0).getTime();
+      return bTime - aTime;
+    });
+    focusQueueData = tiered;
   }
 
   function renderFocusQueue() {
@@ -10552,7 +10595,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         ? '<span class="badge" style="background:#dbeafe;color:#1e40af;font-size:10px;padding:2px 6px">Mine</span>'
         : '<span class="badge" style="background:#f3f4f6;color:#6b7280;font-size:10px;padding:2px 6px">Pool</span>';
 
-      tr.innerHTML = `<td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${dotColor}"></span></td><td>#${t.id}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(t.title)}</td><td>${slaBadge}</td><td>${escapeHtml(priority)}</td><td style="position:relative">${sourceTag}<div class="inline-ticket-actions"><button class="btn ghost" onclick="event.stopPropagation();inlineResolve(${t.id})" style="font-size:11px;padding:2px 8px">Resolve</button><button class="btn ghost" onclick="event.stopPropagation();inlineReassign(${t.id})" style="font-size:11px;padding:2px 8px">Reassign</button><button class="btn ghost" onclick="event.stopPropagation();inlineComment(${t.id})" style="font-size:11px;padding:2px 8px">Comment</button></div></td>`;
+      const tierBadge = `<span style="display:inline-block;font-size:10px;font-weight:600;padding:2px 6px;border-radius:4px;background:${t._tierColor}20;color:${t._tierColor}">${t._tierLabel}</span>`;
+
+      tr.innerHTML = `<td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${dotColor}"></span></td><td>#${t.id}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(t.title)}</td><td>${tierBadge}</td><td>${slaBadge}</td><td>${escapeHtml(priority)}</td><td style="position:relative">${sourceTag}<div class="inline-ticket-actions"><button class="btn ghost" onclick="event.stopPropagation();inlineResolve(${t.id})" style="font-size:11px;padding:2px 8px">Resolve</button><button class="btn ghost" onclick="event.stopPropagation();inlineReassign(${t.id})" style="font-size:11px;padding:2px 8px">Reassign</button><button class="btn ghost" onclick="event.stopPropagation();inlineComment(${t.id})" style="font-size:11px;padding:2px 8px">Comment</button></div></td>`;
       tb.appendChild(tr);
     });
   }
@@ -10594,7 +10639,148 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     if (focusedTicketIndex >= 0 && focusedTicketIndex < rows.length) {
       rows[focusedTicketIndex].classList.add('focus-active');
       rows[focusedTicketIndex].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      // Auto-update peek if open
+      if (peekOpen && activeData && activeData[focusedTicketIndex]) {
+        showPeekPanel(activeData[focusedTicketIndex]);
+      }
     }
+  }
+
+  // ========== TICKET PEEK ==========
+  let peekOpen = false;
+  let peekCurrentTicketId = null;
+
+  function showPeekPanel(ticket) {
+    if (!ticket) return;
+    peekOpen = true;
+    peekCurrentTicketId = ticket.id;
+
+    const peekPanel = document.getElementById('expert-peek-panel');
+    const defaultPanel = document.getElementById('expert-right-default');
+    if (peekPanel) peekPanel.style.display = 'flex';
+    if (defaultPanel) defaultPanel.style.display = 'none';
+
+    // Title
+    const titleEl = document.getElementById('peek-title');
+    if (titleEl) titleEl.innerHTML = `<span style="color:var(--muted)">#${ticket.id}</span> ${escapeHtml(ticket.title || '')}`;
+
+    // Badges
+    const badgesEl = document.getElementById('peek-badges');
+    if (badgesEl) {
+      const sla = ticket.sla_status || {};
+      const resolveState = sla.resolve?.state || '';
+      let slaBadge = '';
+      if (resolveState === 'breached') slaBadge = '<span class="badge sla breach" style="font-size:10px">Breached</span>';
+      else if (resolveState === 'near_breach') slaBadge = '<span class="badge sla warn" style="font-size:10px">At Risk</span>';
+      else if (resolveState === 'on_track') slaBadge = '<span class="badge sla ok" style="font-size:10px">On Track</span>';
+
+      const statusColor = {'Open':'#2563eb','In Progress':'#d97706','Pending':'#7c3aed','Resolved':'#16a34a','Closed':'#6b7280'}[ticket.status] || '#6b7280';
+      badgesEl.innerHTML = `
+        <span class="badge" style="background:${statusColor}20;color:${statusColor};font-size:10px;padding:2px 6px">${escapeHtml(ticket.status || '—')}</span>
+        <span class="badge" style="background:#f3f4f6;color:#374151;font-size:10px;padding:2px 6px">${escapeHtml(ticket.priority || '—')}</span>
+        ${slaBadge}
+        ${ticket._tierLabel ? `<span style="font-size:10px;font-weight:600;padding:2px 6px;border-radius:4px;background:${ticket._tierColor}20;color:${ticket._tierColor}">${ticket._tierLabel}</span>` : ''}
+        ${ticket._source === 'mine' ? '<span class="badge" style="background:#dbeafe;color:#1e40af;font-size:10px;padding:2px 6px">Mine</span>' : '<span class="badge" style="background:#f3f4f6;color:#6b7280;font-size:10px;padding:2px 6px">Pool</span>'}
+      `;
+    }
+
+    // Meta
+    const metaEl = document.getElementById('peek-meta');
+    if (metaEl) {
+      const rows = [
+        ['Requester', ticket.requester_name || '—'],
+        ['Company', ticket.company_name || '—'],
+        ['Asset', ticket.cmdb_item_name || '—'],
+        ['Assignee', ticket.assignee_name || 'Unassigned'],
+        ['Work Type', ticket.work_type || '—'],
+        ['Updated', ticket.updated_at ? formatDateTime(ticket.updated_at) : '—']
+      ];
+      metaEl.innerHTML = rows.map(([l, v]) => `<div class="peek-meta-row"><span class="peek-meta-label">${l}</span><span class="peek-meta-value">${escapeHtml(v)}</span></div>`).join('');
+    }
+
+    // Description (from cached description_preview)
+    const descEl = document.getElementById('peek-description');
+    if (descEl) {
+      const desc = ticket.description_preview || ticket.description || '';
+      const cleaned = desc.replace(/<[^>]+>/g, '').substring(0, 500);
+      descEl.textContent = cleaned || 'No description';
+    }
+
+    // Wire Open Full button
+    const openBtn = document.getElementById('peek-open-full-btn');
+    if (openBtn) openBtn.onclick = () => { closePeekPanel(); openTicket(ticket.id); };
+
+    // Reset async sections
+    const actSection = document.getElementById('peek-activity-section');
+    const relSection = document.getElementById('peek-related-section');
+    if (actSection) actSection.style.display = 'none';
+    if (relSection) relSection.style.display = 'none';
+
+    loadPeekAsyncData(ticket.id);
+  }
+
+  async function loadPeekAsyncData(ticketId) {
+    const token = localStorage.getItem('token');
+    const tenantCode = localStorage.getItem('tenantCode');
+    if (!token || !tenantCode) return;
+
+    const headers = { 'Authorization': 'Bearer ' + token };
+
+    // Fetch activity and related in parallel
+    const [detailRes, relatedRes] = await Promise.allSettled([
+      fetch('/api/tickets/' + tenantCode + '/' + ticketId, { headers }).then(r => r.json()),
+      fetch('/api/tickets/' + tenantCode + '/' + ticketId + '/related', { headers }).then(r => r.json())
+    ]);
+
+    // Guard: user navigated away
+    if (peekCurrentTicketId !== ticketId) return;
+
+    // Activity (from ticket detail — activities at top level)
+    const actSection = document.getElementById('peek-activity-section');
+    const actList = document.getElementById('peek-activity-list');
+    if (detailRes.status === 'fulfilled' && detailRes.value.success && actList && actSection) {
+      const activities = (detailRes.value.activities || []).slice(0, 3);
+      if (activities.length > 0) {
+        actSection.style.display = 'block';
+        actList.innerHTML = activities.map(a => `
+          <div class="peek-activity-item">
+            <span class="peek-activity-type">${escapeHtml(a.activity_type || '')}</span>
+            <span class="peek-activity-time">${a.created_at ? formatDateTime(a.created_at) : ''}</span>
+            <div style="font-size:11px;color:var(--text);margin-top:2px;max-height:30px;overflow:hidden">${escapeHtml((a.description || '').substring(0, 120))}</div>
+          </div>
+        `).join('');
+      }
+    }
+
+    // Related tickets
+    const relSection = document.getElementById('peek-related-section');
+    const relList = document.getElementById('peek-related-list');
+    if (relatedRes.status === 'fulfilled' && relatedRes.value.success && relList && relSection) {
+      const related = relatedRes.value.tickets || [];
+      if (related.length > 0) {
+        relSection.style.display = 'block';
+        relList.innerHTML = related.map(r => `
+          <div class="peek-related-item" onclick="closePeekPanel();openTicket(${r.id})">
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">#${r.id} ${escapeHtml(r.title || '')}</div>
+              <div class="peek-related-match">${escapeHtml(r.match_reason || '')} &middot; ${escapeHtml(r.status || '')}</div>
+            </div>
+          </div>
+        `).join('');
+      } else {
+        relSection.style.display = 'block';
+        relList.innerHTML = '<div style="font-size:11px;color:var(--muted)">No related tickets found</div>';
+      }
+    }
+  }
+
+  function closePeekPanel() {
+    peekOpen = false;
+    peekCurrentTicketId = null;
+    const peekPanel = document.getElementById('expert-peek-panel');
+    const defaultPanel = document.getElementById('expert-right-default');
+    if (peekPanel) peekPanel.style.display = 'none';
+    if (defaultPanel) defaultPanel.style.display = 'flex';
   }
 
   function getActiveTicketList() {
@@ -10655,6 +10841,14 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         if (focusedTicketIndex >= 0 && focusedTicketIndex < list.length) {
           e.preventDefault();
           inlineComment(list[focusedTicketIndex].id);
+        }
+        break;
+      case 'p':
+        e.preventDefault();
+        if (peekOpen) {
+          closePeekPanel();
+        } else if (focusedTicketIndex >= 0 && focusedTicketIndex < list.length) {
+          showPeekPanel(list[focusedTicketIndex]);
         }
         break;
     }
@@ -20447,7 +20641,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     }
   }
 
-  function submitDlg(){
+  async function submitDlg(){
     const note = (document.getElementById('dlg-note').value||'').trim();
     const err = document.getElementById('dlg-error');
     if(!note){ err.textContent='Completion text is required.'; err.style.display='block'; return; }
@@ -20459,7 +20653,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     if(dlgAction==='resolve'){
       log.innerHTML = `<strong>${role==='admin'?'Admin':'Expert'}</strong>: Resolved — ${note}`;
       act.appendChild(log);
-      setStatus('Resolved', note, /*silent*/true);
+      await setStatus('Resolved', note, /*silent*/true);
     } else if(dlgAction==='reassign'){
       const dropdown = document.getElementById('dlg-assignee');
       const newAsgId = (dropdown.value||'').trim();
