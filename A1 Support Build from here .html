@@ -20645,14 +20645,16 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const note = (document.getElementById('dlg-note').value||'').trim();
     const err = document.getElementById('dlg-error');
     if(!note){ err.textContent='Completion text is required.'; err.style.display='block'; return; }
-    const t=tickets.find(x=>x.id===currentTicketId);
+    const t=tickets.find(x=>x.id===currentTicketId)
+      || (typeof focusQueueData!=='undefined' && focusQueueData.find(x=>x.id===currentTicketId))
+      || (typeof myTicketsData!=='undefined' && myTicketsData.find(x=>x.id===currentTicketId));
     if(!t){ closeDlg(); return; }
     const act=document.getElementById('td-activity');
     const log = document.createElement('div');
     log.className='card p-12 mb-8';
     if(dlgAction==='resolve'){
       log.innerHTML = `<strong>${role==='admin'?'Admin':'Expert'}</strong>: Resolved — ${note}`;
-      act.appendChild(log);
+      if (act) act.appendChild(log);
       await setStatus('Resolved', note, /*silent*/true);
     } else if(dlgAction==='reassign'){
       const dropdown = document.getElementById('dlg-assignee');
@@ -20692,7 +20694,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
 
       if (data.success) {
         // Update local ticket data
-        const t = tickets.find(x => x.id === ticketId);
+        const t = tickets.find(x => x.id === ticketId)
+          || (typeof focusQueueData!=='undefined' && focusQueueData.find(x=>x.id===ticketId))
+          || (typeof myTicketsData!=='undefined' && myTicketsData.find(x=>x.id===ticketId));
         if (t) {
           t.assignee_id = assigneeId;
           t.assignee_name = expertName;
@@ -20861,7 +20865,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
   function advanceStatus(){ const t=tickets.find(x=>x.id===currentTicketId); if(!t) return; const opts = TRANSITIONS[t.status] || []; if(!opts.length) return alert('No further transitions.'); const next = opts[0]; if(next==='Resolved') { openCompletion('resolve'); } else { setStatus(next); } }
   function setResolved(){ openCompletion('resolve'); }
   async function setStatus(newStatus, comment=null, silent=false){
-    const t=tickets.find(x=>x.id===currentTicketId);
+    const t=tickets.find(x=>x.id===currentTicketId)
+      || (typeof focusQueueData!=='undefined' && focusQueueData.find(x=>x.id===currentTicketId))
+      || (typeof myTicketsData!=='undefined' && myTicketsData.find(x=>x.id===currentTicketId));
     if(!t) return;
 
     if(!(TRANSITIONS[t.status]||[]).includes(newStatus) && newStatus!=='Resolved') {
