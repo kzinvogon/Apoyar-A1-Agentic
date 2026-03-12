@@ -95,6 +95,9 @@
   <a href="#ticket-workflow">Ticket Workflow</a>
   <a href="#ticket-actions">Ticket Actions</a>
   <a href="#expert-pool">Expert Pool</a>
+  <a href="#focus-queue">Focus Queue</a>
+  <a href="#ticket-peek">Ticket Peek</a>
+  <a href="#keyboard-shortcuts">Keyboard Shortcuts</a>
 
   <span class="section-label">AI Features</span>
   <a href="#ai-classification">AI Classification</a>
@@ -294,13 +297,19 @@
 
 <section id="expert-dashboard" data-section>
 <h1>Expert Dashboard <span class="role-badge role-expert">Expert</span></h1>
-<p>When you log in as an expert, the dashboard focuses on your personal workload.</p>
+<p>When you log in as an expert, the dashboard focuses on your personal workload. Three tabs control the left panel: <strong>Focus</strong>, <strong>Requests</strong>, and <strong>My Tickets</strong>.</p>
 
 <h2>My Tickets</h2>
-<p>A summary of tickets assigned to you, grouped by status (Open, In Progress, Paused). Click any ticket to open the detail view.</p>
+<p>A summary of tickets assigned to you, grouped by status (Open, In Progress, Paused). Click any ticket to open the detail view. Use the filter dropdown (All Mine, Claimed, Due Today, SLA Risk) to narrow the list.</p>
 
-<h2>Expert Pool</h2>
-<p>A count of unassigned tickets available in the pool, ranked by AI priority score. Click to open the pool view and claim tickets. See <a href="#expert-pool">Expert Pool</a>.</p>
+<h2>Focus Queue</h2>
+<p>A prioritised view that merges your tickets and pool tickets into a single, tiered list. Tickets are ranked by urgency tiers (T1&ndash;T5) so you always know what to work on next. See <a href="#focus-queue">Focus Queue</a> for details.</p>
+
+<h2>Requests (Expert Pool)</h2>
+<p>Unassigned tickets available in the pool, ranked by AI priority score. Claim tickets to reserve them, then accept ownership. See <a href="#expert-pool">Expert Pool</a>.</p>
+
+<h2>Right Panel</h2>
+<p>The right-hand sidebar shows <strong>AI Insights</strong>, <strong>Recent Assets</strong>, and <strong>Live Chat</strong> by default. When you activate <a href="#ticket-peek">Ticket Peek</a>, these are temporarily replaced by a detailed preview of the selected ticket.</p>
 
 <h2>Activity Summary</h2>
 <p>A feed of recent activity on your tickets &mdash; new comments, status changes, SLA warnings, and customer replies.</p>
@@ -538,6 +547,111 @@
   <tr><td>Accepted</td><td>The expert has accepted ownership. The ticket moves to their personal queue.</td></tr>
 </table>
 <div class="tip-box"><strong>Tip</strong>Claiming a ticket gives you a brief window to review it before committing. If it is outside your expertise, release it so someone else can pick it up.</div>
+</section>
+
+<section id="focus-queue" data-section>
+<h1>Focus Queue <span class="role-badge role-expert">Expert</span></h1>
+<p>The Focus Queue is a unified, prioritised list that merges your assigned tickets and pool tickets into a single view. Instead of jumping between tabs, you see everything ranked by urgency.</p>
+
+<h2>Tier System</h2>
+<p>Every ticket in the Focus Queue is assigned one of five tiers. Tiers are evaluated in order &mdash; the first matching rule wins.</p>
+<table>
+  <tr><th>Tier</th><th>Criteria</th><th>Colour</th><th>Meaning</th></tr>
+  <tr><td><strong>T1</strong></td><td>SLA resolve breached</td><td style="color:#dc2626">Red</td><td>Immediate attention &mdash; SLA has been missed.</td></tr>
+  <tr><td><strong>T2</strong></td><td>SLA resolve near breach</td><td style="color:#d97706">Amber</td><td>At risk &mdash; breach is imminent.</td></tr>
+  <tr><td><strong>T3</strong></td><td>Assigned to you (not breached)</td><td style="color:#2563eb">Blue</td><td>Your tickets that are on track.</td></tr>
+  <tr><td><strong>T4</strong></td><td>Pool ticket, High/Critical priority</td><td style="color:#7c3aed">Purple</td><td>Important pool tickets worth claiming.</td></tr>
+  <tr><td><strong>T5</strong></td><td>Pool ticket, Normal/Low priority</td><td style="color:#6b7280">Grey</td><td>Routine pool tickets.</td></tr>
+</table>
+<p>Within the same tier, tickets are sorted by most recently updated first.</p>
+
+<div class="note-box"><strong>Note</strong>The Focus Queue automatically fetches pool tickets in the background. You do not need to visit the Requests tab first.</div>
+
+<h2>Reading the Queue</h2>
+<p>Each row shows:</p>
+<ul>
+  <li><strong>SLA dot</strong> &mdash; coloured indicator (red = breached, amber = at risk, blue = on track)</li>
+  <li><strong>ID</strong> and <strong>Title</strong></li>
+  <li><strong>Tier badge</strong> (T1&ndash;T5) with colour coding</li>
+  <li><strong>SLA badge</strong> &mdash; Breached, At Risk, On Track, or &mdash;</li>
+  <li><strong>Priority</strong> &mdash; the ticket's priority level</li>
+  <li><strong>Source</strong> &mdash; "Mine" (assigned to you) or "Pool" (unclaimed)</li>
+</ul>
+
+<h2>Inline Actions</h2>
+<p>Hover over any row to reveal quick-action buttons: <strong>Resolve</strong>, <strong>Reassign</strong>, and <strong>Comment</strong>. Click a row to open the full ticket detail.</p>
+
+<div class="tip-box"><strong>Tip</strong>Use keyboard shortcuts (<kbd>j</kbd>/<kbd>k</kbd> to navigate, <kbd>p</kbd> to peek) for the fastest workflow. See <a href="#keyboard-shortcuts">Keyboard Shortcuts</a>.</div>
+</section>
+
+<section id="ticket-peek" data-section>
+<h1>Ticket Peek <span class="role-badge role-expert">Expert</span></h1>
+<p>Ticket Peek gives you an instant preview of a ticket without leaving the queue. It replaces the right-hand sidebar (AI Insights, Assets, Chat) with a detailed panel.</p>
+
+<h2>Opening Peek</h2>
+<ol class="steps">
+  <li>Navigate to the <strong>Focus</strong> or <strong>My Tickets</strong> tab.</li>
+  <li>Press <kbd>j</kbd> or <kbd>k</kbd> to highlight a ticket row.</li>
+  <li>Press <kbd>p</kbd> to open the peek panel on the right.</li>
+</ol>
+
+<h2>What Peek Shows</h2>
+<p>The peek panel loads instantly from cached data, with no extra API call for the initial view:</p>
+<ul>
+  <li><strong>Title</strong> &mdash; ticket ID and title</li>
+  <li><strong>Badges</strong> &mdash; status, priority, SLA state, tier, and source (Mine/Pool)</li>
+  <li><strong>Details</strong> &mdash; requester, company, asset, assignee, work type, last updated</li>
+  <li><strong>Description</strong> &mdash; first 500 characters of the ticket description</li>
+</ul>
+<p>After the instant render, two additional sections load asynchronously:</p>
+<ul>
+  <li><strong>Recent Activity</strong> &mdash; the last 3 activity entries (comments, status changes, etc.)</li>
+  <li><strong>Related Tickets</strong> &mdash; up to 3 tickets that share the same asset, company, or work type, with match reasons shown</li>
+</ul>
+
+<h2>Navigating with Peek Open</h2>
+<p>While peek is open, pressing <kbd>j</kbd> or <kbd>k</kbd> moves to the next/previous ticket and the peek panel updates automatically. This lets you rapidly scan through your queue.</p>
+
+<h2>Closing Peek</h2>
+<ul>
+  <li>Press <kbd>p</kbd> again to close peek and restore the default sidebar.</li>
+  <li>Click the <strong>Close</strong> button in the peek header.</li>
+  <li>Switch tabs (Focus / Requests / My Tickets) &mdash; peek auto-closes.</li>
+</ul>
+
+<h2>Opening Full Detail</h2>
+<p>From peek, click <strong>Open Full</strong> or press <kbd>Enter</kbd> to navigate to the full ticket detail view.</p>
+
+<div class="note-box"><strong>Note</strong>Related Tickets are matched within a 30-day window of the source ticket's creation date. Matching criteria are: same CMDB asset, same customer company, or same work type.</div>
+</section>
+
+<section id="keyboard-shortcuts" data-section>
+<h1>Keyboard Shortcuts <span class="role-badge role-expert">Expert</span></h1>
+<p>The expert dashboard supports keyboard-driven navigation for fast triage. Shortcuts are active on the <strong>Focus</strong> and <strong>My Tickets</strong> tabs when no input field is focused.</p>
+
+<h2>Navigation</h2>
+<table>
+  <tr><th>Key</th><th>Action</th></tr>
+  <tr><td><kbd>j</kbd></td><td>Move highlight down to the next ticket</td></tr>
+  <tr><td><kbd>k</kbd></td><td>Move highlight up to the previous ticket</td></tr>
+  <tr><td><kbd>Enter</kbd></td><td>Open the highlighted ticket in full detail view</td></tr>
+</table>
+
+<h2>Peek</h2>
+<table>
+  <tr><th>Key</th><th>Action</th></tr>
+  <tr><td><kbd>p</kbd></td><td>Toggle the peek panel open/closed for the highlighted ticket</td></tr>
+</table>
+
+<h2>Quick Actions</h2>
+<table>
+  <tr><th>Key</th><th>Action</th></tr>
+  <tr><td><kbd>r</kbd></td><td>Resolve the highlighted ticket</td></tr>
+  <tr><td><kbd>a</kbd></td><td>Reassign the highlighted ticket</td></tr>
+  <tr><td><kbd>c</kbd></td><td>Add a comment to the highlighted ticket</td></tr>
+</table>
+
+<div class="warning-box"><strong>Heads up</strong>Shortcuts are disabled when a modal, dialog, or the global search bar (Ctrl+K) is open, and when an input field is focused.</div>
 </section>
 
 <!-- ═══════════════════════════════════════════════════ -->
