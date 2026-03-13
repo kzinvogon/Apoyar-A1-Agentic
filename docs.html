@@ -187,7 +187,7 @@
 <!-- ═══════════════════════════════════════════════════ -->
 <!--  CHAPTER 1: GETTING STARTED                        -->
 <!-- ═══════════════════════════════════════════════════ -->
-<section id="welcome" data-section>
+<section id="welcome" data-section data-roles="admin,expert,customer">
 <h1>Welcome to ServiFlow</h1>
 <p>ServiFlow is a modern IT Service Management (ITSM) platform that helps your team manage support tickets, track SLAs, maintain a configuration database, build a knowledge base, and leverage AI to work smarter.</p>
 
@@ -210,7 +210,7 @@
 </section>
 
 <!-- ─── 1.2 Signing Up & First Login ─── -->
-<section id="signup" data-section>
+<section id="signup" data-section data-roles="admin">
 <h1>Signing Up &amp; First Login</h1>
 
 <h2>Trial Signup</h2>
@@ -240,7 +240,7 @@
 </section>
 
 <!-- ─── 1.3 Initial Setup Guide ─── -->
-<section id="setup-guide" data-section>
+<section id="setup-guide" data-section data-roles="admin">
 <h1>Initial Setup Guide <span class="role-badge role-admin">Admin</span></h1>
 <p>After your first login, follow this checklist to configure ServiFlow for your organisation.</p>
 
@@ -261,7 +261,7 @@
 <!-- ═══════════════════════════════════════════════════ -->
 <!--  CHAPTER 2: DASHBOARD                              -->
 <!-- ═══════════════════════════════════════════════════ -->
-<section id="admin-dashboard" data-section>
+<section id="admin-dashboard" data-section data-roles="admin">
 <h1>Admin Dashboard <span class="role-badge role-admin">Admin</span></h1>
 <p>The admin dashboard gives you a bird's-eye view of your service desk operations. The sidebar uses collapsible sections to organise navigation, with sensitive settings behind an elevation-gated <strong>System Admin Tools</strong> section.</p>
 
@@ -295,7 +295,7 @@
 <p>The <strong>Customer Satisfaction</strong> panel shows your average rating, star distribution, and recent feedback comments. This helps you spot service quality issues at a glance.</p>
 </section>
 
-<section id="expert-dashboard" data-section>
+<section id="expert-dashboard" data-section data-roles="expert">
 <h1>Expert Dashboard <span class="role-badge role-expert">Expert</span></h1>
 <p>When you log in as an expert, the dashboard focuses on your personal workload. Three tabs control the left panel: <strong>Focus</strong>, <strong>Requests</strong>, and <strong>My Tickets</strong>.</p>
 
@@ -315,7 +315,7 @@
 <p>A feed of recent activity on your tickets &mdash; new comments, status changes, SLA warnings, and customer replies.</p>
 </section>
 
-<section id="customer-dashboard" data-section>
+<section id="customer-dashboard" data-section data-roles="customer">
 <h1>Customer Dashboard <span class="role-badge role-customer">Customer</span></h1>
 <p>Customers see a modern, gradient-styled dashboard focused on their support requests. The interface uses friendly terminology ("Requests" instead of "Tickets") and a clean two-column layout.</p>
 
@@ -347,7 +347,7 @@
 <!-- ═══════════════════════════════════════════════════ -->
 <!--  CHAPTER 3: TICKET MANAGEMENT                     -->
 <!-- ═══════════════════════════════════════════════════ -->
-<section id="creating-tickets" data-section>
+<section id="creating-tickets" data-section data-roles="admin,expert,customer">
 <h1>Creating Tickets <span class="role-badge role-all">All Roles</span></h1>
 <p>There are three ways to create tickets in ServiFlow:</p>
 
@@ -379,7 +379,7 @@
 </ul>
 </section>
 
-<section id="ticket-list" data-section>
+<section id="ticket-list" data-section data-roles="admin,expert">
 <h1>Ticket List View <span class="role-badge role-admin">Admin</span> <span class="role-badge role-expert">Expert</span></h1>
 <p>The ticket list is your main workspace for managing tickets.</p>
 
@@ -414,7 +414,7 @@
 <p>Click the <strong>Export</strong> button to download the current filtered ticket list as a CSV file, including all visible columns.</p>
 </section>
 
-<section id="ticket-detail" data-section>
+<section id="ticket-detail" data-section data-roles="admin,expert">
 <h1>Ticket Detail View</h1>
 <p>Click any ticket to open its full detail view.</p>
 
@@ -461,7 +461,7 @@
 <p>Each suggestion has <strong>Accept</strong> and <strong>Dismiss</strong> buttons. See <a href="#ai-assist">AI Assist</a>.</p>
 </section>
 
-<section id="ticket-workflow" data-section>
+<section id="ticket-workflow" data-section data-roles="admin,expert">
 <h1>Ticket Workflow</h1>
 <p>Every ticket moves through a defined set of statuses:</p>
 <pre><code>Open &rarr; In Progress &rarr; Paused &rarr; Resolved &rarr; Closed</code></pre>
@@ -487,7 +487,7 @@
 </ul>
 </section>
 
-<section id="ticket-actions" data-section>
+<section id="ticket-actions" data-section data-roles="admin,expert">
 <h1>Ticket Actions</h1>
 <p>The actions available depend on your role and the ticket's current state.</p>
 
@@ -517,7 +517,7 @@
 </table>
 </section>
 
-<section id="expert-pool" data-section>
+<section id="expert-pool" data-section data-roles="expert">
 <h1>Expert Pool <span class="role-badge role-expert">Expert</span></h1>
 <p>The Expert Pool is a shared queue of unassigned tickets, ranked by AI priority scoring, that experts can claim.</p>
 
@@ -549,7 +549,7 @@
 <div class="tip-box"><strong>Tip</strong>Claiming a ticket gives you a brief window to review it before committing. If it is outside your expertise, release it so someone else can pick it up.</div>
 </section>
 
-<section id="focus-queue" data-section>
+<section id="focus-queue" data-section data-roles="expert">
 <h1>Focus Queue <span class="role-badge role-expert">Expert</span></h1>
 <p>The Focus Queue is a unified, prioritised list that merges your assigned tickets and pool tickets into a single view. Instead of jumping between tabs, you see everything ranked by urgency.</p>
 
@@ -584,7 +584,7 @@
 <div class="tip-box"><strong>Tip</strong>Use keyboard shortcuts (<kbd>j</kbd>/<kbd>k</kbd> to navigate, <kbd>p</kbd> to peek) for the fastest workflow. See <a href="#keyboard-shortcuts">Keyboard Shortcuts</a>.</div>
 </section>
 
-<section id="ticket-peek" data-section>
+<section id="ticket-peek" data-section data-roles="expert">
 <h1>Ticket Peek <span class="role-badge role-expert">Expert</span></h1>
 <p>Ticket Peek gives you an instant preview of a ticket without leaving the queue. It replaces the right-hand sidebar (AI Insights, Assets, Chat) with a detailed panel.</p>
 
@@ -625,7 +625,7 @@
 <div class="note-box"><strong>Note</strong>Related Tickets are matched within a 30-day window of the source ticket's creation date. Matching criteria are: same CMDB asset, same customer company, or same work type.</div>
 </section>
 
-<section id="keyboard-shortcuts" data-section>
+<section id="keyboard-shortcuts" data-section data-roles="expert">
 <h1>Keyboard Shortcuts <span class="role-badge role-expert">Expert</span></h1>
 <p>The expert dashboard supports keyboard-driven navigation for fast triage. Shortcuts are active on the <strong>Focus</strong> and <strong>My Tickets</strong> tabs when no input field is focused.</p>
 
@@ -657,7 +657,7 @@
 <!-- ═══════════════════════════════════════════════════ -->
 <!--  CHAPTER 4: AI FEATURES                           -->
 <!-- ═══════════════════════════════════════════════════ -->
-<section id="ai-classification" data-section>
+<section id="ai-classification" data-section data-roles="admin,expert">
 <h1>AI Classification <span class="role-badge role-admin">Admin</span> <span class="role-badge role-expert">Expert</span></h1>
 <p>When a new ticket is created, ServiFlow's AI engine automatically analyses the title and description to classify it.</p>
 
@@ -680,7 +680,7 @@
 <div class="note-box"><strong>Note</strong>Classification runs automatically on creation. It also fires during batch rule processing or when manually triggered via the AI Assist panel.</div>
 </section>
 
-<section id="ai-assist" data-section>
+<section id="ai-assist" data-section data-roles="expert">
 <h1>AI Assist <span class="role-badge role-expert">Expert</span></h1>
 <p>The AI Assist panel appears on the right side of the ticket detail view, providing intelligent suggestions to help experts resolve tickets faster.</p>
 
@@ -705,7 +705,7 @@
 <p>You can also click <strong>Accept All</strong> or <strong>Dismiss All</strong> at the top of the panel.</p>
 </section>
 
-<section id="ai-insights" data-section>
+<section id="ai-insights" data-section data-roles="admin,expert">
 <h1>AI Insights Dashboard <span class="role-badge role-admin">Admin</span> <span class="role-badge role-expert">Expert</span></h1>
 <p>The AI Insights dashboard surfaces trends and patterns detected across your tickets.</p>
 
@@ -731,7 +731,7 @@
 </table>
 </section>
 
-<section id="ai-chatbot" data-section>
+<section id="ai-chatbot" data-section data-roles="customer">
 <h1>AI Chatbot <span class="role-badge role-customer">Customer</span></h1>
 <p>The AI chatbot is a floating widget in the bottom-right corner of the screen, available to customers for self-service support.</p>
 
@@ -748,7 +748,7 @@
 <p>The chatbot searches the knowledge base for answers before creating a ticket. If a relevant article is found, it is shown to the customer. If not, the chatbot offers to raise a ticket.</p>
 </section>
 
-<section id="ai-kb-generation" data-section>
+<section id="ai-kb-generation" data-section data-roles="admin">
 <h1>AI Knowledge Base Generation <span class="role-badge role-admin">Admin</span></h1>
 <p>ServiFlow can automatically generate knowledge base articles from resolved tickets.</p>
 
@@ -766,7 +766,7 @@
 <div class="tip-box"><strong>Tip</strong>Regularly review auto-generated articles. They save time, but a quick edit ensures accuracy and readability before publishing.</div>
 </section>
 
-<section id="live-chat" data-section>
+<section id="live-chat" data-section data-roles="admin,expert,customer">
 <h1>Live Chat <span class="role-badge role-admin">Admin</span> <span class="role-badge role-expert">Expert</span> <span class="role-badge role-customer">Customer</span></h1>
 <p>ServiFlow includes a built-in live chat system that lets customers communicate with experts in real time.</p>
 
@@ -788,7 +788,7 @@
 <!-- ═══════════════════════════════════════════════════ -->
 <!--  CHAPTER 5: SLA MANAGEMENT                        -->
 <!-- ═══════════════════════════════════════════════════ -->
-<section id="understanding-slas" data-section>
+<section id="understanding-slas" data-section data-roles="admin,expert,customer">
 <h1>Understanding SLAs</h1>
 <p>A Service Level Agreement (SLA) defines how quickly your team should respond to and resolve tickets. ServiFlow tracks SLAs in real time with countdown timers, colour-coded warnings, and breach notifications.</p>
 
@@ -805,7 +805,7 @@
 <div class="note-box"><strong>Note</strong>If you need SLA timers to run around the clock, create a 24&times;7 business hours profile.</div>
 </section>
 
-<section id="sla-definitions" data-section>
+<section id="sla-definitions" data-section data-roles="admin">
 <h1>SLA Definitions <span class="role-badge role-admin">Admin</span></h1>
 <p>Go to <strong>SLA Management &gt; Definitions</strong> to create and manage SLA definitions.</p>
 
@@ -830,7 +830,7 @@
 </table>
 </section>
 
-<section id="business-hours" data-section>
+<section id="business-hours" data-section data-roles="admin">
 <h1>Business Hours Profiles <span class="role-badge role-admin">Admin</span></h1>
 <p>Business hours profiles define when your team is available. SLA timers only count time during these periods.</p>
 
@@ -848,7 +848,7 @@
 <div class="tip-box"><strong>Tip</strong>Create multiple profiles for different coverage levels. For example, a "Business Hours" profile for standard issues and a "24x7" profile for critical SLAs.</div>
 </section>
 
-<section id="sla-assignment" data-section>
+<section id="sla-assignment" data-section data-roles="admin,expert">
 <h1>How SLAs Apply to Tickets</h1>
 <p>When a ticket is created, ServiFlow automatically assigns an SLA definition using a <strong>priority cascade</strong>. The first match wins:</p>
 <ol class="steps">
@@ -861,7 +861,7 @@
 <p>Once applied, the SLA sets <code>response_due_at</code> and <code>resolve_due_at</code> timestamps, and the countdown timers begin.</p>
 </section>
 
-<section id="category-sla" data-section>
+<section id="category-sla" data-section data-roles="admin">
 <h1>Category-SLA Mappings <span class="role-badge role-admin">Admin</span></h1>
 <p>Map ticket categories to SLA definitions so that tickets are automatically assigned the correct SLA based on their category.</p>
 
@@ -876,7 +876,7 @@
 <div class="note-box"><strong>Note</strong>User-level and company-level SLAs take priority over category mappings. See <a href="#sla-assignment">How SLAs Apply</a>.</div>
 </section>
 
-<section id="sla-notifications" data-section>
+<section id="sla-notifications" data-section data-roles="admin">
 <h1>Breach Notifications <span class="role-badge role-admin">Admin</span></h1>
 <p>ServiFlow sends email notifications at three thresholds for both response and resolution SLAs:</p>
 
@@ -892,7 +892,7 @@
 <div class="warning-box"><strong>Warning</strong>If email notifications are disabled in System Control, no SLA breach emails will be sent. Make sure notifications are enabled in production.</div>
 </section>
 
-<section id="sla-pause" data-section>
+<section id="sla-pause" data-section data-roles="admin,expert">
 <h1>SLA Pause and Resume</h1>
 <p>When a ticket moves to <strong>Paused</strong> status (typically "Waiting on Customer"), the SLA timers pause. The customer's response time is not counted against your SLA targets.</p>
 
@@ -908,7 +908,7 @@
 <!-- ═══════════════════════════════════════════════════ -->
 <!--  CHAPTER 6: CMDB                                  -->
 <!-- ═══════════════════════════════════════════════════ -->
-<section id="cmdb-overview" data-section>
+<section id="cmdb-overview" data-section data-roles="admin,expert,customer">
 <h1>CMDB Overview</h1>
 <p>The Configuration Management Database (CMDB) is your central inventory of IT assets &mdash; servers, network devices, software, databases, and more. Linking tickets to CMDB items helps you track which assets are affected and apply the correct SLAs.</p>
 
@@ -929,7 +929,7 @@
 </ul>
 </section>
 
-<section id="managing-assets" data-section>
+<section id="managing-assets" data-section data-roles="admin">
 <h1>Managing Assets <span class="role-badge role-admin">Admin</span></h1>
 
 <h2>Asset Fields</h2>
@@ -957,7 +957,7 @@
 </ol>
 </section>
 
-<section id="asset-viewer" data-section>
+<section id="asset-viewer" data-section data-roles="admin,expert">
 <h1>Asset Viewer <span class="role-badge role-admin">Admin</span> <span class="role-badge role-expert">Expert</span></h1>
 <p>The Asset Viewer provides a powerful grid-based view of all CMDB assets, built on DataTables for fast searching, sorting, and pagination.</p>
 
@@ -974,7 +974,7 @@
 <p>Click <strong>Export to CSV</strong> to download all assets (or the current filtered set) as a CSV file.</p>
 </section>
 
-<section id="cmdb-types" data-section>
+<section id="cmdb-types" data-section data-roles="admin">
 <h1>Asset Categories <span class="role-badge role-admin">Admin</span></h1>
 <p>Asset Categories define the types of assets in your CMDB. Categories are managed centrally and appear as dropdown options when creating or editing assets.</p>
 
@@ -985,7 +985,7 @@
 <p>In addition to categories, you can manage <strong>Brands</strong> (manufacturers like Dell, Cisco, Microsoft) and <strong>Models</strong> (specific products like PowerEdge R740, Catalyst 9300). These appear as dropdowns in asset forms for consistent data entry.</p>
 </section>
 
-<section id="cmdb-custom-fields" data-section>
+<section id="cmdb-custom-fields" data-section data-roles="admin">
 <h1>Custom Fields <span class="role-badge role-admin">Admin</span></h1>
 <p>Each asset category can have custom fields tailored to that type of asset.</p>
 
@@ -1000,7 +1000,7 @@
 <p>For each custom field, you can set a label, description, default value, and whether it is required.</p>
 </section>
 
-<section id="cmdb-relationships" data-section>
+<section id="cmdb-relationships" data-section data-roles="admin">
 <h1>Relationships and Dependencies <span class="role-badge role-admin">Admin</span></h1>
 <p>CMDB items can be linked in parent/child relationships to model your infrastructure topology.</p>
 
@@ -1017,7 +1017,7 @@
 <p>When a parent asset has an issue, the dependency tree helps you identify which child assets and services may be affected.</p>
 </section>
 
-<section id="cmdb-history" data-section>
+<section id="cmdb-history" data-section data-roles="admin,expert">
 <h1>Change History</h1>
 <p>Every change to a CMDB item is automatically logged in the change history. This provides a full audit trail of who changed what and when.</p>
 
@@ -1031,7 +1031,7 @@
 <p>Each entry also records the user's IP address and timestamp.</p>
 </section>
 
-<section id="cmdb-csv" data-section>
+<section id="cmdb-csv" data-section data-roles="admin">
 <h1>CSV Import and Export <span class="role-badge role-admin">Admin</span></h1>
 
 <h2>Importing Assets</h2>
@@ -1049,7 +1049,7 @@
 <p>Click <strong>Export</strong> to download all CMDB items as a CSV file.</p>
 </section>
 
-<section id="cmdb-tickets" data-section>
+<section id="cmdb-tickets" data-section data-roles="admin,expert">
 <h1>CMDB and Tickets</h1>
 <p>Linking tickets to CMDB items provides context about which assets are affected and can influence SLA assignment.</p>
 
@@ -1066,7 +1066,7 @@
 <!-- ═══════════════════════════════════════════════════ -->
 <!--  CHAPTER 7: KNOWLEDGE BASE                        -->
 <!-- ═══════════════════════════════════════════════════ -->
-<section id="kb-overview" data-section>
+<section id="kb-overview" data-section data-roles="admin,expert,customer">
 <h1>Knowledge Base Overview</h1>
 <p>The Knowledge Base (KB) is a library of articles that help customers find answers without raising a ticket, and help experts resolve issues faster.</p>
 
@@ -1074,7 +1074,7 @@
 <p>The KB dashboard shows total articles, published articles, draft articles, total views, and helpfulness ratings.</p>
 </section>
 
-<section id="kb-articles" data-section>
+<section id="kb-articles" data-section data-roles="admin,expert">
 <h1>Managing Articles <span class="role-badge role-admin">Admin</span> <span class="role-badge role-expert">Expert</span></h1>
 
 <h2>Article Fields</h2>
@@ -1102,7 +1102,7 @@
 <p>Each article tracks view count, helpful count, and not-helpful count. Use these metrics to identify popular articles and those that need improvement.</p>
 </section>
 
-<section id="kb-customer" data-section>
+<section id="kb-customer" data-section data-roles="customer">
 <h1>Customer-Facing KB <span class="role-badge role-customer">Customer</span></h1>
 <p>Customers can browse and search published articles from the Knowledge Base tab in their portal.</p>
 <ul>
@@ -1113,7 +1113,7 @@
 <p>The AI chatbot also searches the KB automatically when customers ask questions.</p>
 </section>
 
-<section id="kb-ai" data-section>
+<section id="kb-ai" data-section data-roles="admin">
 <h1>AI-Generated Articles <span class="role-badge role-admin">Admin</span></h1>
 <p>When tickets are resolved, ServiFlow's AI can automatically generate draft KB articles from the issue description and resolution notes. See <a href="#ai-kb-generation">AI KB Generation</a> for details.</p>
 <ul>
@@ -1126,7 +1126,7 @@
 <!-- ═══════════════════════════════════════════════════ -->
 <!--  CHAPTER 8: EMAIL INTEGRATION                     -->
 <!-- ═══════════════════════════════════════════════════ -->
-<section id="email-to-ticket" data-section>
+<section id="email-to-ticket" data-section data-roles="admin">
 <h1>Email to Ticket <span class="role-badge role-admin">Admin</span></h1>
 <p>ServiFlow can monitor an email inbox and automatically create tickets from incoming messages. Two email providers are supported: <strong>Standard IMAP</strong> and <strong>Microsoft 365</strong>.</p>
 
@@ -1168,7 +1168,7 @@
 <p>You can designate specific email addresses as <strong>System Senders</strong> (e.g. <code>nagios@company.com</code>). Emails from these addresses create tickets under the "System" user instead of auto-creating customer accounts. ServiFlow also has built-in detection for common monitoring systems (Nagios, Zabbix, Datadog, etc.) and parses their alerts specially &mdash; extracting host, service, alert type, and state. See <a href="#monitoring-correlation">Alert Correlation</a> for how recovery alerts automatically close previous alert tickets.</p>
 </section>
 
-<section id="email-m365" data-section>
+<section id="email-m365" data-section data-roles="admin">
 <h1>Microsoft 365 Email <span class="role-badge role-admin">Admin</span></h1>
 <p>ServiFlow can connect to a Microsoft 365 mailbox using the Microsoft Graph API with client credentials (app-only) authentication.</p>
 
@@ -1215,7 +1215,7 @@ New-ApplicationAccessPolicy `
 <div class="tip-box"><strong>Tip</strong>If the test fails with a 403 error, the access policy may not have propagated yet. Wait 30 minutes and try again. If it still fails, verify the security group membership and Application ID.</div>
 </section>
 
-<section id="email-threading" data-section>
+<section id="email-threading" data-section data-roles="admin">
 <h1>Email Threading</h1>
 <p>When a customer replies to a ticket notification email, ServiFlow matches the reply to the existing ticket using four methods (tried in order):</p>
 
@@ -1232,7 +1232,7 @@ New-ApplicationAccessPolicy `
 <div class="note-box"><strong>Note</strong>Some email clients strip the <code>[Ticket #NNNN]</code> token from the subject and don't preserve <code>In-Reply-To</code> headers. If threading is not working, check with the customer's email client.</div>
 </section>
 
-<section id="auto-reply" data-section>
+<section id="auto-reply" data-section data-roles="admin">
 <h1>Auto-Reply <span class="role-badge role-admin">Admin</span></h1>
 <p>When a new ticket is created from an incoming email, ServiFlow sends an automatic confirmation email to the sender.</p>
 
@@ -1246,7 +1246,7 @@ New-ApplicationAccessPolicy `
 <p>Auto-reply can be toggled on or off per tenant in <strong>Settings &gt; Email Ingest</strong>.</p>
 </section>
 
-<section id="email-outbound" data-section>
+<section id="email-outbound" data-section data-roles="admin">
 <h1>Outbound Email Notifications <span class="role-badge role-admin">Admin</span></h1>
 <p>Each email provider (IMAP and M365) has its own <strong>Enable Outbound Notifications</strong> toggle. When enabled, ticket notifications and system emails are sent from that provider's mailbox instead of the default system email.</p>
 
@@ -1259,7 +1259,7 @@ New-ApplicationAccessPolicy `
 <div class="note-box"><strong>Note</strong>Only one provider's outbound should be active at a time. The currently selected provider's outbound settings are saved when you click Save.</div>
 </section>
 
-<section id="company-email-notifs" data-section>
+<section id="company-email-notifs" data-section data-roles="admin">
 <h1>Company Email Controls <span class="role-badge role-admin">Admin</span></h1>
 <p>The <strong>Company Email Notifications</strong> grid (at the bottom of the Email Ingest settings page) gives you a consolidated view of email preferences for all customer companies.</p>
 
@@ -1275,7 +1275,7 @@ New-ApplicationAccessPolicy `
 <p>Toggle any checkbox to update the setting immediately. Changes take effect on the next notification event.</p>
 </section>
 
-<section id="email-notifications" data-section>
+<section id="email-notifications" data-section data-roles="admin,expert,customer">
 <h1>Email Notifications</h1>
 <p>ServiFlow sends email notifications for key ticket events. These can be enabled or disabled via <strong>Settings &gt; System Control</strong>.</p>
 
@@ -1297,7 +1297,7 @@ New-ApplicationAccessPolicy `
 <!-- ═══════════════════════════════════════════════════ -->
 <!--  CHAPTER 9: CUSTOMER MANAGEMENT                   -->
 <!-- ═══════════════════════════════════════════════════ -->
-<section id="managing-customers" data-section>
+<section id="managing-customers" data-section data-roles="admin">
 <h1>Managing Customers <span class="role-badge role-admin">Admin</span></h1>
 <p>Go to <strong>Customers</strong> in the sidebar to manage your customer accounts.</p>
 
@@ -1323,7 +1323,7 @@ New-ApplicationAccessPolicy `
 <div class="warning-box"><strong>Warning</strong>You cannot deactivate a customer who has active (open or in-progress) tickets. Close or reassign those tickets first.</div>
 </section>
 
-<section id="companies" data-section>
+<section id="companies" data-section data-roles="admin">
 <h1>Companies <span class="role-badge role-admin">Admin</span></h1>
 <p>Companies group multiple customer users under one organisation and enable domain-based email routing.</p>
 
@@ -1348,7 +1348,7 @@ New-ApplicationAccessPolicy `
 <p>You can assign an SLA level to a company. All tickets from users in that company will inherit this SLA (unless overridden at the user level). See <a href="#sla-assignment">How SLAs Apply</a>.</p>
 </section>
 
-<section id="customer-portal" data-section>
+<section id="customer-portal" data-section data-roles="customer">
 <h1>Customer Portal <span class="role-badge role-customer">Customer</span></h1>
 <p>The customer portal is a modern, gradient-styled interface that customers see when they log in. It uses friendly terminology ("Requests" instead of "Tickets") and a streamlined navigation with SVG icons.</p>
 
@@ -1382,7 +1382,7 @@ New-ApplicationAccessPolicy `
 <!-- ═══════════════════════════════════════════════════ -->
 <!--  CHAPTER 10: EXPERT MANAGEMENT                    -->
 <!-- ═══════════════════════════════════════════════════ -->
-<section id="managing-experts" data-section>
+<section id="managing-experts" data-section data-roles="admin">
 <h1>Managing Experts <span class="role-badge role-admin">Admin</span></h1>
 
 <h2>Inviting an Expert</h2>
@@ -1410,7 +1410,7 @@ New-ApplicationAccessPolicy `
 <p>When you deactivate an expert, their account is soft-deleted. Open tickets assigned to them should be reassigned first. Deactivated experts appear in a separate "Deleted Experts" list and can be reactivated if needed.</p>
 </section>
 
-<section id="expert-registration" data-section>
+<section id="expert-registration" data-section data-roles="admin">
 <h1>Expert Self-Registration <span class="role-badge role-admin">Admin</span></h1>
 <p>Staff members can self-register as experts by sending an email with the subject <code>Register_Expert</code> to your support inbox.</p>
 
@@ -1425,7 +1425,7 @@ New-ApplicationAccessPolicy `
 <div class="warning-box"><strong>Warning</strong>Only emails from the configured tenant domain can register. This prevents unauthorised registrations from external senders.</div>
 </section>
 
-<section id="expert-permissions" data-section>
+<section id="expert-permissions" data-section data-roles="admin">
 <h1>Expert Permissions <span class="role-badge role-admin">Admin</span></h1>
 <p>Experts have access to the following features:</p>
 <ul>
@@ -1450,7 +1450,7 @@ New-ApplicationAccessPolicy `
 <!-- ═══════════════════════════════════════════════════ -->
 <!--  CHAPTER 11: AUTOMATED ACTIONS                    -->
 <!-- ═══════════════════════════════════════════════════ -->
-<section id="automated-actions" data-section>
+<section id="automated-actions" data-section data-roles="admin">
 <h1>Automated Actions <span class="role-badge role-admin">Admin</span></h1>
 <p>Automated Actions are AI-powered rules that automatically process tickets matching specific criteria. They replace the older keyword-based ticket processing rules with more flexible, intelligent matching.</p>
 
@@ -1466,7 +1466,7 @@ New-ApplicationAccessPolicy `
 <p>Actions can be restricted to tickets from specific sources: <code>email</code>, <code>web</code>, <code>chatbot</code>, or <code>all</code>. This lets you create actions that only apply to, say, tickets created from inbound email.</p>
 </section>
 
-<section id="creating-actions" data-section>
+<section id="creating-actions" data-section data-roles="admin">
 <h1>Creating Actions <span class="role-badge role-admin">Admin</span></h1>
 
 <h2>Action Fields</h2>
@@ -1495,7 +1495,7 @@ New-ApplicationAccessPolicy `
 </table>
 </section>
 
-<section id="testing-actions" data-section>
+<section id="testing-actions" data-section data-roles="admin">
 <h1>Testing and Running Actions <span class="role-badge role-admin">Admin</span></h1>
 
 <h2>Test Mode</h2>
@@ -1511,7 +1511,7 @@ New-ApplicationAccessPolicy `
 <p>Each action maintains a history of its executions, including timestamps, number of matches, and results (success or failure).</p>
 </section>
 
-<section id="actions-best-practices" data-section>
+<section id="actions-best-practices" data-section data-roles="admin">
 <h1>Automated Actions Best Practices</h1>
 
 <h2>Common Patterns</h2>
@@ -1528,7 +1528,7 @@ New-ApplicationAccessPolicy `
 <div class="warning-box"><strong>Warning</strong>The <strong>Delete</strong> action permanently removes matching tickets. Use it with extreme caution and test thoroughly first.</div>
 </section>
 
-<section id="monitoring-correlation" data-section>
+<section id="monitoring-correlation" data-section data-roles="admin">
 <h1>Monitoring Alert Correlation <span class="role-badge role-admin">Admin</span></h1>
 <p>ServiFlow automatically correlates monitoring alerts by <strong>host</strong> and <strong>service</strong>, so that when a recovery notification arrives, the original alert ticket is closed automatically. This eliminates the need to manually close resolved alerts and reduces monitoring ticket noise by 80&ndash;90%.</p>
 
@@ -1576,7 +1576,7 @@ New-ApplicationAccessPolicy `
 <!-- ═══════════════════════════════════════════════════ -->
 <!--  CHAPTER 12: ANALYTICS                            -->
 <!-- ═══════════════════════════════════════════════════ -->
-<section id="analytics" data-section>
+<section id="analytics" data-section data-roles="admin,expert">
 <h1>Analytics Dashboard <span class="role-badge role-admin">Admin</span> <span class="role-badge role-expert">Expert</span></h1>
 <p>The Analytics dashboard provides visual insights into your service desk performance.</p>
 
@@ -1628,7 +1628,7 @@ New-ApplicationAccessPolicy `
 <p>Customers see a simplified analytics view showing only their own tickets: total created, currently open, and average response time.</p>
 </section>
 
-<section id="monthly-reports" data-section>
+<section id="monthly-reports" data-section data-roles="admin,customer">
 <h1>Monthly Reports <span class="role-badge role-admin">Admin</span> <span class="role-badge role-customer">Customer</span></h1>
 <p>Monthly Reports provide a formatted summary of ticket activity for a selected company over a chosen month.</p>
 
@@ -1659,7 +1659,7 @@ New-ApplicationAccessPolicy `
 <!-- ═══════════════════════════════════════════════════ -->
 <!--  CHAPTER 13: INTEGRATIONS                         -->
 <!-- ═══════════════════════════════════════════════════ -->
-<section id="teams-integration" data-section>
+<section id="teams-integration" data-section data-roles="admin">
 <h1>Microsoft Teams Integration <span class="role-badge role-admin">Admin</span></h1>
 <p>Connect ServiFlow to Microsoft Teams to receive ticket notifications and manage tickets directly from your Teams channels.</p>
 
@@ -1684,7 +1684,7 @@ New-ApplicationAccessPolicy `
 <div class="warning-box"><strong>Warning</strong>Your Microsoft 365 tenant must allow custom Teams apps (sideloading). This is configured in the Teams Admin Center under App Management. Contact your M365 administrator if sideloading is disabled.</div>
 </section>
 
-<section id="slack-integration" data-section>
+<section id="slack-integration" data-section data-roles="admin">
 <h1>Slack Integration <span class="role-badge role-admin">Admin</span></h1>
 <p>Connect ServiFlow to Slack to post ticket updates and receive notifications in your Slack workspace.</p>
 
@@ -1718,7 +1718,7 @@ New-ApplicationAccessPolicy `
 <!-- ═══════════════════════════════════════════════════ -->
 <!--  CHAPTER 14: ADMIN SETTINGS                       -->
 <!-- ═══════════════════════════════════════════════════ -->
-<section id="tenant-settings" data-section>
+<section id="tenant-settings" data-section data-roles="admin">
 <h1>Tenant Settings <span class="role-badge role-admin">Admin</span></h1>
 <p>Go to <strong>Settings &gt; Tenant Settings</strong> to configure your company profile.</p>
 
@@ -1734,7 +1734,7 @@ New-ApplicationAccessPolicy `
 </table>
 </section>
 
-<section id="email-ingest-config" data-section>
+<section id="email-ingest-config" data-section data-roles="admin">
 <h1>Email Ingest Configuration <span class="role-badge role-admin">Admin</span></h1>
 <p>Go to <strong>Settings &gt; Email Ingest</strong> to configure inbound email processing. The settings are organised into two provider tabs (IMAP and M365), each with independent controls.</p>
 
@@ -1759,7 +1759,7 @@ New-ApplicationAccessPolicy `
 <p>See <a href="#email-to-ticket">Email to Ticket</a> and <a href="#email-m365">Microsoft 365 Email</a> for full setup guides.</p>
 </section>
 
-<section id="system-admin-tools" data-section>
+<section id="system-admin-tools" data-section data-roles="admin">
 <h1>System Admin Tools <span class="role-badge role-admin">Admin</span></h1>
 <p>Sensitive configuration settings are grouped under <strong>System Admin Tools</strong> in a collapsible sidebar section. Accessing these tools requires <strong>password re-authentication</strong> (elevation) to prevent accidental changes.</p>
 
@@ -1776,7 +1776,7 @@ New-ApplicationAccessPolicy `
 <div class="note-box"><strong>Note</strong>The elevation token expires after 30 minutes. You will need to re-authenticate to continue making changes.</div>
 </section>
 
-<section id="system-control" data-section>
+<section id="system-control" data-section data-roles="admin">
 <h1>System Control <span class="role-badge role-admin">Admin</span></h1>
 <p>System control provides toggles to enable or disable major features.</p>
 
@@ -1792,7 +1792,7 @@ New-ApplicationAccessPolicy `
 <div class="warning-box"><strong>Warning</strong>Disabling <strong>Send Notifications</strong> stops all outbound emails, including SLA breach alerts, ticket confirmation emails, and customer notifications. Use with caution.</div>
 </section>
 
-<section id="housekeeping" data-section>
+<section id="housekeeping" data-section data-roles="admin">
 <h1>Housekeeping <span class="role-badge role-admin">Admin</span></h1>
 <p>Housekeeping manages data retention by automatically removing old, closed tickets and their activity logs based on configurable retention periods.</p>
 
@@ -1820,7 +1820,7 @@ New-ApplicationAccessPolicy `
 <div class="note-box"><strong>Note</strong>Only <strong>closed</strong> tickets are pruned. Open, in-progress, paused, and resolved tickets are never deleted by housekeeping.</div>
 </section>
 
-<section id="audit-log" data-section>
+<section id="audit-log" data-section data-roles="admin">
 <h1>Audit Log <span class="role-badge role-admin">Admin</span></h1>
 <p>The audit log records all significant admin actions for accountability and compliance.</p>
 
@@ -1843,7 +1843,7 @@ New-ApplicationAccessPolicy `
 <p>Filter the audit log by user, action type, or date range. Click <strong>Export</strong> to download the log as a CSV file.</p>
 </section>
 
-<section id="raw-variables" data-section>
+<section id="raw-variables" data-section data-roles="admin">
 <h1>Raw Variables <span class="role-badge role-admin">Admin</span></h1>
 <p>Raw Variables is a comprehensive configuration viewer that surfaces <strong>all system settings</strong> in one place. It aggregates data from 12 sections covering tenant settings, email configuration, SLA definitions, automation rules, customer company config, CMDB settings, user notification preferences, and more. Found under <strong>Settings &rarr; Raw Variables</strong> (labelled "Developer Mode").</p>
 
@@ -1962,7 +1962,7 @@ New-ApplicationAccessPolicy `
 <!-- ═══════════════════════════════════════════════════ -->
 <!--  CHAPTER 15: BILLING AND SUBSCRIPTION             -->
 <!-- ═══════════════════════════════════════════════════ -->
-<section id="plans" data-section>
+<section id="plans" data-section data-roles="admin">
 <h1>Plans</h1>
 <p>ServiFlow offers three plans to suit organisations of different sizes.</p>
 
@@ -1978,7 +1978,7 @@ New-ApplicationAccessPolicy `
 </table>
 </section>
 
-<section id="subscription" data-section>
+<section id="subscription" data-section data-roles="admin">
 <h1>Managing Your Subscription <span class="role-badge role-admin">Admin</span></h1>
 
 <h2>Trial</h2>
@@ -2006,7 +2006,7 @@ New-ApplicationAccessPolicy `
 <!-- ═══════════════════════════════════════════════════ -->
 <!--  CHAPTER 16: USAGE AND LIMITS                     -->
 <!-- ═══════════════════════════════════════════════════ -->
-<section id="usage" data-section>
+<section id="usage" data-section data-roles="admin">
 <h1>Usage and Limits <span class="role-badge role-admin">Admin</span></h1>
 <p>The Usage dashboard shows how much of your plan's allowance you are using.</p>
 
@@ -2047,32 +2047,122 @@ New-ApplicationAccessPolicy `
 </div>
 
 <script>
+// --- Role filtering ---
+var params = new URLSearchParams(window.location.search);
+var userRole = params.get('role') || localStorage.getItem('role') || '';
+var ctx = params.get('ctx') || '';
+
+// Set of section IDs hidden by role filter
+var roleHidden = new Set();
+
+(function applyRoleFilter() {
+  // Dynamic title and brand
+  var titles = { admin: 'ServiFlow Administrator Manual', expert: 'ServiFlow Expert Guide', customer: 'ServiFlow User Guide' };
+  if (titles[userRole]) {
+    document.title = titles[userRole];
+    var brand = document.querySelector('.doc-sidebar .brand');
+    if (brand) brand.innerHTML = '<span>ServiFlow</span> ' + titles[userRole].replace('ServiFlow ', '');
+  }
+
+  // Admin sees everything — no filtering
+  if (!userRole || userRole === 'admin') return;
+
+  // Hide sections whose data-roles doesn't include the user's role
+  document.querySelectorAll('.doc-main section[data-section]').forEach(function(sec) {
+    var roles = (sec.getAttribute('data-roles') || '').split(',');
+    if (roles.indexOf(userRole) === -1) {
+      sec.style.display = 'none';
+      roleHidden.add(sec.id);
+    }
+  });
+
+  // Hide corresponding sidebar links
+  document.querySelectorAll('.doc-sidebar a[href^="#"]').forEach(function(link) {
+    var id = link.getAttribute('href').substring(1);
+    if (roleHidden.has(id)) link.style.display = 'none';
+  });
+
+  // Hide section-label headers when all their links are hidden
+  document.querySelectorAll('.doc-sidebar .section-label').forEach(function(label) {
+    var next = label.nextElementSibling;
+    var anyVisible = false;
+    while (next && !next.classList.contains('section-label')) {
+      if (next.tagName === 'A' && next.style.display !== 'none') anyVisible = true;
+      next = next.nextElementSibling;
+    }
+    if (!anyVisible) label.style.display = 'none';
+  });
+})();
+
+// --- Search filtering (respects role filter) ---
 function filterSections(q) {
   q = q.toLowerCase().trim();
   document.querySelectorAll('.doc-main section[data-section]').forEach(function(sec) {
+    if (roleHidden.has(sec.id)) { sec.style.display = 'none'; return; }
     if (!q) { sec.style.display = ''; return; }
     sec.style.display = sec.textContent.toLowerCase().includes(q) ? '' : 'none';
   });
-  // Also filter sidebar links
   document.querySelectorAll('.doc-sidebar a[href^="#"]').forEach(function(link) {
+    var id = link.getAttribute('href').substring(1);
+    if (roleHidden.has(id)) { link.style.display = 'none'; return; }
     if (!q) { link.style.display = ''; return; }
     link.style.display = link.textContent.toLowerCase().includes(q) ? '' : 'none';
   });
+  // Re-evaluate section-label visibility
+  document.querySelectorAll('.doc-sidebar .section-label').forEach(function(label) {
+    if (roleHidden.size && label.style.display === 'none' && !label.dataset.roleHidden) return;
+    var next = label.nextElementSibling;
+    var anyVisible = false;
+    while (next && !next.classList.contains('section-label')) {
+      if (next.tagName === 'A' && next.style.display !== 'none') anyVisible = true;
+      next = next.nextElementSibling;
+    }
+    label.style.display = anyVisible ? '' : 'none';
+  });
 }
-// Highlight active sidebar link on scroll
+
+// Mark role-hidden labels so search can distinguish
+document.querySelectorAll('.doc-sidebar .section-label').forEach(function(label) {
+  if (label.style.display === 'none') label.dataset.roleHidden = '1';
+});
+
+// --- Context-sensitive scrolling ---
+(function scrollToContext() {
+  if (!ctx) return;
+  var ctxMap = {
+    'dash': { admin: 'admin-dashboard', expert: 'expert-dashboard', customer: 'customer-dashboard' },
+    'tickets': 'ticket-list',
+    'cmdb': 'cmdb-overview',
+    'knowledge-base': 'kb-overview',
+    'analytics': 'analytics',
+    'sla': 'understanding-slas',
+    'admin-settings': 'tenant-settings',
+    'raise': 'creating-tickets'
+  };
+  var target = ctxMap[ctx];
+  if (typeof target === 'object') target = target[userRole] || target['admin'];
+  if (!target) return;
+  var el = document.getElementById(target);
+  if (el && el.style.display !== 'none') {
+    setTimeout(function() { el.scrollIntoView({ behavior: 'smooth' }); }, 100);
+  }
+})();
+
+// --- Highlight active sidebar link on scroll ---
 var sidebarLinks = document.querySelectorAll('.doc-sidebar a[href^="#"]');
 window.addEventListener('scroll', function() {
   var fromTop = window.scrollY + 80;
   var found = false;
   for (var i = sidebarLinks.length - 1; i >= 0; i--) {
     var sec = document.querySelector(sidebarLinks[i].getAttribute('href'));
-    if (!found && sec && sec.offsetTop <= fromTop) {
+    if (!found && sec && sec.offsetTop <= fromTop && sec.style.display !== 'none') {
       sidebarLinks.forEach(function(l) { l.classList.remove('active'); });
       sidebarLinks[i].classList.add('active');
       found = true;
     }
   }
 });
+
 // Close mobile menu on link click
 sidebarLinks.forEach(function(link) {
   link.addEventListener('click', function() {

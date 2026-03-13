@@ -42,3 +42,9 @@ credentials.json
 # Environment backups
 .env.bak
 .env.backup
+
+# Playwright
+playwright/.auth/
+playwright-report/
+test-results/
+artifacts/screenshots/

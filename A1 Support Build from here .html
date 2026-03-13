@@ -31552,7 +31552,7 @@ function userMenuAction(action) {
   closeUserMenu();
   if (action === 'switch') switchRole();
   else if (action === 'tour') startWalkthrough();
-  else if (action === 'manual') window.open('/docs.html', '_blank');
+  else if (action === 'manual') window.open('/docs.html?role=' + encodeURIComponent(window.role || role || 'admin') + '&ctx=' + encodeURIComponent(currentView || ''), '_blank');
   else if (action === 'signout') logout();
 }
 /* ── Legacy help menu aliases (for any remaining references) ── */
