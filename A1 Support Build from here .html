@@ -94,6 +94,7 @@ vNext-FULL-ActionsSLA:
   .topnav-btn.ghost:hover{background:var(--card-hover);color:var(--ink)}
   .topnav-btn.primary{background:var(--primary);color:var(--bg);border-color:var(--primary)}
   .topnav-btn.primary:hover{background:var(--primary-dark)}
+  .user-menu-item:hover{background:var(--card-hover,#f1f5f9) !important}
 
   /* Theme Toggle Dropdown */
   .theme-dropdown{position:relative}
@@ -180,7 +181,7 @@ vNext-FULL-ActionsSLA:
   /* Collapsible Nav Group */
   .nav-group{margin-bottom:0}
   .nav-group .navlink{display:flex;justify-content:space-between;align-items:center}
-  .nav-group .chev{font-size:10px;transition:transform .15s}
+  .nav-group .chev{font-size:10px;transition:transform .15s;margin-left:auto}
   .nav-group.open > .navlink > .chev,
   .nav-group.open > .subtitle > .chev{transform:rotate(90deg)}
   .nav-subitems{display:none;padding-left:34px}
@@ -497,11 +498,11 @@ vNext-FULL-ActionsSLA:
     margin-bottom: 6px; padding: 0 2px;
   }
 
-  #tickets-table td:nth-child(3) {
-    white-space: normal;
-    word-break: normal;
-    min-width: 200px;
-  }
+  #tickets-table thead{display:none}
+  #tickets-table td{border-bottom:none;padding:0}
+  #tickets-table tr{border-bottom:1px solid var(--border)}
+  #tickets-table tr:last-child{border-bottom:none}
+  #tickets-table tr:hover{background:var(--card-hover,#f8fafc)}
 
   .ticket-filter-grid {
     display: grid !important;
@@ -1552,21 +1553,14 @@ vNext-FULL-ActionsSLA:
         <span></span>
       </button>
       <!-- Sidebar collapse toggle (desktop only) -->
-      <button class="sidebar-toggle-btn" id="sidebar-toggle-btn" onclick="toggleSidebar()" title="Toggle sidebar (Ctrl+B)" style="display:none;padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--card);cursor:pointer;align-items:center;justify-content:center;gap:6px;font-size:13px;font-weight:500;color:var(--muted)">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3" y="3" width="18" height="18" rx="2"/>
-          <line x1="9" y1="3" x2="9" y2="21"/>
-          <polyline points="14 9 11 12 14 15"/>
+      <button class="sidebar-toggle-btn" id="sidebar-toggle-btn" onclick="toggleSidebar()" title="Toggle sidebar (Ctrl+B)" style="display:none;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--card);cursor:pointer;align-items:center;justify-content:center;font-size:13px;font-weight:500;color:var(--muted)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="3" y1="6" x2="21" y2="6"/>
+          <line x1="3" y1="12" x2="21" y2="12"/>
+          <line x1="3" y1="18" x2="21" y2="18"/>
         </svg>
-        <span class="sidebar-toggle-label">Menu</span>
       </button>
       <a href="#" class="topnav-brand" onclick="go('login'); return false;">
-        <div class="logo-icon">
-          <svg viewBox="0 0 100 100">
-            <rect width="100" height="100" rx="16"/>
-            <text x="50" y="66" text-anchor="middle" font-family="system-ui, sans-serif" font-size="44" font-weight="600">SF</text>
-          </svg>
-        </div>
         <span>ServiFlow</span>
       </a>
     </div>
@@ -1612,17 +1606,10 @@ vNext-FULL-ActionsSLA:
         <span class="search-shortcut">Ctrl+K</span>
       </button>
       <div class="topnav-right" id="topnav-right" style="display:none">
-      <div class="topnav-user" onclick="go('login')">
-        <div class="topnav-avatar" id="topnav-avatar">A</div>
-        <div>
-          <div class="topnav-name" id="topnav-username">Admin</div>
-          <div class="topnav-role" id="topnav-role">Admin</div>
-        </div>
-      </div>
       <div id="topnav-impersonation" style="display:none;padding:4px 12px;border-radius:999px;background:#fef3c7;color:#92400e;font-size:11px;font-weight:500;border:1px solid #f59e0b;display:none;align-items:center;gap:6px;white-space:nowrap;">
-        <span>👁️</span>
-        <span id="topnav-impersonation-name">—</span>
-        <button onclick="clearImpersonation()" style="background:none;border:none;cursor:pointer;color:#92400e;font-weight:bold;padding:0 2px;font-size:14px;line-height:1;" title="Exit impersonation">×</button>
+        <span>&#128065;&#65039;</span>
+        <span id="topnav-impersonation-name">&#8212;</span>
+        <button onclick="clearImpersonation()" style="background:none;border:none;cursor:pointer;color:#92400e;font-weight:bold;padding:0 2px;font-size:14px;line-height:1;" title="Exit impersonation">&#215;</button>
       </div>
       <div id="elevation-badge" style="display:none;padding:4px 12px;border-radius:999px;background:#dcfce7;color:#166534;font-size:11px;font-weight:500;border:1px solid #22c55e;align-items:center;gap:4px;white-space:nowrap;margin-right:8px;cursor:default;" title="Elevated System Admin session active (30 min)">
         <span>System Admin</span>
@@ -1638,20 +1625,35 @@ vNext-FULL-ActionsSLA:
           <option value="">Switch Persona...</option>
         </select>
       </div>
-      <div class="topnav-actions">
-        <div style="position:relative;display:inline-block;">
-          <button id="wt-help-btn" class="topnav-btn ghost" onclick="toggleHelpMenu(event)" title="Help">? Help</button>
-          <div id="help-menu" style="display:none;position:absolute;right:0;top:100%;margin-top:4px;background:var(--card-bg,#fff);border:1px solid var(--border,#e2e8f0);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.15);min-width:180px;z-index:9999;overflow:hidden;">
-            <button onclick="helpMenuAction('tour')" style="display:flex;align-items:center;gap:8px;width:100%;padding:10px 14px;border:none;background:none;cursor:pointer;font-size:13px;color:var(--text,#1e293b);text-align:left;" onmouseenter="this.style.background='var(--hover-bg,#f1f5f9)'" onmouseleave="this.style.background='none'">
-              <span style="font-size:15px;">&#x1F44B;</span> Welcome Tour
-            </button>
-            <button onclick="helpMenuAction('manual')" style="display:flex;align-items:center;gap:8px;width:100%;padding:10px 14px;border:none;background:none;cursor:pointer;font-size:13px;color:var(--text,#1e293b);text-align:left;" onmouseenter="this.style.background='var(--hover-bg,#f1f5f9)'" onmouseleave="this.style.background='none'">
-              <span style="font-size:15px;">&#x1F4D6;</span> User Manual
-            </button>
+      <div class="user-menu-wrapper" style="position:relative">
+        <div class="topnav-user" onclick="toggleUserMenu(event)">
+          <div class="topnav-avatar" id="topnav-avatar">A</div>
+          <div>
+            <div class="topnav-name" id="topnav-username">Admin</div>
+            <div class="topnav-role" id="topnav-role">Admin</div>
           </div>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-left:2px;opacity:.5"><polyline points="6 9 12 15 18 9"/></svg>
         </div>
-        <button class="topnav-btn ghost" id="topnav-switch-btn" onclick="switchRole()">Switch</button>
-        <button class="topnav-btn ghost" onclick="logout()">Sign out</button>
+        <div id="user-menu" style="display:none;position:absolute;right:0;top:calc(100% + 6px);background:var(--card-bg,#fff);border:1px solid var(--border,#e2e8f0);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.15);min-width:200px;z-index:9999;overflow:hidden;padding:4px 0;">
+          <button id="user-menu-switch-btn" onclick="userMenuAction('switch')" class="user-menu-item" style="display:flex;align-items:center;gap:10px;width:100%;padding:10px 16px;border:none;background:none;cursor:pointer;font-size:13px;color:var(--ink);text-align:left;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>
+            Switch Role
+          </button>
+          <div style="height:1px;background:var(--border,#e2e8f0);margin:4px 12px;"></div>
+          <button onclick="userMenuAction('tour')" class="user-menu-item" style="display:flex;align-items:center;gap:10px;width:100%;padding:10px 16px;border:none;background:none;cursor:pointer;font-size:13px;color:var(--ink);text-align:left;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            Welcome Tour
+          </button>
+          <button onclick="userMenuAction('manual')" class="user-menu-item" style="display:flex;align-items:center;gap:10px;width:100%;padding:10px 16px;border:none;background:none;cursor:pointer;font-size:13px;color:var(--ink);text-align:left;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+            User Manual
+          </button>
+          <div style="height:1px;background:var(--border,#e2e8f0);margin:4px 12px;"></div>
+          <button onclick="userMenuAction('signout')" class="user-menu-item" style="display:flex;align-items:center;gap:10px;width:100%;padding:10px 16px;border:none;background:none;cursor:pointer;font-size:13px;color:#dc2626;text-align:left;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            Sign Out
+          </button>
+        </div>
       </div>
     </div>
     </div>
@@ -1808,10 +1810,9 @@ vNext-FULL-ActionsSLA:
 
   <!-- APP - Hidden by default, shown after authentication -->
   <section id="scr-app" class="screen" style="display:none">
-    <div class="row space mb-20 wrap" style="padding-bottom:16px;border-bottom:1px solid var(--border)">
+    <div class="row space mb-12 wrap" style="padding-bottom:8px;border-bottom:1px solid var(--border)">
       <div>
         <h2 class="title" id="app-title">Dashboard</h2>
-        <div class="subtitle" id="app-subtitle">ServiFlow – role-based workspace</div>
       </div>
       <div class="row wrap" style="gap:8px">
         <span id="chip-role" style="display:none">admin</span>
@@ -2117,7 +2118,6 @@ vNext-FULL-ActionsSLA:
               <h3 class="title" style="margin:0;font-size:16px">Expert Dashboard</h3>
               <div class="row" style="gap:6px">
                 <button class="btn ghost" onclick="navTo('tickets')" style="padding:4px 10px;font-size:12px">Open Queue</button>
-                <button class="btn ghost" onclick="navTo('cmdb')" style="padding:4px 10px;font-size:12px">Search CMDB</button>
                 <button class="btn ghost" onclick="navTo('knowledge-base')" style="padding:4px 10px;font-size:12px">Knowledge Base</button>
                 <button class="btn primary" onclick="navTo('raise')" style="padding:4px 10px;font-size:12px">Log Request</button>
               </div>
@@ -3831,16 +3831,7 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
         </div>
 
         <!-- Ticket Detail -->
-        <!-- Fullscreen Exit Button (outside ticket detail to avoid overflow clipping) -->
-        <button class="fullscreen-exit-btn" onclick="exitFullscreen()">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="4 14 10 14 10 20"/>
-            <polyline points="20 10 14 10 14 4"/>
-            <line x1="14" y1="10" x2="21" y2="3"/>
-            <line x1="3" y1="21" x2="10" y2="14"/>
-          </svg>
-          Exit Fullscreen
-        </button>
+        <!-- Fullscreen exit handled via Escape key / sidebar toggle -->
         <div id="view-ticket-detail" style="display:none">
           <!-- Ticket Detail Header -->
           <div style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);border-radius:16px;padding:14px 24px 16px;color:#fff;margin-bottom:12px;position:relative;overflow:hidden">
@@ -9266,14 +9257,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     document.getElementById('dash-customer').style.display = currentRole==='customer' ? 'block' : 'none';
     document.getElementById('dash-master').style.display = currentRole==='super_admin' ? 'block' : 'none';
     document.getElementById('app-title').textContent = currentRole==='customer' ? 'My Dashboard' : (currentRole==='expert' ? 'Expert Dashboard' : (currentRole==='super_admin' ? 'Master Admin Dashboard' : 'Admin Dashboard'));
-    document.getElementById('app-subtitle').textContent = currentRole==='customer' ? 'Welcome to your ServiFlow portal' : (currentRole==='expert' ? 'SLA focus & queue' : (currentRole==='super_admin' ? 'System-wide management & tenant oversight' : 'Platform health & governance'));
 
     // Show/hide Asset Viewer nav items (apoyar tenant only, not demo)
     updateAssetViewerNav();
-
-    // Simplify title bar for customers
-    const appSubtitle = document.getElementById('app-subtitle');
-    if (appSubtitle) appSubtitle.style.display = (currentRole === 'customer') ? 'none' : '';
 
     // Update top navigation user info
     const username = (window.currentUser && window.currentUser.username) ? window.currentUser.username : 'User';
@@ -9303,8 +9289,6 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     const isCustomer = (currentRole === 'customer');
     const fsToggle = document.querySelector('.fullscreen-toggle-btn');
     if (fsToggle) fsToggle.style.display = isCustomer ? 'none' : '';
-    const fsExit = document.querySelector('.fullscreen-exit-btn');
-    if (fsExit) fsExit.style.display = isCustomer ? 'none' : '';
 
     // Hide impersonation pill for customers (admin can still use Switch to get back)
     const impersonationPill = document.getElementById('topnav-impersonation');
@@ -9336,9 +9320,9 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
     // Admin: can switch, Expert: can switch, Customer: cannot switch
     const loginRole = window.loginRole || currentRole;
     const canSwitchRoles = loginRole === 'admin' || loginRole === 'expert';
-    const topnavSwitchBtn = document.getElementById('topnav-switch-btn');
+    const topnavSwitchBtn = document.getElementById('user-menu-switch-btn');
     const ionicSwitchBtn = document.getElementById('ionic-switch-role-btn');
-    if (topnavSwitchBtn) topnavSwitchBtn.style.display = canSwitchRoles ? 'inline-flex' : 'none';
+    if (topnavSwitchBtn) topnavSwitchBtn.style.display = canSwitchRoles ? 'flex' : 'none';
     if (ionicSwitchBtn) ionicSwitchBtn.style.display = canSwitchRoles ? 'block' : 'none';
 
     // Update impersonation indicator
@@ -19405,31 +19389,53 @@ IMAP_REJECT_UNAUTHORIZED=false</pre>
             if (opt.value === 'customer' || opt.value === 'assignee') opt.style.display = isCustomerRole ? 'none' : '';
           });
         }
-        // Hide Customer column header and rename Assignee to Expert for customers
-        const ticketTable = document.getElementById('tickets-table');
-        if (ticketTable) {
-          const ths = ticketTable.querySelectorAll('thead th');
-          ths.forEach(th => {
-            if (th.textContent.includes('Customer')) th.style.display = isCustomerRole ? 'none' : '';
-            if (th.textContent.includes('Assignee') || th.textContent.includes('Expert')) {
-              th.innerHTML = isCustomerRole ? 'Expert ⇅' : 'Assignee ⇅';
-            }
-          });
-        }
-
         // Render tickets (already filtered and paginated by server)
         if (tickets.length === 0) {
           tb.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:14px;">No tickets match your filters</td></tr>';
         } else {
+          const statusColors = {Open:'#3b82f6','In Progress':'#f59e0b',Pending:'#8b5cf6',Resolved:'#10b981',Closed:'#6b7280'};
+          const prioColors = {critical:'#dc2626',high:'#f59e0b',medium:'#3b82f6',low:'#6b7280'};
           tickets.forEach(t=>{
             const tr=document.createElement('tr');
+            tr.style.cursor='pointer';
             const sla = getSLAState(t);
-            const dateTime = formatDateTime(t.created);
             const isSelected = selectedTicketIds.has(t.id);
             const systemBadge = systemSourceBadgeHTML(t, true);
-            const checkboxTd = isCustomerRole ? '' : `<td onclick="event.stopPropagation()"><input type="checkbox" class="ticket-checkbox" data-ticket-id="${t.id}" ${isSelected ? 'checked' : ''} onchange="onTicketCheckboxChange(${t.id}, this.checked)"></td>`;
-            const customerTd = isCustomerRole ? '' : `<td onclick="openTicket(${t.id})">${t.customer}</td>`;
-            tr.innerHTML = `${checkboxTd}<td onclick="openTicket(${t.id})">#${t.id}${systemBadge}</td><td onclick="openTicket(${t.id})">${t.title}</td><td onclick="openTicket(${t.id})">${dateTime}</td><td onclick="openTicket(${t.id})">${t.priority||'—'}</td><td onclick="openTicket(${t.id})">${t.status}</td><td onclick="openTicket(${t.id})">${t.assignee||'—'}</td>${customerTd}<td onclick="openTicket(${t.id})">${slaBadgeHTML(sla)}</td>`;
+            const timeAgo = t.created ? getTimeAgo(new Date(t.created)) : '';
+            const sColor = statusColors[t.status] || '#6b7280';
+            const pColor = prioColors[(t.priority||'').toLowerCase()] || '#6b7280';
+            const assigneeLabel = isCustomerRole ? 'Expert' : 'Assignee';
+
+            // Line 1: #ID + system badge + Title
+            const line1 = `<div style="display:flex;align-items:center;gap:6px;min-width:0">
+              <span style="color:var(--muted);font-size:12px;font-weight:500;white-space:nowrap">#${t.id}</span>
+              ${systemBadge}
+              <span style="font-weight:500;font-size:14px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.title}</span>
+            </div>`;
+
+            // Line 2: Customer + Asset + time ago + Assignee
+            const custPart = isCustomerRole ? '' : `<span>${t.customer||'—'}</span><span style="opacity:.3">·</span>`;
+            const assetPart = t.cmdb_item_name ? `<span>${t.cmdb_item_name}</span><span style="opacity:.3">·</span>` : '';
+            const line2 = `<div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);margin-top:3px;flex-wrap:wrap">
+              ${custPart}${assetPart}<span>${timeAgo}</span>
+              <span style="margin-left:auto;white-space:nowrap">${(t.assignee && t.assignee !== '—') ? '→ ' + t.assignee : ''}</span>
+            </div>`;
+
+            // Line 3: Status + SLA + Priority badges
+            const statusBadge = `<span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:500;background:${sColor}18;color:${sColor};border:1px solid ${sColor}40">${t.status}</span>`;
+            const prioBadge = t.priority ? `<span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:500;background:${pColor}18;color:${pColor};border:1px solid ${pColor}40">${t.priority}</span>` : '';
+            const line3 = `<div style="display:flex;align-items:center;gap:6px;margin-top:4px">${statusBadge} ${slaBadgeHTML(sla)} ${prioBadge}</div>`;
+
+            const checkboxHTML = isCustomerRole ? '' : `<div onclick="event.stopPropagation()" style="display:flex;align-items:center;padding-right:8px"><input type="checkbox" class="ticket-checkbox" data-ticket-id="${t.id}" ${isSelected ? 'checked' : ''} onchange="onTicketCheckboxChange(${t.id}, this.checked)"></div>`;
+
+            tr.innerHTML = `<td colspan="9" style="padding:10px 12px" onclick="openTicket(${t.id})">
+              <div style="display:flex;align-items:flex-start">
+                ${checkboxHTML}
+                <div style="flex:1;min-width:0">
+                  ${line1}${line2}${line3}
+                </div>
+              </div>
+            </td>`;
             if (isSelected) tr.style.backgroundColor = '#e0f2fe';
             tb.appendChild(tr);
           });
@@ -31430,7 +31436,7 @@ const wtSteps = [
   { sel:null, pos:'center', title:'Ticket Lifecycle', body:'Tickets flow through <b>Open → In Progress → Resolved → Closed</b>. Self-assign, reassign, add internal notes, or reply directly to customers. SLA timers track both <b>response</b> and <b>resolution</b> targets.' },
 
   // Section 5: Wrap-up
-  { sel:null, pos:'center', title:'You\'re All Set!', body:'That covers the essentials. Click the <b>? Help</b> button in the top bar any time to replay this tour. For detailed documentation, visit <a href="/docs.html" target="_blank" style="color:var(--primary)">the Documentation page</a>.' }
+  { sel:null, pos:'center', title:'You\'re All Set!', body:'That covers the essentials. Click your <b>avatar</b> in the top bar and select <b>Welcome Tour</b> any time to replay this tour. For detailed documentation, visit <a href="/docs.html" target="_blank" style="color:var(--primary)">the Documentation page</a>.' }
 ];
 let wtIdx = 0;
 
@@ -31527,27 +31533,32 @@ function wtShowStep() {
 function wtNext() { if (wtIdx < wtSteps.length - 1) { wtIdx++; wtShowStep(); } else { endWalkthrough(); } }
 function wtBack() { if (wtIdx > 0) { wtIdx--; wtShowStep(); } }
 
-/* ── Help menu ── */
-function toggleHelpMenu(e) {
+/* ── User menu dropdown ── */
+function toggleUserMenu(e) {
   e.stopPropagation();
-  const m = document.getElementById('help-menu');
+  const m = document.getElementById('user-menu');
   if (!m) return;
   const show = m.style.display === 'none';
   m.style.display = show ? 'block' : 'none';
   if (show) {
-    // Close on outside click
-    setTimeout(() => document.addEventListener('click', closeHelpMenu, { once: true }), 0);
+    setTimeout(() => document.addEventListener('click', closeUserMenu, { once: true }), 0);
   }
 }
-function closeHelpMenu() {
-  const m = document.getElementById('help-menu');
+function closeUserMenu() {
+  const m = document.getElementById('user-menu');
   if (m) m.style.display = 'none';
 }
-function helpMenuAction(action) {
-  closeHelpMenu();
-  if (action === 'tour') startWalkthrough();
+function userMenuAction(action) {
+  closeUserMenu();
+  if (action === 'switch') switchRole();
+  else if (action === 'tour') startWalkthrough();
   else if (action === 'manual') window.open('/docs.html', '_blank');
+  else if (action === 'signout') logout();
 }
+/* ── Legacy help menu aliases (for any remaining references) ── */
+function toggleHelpMenu(e) { toggleUserMenu(e); }
+function closeHelpMenu() { closeUserMenu(); }
+function helpMenuAction(action) { userMenuAction(action); }
 
 function startWalkthrough() {
   wtIdx = 0;
